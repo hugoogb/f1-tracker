@@ -70,7 +70,10 @@ def _handle_signal(signum, frame):
     logger.warning(f"{sig_name} received, finishing current operation then backing up...")
 
 
-INGESTOR_FLAGS = ["base", "results", "qualifying", "sprints", "standings", "pitstops", "postprocess"]
+INGESTOR_FLAGS = [
+    "base", "results", "qualifying", "sprints", "standings",
+    "pitstops", "backfill-qualifying", "postprocess",
+]
 
 
 def parse_args() -> argparse.Namespace:
@@ -94,7 +97,7 @@ if __name__ == "__main__":
     signal.signal(signal.SIGTERM, _handle_signal)
 
     # Build targets: None = run all, set = run only selected
-    selected = {f for f in INGESTOR_FLAGS if getattr(args, f)}
+    selected = {f for f in INGESTOR_FLAGS if getattr(args, f.replace("-", "_"))}
     targets = selected or None
 
     # 1. Restore existing backup so we don't re-fetch data we already have
