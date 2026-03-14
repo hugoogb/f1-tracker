@@ -17,3 +17,12 @@
 ## Backend / Frontend Alignment
 
 - **Field name consistency**: Always verify backend response field names match frontend type definitions. Example: backend used `championshipPosition` but frontend types initially had `position`. Check the actual API response shape before defining TypeScript types.
+
+## Testing
+
+- **SQLite in-memory with FastAPI TestClient**: Must use `StaticPool` from SQLAlchemy to share the same in-memory DB connection across threads. Without it, the TestClient's thread gets a different connection where tables don't exist.
+- **Exclude Alembic from ruff**: Auto-generated migration files have style issues (trailing whitespace, old Union syntax, long lines). Add `extend-exclude = ["alembic"]` to `[tool.ruff]`.
+
+## Monorepo / Lint-Staged
+
+- **eslint in workspace**: `eslint --fix` in root lint-staged config fails because `eslint` is only installed in `apps/web/`. Either use `pnpm --filter web lint` (but that runs a script, not a file-scoped command), or just run Prettier in pre-commit and leave eslint for CI.

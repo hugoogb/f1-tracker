@@ -7,7 +7,7 @@
 - [x] Init Python project with uv, add dependencies
 - [x] Docker Compose with PostgreSQL 16
 - [x] Create .env.example, .gitignore, CLAUDE.md
-- [ ] Set up Husky + lint-staged
+- [x] Set up Husky + lint-staged
 
 ## Phase 1: Database & Data Pipeline
 - [x] Define SQLAlchemy models for all entities
@@ -32,7 +32,7 @@
 - [x] Add constructor roster endpoint
 - [x] Add nationality/country distinct value endpoints
 - [x] Add circuits router (list, detail, countries)
-- [ ] Write API tests
+- [x] Write API tests (16 tests: health, seasons, drivers, circuits)
 
 ## Phase 3: Next.js Frontend - Core Pages
 - [x] Layout: header with nav links, mobile hamburger menu, theme toggle
@@ -60,10 +60,14 @@
 - [x] Home page stats cards (total seasons, drivers, constructors, races)
 - [x] Recent champions section on home page
 
-## Phase 6: Remaining Work
+## Phase 6: Polish, Testing & CI
+- [x] SEO metadata for all pages (home, compare layout)
+- [x] Accessibility (skip-to-main link, aria-labels on tables + charts, ARIA on driver-select)
+- [x] Type-check script (tsc --noEmit)
+- [x] Backend tests (pytest + SQLite in-memory, 16 tests)
+- [x] CI pipeline (GitHub Actions: lint, typecheck, build, ruff, pytest)
+- [x] Ruff formatting + lint fixes across backend
+
+## Remaining Work (Future)
 - [ ] Complete data ingestion (qualifying, standings, pit stops, sprints, 2008-present)
-- [ ] Responsive design pass
-- [ ] SEO metadata for all pages
-- [ ] CI pipeline (lint, test, build)
-- [ ] API tests
-- [ ] Set up Husky + lint-staged
+- [ ] Run full initial load, verify data integrity
