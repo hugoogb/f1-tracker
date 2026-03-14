@@ -13,15 +13,18 @@ export function ErrorBoundary({
   reset,
 }: ErrorBoundaryProps) {
   return (
-    <div className="flex min-h-[50vh] flex-col items-center justify-center gap-4 text-center">
-      <div className="text-muted-foreground/40">
-        <AlertTriangle className="h-16 w-16" strokeWidth={1} />
+    <div className="flex min-h-[50vh] flex-col items-center justify-center">
+      <div className="glass relative max-w-md rounded-xl px-8 py-10 text-center">
+        <div className="bg-primary/20 absolute top-0 left-0 h-full w-1 rounded-l-xl" />
+        <div className="text-destructive/60 mb-4">
+          <AlertTriangle className="mx-auto h-12 w-12" strokeWidth={1.5} />
+        </div>
+        <h2 className="mb-2">Something went wrong</h2>
+        <p className="text-muted-foreground mb-6 text-sm">{message}</p>
+        <Button onClick={reset} variant="outline">
+          Try again
+        </Button>
       </div>
-      <h2 className="text-xl font-semibold">Something went wrong</h2>
-      <p className="text-muted-foreground max-w-sm text-sm">{message}</p>
-      <Button onClick={reset} variant="outline">
-        Try again
-      </Button>
     </div>
   )
 }

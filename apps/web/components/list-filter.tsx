@@ -33,7 +33,9 @@ export function ListFilter({ label, paramName, options }: ListFilterProps) {
 
   return (
     <div className="flex items-center gap-2">
-      <label className="text-muted-foreground text-sm">{label}:</label>
+      <label className="text-muted-foreground text-xs font-medium tracking-wider uppercase">
+        {label}
+      </label>
       <Select value={current || 'all'} onValueChange={handleChange}>
         <SelectTrigger className="h-9 w-[180px]">
           <SelectValue placeholder="All" />

@@ -78,7 +78,7 @@ export default function ComparePage() {
             <Link
               key={comp.label}
               href={`/compare/drivers?d1=${comp.d1}&d2=${comp.d2}`}
-              className="border-border hover:border-primary/30 hover:bg-accent/50 rounded-lg border px-3 py-1.5 text-sm transition-colors"
+              className="glass hover:border-primary/30 hover:bg-accent/50 rounded-lg px-3 py-1.5 text-sm transition-colors"
             >
               {comp.label}
             </Link>

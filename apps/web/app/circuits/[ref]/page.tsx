@@ -66,24 +66,27 @@ export default async function CircuitDetailPage({ params }: { params: Promise<{ 
         ]}
       />
 
-      <div className="space-y-2">
-        <h1>{circuit.name}</h1>
-        <p className="text-muted-foreground text-lg">
-          {flag && <span className="mr-1.5">{flag}</span>}
-          {circuit.location}, {circuit.country}
-        </p>
-        {circuit.latitude != null && circuit.longitude != null && (
-          <a
-            href={`https://www.openstreetmap.org/?mlat=${circuit.latitude}&mlon=${circuit.longitude}#map=15/${circuit.latitude}/${circuit.longitude}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="border-border bg-background hover:bg-muted inline-flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-sm font-medium transition-all"
-          >
-            <MapPin className="h-3.5 w-3.5" />
-            View on Map
-            <ExternalLink className="h-3 w-3" />
-          </a>
-        )}
+      <div className="space-y-4">
+        <h1 className="text-gradient">{circuit.name}</h1>
+        <div className="glass rounded-xl px-5 py-4">
+          <p className="text-foreground font-medium">
+            {flag && <span className="mr-1.5">{flag}</span>}
+            {circuit.location}, {circuit.country}
+          </p>
+          {circuit.latitude != null && circuit.longitude != null && (
+            <a
+              href={`https://www.openstreetmap.org/?mlat=${circuit.latitude}&mlon=${circuit.longitude}#map=15/${circuit.latitude}/${circuit.longitude}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="border-border mt-3 inline-flex h-8 items-center gap-1.5 rounded-lg border bg-[var(--surface-1)] px-2.5 text-sm font-medium transition-all hover:bg-[var(--surface-2)]"
+            >
+              <MapPin className="h-3.5 w-3.5" />
+              View on Map
+              <ExternalLink className="h-3 w-3" />
+            </a>
+          )}
+        </div>
+        <div className="accent-line" />
       </div>
 
       {/* Stats row */}
@@ -100,10 +103,13 @@ export default async function CircuitDetailPage({ params }: { params: Promise<{ 
           <p className="text-muted-foreground text-sm">No race data available.</p>
         ) : (
           decades.map((decade) => (
-            <div key={decade}>
-              <h3 className="text-muted-foreground mb-3 text-sm font-medium tracking-wider uppercase">
-                {decade}
-              </h3>
+            <div key={decade} className="space-y-3">
+              <div>
+                <h3 className="text-muted-foreground mb-2 text-sm font-medium tracking-wider uppercase">
+                  {decade}
+                </h3>
+                <div className="accent-line" />
+              </div>
               <Table aria-label={`Race history ${decade}`}>
                 <TableHeader>
                   <TableRow>

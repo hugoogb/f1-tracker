@@ -70,18 +70,28 @@ export default async function ChampionsPage() {
           <div className="space-y-10">
             {driverDecades.map(([decade, entries]) => (
               <section key={decade}>
-                <div className="mb-4 flex items-center gap-3">
-                  <div className="bg-primary/20 h-6 w-1 rounded-full" />
-                  <h2>{decade}</h2>
+                <div className="mb-4 space-y-3">
+                  <div className="flex items-center gap-3">
+                    <div className="bg-primary/20 h-6 w-1 rounded-full" />
+                    <h2>{decade}</h2>
+                  </div>
+                  <div className="accent-line" />
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   {entries.map((champion) => {
                     const titles = driverTitleCounts[champion.driver.ref] ?? 0
+                    const teamColor = champion.constructor?.color ?? null
                     return (
                       <Card
                         key={champion.year}
-                        className="transition-all duration-200 hover:-translate-y-0.5"
+                        className="relative overflow-hidden transition-all duration-200 hover:-translate-y-0.5"
                       >
+                        {teamColor && (
+                          <div
+                            className="absolute top-0 left-0 h-full w-1 rounded-l-2xl"
+                            style={{ backgroundColor: teamColor }}
+                          />
+                        )}
                         <CardContent className="flex items-start gap-4 px-5 py-4">
                           <div className="flex flex-col items-center gap-1">
                             <Link
@@ -141,18 +151,28 @@ export default async function ChampionsPage() {
           <div className="space-y-10">
             {constructorDecades.map(([decade, entries]) => (
               <section key={decade}>
-                <div className="mb-4 flex items-center gap-3">
-                  <div className="bg-primary/20 h-6 w-1 rounded-full" />
-                  <h2>{decade}</h2>
+                <div className="mb-4 space-y-3">
+                  <div className="flex items-center gap-3">
+                    <div className="bg-primary/20 h-6 w-1 rounded-full" />
+                    <h2>{decade}</h2>
+                  </div>
+                  <div className="accent-line" />
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   {entries.map((champion) => {
                     const titles = constructorTitleCounts[champion.constructor!.ref] ?? 0
+                    const teamColor = champion.constructor!.color ?? null
                     return (
                       <Card
                         key={champion.year}
-                        className="transition-all duration-200 hover:-translate-y-0.5"
+                        className="relative overflow-hidden transition-all duration-200 hover:-translate-y-0.5"
                       >
+                        {teamColor && (
+                          <div
+                            className="absolute top-0 left-0 h-full w-1 rounded-l-2xl"
+                            style={{ backgroundColor: teamColor }}
+                          />
+                        )}
                         <CardContent className="flex items-start gap-4 px-5 py-4">
                           <div className="flex flex-col items-center gap-1">
                             <Link

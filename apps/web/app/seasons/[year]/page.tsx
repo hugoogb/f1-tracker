@@ -67,25 +67,31 @@ export default async function SeasonDetailPage({ params }: { params: Promise<{ y
         ]}
       />
 
-      <div className="flex items-center gap-4">
-        <Link
-          href={`/seasons/${year - 1}`}
-          className="border-border bg-background hover:bg-muted inline-flex size-7 items-center justify-center rounded-lg border text-sm font-medium transition-all"
-          title={`${year - 1} Season`}
-        >
-          <ChevronLeft className="h-4 w-4" />
-        </Link>
-        <div>
-          <h1>{year} Season</h1>
-          <p className="text-muted-foreground">{season.races.length} races</p>
+      <div className="space-y-3">
+        <div className="flex items-center gap-4">
+          <Link
+            href={`/seasons/${year - 1}`}
+            className="border-border inline-flex size-8 items-center justify-center rounded-lg border bg-[var(--surface-1)] text-sm font-medium transition-all hover:bg-[var(--surface-2)]"
+            title={`${year - 1} Season`}
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Link>
+          <div>
+            <h1>
+              <span className="text-gradient">{year}</span>{' '}
+              <span className="text-foreground">Season</span>
+            </h1>
+            <p className="text-muted-foreground">{season.races.length} races</p>
+          </div>
+          <Link
+            href={`/seasons/${year + 1}`}
+            className="border-border inline-flex size-8 items-center justify-center rounded-lg border bg-[var(--surface-1)] text-sm font-medium transition-all hover:bg-[var(--surface-2)]"
+            title={`${year + 1} Season`}
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Link>
         </div>
-        <Link
-          href={`/seasons/${year + 1}`}
-          className="border-border bg-background hover:bg-muted inline-flex size-7 items-center justify-center rounded-lg border text-sm font-medium transition-all"
-          title={`${year + 1} Season`}
-        >
-          <ChevronRight className="h-4 w-4" />
-        </Link>
+        <div className="accent-line" />
       </div>
 
       <SeasonTabs

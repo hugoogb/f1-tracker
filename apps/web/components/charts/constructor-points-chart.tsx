@@ -32,11 +32,13 @@ function CustomTooltip({
 
   return (
     <div
-      className="rounded-lg border px-3 py-2 shadow-lg"
+      className="rounded-xl px-3 py-2"
       style={{
-        backgroundColor: 'var(--popover)',
-        borderColor: 'var(--border)',
-        color: 'var(--foreground)',
+        backgroundColor: 'oklch(0.13 0.003 250 / 85%)',
+        border: '1px solid oklch(1 0 0 / 10%)',
+        color: 'oklch(0.95 0 0)',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+        backdropFilter: 'blur(12px)',
       }}
     >
       <div className="flex items-center gap-2">
@@ -72,13 +74,13 @@ export function ConstructorPointsChart({ standings }: ConstructorPointsChartProp
     >
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={data} layout="vertical" margin={{ left: 0, right: 20, top: 5, bottom: 5 }}>
-          <CartesianGrid horizontal={false} strokeDasharray="3 3" stroke="var(--border)" />
-          <XAxis type="number" tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }} />
+          <CartesianGrid horizontal={false} strokeDasharray="3 3" stroke="oklch(1 0 0 / 6%)" />
+          <XAxis type="number" tick={{ fontSize: 12, fill: 'oklch(0.6 0 0)' }} />
           <YAxis
             type="category"
             dataKey="name"
             width={100}
-            tick={{ fontSize: 12, fill: 'var(--foreground)' }}
+            tick={{ fontSize: 12, fill: 'oklch(0.6 0 0)' }}
           />
           <Tooltip content={<CustomTooltip />} cursor={{ fill: 'var(--muted)', opacity: 0.3 }} />
           <Bar dataKey="points" radius={[0, 4, 4, 0]} animationDuration={600}>

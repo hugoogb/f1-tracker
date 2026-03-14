@@ -62,7 +62,10 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ r
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-6">
         <div
           className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl text-xl font-bold text-white"
-          style={{ backgroundColor: teamColor ?? 'var(--primary)' }}
+          style={{
+            backgroundColor: teamColor ?? 'var(--primary)',
+            boxShadow: `0 0 30px ${teamColor ?? 'oklch(0.55 0.25 27)'}40`,
+          }}
         >
           {initials}
         </div>
@@ -97,6 +100,8 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ r
         </div>
       </div>
 
+      <div className="accent-line" />
+
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         <StatCard
           label="Races"
@@ -117,7 +122,7 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ r
       <div className="flex">
         <Link
           href={`/compare?d1=${ref}`}
-          className="border-border bg-background hover:bg-muted inline-flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-sm font-medium transition-all"
+          className="bg-primary hover:bg-primary/90 text-primary-foreground glow-red inline-flex h-9 items-center gap-2 rounded-lg px-4 text-sm font-medium transition-all"
         >
           <GitCompareArrows className="h-3.5 w-3.5" />
           Compare with...

@@ -133,12 +133,12 @@ export function CommandSearch() {
     <>
       <Button
         variant="outline"
-        className="text-muted-foreground hidden h-8 w-56 justify-start gap-2 px-3 text-sm md:flex"
+        className="glass text-muted-foreground hidden h-8 w-56 justify-start gap-2 border-[var(--glass-border)] px-3 text-sm md:flex"
         onClick={() => setOpen(true)}
       >
         <Search className="h-3.5 w-3.5" />
         <span>Search...</span>
-        <kbd className="bg-muted text-muted-foreground ml-auto rounded px-1.5 py-0.5 font-mono text-[10px]">
+        <kbd className="text-muted-foreground ml-auto rounded bg-[var(--surface-2)] px-1.5 py-0.5 font-mono text-[10px]">
           ⌘K
         </kbd>
       </Button>
@@ -150,9 +150,9 @@ export function CommandSearch() {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent
           showCloseButton={false}
-          className="top-[20%] translate-y-0 gap-0 p-0 sm:max-w-lg"
+          className="top-[20%] translate-y-0 gap-0 border-[var(--glass-border)] bg-[var(--surface-0)]/95 p-0 backdrop-blur-xl sm:max-w-lg"
         >
-          <div className="flex items-center border-b px-3">
+          <div className="flex items-center border-b border-[var(--glass-border)] px-3">
             <Search className="text-muted-foreground h-4 w-4 shrink-0" />
             <input
               ref={inputRef}
@@ -171,7 +171,7 @@ export function CommandSearch() {
                 const GroupIcon = iconMap[group.type]
                 return (
                   <div key={group.type}>
-                    <div className="text-muted-foreground flex items-center gap-2 px-2 py-1.5 text-xs font-medium">
+                    <div className="text-muted-foreground flex items-center gap-2 px-2 py-1.5 text-[10px] font-semibold tracking-wider uppercase">
                       <GroupIcon className="h-3 w-3" />
                       {group.label}
                     </div>
@@ -182,7 +182,7 @@ export function CommandSearch() {
                           key={item.href}
                           className={`flex w-full items-center gap-3 rounded-md px-2 py-2 text-sm transition-colors ${
                             globalIndex === activeIndex
-                              ? 'bg-accent text-accent-foreground'
+                              ? 'bg-primary/10 text-primary'
                               : 'hover:bg-accent/50'
                           }`}
                           onClick={() => navigate(item.href)}

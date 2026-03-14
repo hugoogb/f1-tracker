@@ -28,7 +28,7 @@ export function StatCard({
   const content = (
     <Card
       className={cn(
-        'relative gap-4 py-5 transition-all duration-200',
+        'glow-border relative gap-4 py-5 transition-all duration-200',
         href && 'hover:border-primary/30 card-glow cursor-pointer hover:-translate-y-0.5',
         className,
       )}
@@ -48,7 +48,7 @@ export function StatCard({
           {description && <p className="text-muted-foreground text-xs">{description}</p>}
         </div>
         {Icon && (
-          <div className="text-muted-foreground/50 bg-muted/50 rounded-lg p-2">
+          <div className="text-muted-foreground/50 rounded-lg border border-[var(--glass-border)] bg-[var(--glass-bg)] p-2 backdrop-blur">
             <Icon className="h-5 w-5" />
           </div>
         )}

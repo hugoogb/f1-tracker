@@ -72,16 +72,24 @@ export default async function Home() {
   return (
     <div className="space-y-10">
       {/* Hero Section */}
-      <div className="space-y-4">
-        <div className="space-y-2">
-          <p className="text-muted-foreground text-sm font-medium tracking-widest uppercase">
-            Complete History & Analytics
-          </p>
-          <h1 className="text-gradient">Formula 1 {latestYear}</h1>
-          <p className="text-muted-foreground max-w-xl text-lg">
-            Explore every season, driver, constructor, and circuit from 1950 to today.
-          </p>
+      <div className="relative mx-[-1.5rem] overflow-hidden md:mx-[-2rem]">
+        {/* Radial glow overlay */}
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,oklch(0.55_0.25_27/8%)_0%,transparent_70%)]" />
+        <div className="from-primary/5 via-background to-background relative bg-gradient-to-b px-6 py-16 md:px-8 md:py-20">
+          <div className="mx-auto max-w-[1400px] space-y-4">
+            <p className="text-muted-foreground text-sm font-medium tracking-widest uppercase">
+              Complete History & Analytics
+            </p>
+            <h1>
+              <span className="text-gradient">Formula 1</span>{' '}
+              <span className="text-foreground">{latestYear}</span>
+            </h1>
+            <p className="text-muted-foreground max-w-xl text-lg">
+              Explore every season, driver, constructor, and circuit from 1950 to today.
+            </p>
+          </div>
         </div>
+        <div className="accent-line" />
       </div>
 
       {/* Stat Cards */}
@@ -159,7 +167,7 @@ export default async function Home() {
           </div>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
             {recentChampions.map((c, i) => (
-              <Card key={c.year} className={i === 0 ? 'border-primary/30 card-glow' : ''}>
+              <Card key={c.year} className={i === 0 ? 'border-primary/30 glow-red' : ''}>
                 <CardContent className="space-y-2 px-5 pt-1">
                   <div className="flex items-center justify-between">
                     <Link

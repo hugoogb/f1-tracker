@@ -115,25 +115,33 @@ export default async function RaceDetailPage({
         ]}
       />
 
-      <div className="space-y-2">
-        <div className="flex items-center gap-3">
-          <Badge variant="outline" className="font-mono">
-            Round {round}
-          </Badge>
+      <div className="space-y-4">
+        <div className="space-y-2">
+          <div className="flex items-center gap-3">
+            <Badge variant="outline" className="font-mono">
+              Round {round}
+            </Badge>
+          </div>
+          <h1 className="text-gradient">{race.name}</h1>
         </div>
-        <h1>{race.name}</h1>
-        <p className="text-muted-foreground">
-          {flag && <span className="mr-1.5">{flag}</span>}
-          {race.circuit.name} — {race.circuit.location}, {race.circuit.country}
-        </p>
-        <p className="text-muted-foreground text-sm">
-          {new Date(race.date).toLocaleDateString('en-GB', {
-            weekday: 'long',
-            day: 'numeric',
-            month: 'long',
-            year: 'numeric',
-          })}
-        </p>
+        <div className="glass rounded-xl px-5 py-4">
+          <p className="text-foreground font-medium">
+            {flag && <span className="mr-1.5">{flag}</span>}
+            {race.circuit.name}
+          </p>
+          <p className="text-muted-foreground text-sm">
+            {race.circuit.location}, {race.circuit.country}
+          </p>
+          <p className="text-muted-foreground mt-1 text-sm">
+            {new Date(race.date).toLocaleDateString('en-GB', {
+              weekday: 'long',
+              day: 'numeric',
+              month: 'long',
+              year: 'numeric',
+            })}
+          </p>
+        </div>
+        <div className="accent-line" />
       </div>
 
       {/* Podium */}
