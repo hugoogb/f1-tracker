@@ -1,0 +1,59 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Next.js
+.next/
+out/
+*.tsbuildinfo
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+.venv/
+venv/
+
+# uv
+pipeline/.python-version
+
+# Fast-F1 cache
+pipeline/.fastf1_cache/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+docker/pgdata/
+
+# DB backups — only keep latest in git
+docker/backups/*
+!docker/backups/latest.sql.gz
+
+# Testing
+coverage/
+htmlcov/
+.pytest_cache/
+.coverage
+
+# Misc
+*.log
+.turbo/
