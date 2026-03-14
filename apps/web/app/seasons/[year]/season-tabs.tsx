@@ -16,7 +16,7 @@ export function SeasonTabs({
 }: SeasonTabsProps) {
   return (
     <Tabs defaultValue={0}>
-      <TabsList>
+      <TabsList variant="line">
         <TabsTrigger value={0}>Races</TabsTrigger>
         <TabsTrigger value={1}>Driver Standings</TabsTrigger>
         <TabsTrigger value={2}>Constructor Standings</TabsTrigger>

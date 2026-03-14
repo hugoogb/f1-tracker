@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { TEAM_COLORS } from '@/lib/constants'
 import type { ConstructorStanding } from '@/lib/types'
+import { PositionBadge } from '@/components/ui/position-badge'
 import {
   Table,
   TableBody,
@@ -29,7 +30,7 @@ export function ConstructorStandingsTable({ standings, limit }: ConstructorStand
           <TableHead className="w-12">Pos</TableHead>
           <TableHead>Constructor</TableHead>
           <TableHead className="text-right">Points</TableHead>
-          <TableHead className="text-right">Wins</TableHead>
+          <TableHead className="hidden text-right sm:table-cell">Wins</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -38,7 +39,9 @@ export function ConstructorStandingsTable({ standings, limit }: ConstructorStand
 
           return (
             <TableRow key={entry.constructor.ref}>
-              <TableCell className="font-medium">{entry.position}</TableCell>
+              <TableCell>
+                <PositionBadge position={entry.position} size="sm" />
+              </TableCell>
               <TableCell>
                 <div className="flex items-center gap-2">
                   {teamColor && (
@@ -49,14 +52,14 @@ export function ConstructorStandingsTable({ standings, limit }: ConstructorStand
                   )}
                   <Link
                     href={`/constructors/${entry.constructor.ref}`}
-                    className="hover:text-primary transition-colors"
+                    className="hover:text-primary font-medium transition-colors"
                   >
                     {entry.constructor.name}
                   </Link>
                 </div>
               </TableCell>
-              <TableCell className="text-right">{entry.points}</TableCell>
-              <TableCell className="text-right">{entry.wins}</TableCell>
+              <TableCell className="text-right tabular-nums">{entry.points}</TableCell>
+              <TableCell className="hidden text-right sm:table-cell">{entry.wins}</TableCell>
             </TableRow>
           )
         })}

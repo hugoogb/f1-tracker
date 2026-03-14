@@ -1,12 +1,16 @@
 import { notFound } from 'next/navigation'
 import { api } from '@/lib/api'
 import type { Race, RaceResult, QualifyingResult, SprintResult, PitStop } from '@/lib/types'
+import { COUNTRY_FLAGS, TEAM_COLORS } from '@/lib/constants'
 import { Breadcrumbs } from '@/components/layout/breadcrumbs'
+import { Badge } from '@/components/ui/badge'
+import { Card, CardContent } from '@/components/ui/card'
 import { ResultsTable } from '@/components/races/results-table'
 import { QualifyingTable } from '@/components/races/qualifying-table'
 import { SprintTable } from '@/components/races/sprint-table'
 import { PitStopsTable } from '@/components/races/pit-stops-table'
 import { RaceTabs } from './race-tabs'
+import Link from 'next/link'
 
 export const dynamic = 'force-dynamic'
 
@@ -95,8 +99,13 @@ export default async function RaceDetailPage({
     notFound()
   }
 
+  const flag = race.circuit.country ? COUNTRY_FLAGS[race.circuit.country] : null
+  const podium = race.results
+    .filter((r) => r.position && r.position <= 3)
+    .sort((a, b) => (a.position ?? 99) - (b.position ?? 99))
+
   return (
-    <main className="container mx-auto space-y-6 px-4 py-8">
+    <div className="space-y-6">
       <Breadcrumbs
         items={[
           { label: 'Home', href: '/' },
@@ -105,10 +114,17 @@ export default async function RaceDetailPage({
           { label: race.name },
         ]}
       />
-      <div>
+
+      <div className="space-y-2">
+        <div className="flex items-center gap-3">
+          <Badge variant="outline" className="font-mono">
+            Round {round}
+          </Badge>
+        </div>
         <h1>{race.name}</h1>
-        <p className="text-muted-foreground mt-1">
-          {race.circuit.name} - {race.circuit.location}, {race.circuit.country}
+        <p className="text-muted-foreground">
+          {flag && <span className="mr-1.5">{flag}</span>}
+          {race.circuit.name} — {race.circuit.location}, {race.circuit.country}
         </p>
         <p className="text-muted-foreground text-sm">
           {new Date(race.date).toLocaleDateString('en-GB', {
@@ -119,6 +135,53 @@ export default async function RaceDetailPage({
           })}
         </p>
       </div>
+
+      {/* Podium */}
+      {podium.length > 0 && (
+        <div className="grid grid-cols-3 gap-3">
+          {podium.map((result) => {
+            const teamColor =
+              TEAM_COLORS[result.constructor.ref] ?? result.constructor.color ?? null
+            const podiumColors = [
+              'border-amber-500/40 bg-amber-500/5',
+              'border-zinc-400/40 bg-zinc-400/5',
+              'border-orange-600/40 bg-orange-600/5',
+            ]
+            const podiumLabels = ['1st', '2nd', '3rd']
+            const idx = (result.position ?? 1) - 1
+
+            return (
+              <Card key={result.driver.ref} className={`${podiumColors[idx]} border`}>
+                <CardContent className="space-y-1 px-4 py-3">
+                  <p className="text-muted-foreground text-xs font-medium tracking-wider uppercase">
+                    {podiumLabels[idx]}
+                  </p>
+                  <Link
+                    href={`/drivers/${result.driver.ref}`}
+                    className="hover:text-primary text-sm font-semibold transition-colors"
+                  >
+                    {result.driver.firstName} {result.driver.lastName}
+                  </Link>
+                  <div className="flex items-center gap-1.5">
+                    {teamColor && (
+                      <span
+                        className="inline-block h-3 w-1 rounded-full"
+                        style={{ backgroundColor: teamColor }}
+                      />
+                    )}
+                    <Link
+                      href={`/constructors/${result.constructor.ref}`}
+                      className="text-muted-foreground hover:text-foreground text-xs transition-colors"
+                    >
+                      {result.constructor.name}
+                    </Link>
+                  </div>
+                </CardContent>
+              </Card>
+            )
+          })}
+        </div>
+      )}
 
       <RaceTabs
         raceResultsContent={<ResultsTable results={race.results} />}
@@ -148,6 +211,6 @@ export default async function RaceDetailPage({
           ) : undefined
         }
       />
-    </main>
+    </div>
   )
 }

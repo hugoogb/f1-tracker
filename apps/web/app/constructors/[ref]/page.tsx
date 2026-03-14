@@ -1,12 +1,13 @@
 import Link from 'next/link'
+import { Flag, Trophy, Medal, TrendingUp } from 'lucide-react'
 import { api } from '@/lib/api'
 import type { Constructor, ConstructorSeasonSummary, Driver } from '@/lib/types'
+import { COUNTRY_FLAGS, TEAM_COLORS } from '@/lib/constants'
 import { Breadcrumbs } from '@/components/layout/breadcrumbs'
-import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
+import { StatCard } from '@/components/ui/stat-card'
 import { ConstructorSeasonHistoryTable } from '@/components/constructors/season-history-table'
 import { CareerPointsChart } from '@/components/charts/career-points-chart'
-import { TEAM_COLORS } from '@/lib/constants'
 
 export const dynamic = 'force-dynamic'
 
@@ -46,6 +47,9 @@ export default async function ConstructorDetailPage({
   const seasons = seasonsResult.status === 'fulfilled' ? seasonsResult.value.seasons : []
   const roster = rosterResult.status === 'fulfilled' ? rosterResult.value : null
 
+  const teamColor = TEAM_COLORS[constructor.ref] ?? constructor.color ?? '#E8002D'
+  const flag = constructor.nationality ? COUNTRY_FLAGS[constructor.nationality] : null
+
   return (
     <div className="space-y-8">
       <Breadcrumbs
@@ -55,42 +59,86 @@ export default async function ConstructorDetailPage({
           { label: constructor.name },
         ]}
       />
-      <div className="space-y-2">
-        <div className="flex items-center gap-3">
-          {constructor.color && (
-            <span
-              className="inline-block size-5 rounded-full"
-              style={{ backgroundColor: constructor.color }}
-            />
-          )}
-          <h1>{constructor.name}</h1>
+
+      {/* Team-branded header */}
+      <div className="space-y-3">
+        <div className="h-1 w-24 rounded-full" style={{ backgroundColor: teamColor }} />
+        <div className="flex items-center gap-4">
+          <div
+            className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl text-lg font-bold text-white"
+            style={{ backgroundColor: teamColor }}
+          >
+            {constructor.name[0]}
+          </div>
+          <div>
+            <h1>{constructor.name}</h1>
+            {constructor.nationality && (
+              <p className="text-muted-foreground">
+                {flag && <span className="mr-1">{flag}</span>}
+                {constructor.nationality}
+              </p>
+            )}
+          </div>
         </div>
-        {constructor.nationality && (
-          <p className="text-muted-foreground">{constructor.nationality}</p>
-        )}
       </div>
 
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-        <StatCard label="Entries" value={constructor.stats.total_entries} />
-        <StatCard label="Wins" value={constructor.stats.wins} />
-        <StatCard label="Podiums" value={constructor.stats.podiums} />
-        <StatCard label="Points" value={constructor.stats.total_points} />
+        <StatCard
+          label="Races"
+          value={constructor.stats.total_entries}
+          icon={Flag}
+          color={teamColor}
+        />
+        <StatCard label="Wins" value={constructor.stats.wins} icon={Trophy} color={teamColor} />
+        <StatCard
+          label="Podiums"
+          value={constructor.stats.podiums}
+          icon={Medal}
+          color={teamColor}
+        />
+        <StatCard
+          label="Points"
+          value={constructor.stats.total_points}
+          icon={TrendingUp}
+          color={teamColor}
+        />
       </div>
 
       {roster && roster.year && roster.drivers.length > 0 && (
         <div>
           <h2 className="mb-4">Drivers ({roster.year})</h2>
-          <div className="flex flex-wrap gap-3">
-            {roster.drivers.map((d) => (
-              <Link key={d.ref} href={`/drivers/${d.ref}`}>
-                <Badge variant="secondary" className="hover:bg-accent px-3 py-1.5 text-sm">
-                  {d.code && (
-                    <span className="text-muted-foreground mr-1 font-mono text-xs">{d.code}</span>
-                  )}
-                  {d.firstName} {d.lastName}
-                </Badge>
-              </Link>
-            ))}
+          <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3">
+            {roster.drivers.map((d) => {
+              const driverFlag = d.nationality ? COUNTRY_FLAGS[d.nationality] : null
+              return (
+                <Link key={d.ref} href={`/drivers/${d.ref}`}>
+                  <Card className="hover:border-primary/30 transition-all duration-200 hover:-translate-y-0.5">
+                    <CardContent className="flex items-center gap-3 px-4 py-3">
+                      <div
+                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-sm font-bold text-white"
+                        style={{ backgroundColor: teamColor }}
+                      >
+                        {(d.firstName?.[0] ?? '') + (d.lastName?.[0] ?? '')}
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">
+                          {d.firstName} {d.lastName}
+                        </p>
+                        <div className="text-muted-foreground flex items-center gap-2 text-xs">
+                          {d.code && <span className="font-mono">{d.code}</span>}
+                          {d.nationality && (
+                            <span>
+                              {driverFlag && <span className="mr-0.5">{driverFlag}</span>}
+                              {d.nationality}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </Link>
+              )
+            })}
           </div>
         </div>
       )}
@@ -99,25 +147,10 @@ export default async function ConstructorDetailPage({
         <h2 className="mb-4">Season History</h2>
         <CareerPointsChart
           seasons={seasons.map((s) => ({ year: s.year, points: s.points }))}
-          color={TEAM_COLORS[constructor.ref] ?? constructor.color ?? '#E8002D'}
+          color={teamColor}
         />
         <ConstructorSeasonHistoryTable seasons={seasons} />
       </div>
     </div>
-  )
-}
-
-function StatCard({ label, value }: { label: string; value: number }) {
-  return (
-    <Card>
-      <CardContent className="pt-2">
-        <p className="text-primary text-3xl font-bold tabular-nums">
-          {typeof value === 'number' && !Number.isInteger(value)
-            ? value.toLocaleString('en-US', { maximumFractionDigits: 1 })
-            : value.toLocaleString('en-US')}
-        </p>
-        <p className="text-muted-foreground text-sm font-medium">{label}</p>
-      </CardContent>
-    </Card>
   )
 }

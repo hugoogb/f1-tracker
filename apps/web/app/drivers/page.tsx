@@ -2,7 +2,9 @@ import Link from 'next/link'
 import { Suspense } from 'react'
 import { api } from '@/lib/api'
 import type { Driver, PaginatedResponse } from '@/lib/types'
+import { COUNTRY_FLAGS } from '@/lib/constants'
 import { Badge } from '@/components/ui/badge'
+import { PageHeader } from '@/components/ui/page-header'
 import {
   Table,
   TableBody,
@@ -46,12 +48,10 @@ export default async function DriversPage({
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1>Drivers</h1>
-        <p className="text-muted-foreground">
-          {total} drivers{nationality ? ` from ${nationality}` : ' across F1 history'}
-        </p>
-      </div>
+      <PageHeader
+        title="Drivers"
+        description={`${total} drivers${nationality ? ` from ${nationality}` : ' across F1 history'}`}
+      />
 
       <Suspense>
         <ListFilter label="Nationality" paramName="nationality" options={nationalities} />
@@ -61,31 +61,43 @@ export default async function DriversPage({
         <TableHeader>
           <TableRow>
             <TableHead>Name</TableHead>
-            <TableHead>Code</TableHead>
+            <TableHead className="hidden sm:table-cell">Code</TableHead>
             <TableHead>Nationality</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {drivers.map((driver) => (
-            <TableRow key={driver.id}>
-              <TableCell>
-                <Link
-                  href={`/drivers/${driver.ref}`}
-                  className="hover:text-primary font-medium transition-colors"
-                >
-                  {driver.firstName} {driver.lastName}
-                </Link>
-              </TableCell>
-              <TableCell>
-                {driver.code && <Badge variant="secondary">{driver.code}</Badge>}
-              </TableCell>
-              <TableCell className="text-muted-foreground">{driver.nationality ?? '—'}</TableCell>
-            </TableRow>
-          ))}
+          {drivers.map((driver) => {
+            const flag = driver.nationality ? COUNTRY_FLAGS[driver.nationality] : null
+            return (
+              <TableRow key={driver.id}>
+                <TableCell>
+                  <Link
+                    href={`/drivers/${driver.ref}`}
+                    className="hover:text-primary font-medium transition-colors"
+                  >
+                    {driver.firstName} {driver.lastName}
+                  </Link>
+                </TableCell>
+                <TableCell className="hidden sm:table-cell">
+                  {driver.code && (
+                    <Badge variant="secondary" className="font-mono">
+                      {driver.code}
+                    </Badge>
+                  )}
+                </TableCell>
+                <TableCell className="text-muted-foreground">
+                  {flag && <span className="mr-1.5">{flag}</span>}
+                  {driver.nationality ?? '—'}
+                </TableCell>
+              </TableRow>
+            )
+          })}
         </TableBody>
       </Table>
 
-      <Pagination total={total} page={page} pageSize={pageSize} />
+      <Suspense>
+        <Pagination total={total} page={page} pageSize={pageSize} />
+      </Suspense>
     </div>
   )
 }

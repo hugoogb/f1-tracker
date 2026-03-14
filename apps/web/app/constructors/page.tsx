@@ -2,6 +2,8 @@ import Link from 'next/link'
 import { Suspense } from 'react'
 import { api } from '@/lib/api'
 import type { Constructor, PaginatedResponse } from '@/lib/types'
+import { COUNTRY_FLAGS } from '@/lib/constants'
+import { PageHeader } from '@/components/ui/page-header'
 import {
   Table,
   TableBody,
@@ -45,12 +47,10 @@ export default async function ConstructorsPage({
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1>Constructors</h1>
-        <p className="text-muted-foreground">
-          {total} constructors{nationality ? ` from ${nationality}` : ' across F1 history'}
-        </p>
-      </div>
+      <PageHeader
+        title="Constructors"
+        description={`${total} constructors${nationality ? ` from ${nationality}` : ' across F1 history'}`}
+      />
 
       <Suspense>
         <ListFilter label="Nationality" paramName="nationality" options={nationalities} />
@@ -64,31 +64,37 @@ export default async function ConstructorsPage({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {constructors.map((constructor) => (
-            <TableRow key={constructor.id}>
-              <TableCell>
-                <Link
-                  href={`/constructors/${constructor.ref}`}
-                  className="hover:text-primary inline-flex items-center gap-2 font-medium transition-colors"
-                >
-                  {constructor.color && (
-                    <span
-                      className="inline-block size-3 rounded-full"
-                      style={{ backgroundColor: constructor.color }}
-                    />
-                  )}
-                  {constructor.name}
-                </Link>
-              </TableCell>
-              <TableCell className="text-muted-foreground">
-                {constructor.nationality ?? '—'}
-              </TableCell>
-            </TableRow>
-          ))}
+          {constructors.map((constructor) => {
+            const flag = constructor.nationality ? COUNTRY_FLAGS[constructor.nationality] : null
+            return (
+              <TableRow key={constructor.id}>
+                <TableCell>
+                  <Link
+                    href={`/constructors/${constructor.ref}`}
+                    className="hover:text-primary inline-flex items-center gap-2.5 font-medium transition-colors"
+                  >
+                    {constructor.color && (
+                      <span
+                        className="inline-block h-4 w-1 rounded-full"
+                        style={{ backgroundColor: constructor.color }}
+                      />
+                    )}
+                    {constructor.name}
+                  </Link>
+                </TableCell>
+                <TableCell className="text-muted-foreground">
+                  {flag && <span className="mr-1.5">{flag}</span>}
+                  {constructor.nationality ?? '—'}
+                </TableCell>
+              </TableRow>
+            )
+          })}
         </TableBody>
       </Table>
 
-      <Pagination total={total} page={page} pageSize={pageSize} />
+      <Suspense>
+        <Pagination total={total} page={page} pageSize={pageSize} />
+      </Suspense>
     </div>
   )
 }

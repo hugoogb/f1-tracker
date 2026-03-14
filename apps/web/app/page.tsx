@@ -1,7 +1,8 @@
 import Link from 'next/link'
+import { Calendar, Users, Building2, MapPin, Flag, Trophy } from 'lucide-react'
 import { api } from '@/lib/api'
 import type { DriverStanding, ConstructorStanding, Race, SeasonChampion } from '@/lib/types'
-import { cn } from '@/lib/utils'
+import { COUNTRY_FLAGS } from '@/lib/constants'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Table,
@@ -11,6 +12,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { Badge } from '@/components/ui/badge'
+import { StatCard } from '@/components/ui/stat-card'
 import { DriverStandingsTable } from '@/components/standings/driver-standings-table'
 import { ConstructorStandingsTable } from '@/components/standings/constructor-standings-table'
 
@@ -64,28 +67,54 @@ export default async function Home() {
   const races = seasonDetail.races ?? []
   const recentChampions = champions.slice(0, 5)
 
-  return (
-    <div className="space-y-8">
-      <h1>Formula 1 {latestYear} Season</h1>
+  const now = new Date()
 
+  return (
+    <div className="space-y-10">
+      {/* Hero Section */}
+      <div className="space-y-4">
+        <div className="space-y-2">
+          <p className="text-muted-foreground text-sm font-medium tracking-widest uppercase">
+            Complete History & Analytics
+          </p>
+          <h1 className="text-gradient">Formula 1 {latestYear}</h1>
+          <p className="text-muted-foreground max-w-xl text-lg">
+            Explore every season, driver, constructor, and circuit from 1950 to today.
+          </p>
+        </div>
+      </div>
+
+      {/* Stat Cards */}
       {stats && (
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
-          <StatCard label="Seasons" value={stats.seasons} href="/seasons" />
-          <StatCard label="Drivers" value={stats.drivers} href="/drivers" />
-          <StatCard label="Constructors" value={stats.constructors} href="/constructors" />
-          <StatCard label="Circuits" value={stats.circuits} href="/circuits" />
-          <StatCard label="Races" value={stats.races} />
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
+          <StatCard label="Seasons" value={stats.seasons} icon={Calendar} href="/seasons" />
+          <StatCard label="Drivers" value={stats.drivers} icon={Users} href="/drivers" />
+          <StatCard
+            label="Constructors"
+            value={stats.constructors}
+            icon={Building2}
+            href="/constructors"
+          />
+          <StatCard label="Circuits" value={stats.circuits} icon={MapPin} href="/circuits" />
+          <StatCard label="Races" value={stats.races} icon={Flag} />
         </div>
       )}
 
+      {/* Current Standings */}
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
-          <CardHeader>
+          <CardHeader className="flex-row items-center justify-between">
             <CardTitle>Driver Standings</CardTitle>
+            <Link
+              href={`/seasons/${latestYear}`}
+              className="text-primary hover:text-primary/80 text-sm font-medium transition-colors"
+            >
+              View all &rarr;
+            </Link>
           </CardHeader>
           <CardContent>
             {driverStandings.length > 0 ? (
-              <DriverStandingsTable standings={driverStandings} limit={10} />
+              <DriverStandingsTable standings={driverStandings} limit={5} />
             ) : (
               <p className="text-muted-foreground text-sm">
                 Standings data has not been loaded yet.
@@ -95,12 +124,18 @@ export default async function Home() {
         </Card>
 
         <Card>
-          <CardHeader>
+          <CardHeader className="flex-row items-center justify-between">
             <CardTitle>Constructor Standings</CardTitle>
+            <Link
+              href={`/seasons/${latestYear}`}
+              className="text-primary hover:text-primary/80 text-sm font-medium transition-colors"
+            >
+              View all &rarr;
+            </Link>
           </CardHeader>
           <CardContent>
             {constructorStandings.length > 0 ? (
-              <ConstructorStandingsTable standings={constructorStandings} limit={10} />
+              <ConstructorStandingsTable standings={constructorStandings} limit={5} />
             ) : (
               <p className="text-muted-foreground text-sm">
                 Standings data has not been loaded yet.
@@ -110,65 +145,63 @@ export default async function Home() {
         </Card>
       </div>
 
+      {/* Recent Champions */}
       {recentChampions.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Recent Champions</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Table aria-label="Recent champions">
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-20">Year</TableHead>
-                  <TableHead>Driver</TableHead>
-                  <TableHead>Constructor</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {recentChampions.map((c) => (
-                  <TableRow key={c.year}>
-                    <TableCell className="font-medium">
-                      <Link
-                        href={`/seasons/${c.year}`}
-                        className="hover:text-primary transition-colors"
-                      >
-                        {c.year}
-                      </Link>
-                    </TableCell>
-                    <TableCell>
-                      <Link
-                        href={`/drivers/${c.driver.ref}`}
-                        className="hover:text-primary transition-colors"
-                      >
-                        {c.driver.firstName} {c.driver.lastName}
-                      </Link>
-                    </TableCell>
-                    <TableCell>
-                      {c.constructor ? (
-                        <Link
-                          href={`/constructors/${c.constructor.ref}`}
-                          className="hover:text-primary inline-flex items-center gap-2 transition-colors"
-                        >
-                          {c.constructor.color && (
-                            <span
-                              className="inline-block size-3 rounded-full"
-                              style={{ backgroundColor: c.constructor.color }}
-                            />
-                          )}
-                          {c.constructor.name}
-                        </Link>
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2>Recent Champions</h2>
+            <Link
+              href="/champions"
+              className="text-primary hover:text-primary/80 text-sm font-medium transition-colors"
+            >
+              All champions &rarr;
+            </Link>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+            {recentChampions.map((c, i) => (
+              <Card key={c.year} className={i === 0 ? 'border-primary/30 card-glow' : ''}>
+                <CardContent className="space-y-2 px-5 pt-1">
+                  <div className="flex items-center justify-between">
+                    <Link
+                      href={`/seasons/${c.year}`}
+                      className="font-heading hover:text-primary text-lg font-bold transition-colors"
+                    >
+                      {c.year}
+                    </Link>
+                    <Trophy className="h-4 w-4 text-amber-500/60" />
+                  </div>
+                  <div>
+                    <Link
+                      href={`/drivers/${c.driver.ref}`}
+                      className="hover:text-primary text-sm font-medium transition-colors"
+                    >
+                      {c.driver.firstName} {c.driver.lastName}
+                    </Link>
+                  </div>
+                  {c.constructor && (
+                    <div className="flex items-center gap-1.5">
+                      {c.constructor.color && (
+                        <span
+                          className="inline-block size-2 rounded-full"
+                          style={{ backgroundColor: c.constructor.color }}
+                        />
                       )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+                      <Link
+                        href={`/constructors/${c.constructor.ref}`}
+                        className="text-muted-foreground hover:text-foreground text-xs transition-colors"
+                      >
+                        {c.constructor.name}
+                      </Link>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
       )}
 
+      {/* Race Calendar */}
       <Card>
         <CardHeader>
           <CardTitle>Race Calendar</CardTitle>
@@ -180,34 +213,49 @@ export default async function Home() {
                 <TableRow>
                   <TableHead className="w-16">Round</TableHead>
                   <TableHead>Race</TableHead>
-                  <TableHead>Circuit</TableHead>
-                  <TableHead>Country</TableHead>
+                  <TableHead className="hidden md:table-cell">Circuit</TableHead>
+                  <TableHead className="hidden sm:table-cell">Country</TableHead>
                   <TableHead className="text-right">Date</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {races.map((race) => (
-                  <TableRow key={race.id}>
-                    <TableCell className="font-medium">{race.round}</TableCell>
-                    <TableCell>
-                      <Link
-                        href={`/seasons/${latestYear}/races/${race.round}`}
-                        className="hover:text-primary transition-colors"
-                      >
-                        {race.name}
-                      </Link>
-                    </TableCell>
-                    <TableCell>{race.circuit.name}</TableCell>
-                    <TableCell>{race.circuit.country}</TableCell>
-                    <TableCell className="text-right">
-                      {new Date(race.date).toLocaleDateString('en-GB', {
-                        day: 'numeric',
-                        month: 'short',
-                        year: 'numeric',
-                      })}
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {races.map((race) => {
+                  const raceDate = new Date(race.date)
+                  const isPast = raceDate < now
+                  const flag = race.circuit.country ? COUNTRY_FLAGS[race.circuit.country] : null
+
+                  return (
+                    <TableRow key={race.id} className={isPast ? 'opacity-60' : ''}>
+                      <TableCell>
+                        <Badge variant="outline" className="font-mono text-xs">
+                          R{race.round}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Link
+                          href={`/seasons/${latestYear}/races/${race.round}`}
+                          className="hover:text-primary font-medium transition-colors"
+                        >
+                          {race.name}
+                        </Link>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground hidden md:table-cell">
+                        {race.circuit.name}
+                      </TableCell>
+                      <TableCell className="hidden sm:table-cell">
+                        {flag && <span className="mr-1.5">{flag}</span>}
+                        {race.circuit.country}
+                      </TableCell>
+                      <TableCell className="text-right text-sm tabular-nums">
+                        {raceDate.toLocaleDateString('en-GB', {
+                          day: 'numeric',
+                          month: 'short',
+                          year: 'numeric',
+                        })}
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
               </TableBody>
             </Table>
           ) : (
@@ -217,25 +265,4 @@ export default async function Home() {
       </Card>
     </div>
   )
-}
-
-function StatCard({ label, value, href }: { label: string; value: number; href?: string }) {
-  const content = (
-    <Card
-      className={cn(
-        'transition-all duration-200',
-        href && 'hover:border-primary/30 hover:-translate-y-0.5 hover:shadow-md',
-      )}
-    >
-      <CardContent className="pt-2">
-        <p className="text-primary text-2xl font-bold tabular-nums">{value.toLocaleString()}</p>
-        <p className="text-muted-foreground text-sm font-medium">{label}</p>
-      </CardContent>
-    </Card>
-  )
-
-  if (href) {
-    return <Link href={href}>{content}</Link>
-  }
-  return content
 }

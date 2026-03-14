@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { TEAM_COLORS } from '@/lib/constants'
 import type { DriverStanding } from '@/lib/types'
+import { PositionBadge } from '@/components/ui/position-badge'
 import {
   Table,
   TableBody,
@@ -29,7 +30,7 @@ export function DriverStandingsTable({ standings, limit }: DriverStandingsTableP
           <TableHead className="w-12">Pos</TableHead>
           <TableHead>Driver</TableHead>
           <TableHead className="text-right">Points</TableHead>
-          <TableHead className="text-right">Wins</TableHead>
+          <TableHead className="hidden text-right sm:table-cell">Wins</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -38,25 +39,27 @@ export function DriverStandingsTable({ standings, limit }: DriverStandingsTableP
 
           return (
             <TableRow key={entry.driver.ref}>
-              <TableCell className="font-medium">{entry.position}</TableCell>
+              <TableCell>
+                <PositionBadge position={entry.position} size="sm" />
+              </TableCell>
               <TableCell>
                 <div className="flex items-center gap-2">
                   {teamColor && (
                     <span
-                      className="inline-block h-3 w-1 rounded-full"
+                      className="inline-block h-4 w-1 rounded-full"
                       style={{ backgroundColor: teamColor }}
                     />
                   )}
                   <Link
                     href={`/drivers/${entry.driver.ref}`}
-                    className="hover:text-primary transition-colors"
+                    className="hover:text-primary font-medium transition-colors"
                   >
                     {entry.driver.firstName} {entry.driver.lastName}
                   </Link>
                 </div>
               </TableCell>
-              <TableCell className="text-right">{entry.points}</TableCell>
-              <TableCell className="text-right">{entry.wins}</TableCell>
+              <TableCell className="text-right tabular-nums">{entry.points}</TableCell>
+              <TableCell className="hidden text-right sm:table-cell">{entry.wins}</TableCell>
             </TableRow>
           )
         })}

@@ -1,6 +1,8 @@
 import Link from 'next/link'
+import { Crown } from 'lucide-react'
 import { TEAM_COLORS } from '@/lib/constants'
 import type { DriverSeasonSummary } from '@/lib/types'
+import { PositionBadge } from '@/components/ui/position-badge'
 import {
   Table,
   TableBody,
@@ -25,9 +27,9 @@ export function SeasonHistoryTable({ seasons }: SeasonHistoryTableProps) {
         <TableRow>
           <TableHead>Year</TableHead>
           <TableHead>Team</TableHead>
-          <TableHead className="text-right">Races</TableHead>
+          <TableHead className="hidden text-right sm:table-cell">Races</TableHead>
           <TableHead className="text-right">Wins</TableHead>
-          <TableHead className="text-right">Podiums</TableHead>
+          <TableHead className="hidden text-right sm:table-cell">Podiums</TableHead>
           <TableHead className="text-right">Points</TableHead>
           <TableHead className="text-right">Pos</TableHead>
         </TableRow>
@@ -37,6 +39,7 @@ export function SeasonHistoryTable({ seasons }: SeasonHistoryTableProps) {
           const teamColor = season.constructor
             ? (TEAM_COLORS[season.constructor.ref] ?? season.constructor.color ?? null)
             : null
+          const isChampion = season.championshipPosition === 1
 
           return (
             <TableRow key={`${season.year}-${season.constructor?.ref ?? ''}`}>
@@ -53,7 +56,7 @@ export function SeasonHistoryTable({ seasons }: SeasonHistoryTableProps) {
                   <div className="flex items-center gap-2">
                     {teamColor && (
                       <span
-                        className="inline-block h-3 w-1 rounded-full"
+                        className="inline-block h-4 w-1 rounded-full"
                         style={{ backgroundColor: teamColor }}
                       />
                     )}
@@ -68,11 +71,20 @@ export function SeasonHistoryTable({ seasons }: SeasonHistoryTableProps) {
                   <span className="text-muted-foreground">—</span>
                 )}
               </TableCell>
-              <TableCell className="text-right">{season.races}</TableCell>
+              <TableCell className="hidden text-right sm:table-cell">{season.races}</TableCell>
               <TableCell className="text-right">{season.wins}</TableCell>
-              <TableCell className="text-right">{season.podiums}</TableCell>
-              <TableCell className="text-right">{season.points}</TableCell>
-              <TableCell className="text-right">{season.championshipPosition ?? '—'}</TableCell>
+              <TableCell className="hidden text-right sm:table-cell">{season.podiums}</TableCell>
+              <TableCell className="text-right tabular-nums">{season.points}</TableCell>
+              <TableCell className="text-right">
+                {season.championshipPosition != null ? (
+                  <div className="flex items-center justify-end gap-1.5">
+                    {isChampion && <Crown className="h-3.5 w-3.5 text-amber-500" />}
+                    <PositionBadge position={season.championshipPosition} size="sm" />
+                  </div>
+                ) : (
+                  <span className="text-muted-foreground">—</span>
+                )}
+              </TableCell>
             </TableRow>
           )
         })}

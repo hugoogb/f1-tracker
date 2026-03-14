@@ -1,8 +1,15 @@
+import { MapPin } from 'lucide-react'
+import { EmptyState } from '@/components/ui/empty-state'
+
 export default function NotFound() {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center">
-      <h1 className="text-4xl font-bold">404</h1>
-      <p className="text-muted-foreground mt-4">Page not found</p>
-    </main>
+    <div className="flex min-h-[50vh] items-center justify-center">
+      <EmptyState
+        icon={MapPin}
+        title="Page not found"
+        description="The page you're looking for doesn't exist or has been moved."
+        action={{ label: 'Go home', href: '/' }}
+      />
+    </div>
   )
 }

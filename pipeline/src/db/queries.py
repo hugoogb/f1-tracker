@@ -147,7 +147,9 @@ def search_circuits(db: Session, query: str, limit: int = 5) -> list[Circuit]:
 
 def get_constructor_career_stats(db: Session, constructor_id: str) -> dict:
     total_entries = db.execute(
-        select(func.count()).where(RaceResult.constructor_id == constructor_id)
+        select(func.count(func.distinct(RaceResult.race_id))).where(
+            RaceResult.constructor_id == constructor_id
+        )
     ).scalar()
     wins = db.execute(
         select(func.count()).where(
@@ -172,13 +174,20 @@ def get_constructor_career_stats(db: Session, constructor_id: str) -> dict:
 
 
 def get_season_champions(db: Session) -> list[dict]:
+    import datetime
+
     seasons = db.execute(select(Season).order_by(Season.year.desc())).scalars().all()
     champions = []
+    today = datetime.date.today()
     for season in seasons:
         last_race = db.execute(
             select(Race).where(Race.season_year == season.year).order_by(Race.round.desc()).limit(1)
         ).scalar_one_or_none()
         if not last_race:
+            continue
+
+        # Skip ongoing seasons where the last race hasn't happened yet
+        if last_race.date and last_race.date > today:
             continue
 
         driver_champ = db.execute(

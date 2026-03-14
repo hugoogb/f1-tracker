@@ -1,9 +1,10 @@
 'use client'
 
 import {
+  Area,
   CartesianGrid,
+  ComposedChart,
   Line,
-  LineChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -23,7 +24,19 @@ export function CareerPointsChart({ seasons, color = '#E8002D' }: CareerPointsCh
   return (
     <div className="mb-6 h-64 w-full" role="img" aria-label="Career points per season">
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={data} margin={{ left: 0, right: 20, top: 5, bottom: 5 }}>
+        <ComposedChart data={data} margin={{ left: 0, right: 20, top: 5, bottom: 5 }}>
+          <defs>
+            <linearGradient
+              id={`areaGradient-${color.replace('#', '')}`}
+              x1="0"
+              y1="0"
+              x2="0"
+              y2="1"
+            >
+              <stop offset="0%" stopColor={color} stopOpacity={0.2} />
+              <stop offset="100%" stopColor={color} stopOpacity={0} />
+            </linearGradient>
+          </defs>
           <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
           <XAxis dataKey="year" tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }} />
           <YAxis tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }} width={50} />
@@ -39,6 +52,13 @@ export function CareerPointsChart({ seasons, color = '#E8002D' }: CareerPointsCh
             formatter={(value) => [String(value), 'Points']}
             labelFormatter={(label) => `${label} Season`}
           />
+          <Area
+            type="monotone"
+            dataKey="points"
+            fill={`url(#areaGradient-${color.replace('#', '')})`}
+            stroke="none"
+            tooltipType="none"
+          />
           <Line
             type="monotone"
             dataKey="points"
@@ -47,7 +67,7 @@ export function CareerPointsChart({ seasons, color = '#E8002D' }: CareerPointsCh
             dot={{ r: 3, fill: color, strokeWidth: 0 }}
             activeDot={{ r: 6, strokeWidth: 2, stroke: 'var(--background)' }}
           />
-        </LineChart>
+        </ComposedChart>
       </ResponsiveContainer>
     </div>
   )

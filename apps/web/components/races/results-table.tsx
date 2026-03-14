@@ -1,6 +1,8 @@
 import Link from 'next/link'
+import { ArrowUp, ArrowDown } from 'lucide-react'
 import { TEAM_COLORS } from '@/lib/constants'
 import type { RaceResult } from '@/lib/types'
+import { PositionBadge } from '@/components/ui/position-badge'
 import {
   Table,
   TableBody,
@@ -25,50 +27,73 @@ export function ResultsTable({ results }: ResultsTableProps) {
         <TableRow>
           <TableHead className="w-12">Pos</TableHead>
           <TableHead>Driver</TableHead>
-          <TableHead>Constructor</TableHead>
-          <TableHead className="text-right">Grid</TableHead>
-          <TableHead className="text-right">Laps</TableHead>
-          <TableHead>Time</TableHead>
-          <TableHead className="text-right">Points</TableHead>
+          <TableHead className="hidden md:table-cell">Constructor</TableHead>
+          <TableHead className="hidden text-right sm:table-cell">Grid</TableHead>
+          <TableHead className="hidden text-right md:table-cell">Laps</TableHead>
+          <TableHead className="hidden sm:table-cell">Time</TableHead>
+          <TableHead className="text-right">Pts</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
         {results.map((result, idx) => {
           const teamColor = TEAM_COLORS[result.constructor.ref] ?? result.constructor.color ?? null
+          const isFinished = result.position != null
+          const positionDelta = isFinished ? result.grid - (result.position ?? 0) : null
 
           return (
-            <TableRow key={result.driver.ref ?? idx}>
-              <TableCell className="font-medium">{result.positionText}</TableCell>
+            <TableRow key={result.driver.ref ?? idx} className={!isFinished ? 'opacity-50' : ''}>
+              <TableCell>
+                {isFinished ? (
+                  <PositionBadge position={result.position!} size="sm" />
+                ) : (
+                  <span className="text-muted-foreground font-mono text-xs">
+                    {result.positionText}
+                  </span>
+                )}
+              </TableCell>
               <TableCell>
                 <div className="flex items-center gap-2">
                   {teamColor && (
                     <span
-                      className="inline-block h-3 w-1 rounded-full"
+                      className="inline-block h-4 w-1 rounded-full"
                       style={{ backgroundColor: teamColor }}
                     />
                   )}
                   <Link
                     href={`/drivers/${result.driver.ref}`}
-                    className="hover:text-primary transition-colors"
+                    className="hover:text-primary font-medium transition-colors"
                   >
                     {result.driver.firstName} {result.driver.lastName}
                   </Link>
                 </div>
               </TableCell>
-              <TableCell>
+              <TableCell className="hidden md:table-cell">
                 <Link
                   href={`/constructors/${result.constructor.ref}`}
-                  className="hover:text-primary transition-colors"
+                  className="text-muted-foreground hover:text-foreground transition-colors"
                 >
                   {result.constructor.name}
                 </Link>
               </TableCell>
-              <TableCell className="text-right">{result.grid}</TableCell>
-              <TableCell className="text-right">{result.laps}</TableCell>
-              <TableCell>
-                <span className="text-muted-foreground">{result.time ?? result.status}</span>
+              <TableCell className="hidden text-right sm:table-cell">
+                <div className="flex items-center justify-end gap-1">
+                  {result.grid}
+                  {positionDelta != null &&
+                    positionDelta !== 0 &&
+                    (positionDelta > 0 ? (
+                      <ArrowUp className="text-positive h-3 w-3" />
+                    ) : (
+                      <ArrowDown className="text-negative h-3 w-3" />
+                    ))}
+                </div>
               </TableCell>
-              <TableCell className="text-right">{result.points}</TableCell>
+              <TableCell className="hidden text-right md:table-cell">{result.laps}</TableCell>
+              <TableCell className="hidden sm:table-cell">
+                <span className="text-muted-foreground text-sm">
+                  {result.time ?? result.status}
+                </span>
+              </TableCell>
+              <TableCell className="text-right tabular-nums">{result.points}</TableCell>
             </TableRow>
           )
         })}
