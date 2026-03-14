@@ -41,6 +41,21 @@ class Circuit(Base):
     url: Mapped[str | None] = mapped_column(String)
 
     races: Mapped[list["Race"]] = relationship(back_populates="circuit")
+    layouts: Mapped[list["CircuitLayout"]] = relationship(
+        back_populates="circuit", order_by="CircuitLayout.layout_number"
+    )
+
+
+class CircuitLayout(Base):
+    __tablename__ = "circuit_layouts"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=new_uuid)
+    circuit_id: Mapped[str] = mapped_column(ForeignKey("circuits.id"), index=True)
+    layout_number: Mapped[int] = mapped_column(Integer)
+    svg_id: Mapped[str] = mapped_column(String)
+    seasons_active: Mapped[str] = mapped_column(String)
+
+    circuit: Mapped["Circuit"] = relationship(back_populates="layouts")
 
 
 class Driver(Base):

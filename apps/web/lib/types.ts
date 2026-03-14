@@ -35,6 +35,12 @@ export interface Circuit {
   url?: string
 }
 
+export interface CircuitLayout {
+  layoutNumber: number
+  svgId: string
+  seasonsActive: string
+}
+
 export interface Race {
   id: string
   seasonYear: number

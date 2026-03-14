@@ -1,9 +1,8 @@
 import Link from 'next/link'
 import { MapPin, Calendar } from 'lucide-react'
 import { api } from '@/lib/api'
-import type { Circuit } from '@/lib/types'
+import type { Circuit, CircuitLayout } from '@/lib/types'
 import { COUNTRY_FLAGS } from '@/lib/constants'
-import { getTrackLayout } from '@/lib/track-data'
 import { Breadcrumbs } from '@/components/layout/breadcrumbs'
 import { StatCard } from '@/components/ui/stat-card'
 import { Badge } from '@/components/ui/badge'
@@ -28,6 +27,7 @@ interface CircuitRace {
 }
 
 interface CircuitDetail extends Circuit {
+  layouts: CircuitLayout[]
   races: CircuitRace[]
 }
 
@@ -48,8 +48,6 @@ export default async function CircuitDetailPage({ params }: { params: Promise<{ 
   const firstRaceYear =
     circuit.races.length > 0 ? circuit.races[circuit.races.length - 1]?.seasonYear : null
   const lastRaceYear = circuit.races.length > 0 ? circuit.races[0]?.seasonYear : null
-  const trackCoords = getTrackLayout(circuit.ref)
-
   // Group races by decade
   const racesByDecade = circuit.races.reduce<Record<string, CircuitRace[]>>((acc, race) => {
     const decade = `${Math.floor(race.seasonYear / 10) * 10}s`
@@ -82,7 +80,7 @@ export default async function CircuitDetailPage({ params }: { params: Promise<{ 
       </div>
 
       {/* Track Layout */}
-      {trackCoords && <TrackLayout coordinates={trackCoords} name={circuit.name} />}
+      {circuit.layouts.length > 0 && <TrackLayout layouts={circuit.layouts} name={circuit.name} />}
 
       {/* Stats row */}
       <div className="grid grid-cols-3 gap-4">
