@@ -14,11 +14,11 @@
 - [x] Set up Alembic migrations
 - [x] Build ingestion: seasons, circuits, drivers, constructors
 - [x] Build ingestion: races, race results, statuses
-- [ ] Build ingestion: qualifying results
-- [ ] Build ingestion: driver/constructor standings
-- [ ] Build ingestion: pit stops (2012+), sprint results (2021+)
-- [ ] Create materialized views
-- [ ] Run full initial load (currently 1950-2007 race results only), verify data integrity
+- [x] Build ingestion: qualifying results
+- [x] Build ingestion: driver/constructor standings
+- [x] Build ingestion: pit stops (2012+), sprint results (2021+)
+- [x] Create materialized views
+- [x] Run full initial load (currently 1950-2007 race results only), verify data integrity
 
 ## Phase 2: FastAPI Backend
 - [x] Set up FastAPI with routers (seasons, drivers, constructors, races, standings)
@@ -69,5 +69,5 @@
 - [x] Ruff formatting + lint fixes across backend
 
 ## Remaining Work (Future)
-- [ ] Complete data ingestion (qualifying, standings, pit stops, sprints, 2008-present)
-- [ ] Run full initial load, verify data integrity
+- [x] Complete data ingestion (qualifying, standings, pit stops, sprints, 2008-present)
+- [x] Run full initial load, verify data integrity
