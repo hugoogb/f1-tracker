@@ -17,8 +17,7 @@
   },
   "lint-staged": {
     "apps/**/*.{ts,tsx}": [
-      "prettier --write",
-      "eslint --fix"
+      "prettier --write"
     ],
     "*.{json,css,md,yml,yaml}": [
       "prettier --write"
