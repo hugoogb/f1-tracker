@@ -1,6 +1,13 @@
 'use client'
 
 import { useRouter, useSearchParams } from 'next/navigation'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 
 interface ListFilterProps {
   label: string
@@ -13,32 +20,33 @@ export function ListFilter({ label, paramName, options }: ListFilterProps) {
   const searchParams = useSearchParams()
   const current = searchParams.get(paramName) ?? ''
 
-  function handleChange(value: string) {
+  function handleChange(value: string | null) {
     const params = new URLSearchParams(searchParams.toString())
-    if (value) {
+    if (value && value !== 'all') {
       params.set(paramName, value)
     } else {
       params.delete(paramName)
     }
-    params.delete('page') // Reset to page 1 when filtering
+    params.delete('page')
     router.push(`?${params.toString()}`)
   }
 
   return (
     <div className="flex items-center gap-2">
       <label className="text-muted-foreground text-sm">{label}:</label>
-      <select
-        value={current}
-        onChange={(e) => handleChange(e.target.value)}
-        className="border-border bg-background focus:border-primary focus:ring-primary/20 h-9 rounded-lg border px-3 text-sm transition-colors focus:ring-2 focus:outline-none"
-      >
-        <option value="">All</option>
-        {options.map((opt) => (
-          <option key={opt} value={opt}>
-            {opt}
-          </option>
-        ))}
-      </select>
+      <Select value={current || 'all'} onValueChange={handleChange}>
+        <SelectTrigger className="h-9 w-[180px]">
+          <SelectValue placeholder="All" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">All</SelectItem>
+          {options.map((opt) => (
+            <SelectItem key={opt} value={opt}>
+              {opt}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     </div>
   )
 }

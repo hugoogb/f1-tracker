@@ -2,6 +2,8 @@ import Link from 'next/link'
 import { Suspense } from 'react'
 import { api } from '@/lib/api'
 import type { Circuit, PaginatedResponse } from '@/lib/types'
+import { COUNTRY_FLAGS } from '@/lib/constants'
+import { PageHeader } from '@/components/ui/page-header'
 import {
   Table,
   TableBody,
@@ -44,12 +46,10 @@ export default async function CircuitsPage({
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1>Circuits</h1>
-        <p className="text-muted-foreground">
-          {total} circuits{country ? ` in ${country}` : ' across F1 history'}
-        </p>
-      </div>
+      <PageHeader
+        title="Circuits"
+        description={`${total} circuits${country ? ` in ${country}` : ' across F1 history'}`}
+      />
 
       <Suspense>
         <ListFilter label="Country" paramName="country" options={countries} />
@@ -59,29 +59,39 @@ export default async function CircuitsPage({
         <TableHeader>
           <TableRow>
             <TableHead>Circuit</TableHead>
-            <TableHead>Location</TableHead>
+            <TableHead className="hidden sm:table-cell">Location</TableHead>
             <TableHead>Country</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {circuits.map((circuit) => (
-            <TableRow key={circuit.id}>
-              <TableCell>
-                <Link
-                  href={`/circuits/${circuit.ref}`}
-                  className="hover:text-primary font-medium transition-colors"
-                >
-                  {circuit.name}
-                </Link>
-              </TableCell>
-              <TableCell className="text-muted-foreground">{circuit.location ?? '—'}</TableCell>
-              <TableCell className="text-muted-foreground">{circuit.country ?? '—'}</TableCell>
-            </TableRow>
-          ))}
+          {circuits.map((circuit) => {
+            const flag = circuit.country ? COUNTRY_FLAGS[circuit.country] : null
+            return (
+              <TableRow key={circuit.id}>
+                <TableCell>
+                  <Link
+                    href={`/circuits/${circuit.ref}`}
+                    className="hover:text-primary font-medium transition-colors"
+                  >
+                    {circuit.name}
+                  </Link>
+                </TableCell>
+                <TableCell className="text-muted-foreground hidden sm:table-cell">
+                  {circuit.location ?? '—'}
+                </TableCell>
+                <TableCell className="text-muted-foreground">
+                  {flag && <span className="mr-1.5">{flag}</span>}
+                  {circuit.country ?? '—'}
+                </TableCell>
+              </TableRow>
+            )
+          })}
         </TableBody>
       </Table>
 
-      <Pagination total={total} page={page} pageSize={pageSize} />
+      <Suspense>
+        <Pagination total={total} page={page} pageSize={pageSize} />
+      </Suspense>
     </div>
   )
 }

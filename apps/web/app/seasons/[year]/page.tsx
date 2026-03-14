@@ -1,8 +1,11 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { api } from '@/lib/api'
 import type { Race, DriverStanding, ConstructorStanding } from '@/lib/types'
+import { COUNTRY_FLAGS } from '@/lib/constants'
 import { Breadcrumbs } from '@/components/layout/breadcrumbs'
+import { Badge } from '@/components/ui/badge'
 import {
   Table,
   TableBody,
@@ -55,7 +58,7 @@ export default async function SeasonDetailPage({ params }: { params: Promise<{ y
   ])
 
   return (
-    <main className="container mx-auto space-y-6 px-4 py-8">
+    <div className="space-y-6">
       <Breadcrumbs
         items={[
           { label: 'Home', href: '/' },
@@ -63,9 +66,26 @@ export default async function SeasonDetailPage({ params }: { params: Promise<{ y
           { label: String(year) },
         ]}
       />
-      <div>
-        <h1>{year} Season</h1>
-        <p className="text-muted-foreground mt-1">{season.races.length} races</p>
+
+      <div className="flex items-center gap-4">
+        <Link
+          href={`/seasons/${year - 1}`}
+          className="border-border bg-background hover:bg-muted inline-flex size-7 items-center justify-center rounded-lg border text-sm font-medium transition-all"
+          title={`${year - 1} Season`}
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </Link>
+        <div>
+          <h1>{year} Season</h1>
+          <p className="text-muted-foreground">{season.races.length} races</p>
+        </div>
+        <Link
+          href={`/seasons/${year + 1}`}
+          className="border-border bg-background hover:bg-muted inline-flex size-7 items-center justify-center rounded-lg border text-sm font-medium transition-all"
+          title={`${year + 1} Season`}
+        >
+          <ChevronRight className="h-4 w-4" />
+        </Link>
       </div>
 
       <SeasonTabs
@@ -83,7 +103,7 @@ export default async function SeasonDetailPage({ params }: { params: Promise<{ y
           </>
         }
       />
-    </main>
+    </div>
   )
 }
 
@@ -98,36 +118,46 @@ function RacesTable({ races, year }: { races: Race[]; year: number }) {
         <TableRow>
           <TableHead className="w-16">Round</TableHead>
           <TableHead>Race</TableHead>
-          <TableHead>Circuit</TableHead>
-          <TableHead>Date</TableHead>
+          <TableHead className="hidden md:table-cell">Circuit</TableHead>
+          <TableHead className="hidden sm:table-cell">Country</TableHead>
+          <TableHead className="text-right">Date</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
-        {races.map((race) => (
-          <TableRow key={race.round}>
-            <TableCell className="font-medium">{race.round}</TableCell>
-            <TableCell>
-              <Link
-                href={`/seasons/${year}/races/${race.round}`}
-                className="hover:text-primary transition-colors"
-              >
-                {race.name}
-              </Link>
-            </TableCell>
-            <TableCell>
-              <span className="text-muted-foreground">
-                {race.circuit.location}, {race.circuit.country}
-              </span>
-            </TableCell>
-            <TableCell className="whitespace-nowrap">
-              {new Date(race.date).toLocaleDateString('en-GB', {
-                day: 'numeric',
-                month: 'short',
-                year: 'numeric',
-              })}
-            </TableCell>
-          </TableRow>
-        ))}
+        {races.map((race) => {
+          const flag = race.circuit.country ? COUNTRY_FLAGS[race.circuit.country] : null
+          return (
+            <TableRow key={race.round}>
+              <TableCell>
+                <Badge variant="outline" className="font-mono text-xs">
+                  R{race.round}
+                </Badge>
+              </TableCell>
+              <TableCell>
+                <Link
+                  href={`/seasons/${year}/races/${race.round}`}
+                  className="hover:text-primary font-medium transition-colors"
+                >
+                  {race.name}
+                </Link>
+              </TableCell>
+              <TableCell className="text-muted-foreground hidden md:table-cell">
+                {race.circuit.name}
+              </TableCell>
+              <TableCell className="hidden sm:table-cell">
+                {flag && <span className="mr-1.5">{flag}</span>}
+                {race.circuit.country}
+              </TableCell>
+              <TableCell className="text-right whitespace-nowrap tabular-nums">
+                {new Date(race.date).toLocaleDateString('en-GB', {
+                  day: 'numeric',
+                  month: 'short',
+                  year: 'numeric',
+                })}
+              </TableCell>
+            </TableRow>
+          )
+        })}
       </TableBody>
     </Table>
   )

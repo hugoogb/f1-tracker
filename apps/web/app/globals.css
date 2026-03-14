@@ -23,6 +23,8 @@
   --color-chart-3: var(--chart-3);
   --color-chart-2: var(--chart-2);
   --color-chart-1: var(--chart-1);
+  --color-positive: var(--positive);
+  --color-negative: var(--negative);
   --color-ring: var(--ring);
   --color-input: var(--input);
   --color-border: var(--border);
@@ -73,6 +75,11 @@
   --chart-4: oklch(0.75 0.15 65);
   --chart-5: oklch(0.6 0.2 300);
   --radius: 0.625rem;
+  --gradient-start: oklch(0.53 0.22 27);
+  --gradient-end: oklch(0.48 0.25 15);
+  --positive: oklch(0.72 0.18 145);
+  --negative: oklch(0.65 0.2 25);
+  --glow-primary: oklch(0.53 0.22 27 / 12%);
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
   --sidebar-primary: oklch(0.53 0.22 27);
@@ -115,6 +122,11 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 12%);
   --sidebar-ring: oklch(0.63 0.22 27);
+  --gradient-start: oklch(0.63 0.22 27);
+  --gradient-end: oklch(0.55 0.25 15);
+  --positive: oklch(0.72 0.18 145);
+  --negative: oklch(0.7 0.2 25);
+  --glow-primary: oklch(0.63 0.22 27 / 15%);
 }
 
 @layer base {
@@ -135,9 +147,38 @@
     @apply font-heading text-2xl font-bold tracking-tight;
   }
 
+  h3 {
+    @apply font-heading text-lg font-semibold tracking-tight;
+  }
+
   /* Strip table container border when nested inside a card */
   .group\/card [data-slot='table-container'] {
     border: none;
     border-radius: 0;
+  }
+}
+
+@layer components {
+  .text-gradient {
+    @apply bg-gradient-to-r from-[var(--gradient-start)] to-[var(--gradient-end)] bg-clip-text text-transparent;
+  }
+
+  .card-glow {
+    @apply transition-shadow duration-300;
+  }
+  .card-glow:hover {
+    box-shadow:
+      0 0 20px var(--glow-primary),
+      0 4px 12px oklch(0 0 0 / 15%);
+  }
+
+  .pos-1 {
+    @apply border-amber-500/30 bg-amber-500/15 text-amber-500 dark:text-amber-400;
+  }
+  .pos-2 {
+    @apply border-zinc-400/30 bg-zinc-400/15 text-zinc-500 dark:text-zinc-300;
+  }
+  .pos-3 {
+    @apply border-orange-600/30 bg-orange-600/15 text-orange-600 dark:text-orange-400;
   }
 }

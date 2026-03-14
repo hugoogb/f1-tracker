@@ -1,6 +1,8 @@
 import Link from 'next/link'
 import { api } from '@/lib/api'
+import { Badge } from '@/components/ui/badge'
 import { Card, CardHeader, CardTitle } from '@/components/ui/card'
+import { PageHeader } from '@/components/ui/page-header'
 
 export const dynamic = 'force-dynamic'
 
@@ -24,30 +26,43 @@ function groupByDecade(seasons: { year: number }[]) {
 export default async function SeasonsPage() {
   const { data: seasons } = await api.seasons.list()
   const decades = groupByDecade(seasons)
+  const currentYear = new Date().getFullYear()
 
   return (
-    <main className="container mx-auto space-y-10 px-4 py-8">
-      <div>
-        <h1>Seasons</h1>
-        <p className="text-muted-foreground mt-1">Every Formula 1 season from 1950 to today.</p>
-      </div>
+    <div className="space-y-10">
+      <PageHeader title="Seasons" description="Every Formula 1 season from 1950 to today." />
 
       {decades.map(([decade, years]) => (
         <section key={decade}>
-          <h2 className="mb-4">{decade}</h2>
+          <div className="mb-4 flex items-center gap-3">
+            <div className="bg-primary/20 h-6 w-1 rounded-full" />
+            <h2>{decade}</h2>
+          </div>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-            {years.map((year) => (
-              <Link key={year} href={`/seasons/${year}`}>
-                <Card className="hover:border-primary/30 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
-                  <CardHeader>
-                    <CardTitle className="text-center text-lg">{year}</CardTitle>
-                  </CardHeader>
-                </Card>
-              </Link>
-            ))}
+            {years.map((year) => {
+              const isCurrent = year === currentYear
+              return (
+                <Link key={year} href={`/seasons/${year}`}>
+                  <Card
+                    className={`hover:border-primary/30 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md ${
+                      isCurrent ? 'border-primary/40 card-glow' : ''
+                    }`}
+                  >
+                    <CardHeader className="items-center">
+                      <CardTitle className="font-heading text-center text-lg">{year}</CardTitle>
+                      {isCurrent && (
+                        <Badge variant="default" className="text-xs">
+                          Current
+                        </Badge>
+                      )}
+                    </CardHeader>
+                  </Card>
+                </Link>
+              )
+            })}
           </div>
         </section>
       ))}
-    </main>
+    </div>
   )
 }

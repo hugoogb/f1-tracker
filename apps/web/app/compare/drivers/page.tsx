@@ -1,9 +1,11 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
+import { ArrowLeftRight } from 'lucide-react'
 import { api } from '@/lib/api'
 import type { Driver } from '@/lib/types'
 import { Breadcrumbs } from '@/components/layout/breadcrumbs'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { cn } from '@/lib/utils'
 import { ComparisonChart } from '@/components/charts/comparison-chart'
 
 export const dynamic = 'force-dynamic'
@@ -46,6 +48,13 @@ export async function generateMetadata({
   }
 }
 
+const statLabels = [
+  { key: 'total_races' as const, label: 'Races' },
+  { key: 'wins' as const, label: 'Wins' },
+  { key: 'podiums' as const, label: 'Podiums' },
+  { key: 'total_points' as const, label: 'Points' },
+]
+
 export default async function CompareDriversPage({
   searchParams,
 }: {
@@ -75,15 +84,29 @@ export default async function CompareDriversPage({
         ]}
       />
 
-      <h1>
-        <Link href={`/drivers/${driver1.ref}`} className="hover:text-primary transition-colors">
-          {d1Name}
+      <div className="flex items-center gap-4">
+        <h1 className="flex-1 text-right">
+          <Link href={`/drivers/${driver1.ref}`} className="hover:text-primary transition-colors">
+            {d1Name}
+          </Link>
+        </h1>
+        <span className="text-muted-foreground font-heading shrink-0 text-xl font-bold">vs</span>
+        <h1 className="flex-1">
+          <Link href={`/drivers/${driver2.ref}`} className="hover:text-primary transition-colors">
+            {d2Name}
+          </Link>
+        </h1>
+      </div>
+
+      <div className="flex justify-center">
+        <Link
+          href={`/compare/drivers?d1=${params.d2}&d2=${params.d1}`}
+          className="border-border bg-background hover:bg-muted inline-flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-sm font-medium transition-all"
+        >
+          <ArrowLeftRight className="h-3.5 w-3.5" />
+          Swap drivers
         </Link>
-        {' vs '}
-        <Link href={`/drivers/${driver2.ref}`} className="hover:text-primary transition-colors">
-          {d2Name}
-        </Link>
-      </h1>
+      </div>
 
       {/* Head to Head */}
       <Card>
@@ -111,68 +134,68 @@ export default async function CompareDriversPage({
             </div>
           </div>
           {headToHead.totalRaces > 0 && (
-            <div className="bg-muted mt-4 flex h-3 overflow-hidden rounded-full">
+            <div className="bg-muted mt-4 flex h-4 overflow-hidden rounded-full">
               <div
-                className="bg-primary rounded-l-full transition-all duration-500"
+                className="bg-primary flex items-center justify-center rounded-l-full text-[10px] font-bold text-white transition-all duration-500"
                 style={{
                   width: `${(headToHead.driver1Wins / headToHead.totalRaces) * 100}%`,
                 }}
-              />
+              >
+                {headToHead.driver1Wins > 0 &&
+                  `${Math.round((headToHead.driver1Wins / headToHead.totalRaces) * 100)}%`}
+              </div>
               <div
-                className="rounded-r-full bg-blue-500 transition-all duration-500"
+                className="flex items-center justify-center rounded-r-full bg-blue-500 text-[10px] font-bold text-white transition-all duration-500"
                 style={{
                   width: `${(headToHead.driver2Wins / headToHead.totalRaces) * 100}%`,
                 }}
-              />
+              >
+                {headToHead.driver2Wins > 0 &&
+                  `${Math.round((headToHead.driver2Wins / headToHead.totalRaces) * 100)}%`}
+              </div>
             </div>
           )}
         </CardContent>
       </Card>
 
-      {/* Stats Comparison */}
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>
-              <Link
-                href={`/drivers/${driver1.ref}`}
-                className="hover:text-primary transition-colors"
-              >
-                {d1Name}
-              </Link>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 gap-4">
-              <StatItem label="Races" value={driver1.stats.total_races} />
-              <StatItem label="Wins" value={driver1.stats.wins} />
-              <StatItem label="Podiums" value={driver1.stats.podiums} />
-              <StatItem label="Points" value={driver1.stats.total_points} />
-            </div>
-          </CardContent>
-        </Card>
+      {/* Stat-by-Stat Comparison */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Career Stats</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-0 divide-y">
+          {statLabels.map(({ key, label }) => {
+            const v1 = driver1.stats[key]
+            const v2 = driver2.stats[key]
+            const d1Higher = v1 > v2
+            const d2Higher = v2 > v1
 
-        <Card>
-          <CardHeader>
-            <CardTitle>
-              <Link
-                href={`/drivers/${driver2.ref}`}
-                className="hover:text-primary transition-colors"
-              >
-                {d2Name}
-              </Link>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 gap-4">
-              <StatItem label="Races" value={driver2.stats.total_races} />
-              <StatItem label="Wins" value={driver2.stats.wins} />
-              <StatItem label="Podiums" value={driver2.stats.podiums} />
-              <StatItem label="Points" value={driver2.stats.total_points} />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+            return (
+              <div key={key} className="flex items-center py-3">
+                <span
+                  className={cn(
+                    'font-heading flex-1 text-right text-xl font-bold tabular-nums',
+                    d1Higher ? 'text-primary' : 'text-muted-foreground',
+                  )}
+                >
+                  {v1.toLocaleString()}
+                </span>
+                <span className="text-muted-foreground w-24 text-center text-sm font-medium">
+                  {label}
+                </span>
+                <span
+                  className={cn(
+                    'font-heading flex-1 text-xl font-bold tabular-nums',
+                    d2Higher ? 'text-blue-500' : 'text-muted-foreground',
+                  )}
+                >
+                  {v2.toLocaleString()}
+                </span>
+              </div>
+            )
+          })}
+        </CardContent>
+      </Card>
 
       {/* Career Points Chart */}
       {(driver1Seasons.length > 0 || driver2Seasons.length > 0) && (
@@ -190,19 +213,6 @@ export default async function CompareDriversPage({
           </CardContent>
         </Card>
       )}
-    </div>
-  )
-}
-
-function StatItem({ label, value }: { label: string; value: number }) {
-  return (
-    <div>
-      <p className="text-primary text-2xl font-bold tabular-nums">
-        {typeof value === 'number' && !Number.isInteger(value)
-          ? value.toLocaleString('en-US', { maximumFractionDigits: 1 })
-          : value.toLocaleString('en-US')}
-      </p>
-      <p className="text-muted-foreground text-sm font-medium">{label}</p>
     </div>
   )
 }

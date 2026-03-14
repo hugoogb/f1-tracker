@@ -18,7 +18,7 @@ export function RaceTabs({
 }: RaceTabsProps) {
   return (
     <Tabs defaultValue={0}>
-      <TabsList>
+      <TabsList variant="line">
         <TabsTrigger value={0}>Race Results</TabsTrigger>
         <TabsTrigger value={1}>Qualifying</TabsTrigger>
         {sprintContent !== undefined && <TabsTrigger value={2}>Sprint</TabsTrigger>}
