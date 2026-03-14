@@ -19,6 +19,7 @@ import { ConstructorStandingsTable } from '@/components/standings/constructor-st
 import { PointsBarChart } from '@/components/charts/points-bar-chart'
 import { ConstructorPointsChart } from '@/components/charts/constructor-points-chart'
 import { SeasonTabs } from './season-tabs'
+import { FadeIn } from '@/components/ui/motion'
 
 export const dynamic = 'force-dynamic'
 
@@ -67,32 +68,34 @@ export default async function SeasonDetailPage({ params }: { params: Promise<{ y
         ]}
       />
 
-      <div className="space-y-3">
-        <div className="flex items-center gap-4">
-          <Link
-            href={`/seasons/${year - 1}`}
-            className="border-border inline-flex size-8 items-center justify-center rounded-lg border bg-[var(--surface-1)] text-sm font-medium transition-all hover:bg-[var(--surface-2)]"
-            title={`${year - 1} Season`}
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </Link>
-          <div>
-            <h1>
-              <span className="text-gradient">{year}</span>{' '}
-              <span className="text-foreground">Season</span>
-            </h1>
-            <p className="text-muted-foreground">{season.races.length} races</p>
+      <FadeIn>
+        <div className="space-y-3">
+          <div className="flex items-center gap-4">
+            <Link
+              href={`/seasons/${year - 1}`}
+              className="border-border inline-flex size-8 items-center justify-center rounded-lg border bg-[var(--surface-1)] text-sm font-medium transition-all hover:bg-[var(--surface-2)]"
+              title={`${year - 1} Season`}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Link>
+            <div>
+              <h1>
+                <span className="text-gradient">{year}</span>{' '}
+                <span className="text-foreground">Season</span>
+              </h1>
+              <p className="text-muted-foreground">{season.races.length} races</p>
+            </div>
+            <Link
+              href={`/seasons/${year + 1}`}
+              className="border-border inline-flex size-8 items-center justify-center rounded-lg border bg-[var(--surface-1)] text-sm font-medium transition-all hover:bg-[var(--surface-2)]"
+              title={`${year + 1} Season`}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Link>
           </div>
-          <Link
-            href={`/seasons/${year + 1}`}
-            className="border-border inline-flex size-8 items-center justify-center rounded-lg border bg-[var(--surface-1)] text-sm font-medium transition-all hover:bg-[var(--surface-2)]"
-            title={`${year + 1} Season`}
-          >
-            <ChevronRight className="h-4 w-4" />
-          </Link>
+          <div className="accent-line" />
         </div>
-        <div className="accent-line" />
-      </div>
+      </FadeIn>
 
       <SeasonTabs
         racesContent={<RacesTable races={season.races} year={year} />}

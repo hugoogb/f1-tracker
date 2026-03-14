@@ -15,6 +15,7 @@ import {
 import { Pagination } from '@/components/pagination'
 import { ListFilter } from '@/components/list-filter'
 import { WorldMapWrapper } from '@/components/circuits/world-map-wrapper'
+import { FadeIn } from '@/components/ui/motion'
 
 export const dynamic = 'force-dynamic'
 
@@ -76,38 +77,40 @@ export default async function CircuitsPage({
         <ListFilter label="Country" paramName="country" options={countries} />
       </Suspense>
 
-      <Table aria-label="Circuits">
-        <TableHeader>
-          <TableRow>
-            <TableHead>Circuit</TableHead>
-            <TableHead className="hidden sm:table-cell">Location</TableHead>
-            <TableHead>Country</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {circuits.map((circuit) => (
-            <TableRow key={circuit.id}>
-              <TableCell>
-                <Link
-                  href={`/circuits/${circuit.ref}`}
-                  className="hover:text-primary font-medium transition-colors"
-                >
-                  {circuit.name}
-                </Link>
-              </TableCell>
-              <TableCell className="text-muted-foreground hidden sm:table-cell">
-                {circuit.location ?? '—'}
-              </TableCell>
-              <TableCell className="text-muted-foreground">
-                <span className="inline-flex items-center gap-1.5">
-                  {circuit.country && <CountryFlag code={circuit.countryCode} />}
-                  {circuit.country ?? '—'}
-                </span>
-              </TableCell>
+      <FadeIn>
+        <Table aria-label="Circuits">
+          <TableHeader>
+            <TableRow>
+              <TableHead>Circuit</TableHead>
+              <TableHead className="hidden sm:table-cell">Location</TableHead>
+              <TableHead>Country</TableHead>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+          </TableHeader>
+          <TableBody>
+            {circuits.map((circuit) => (
+              <TableRow key={circuit.id}>
+                <TableCell>
+                  <Link
+                    href={`/circuits/${circuit.ref}`}
+                    className="hover:text-primary font-medium transition-colors"
+                  >
+                    {circuit.name}
+                  </Link>
+                </TableCell>
+                <TableCell className="text-muted-foreground hidden sm:table-cell">
+                  {circuit.location ?? '—'}
+                </TableCell>
+                <TableCell className="text-muted-foreground">
+                  <span className="inline-flex items-center gap-1.5">
+                    {circuit.country && <CountryFlag code={circuit.countryCode} />}
+                    {circuit.country ?? '—'}
+                  </span>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </FadeIn>
 
       <Suspense>
         <Pagination total={total} page={page} pageSize={pageSize} />

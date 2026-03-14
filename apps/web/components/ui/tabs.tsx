@@ -62,13 +62,16 @@ function TabsTrigger({ className, ...props }: TabsPrimitive.Tab.Props) {
   )
 }
 
-function TabsContent({ className, ...props }: TabsPrimitive.Panel.Props) {
+function TabsContent({ className, children, ...props }: TabsPrimitive.Panel.Props) {
   return (
     <TabsPrimitive.Panel
       data-slot="tabs-content"
+      keepMounted={false}
       className={cn('flex-1 text-sm outline-none', className)}
       {...props}
-    />
+    >
+      <div className="animate-[fade-up_0.3s_ease-out]">{children}</div>
+    </TabsPrimitive.Panel>
   )
 }
 

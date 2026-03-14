@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 
 import { cn } from '@/lib/utils'
+import { FadeIn } from '@/components/ui/motion'
 
 interface PageHeaderProps {
   title: string
@@ -20,17 +21,19 @@ export function PageHeader({
   children,
 }: PageHeaderProps) {
   return (
-    <div className={cn('space-y-2', className)}>
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-3">
-          <h1>{title}</h1>
-          {badge}
+    <FadeIn>
+      <div className={cn('space-y-2', className)}>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <h1>{title}</h1>
+            {badge}
+          </div>
+          {actions && <div className="flex items-center gap-2">{actions}</div>}
         </div>
-        {actions && <div className="flex items-center gap-2">{actions}</div>}
+        {description && <p className="text-muted-foreground max-w-2xl">{description}</p>}
+        {children}
+        <div className="accent-line" />
       </div>
-      {description && <p className="text-muted-foreground max-w-2xl">{description}</p>}
-      {children}
-      <div className="accent-line" />
-    </div>
+    </FadeIn>
   )
 }

@@ -3,6 +3,7 @@ import type { LucideIcon } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
 import { Card } from '@/components/ui/card'
+import { AnimatedNumber, MotionCard } from '@/components/ui/motion'
 
 interface StatCardProps {
   label: string
@@ -23,13 +24,11 @@ export function StatCard({
   description,
   className,
 }: StatCardProps) {
-  const formattedValue = typeof value === 'number' ? value.toLocaleString() : value
-
-  const content = (
+  const card = (
     <Card
       className={cn(
         'glow-border relative gap-4 py-5 transition-all duration-200',
-        href && 'hover:border-primary/30 card-glow cursor-pointer hover:-translate-y-0.5',
+        href && 'hover:border-primary/30 card-glow cursor-pointer',
         className,
       )}
     >
@@ -42,9 +41,14 @@ export function StatCard({
       <div className="flex items-start justify-between px-5">
         <div className="space-y-1">
           <p className="text-muted-foreground text-sm font-medium">{label}</p>
-          <p className="font-heading text-3xl font-bold tracking-tight tabular-nums">
-            {formattedValue}
-          </p>
+          {typeof value === 'number' ? (
+            <AnimatedNumber
+              value={value}
+              className="font-heading text-3xl font-bold tracking-tight tabular-nums"
+            />
+          ) : (
+            <p className="font-heading text-3xl font-bold tracking-tight tabular-nums">{value}</p>
+          )}
           {description && <p className="text-muted-foreground text-xs">{description}</p>}
         </div>
         {Icon && (
@@ -57,8 +61,12 @@ export function StatCard({
   )
 
   if (href) {
-    return <Link href={href}>{content}</Link>
+    return (
+      <Link href={href}>
+        <MotionCard>{card}</MotionCard>
+      </Link>
+    )
   }
 
-  return content
+  return card
 }

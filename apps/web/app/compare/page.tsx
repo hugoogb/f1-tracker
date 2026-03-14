@@ -7,6 +7,7 @@ import { DriverSelect } from '@/components/compare/driver-select'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { PageHeader } from '@/components/ui/page-header'
+import { FadeIn } from '@/components/ui/motion'
 
 const suggestedComparisons = [
   { d1: 'hamilton', d2: 'max_verstappen', label: 'Hamilton vs Verstappen' },
@@ -37,54 +38,58 @@ export default function ComparePage() {
         description="Select two drivers to compare their career stats and head-to-head record"
       />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Select Drivers</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-6 md:grid-cols-[1fr_auto_1fr]">
-            <DriverSelect
-              label="Driver 1"
-              value={d1.ref}
-              onChange={(ref, name) => setD1({ ref, name })}
-            />
-            <div className="hidden items-center md:flex">
-              <span className="font-heading text-muted-foreground text-2xl font-bold">VS</span>
+      <FadeIn>
+        <Card>
+          <CardHeader>
+            <CardTitle>Select Drivers</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-6 md:grid-cols-[1fr_auto_1fr]">
+              <DriverSelect
+                label="Driver 1"
+                value={d1.ref}
+                onChange={(ref, name) => setD1({ ref, name })}
+              />
+              <div className="hidden items-center md:flex">
+                <span className="font-heading text-muted-foreground text-2xl font-bold">VS</span>
+              </div>
+              <DriverSelect
+                label="Driver 2"
+                value={d2.ref}
+                onChange={(ref, name) => setD2({ ref, name })}
+              />
             </div>
-            <DriverSelect
-              label="Driver 2"
-              value={d2.ref}
-              onChange={(ref, name) => setD2({ ref, name })}
-            />
-          </div>
 
-          {d1.ref && d2.ref && d1.ref === d2.ref && (
-            <p className="text-destructive mt-4 text-sm">Please select two different drivers.</p>
-          )}
+            {d1.ref && d2.ref && d1.ref === d2.ref && (
+              <p className="text-destructive mt-4 text-sm">Please select two different drivers.</p>
+            )}
 
-          <Button className="mt-6" disabled={!canCompare} onClick={handleCompare}>
-            Compare
-          </Button>
-        </CardContent>
-      </Card>
+            <Button className="mt-6" disabled={!canCompare} onClick={handleCompare}>
+              Compare
+            </Button>
+          </CardContent>
+        </Card>
+      </FadeIn>
 
       {/* Suggested Comparisons */}
-      <div className="space-y-3">
-        <h3 className="text-muted-foreground text-sm font-medium tracking-wider uppercase">
-          Popular Comparisons
-        </h3>
-        <div className="flex flex-wrap gap-2">
-          {suggestedComparisons.map((comp) => (
-            <Link
-              key={comp.label}
-              href={`/compare/drivers?d1=${comp.d1}&d2=${comp.d2}`}
-              className="glass hover:border-primary/30 hover:bg-accent/50 rounded-lg px-3 py-1.5 text-sm transition-colors"
-            >
-              {comp.label}
-            </Link>
-          ))}
+      <FadeIn delay={0.1}>
+        <div className="space-y-3">
+          <h3 className="text-muted-foreground text-sm font-medium tracking-wider uppercase">
+            Popular Comparisons
+          </h3>
+          <div className="flex flex-wrap gap-2">
+            {suggestedComparisons.map((comp) => (
+              <Link
+                key={comp.label}
+                href={`/compare/drivers?d1=${comp.d1}&d2=${comp.d2}`}
+                className="glass hover:border-primary/30 hover:bg-accent/50 rounded-lg px-3 py-1.5 text-sm transition-colors"
+              >
+                {comp.label}
+              </Link>
+            ))}
+          </div>
         </div>
-      </div>
+      </FadeIn>
     </div>
   )
 }

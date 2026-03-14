@@ -6,6 +6,7 @@ import { PageHeader } from '@/components/ui/page-header'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { ChampionsTabs } from './champions-tabs'
+import { FadeIn, StaggerList, StaggerItem } from '@/components/ui/motion'
 
 export const dynamic = 'force-dynamic'
 
@@ -68,159 +69,161 @@ export default async function ChampionsPage() {
       <ChampionsTabs
         driversContent={
           <div className="space-y-10">
-            {driverDecades.map(([decade, entries]) => (
-              <section key={decade}>
-                <div className="mb-4 space-y-3">
-                  <div className="flex items-center gap-3">
-                    <div className="bg-primary/20 h-6 w-1 rounded-full" />
-                    <h2>{decade}</h2>
+            {driverDecades.map(([decade, entries], i) => (
+              <FadeIn key={decade} delay={Math.min(i * 0.05, 0.2)}>
+                <section>
+                  <div className="mb-4 space-y-3">
+                    <div className="flex items-center gap-3">
+                      <div className="bg-primary/20 h-6 w-1 rounded-full" />
+                      <h2>{decade}</h2>
+                    </div>
+                    <div className="accent-line" />
                   </div>
-                  <div className="accent-line" />
-                </div>
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                  {entries.map((champion) => {
-                    const titles = driverTitleCounts[champion.driver.ref] ?? 0
-                    const teamColor = champion.constructor?.color ?? null
-                    return (
-                      <Card
-                        key={champion.year}
-                        className="relative overflow-hidden transition-all duration-200 hover:-translate-y-0.5"
-                      >
-                        {teamColor && (
-                          <div
-                            className="absolute top-0 left-0 h-full w-1 rounded-l-2xl"
-                            style={{ backgroundColor: teamColor }}
-                          />
-                        )}
-                        <CardContent className="flex items-start gap-4 px-5 py-4">
-                          <div className="flex flex-col items-center gap-1">
-                            <Link
-                              href={`/seasons/${champion.year}`}
-                              className="font-heading hover:text-primary text-lg font-bold transition-colors"
-                            >
-                              {champion.year}
-                            </Link>
-                            <Trophy className="h-4 w-4 text-amber-500/60" />
-                          </div>
-                          <div className="min-w-0 flex-1 space-y-1">
-                            <div className="flex items-center gap-2">
-                              <Link
-                                href={`/drivers/${champion.driver.ref}`}
-                                className="hover:text-primary truncate font-medium transition-colors"
-                              >
-                                {champion.driver.firstName} {champion.driver.lastName}
-                              </Link>
-                              {titles > 1 && (
-                                <Badge variant="outline" className="shrink-0 text-xs">
-                                  {titles}x
-                                </Badge>
-                              )}
-                            </div>
-                            <div className="flex items-center justify-between">
-                              {champion.constructor ? (
+                  <StaggerList className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    {entries.map((champion) => {
+                      const titles = driverTitleCounts[champion.driver.ref] ?? 0
+                      const teamColor = champion.constructor?.color ?? null
+                      return (
+                        <StaggerItem key={champion.year}>
+                          <Card className="relative overflow-hidden transition-colors duration-200">
+                            {teamColor && (
+                              <div
+                                className="absolute top-0 left-0 h-full w-1 rounded-l-2xl"
+                                style={{ backgroundColor: teamColor }}
+                              />
+                            )}
+                            <CardContent className="flex items-start gap-4 px-5 py-4">
+                              <div className="flex flex-col items-center gap-1">
                                 <Link
-                                  href={`/constructors/${champion.constructor.ref}`}
-                                  className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 text-sm transition-colors"
+                                  href={`/seasons/${champion.year}`}
+                                  className="font-heading hover:text-primary text-lg font-bold transition-colors"
                                 >
-                                  {champion.constructor.color && (
-                                    <span
-                                      className="inline-block size-2.5 rounded-full"
-                                      style={{ backgroundColor: champion.constructor.color }}
-                                    />
-                                  )}
-                                  {champion.constructor.name}
+                                  {champion.year}
                                 </Link>
-                              ) : (
-                                <span className="text-muted-foreground text-sm">—</span>
-                              )}
-                              <span className="text-muted-foreground text-sm tabular-nums">
-                                {champion.driverPoints} pts
-                              </span>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    )
-                  })}
-                </div>
-              </section>
+                                <Trophy className="h-4 w-4 text-amber-500/60" />
+                              </div>
+                              <div className="min-w-0 flex-1 space-y-1">
+                                <div className="flex items-center gap-2">
+                                  <Link
+                                    href={`/drivers/${champion.driver.ref}`}
+                                    className="hover:text-primary truncate font-medium transition-colors"
+                                  >
+                                    {champion.driver.firstName} {champion.driver.lastName}
+                                  </Link>
+                                  {titles > 1 && (
+                                    <Badge variant="outline" className="shrink-0 text-xs">
+                                      {titles}x
+                                    </Badge>
+                                  )}
+                                </div>
+                                <div className="flex items-center justify-between">
+                                  {champion.constructor ? (
+                                    <Link
+                                      href={`/constructors/${champion.constructor.ref}`}
+                                      className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 text-sm transition-colors"
+                                    >
+                                      {champion.constructor.color && (
+                                        <span
+                                          className="inline-block size-2.5 rounded-full"
+                                          style={{ backgroundColor: champion.constructor.color }}
+                                        />
+                                      )}
+                                      {champion.constructor.name}
+                                    </Link>
+                                  ) : (
+                                    <span className="text-muted-foreground text-sm">—</span>
+                                  )}
+                                  <span className="text-muted-foreground text-sm tabular-nums">
+                                    {champion.driverPoints} pts
+                                  </span>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        </StaggerItem>
+                      )
+                    })}
+                  </StaggerList>
+                </section>
+              </FadeIn>
             ))}
           </div>
         }
         constructorsContent={
           <div className="space-y-10">
-            {constructorDecades.map(([decade, entries]) => (
-              <section key={decade}>
-                <div className="mb-4 space-y-3">
-                  <div className="flex items-center gap-3">
-                    <div className="bg-primary/20 h-6 w-1 rounded-full" />
-                    <h2>{decade}</h2>
+            {constructorDecades.map(([decade, entries], i) => (
+              <FadeIn key={decade} delay={Math.min(i * 0.05, 0.2)}>
+                <section>
+                  <div className="mb-4 space-y-3">
+                    <div className="flex items-center gap-3">
+                      <div className="bg-primary/20 h-6 w-1 rounded-full" />
+                      <h2>{decade}</h2>
+                    </div>
+                    <div className="accent-line" />
                   </div>
-                  <div className="accent-line" />
-                </div>
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                  {entries.map((champion) => {
-                    const titles = constructorTitleCounts[champion.constructor!.ref] ?? 0
-                    const teamColor = champion.constructor!.color ?? null
-                    return (
-                      <Card
-                        key={champion.year}
-                        className="relative overflow-hidden transition-all duration-200 hover:-translate-y-0.5"
-                      >
-                        {teamColor && (
-                          <div
-                            className="absolute top-0 left-0 h-full w-1 rounded-l-2xl"
-                            style={{ backgroundColor: teamColor }}
-                          />
-                        )}
-                        <CardContent className="flex items-start gap-4 px-5 py-4">
-                          <div className="flex flex-col items-center gap-1">
-                            <Link
-                              href={`/seasons/${champion.year}`}
-                              className="font-heading hover:text-primary text-lg font-bold transition-colors"
-                            >
-                              {champion.year}
-                            </Link>
-                            <Trophy className="h-4 w-4 text-amber-500/60" />
-                          </div>
-                          <div className="min-w-0 flex-1 space-y-1">
-                            <div className="flex items-center gap-2">
-                              <Link
-                                href={`/constructors/${champion.constructor!.ref}`}
-                                className="hover:text-primary inline-flex items-center gap-1.5 truncate font-medium transition-colors"
-                              >
-                                {champion.constructor!.color && (
-                                  <span
-                                    className="inline-block size-2.5 shrink-0 rounded-full"
-                                    style={{ backgroundColor: champion.constructor!.color }}
-                                  />
-                                )}
-                                {champion.constructor!.name}
-                              </Link>
-                              {titles > 1 && (
-                                <Badge variant="outline" className="shrink-0 text-xs">
-                                  {titles}x
-                                </Badge>
-                              )}
-                            </div>
-                            <div className="flex items-center justify-between">
-                              <Link
-                                href={`/drivers/${champion.driver.ref}`}
-                                className="text-muted-foreground hover:text-foreground text-sm transition-colors"
-                              >
-                                {champion.driver.firstName} {champion.driver.lastName}
-                              </Link>
-                              <span className="text-muted-foreground text-sm tabular-nums">
-                                {champion.constructorPoints} pts
-                              </span>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    )
-                  })}
-                </div>
-              </section>
+                  <StaggerList className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    {entries.map((champion) => {
+                      const titles = constructorTitleCounts[champion.constructor!.ref] ?? 0
+                      const teamColor = champion.constructor!.color ?? null
+                      return (
+                        <StaggerItem key={champion.year}>
+                          <Card className="relative overflow-hidden transition-colors duration-200">
+                            {teamColor && (
+                              <div
+                                className="absolute top-0 left-0 h-full w-1 rounded-l-2xl"
+                                style={{ backgroundColor: teamColor }}
+                              />
+                            )}
+                            <CardContent className="flex items-start gap-4 px-5 py-4">
+                              <div className="flex flex-col items-center gap-1">
+                                <Link
+                                  href={`/seasons/${champion.year}`}
+                                  className="font-heading hover:text-primary text-lg font-bold transition-colors"
+                                >
+                                  {champion.year}
+                                </Link>
+                                <Trophy className="h-4 w-4 text-amber-500/60" />
+                              </div>
+                              <div className="min-w-0 flex-1 space-y-1">
+                                <div className="flex items-center gap-2">
+                                  <Link
+                                    href={`/constructors/${champion.constructor!.ref}`}
+                                    className="hover:text-primary inline-flex items-center gap-1.5 truncate font-medium transition-colors"
+                                  >
+                                    {champion.constructor!.color && (
+                                      <span
+                                        className="inline-block size-2.5 shrink-0 rounded-full"
+                                        style={{ backgroundColor: champion.constructor!.color }}
+                                      />
+                                    )}
+                                    {champion.constructor!.name}
+                                  </Link>
+                                  {titles > 1 && (
+                                    <Badge variant="outline" className="shrink-0 text-xs">
+                                      {titles}x
+                                    </Badge>
+                                  )}
+                                </div>
+                                <div className="flex items-center justify-between">
+                                  <Link
+                                    href={`/drivers/${champion.driver.ref}`}
+                                    className="text-muted-foreground hover:text-foreground text-sm transition-colors"
+                                  >
+                                    {champion.driver.firstName} {champion.driver.lastName}
+                                  </Link>
+                                  <span className="text-muted-foreground text-sm tabular-nums">
+                                    {champion.constructorPoints} pts
+                                  </span>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        </StaggerItem>
+                      )
+                    })}
+                  </StaggerList>
+                </section>
+              </FadeIn>
             ))}
           </div>
         }

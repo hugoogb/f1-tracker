@@ -215,13 +215,12 @@
 
   /* Card hover glow */
   .card-glow {
-    @apply transition-all duration-300;
+    @apply transition-shadow duration-300;
   }
   .card-glow:hover {
     box-shadow:
       0 0 30px var(--glow-primary),
       0 8px 20px oklch(0 0 0 / 30%);
-    transform: translateY(-2px);
   }
 
   /* Position badges */
@@ -285,5 +284,18 @@
   }
   100% {
     background-position: 200% 0;
+  }
+}
+
+/* Accessibility: respect reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  .card-glow {
+    transition: none;
+  }
+  .accent-line::after {
+    animation: none;
+  }
+  .glow-border::before {
+    transition: none;
   }
 }
