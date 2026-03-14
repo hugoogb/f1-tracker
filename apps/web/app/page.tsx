@@ -15,6 +15,12 @@ import { ConstructorStandingsTable } from '@/components/standings/constructor-st
 
 export const dynamic = 'force-dynamic'
 
+export const metadata = {
+  title: 'F1 Tracker',
+  description:
+    'Explore the complete history of Formula 1 with interactive analytics, standings, and race results from 1950 to today',
+}
+
 export default async function Home() {
   const [seasonsResponse, statsResult, championsResult] = await Promise.allSettled([
     api.seasons.list(),
@@ -109,7 +115,7 @@ export default async function Home() {
             <CardTitle>Recent Champions</CardTitle>
           </CardHeader>
           <CardContent>
-            <Table>
+            <Table aria-label="Recent champions">
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-20">Year</TableHead>
@@ -162,7 +168,7 @@ export default async function Home() {
         </CardHeader>
         <CardContent>
           {races.length > 0 ? (
-            <Table>
+            <Table aria-label="Race calendar">
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-16">Round</TableHead>
