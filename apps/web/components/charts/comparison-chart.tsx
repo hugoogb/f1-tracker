@@ -1,0 +1,76 @@
+'use client'
+
+import { Line, LineChart, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+
+interface ComparisonChartProps {
+  driver1Name: string
+  driver2Name: string
+  driver1Seasons: { year: number; points: number }[]
+  driver2Seasons: { year: number; points: number }[]
+  color1?: string
+  color2?: string
+}
+
+export function ComparisonChart({
+  driver1Name,
+  driver2Name,
+  driver1Seasons,
+  driver2Seasons,
+  color1 = '#E8002D',
+  color2 = '#3671C6',
+}: ComparisonChartProps) {
+  // Merge both drivers' data by year
+  const yearSet = new Set([
+    ...driver1Seasons.map((s) => s.year),
+    ...driver2Seasons.map((s) => s.year),
+  ])
+  const years = Array.from(yearSet).sort((a, b) => a - b)
+
+  const d1Map = new Map(driver1Seasons.map((s) => [s.year, s.points]))
+  const d2Map = new Map(driver2Seasons.map((s) => [s.year, s.points]))
+
+  const data = years.map((year) => ({
+    year,
+    [driver1Name]: d1Map.get(year) ?? null,
+    [driver2Name]: d2Map.get(year) ?? null,
+  }))
+
+  if (data.length === 0) return null
+
+  return (
+    <div className="h-72 w-full">
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart data={data} margin={{ left: 0, right: 20, top: 5, bottom: 5 }}>
+          <XAxis dataKey="year" tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }} />
+          <YAxis tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }} width={50} />
+          <Tooltip
+            contentStyle={{
+              backgroundColor: 'hsl(var(--popover))',
+              border: '1px solid hsl(var(--border))',
+              borderRadius: '6px',
+              color: 'hsl(var(--foreground))',
+            }}
+            labelFormatter={(label) => `${label} Season`}
+          />
+          <Legend />
+          <Line
+            type="monotone"
+            dataKey={driver1Name}
+            stroke={color1}
+            strokeWidth={2}
+            dot={{ r: 3 }}
+            connectNulls
+          />
+          <Line
+            type="monotone"
+            dataKey={driver2Name}
+            stroke={color2}
+            strokeWidth={2}
+            dot={{ r: 3 }}
+            connectNulls
+          />
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
+  )
+}
