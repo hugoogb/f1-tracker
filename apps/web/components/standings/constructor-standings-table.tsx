@@ -23,7 +23,7 @@ export function ConstructorStandingsTable({ standings, limit }: ConstructorStand
   }
 
   return (
-    <Table>
+    <Table aria-label="Constructor standings">
       <TableHeader>
         <TableRow>
           <TableHead className="w-12">Pos</TableHead>

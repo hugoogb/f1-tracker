@@ -20,7 +20,7 @@ export function SeasonHistoryTable({ seasons }: SeasonHistoryTableProps) {
   }
 
   return (
-    <Table>
+    <Table aria-label="Season history">
       <TableHeader>
         <TableRow>
           <TableHead>Year</TableHead>

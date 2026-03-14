@@ -23,7 +23,7 @@ export function DriverStandingsTable({ standings, limit }: DriverStandingsTableP
   }
 
   return (
-    <Table>
+    <Table aria-label="Driver standings">
       <TableHeader>
         <TableRow>
           <TableHead className="w-12">Pos</TableHead>

@@ -20,7 +20,7 @@ export function QualifyingTable({ results }: QualifyingTableProps) {
   }
 
   return (
-    <Table>
+    <Table aria-label="Qualifying results">
       <TableHeader>
         <TableRow>
           <TableHead className="w-12">Pos</TableHead>

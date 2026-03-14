@@ -93,7 +93,7 @@ function RacesTable({ races, year }: { races: Race[]; year: number }) {
   }
 
   return (
-    <Table>
+    <Table aria-label="Races">
       <TableHeader>
         <TableRow>
           <TableHead className="w-16">Round</TableHead>

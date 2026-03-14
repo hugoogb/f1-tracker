@@ -64,7 +64,7 @@ export default async function CircuitDetailPage({ params }: { params: Promise<{ 
         {circuit.races.length === 0 ? (
           <p className="text-muted-foreground text-sm">No race data available.</p>
         ) : (
-          <Table>
+          <Table aria-label="Race history">
             <TableHeader>
               <TableRow>
                 <TableHead>Year</TableHead>

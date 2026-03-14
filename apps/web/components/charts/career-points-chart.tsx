@@ -13,7 +13,7 @@ export function CareerPointsChart({ seasons, color = '#E8002D' }: CareerPointsCh
   const data = [...seasons].sort((a, b) => a.year - b.year)
 
   return (
-    <div className="mb-6 h-64 w-full">
+    <div className="mb-6 h-64 w-full" role="img" aria-label="Career points per season">
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={data} margin={{ left: 0, right: 20, top: 5, bottom: 5 }}>
           <XAxis dataKey="year" tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }} />

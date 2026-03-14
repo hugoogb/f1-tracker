@@ -57,7 +57,7 @@ export default async function DriversPage({
         <ListFilter label="Nationality" paramName="nationality" options={nationalities} />
       </Suspense>
 
-      <Table>
+      <Table aria-label="Drivers">
         <TableHeader>
           <TableRow>
             <TableHead>Name</TableHead>

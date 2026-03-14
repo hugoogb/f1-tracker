@@ -56,7 +56,7 @@ export default async function ConstructorsPage({
         <ListFilter label="Nationality" paramName="nationality" options={nationalities} />
       </Suspense>
 
-      <Table>
+      <Table aria-label="Constructors">
         <TableHeader>
           <TableRow>
             <TableHead>Name</TableHead>

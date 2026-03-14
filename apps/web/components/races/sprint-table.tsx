@@ -20,7 +20,7 @@ export function SprintTable({ results }: SprintTableProps) {
   }
 
   return (
-    <Table>
+    <Table aria-label="Sprint results">
       <TableHeader>
         <TableRow>
           <TableHead className="w-12">Pos</TableHead>

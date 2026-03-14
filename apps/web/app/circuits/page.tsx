@@ -55,7 +55,7 @@ export default async function CircuitsPage({
         <ListFilter label="Country" paramName="country" options={countries} />
       </Suspense>
 
-      <Table>
+      <Table aria-label="Circuits">
         <TableHeader>
           <TableRow>
             <TableHead>Circuit</TableHead>

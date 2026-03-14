@@ -19,7 +19,7 @@ export function ConstructorSeasonHistoryTable({ seasons }: SeasonHistoryTablePro
   }
 
   return (
-    <Table>
+    <Table aria-label="Season history">
       <TableHeader>
         <TableRow>
           <TableHead>Year</TableHead>

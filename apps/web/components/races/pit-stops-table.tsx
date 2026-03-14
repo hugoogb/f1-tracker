@@ -19,7 +19,7 @@ export function PitStopsTable({ pitStops }: PitStopsTableProps) {
   }
 
   return (
-    <Table>
+    <Table aria-label="Pit stops">
       <TableHeader>
         <TableRow>
           <TableHead className="w-12">Stop</TableHead>

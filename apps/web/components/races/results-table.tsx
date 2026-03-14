@@ -20,7 +20,7 @@ export function ResultsTable({ results }: ResultsTableProps) {
   }
 
   return (
-    <Table>
+    <Table aria-label="Race results">
       <TableHeader>
         <TableRow>
           <TableHead className="w-12">Pos</TableHead>

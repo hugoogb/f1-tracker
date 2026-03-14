@@ -18,7 +18,7 @@ export function ConstructorPointsChart({ standings }: ConstructorPointsChartProp
   if (data.length === 0) return null
 
   return (
-    <div className="mb-6 h-72 w-full">
+    <div className="mb-6 h-72 w-full" role="img" aria-label="Constructor points bar chart">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={data} layout="vertical" margin={{ left: 0, right: 20, top: 5, bottom: 5 }}>
           <XAxis type="number" tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }} />

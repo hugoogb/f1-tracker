@@ -29,7 +29,7 @@ export default async function ChampionsPage() {
         <p className="text-muted-foreground">F1 World Champions from every season</p>
       </div>
 
-      <Table>
+      <Table aria-label="Championship winners">
         <TableHeader>
           <TableRow>
             <TableHead className="w-20">Year</TableHead>

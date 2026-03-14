@@ -24,6 +24,7 @@ export function DriverSelect({ label, value, onChange }: DriverSelectProps) {
   const [open, setOpen] = useState(false)
   const [selectedName, setSelectedName] = useState('')
   const containerRef = useRef<HTMLDivElement>(null)
+  const inputId = label.toLowerCase().replace(/\s+/g, '-')
 
   const search = useCallback(async (q: string) => {
     if (q.length < 2) {
@@ -56,7 +57,9 @@ export function DriverSelect({ label, value, onChange }: DriverSelectProps) {
 
   return (
     <div ref={containerRef} className="relative">
-      <label className="mb-1.5 block text-sm font-medium">{label}</label>
+      <label htmlFor={inputId} className="mb-1.5 block text-sm font-medium">
+        {label}
+      </label>
       {value && selectedName ? (
         <div className="flex items-center gap-2">
           <span className="text-lg font-semibold">{selectedName}</span>
@@ -76,6 +79,7 @@ export function DriverSelect({ label, value, onChange }: DriverSelectProps) {
           <div className="relative">
             <Search className="text-muted-foreground absolute top-2.5 left-2.5 h-4 w-4" />
             <Input
+              id={inputId}
               placeholder="Search for a driver..."
               className="pl-8"
               value={query}
@@ -84,13 +88,21 @@ export function DriverSelect({ label, value, onChange }: DriverSelectProps) {
                 setOpen(true)
               }}
               onFocus={() => setOpen(true)}
+              aria-autocomplete="list"
+              aria-expanded={open && results.length > 0}
             />
           </div>
           {open && results.length > 0 && (
-            <div className="border-border bg-popover absolute top-full right-0 left-0 z-50 mt-1 rounded-md border p-1 shadow-md">
+            <div
+              role="listbox"
+              aria-label={`${label} search results`}
+              className="border-border bg-popover absolute top-full right-0 left-0 z-50 mt-1 rounded-md border p-1 shadow-md"
+            >
               {results.map((d) => (
                 <button
                   key={d.ref}
+                  role="option"
+                  aria-selected={false}
                   className="hover:bg-accent flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm"
                   onClick={() => {
                     const name = `${d.firstName} ${d.lastName}`
