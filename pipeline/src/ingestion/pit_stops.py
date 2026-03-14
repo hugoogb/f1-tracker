@@ -1,5 +1,7 @@
 """Ingest pit stop data from Fast-F1 Ergast API (2012+ only)."""
 
+from datetime import date
+
 import pandas as pd
 from fastf1.ergast import Ergast
 from sqlalchemy import select
@@ -20,15 +22,16 @@ class PitStopIngestor(BaseIngestor):
             self.db.execute(select(PitStop.race_id).group_by(PitStop.race_id)).scalars().all()
         )
 
+        today = date.today()
         seasons = (
             self.db.execute(select(Season).where(Season.year >= 2012).order_by(Season.year))
             .scalars()
             .all()
         )
 
-        races_fetched = 0
-        races_skipped = 0
-        records = 0
+        total_fetched = 0
+        total_skipped = 0
+        total_records = 0
         for season in seasons:
             races = (
                 self.db.execute(
@@ -38,14 +41,24 @@ class PitStopIngestor(BaseIngestor):
                 .all()
             )
 
+            # Skip entire season if all races already loaded
+            race_ids = {r.id for r in races}
+            if race_ids and race_ids.issubset(existing):
+                total_skipped += len(races)
+                continue
+
+            season_fetched = 0
             for race in races:
                 if is_interrupted():
                     break
                 if race.id in existing:
-                    races_skipped += 1
+                    total_skipped += 1
+                    continue
+                if race.date and race.date > today:
                     continue
 
                 try:
+                    self.log(f"{season.year} R{race.round}: fetching pit stops...")
                     response = api_call(
                         erg.get_pit_stops,
                         season=season.year,
@@ -91,10 +104,11 @@ class PitStopIngestor(BaseIngestor):
                             duration_ms=duration_ms,
                         )
                         self.db.merge(pit_stop)
-                        records += 1
+                        total_records += 1
 
                     self.db.commit()
-                    races_fetched += 1
+                    season_fetched += 1
+                    total_fetched += 1
                 except InterruptedError:
                     raise
                 except Exception as e:
@@ -104,11 +118,9 @@ class PitStopIngestor(BaseIngestor):
 
             if is_interrupted():
                 break
-
-            self.log(
-                f"Season {season.year}: pit stops done ({races_fetched} races fetched, {races_skipped} skipped)"
-            )
+            if season_fetched > 0:
+                self.log(f"Season {season.year}: {season_fetched} pit stop races ingested")
 
         self.log(
-            f"Ingested {records} pit stops from {races_fetched} races ({races_skipped} skipped)"
+            f"Ingested {total_records} pit stops from {total_fetched} races ({total_skipped} skipped)"
         )

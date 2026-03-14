@@ -25,6 +25,7 @@ class RaceIngestor(BaseIngestor):
             if is_interrupted():
                 break
             try:
+                self.log(f"Season {season.year}: fetching schedule...")
                 schedule = api_call(erg.get_race_schedule, season=season.year, limit=50)
                 count = 0
                 for _, row in schedule.iterrows():

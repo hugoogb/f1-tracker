@@ -1,5 +1,7 @@
 """Ingest race results, qualifying results, and sprint results from Fast-F1 Ergast API."""
 
+from datetime import date
+
 import pandas as pd
 from fastf1.ergast import Ergast
 from sqlalchemy import select
@@ -64,11 +66,12 @@ class RaceResultIngestor(BaseIngestor):
             self.db.execute(select(RaceResult.race_id).group_by(RaceResult.race_id)).scalars().all()
         )
 
+        today = date.today()
         seasons = self.db.execute(select(Season).order_by(Season.year)).scalars().all()
 
-        races_fetched = 0
-        races_skipped = 0
-        records = 0
+        total_fetched = 0
+        total_skipped = 0
+        total_records = 0
         for season in seasons:
             races = (
                 self.db.execute(
@@ -78,14 +81,24 @@ class RaceResultIngestor(BaseIngestor):
                 .all()
             )
 
+            # Skip entire season if all races already loaded
+            race_ids = {r.id for r in races}
+            if race_ids and race_ids.issubset(existing):
+                total_skipped += len(races)
+                continue
+
+            season_fetched = 0
             for race in races:
                 if is_interrupted():
                     break
                 if race.id in existing:
-                    races_skipped += 1
+                    total_skipped += 1
+                    continue
+                if race.date and race.date > today:
                     continue
 
                 try:
+                    self.log(f"{season.year} R{race.round}: fetching race results...")
                     response = api_call(
                         erg.get_race_results,
                         season=season.year,
@@ -116,10 +129,11 @@ class RaceResultIngestor(BaseIngestor):
                             status_id=_safe_int(row.get("statusId")),
                         )
                         self.db.merge(result)
-                        records += 1
+                        total_records += 1
 
                     self.db.commit()
-                    races_fetched += 1
+                    season_fetched += 1
+                    total_fetched += 1
                 except InterruptedError:
                     raise
                 except Exception as e:
@@ -129,12 +143,11 @@ class RaceResultIngestor(BaseIngestor):
 
             if is_interrupted():
                 break
-            self.log(
-                f"Season {season.year}: race results done ({races_fetched} races fetched, {races_skipped} skipped)"
-            )
+            if season_fetched > 0:
+                self.log(f"Season {season.year}: {season_fetched} races ingested")
 
         self.log(
-            f"Ingested {records} race results from {races_fetched} races ({races_skipped} skipped)"
+            f"Ingested {total_records} race results from {total_fetched} races ({total_skipped} skipped)"
         )
 
 
@@ -151,15 +164,16 @@ class QualifyingIngestor(BaseIngestor):
             .all()
         )
 
+        today = date.today()
         seasons = (
             self.db.execute(select(Season).where(Season.year >= 1994).order_by(Season.year))
             .scalars()
             .all()
         )
 
-        races_fetched = 0
-        races_skipped = 0
-        records = 0
+        total_fetched = 0
+        total_skipped = 0
+        total_records = 0
         for season in seasons:
             races = (
                 self.db.execute(
@@ -169,14 +183,24 @@ class QualifyingIngestor(BaseIngestor):
                 .all()
             )
 
+            # Skip entire season if all races already loaded
+            race_ids = {r.id for r in races}
+            if race_ids and race_ids.issubset(existing):
+                total_skipped += len(races)
+                continue
+
+            season_fetched = 0
             for race in races:
                 if is_interrupted():
                     break
                 if race.id in existing:
-                    races_skipped += 1
+                    total_skipped += 1
+                    continue
+                if race.date and race.date > today:
                     continue
 
                 try:
+                    self.log(f"{season.year} R{race.round}: fetching qualifying...")
                     response = api_call(
                         erg.get_qualifying_results,
                         season=season.year,
@@ -203,10 +227,11 @@ class QualifyingIngestor(BaseIngestor):
                             q3=_timedelta_to_str(row.get("Q3")),
                         )
                         self.db.merge(result)
-                        records += 1
+                        total_records += 1
 
                     self.db.commit()
-                    races_fetched += 1
+                    season_fetched += 1
+                    total_fetched += 1
                 except InterruptedError:
                     raise
                 except Exception as e:
@@ -216,12 +241,11 @@ class QualifyingIngestor(BaseIngestor):
 
             if is_interrupted():
                 break
-            self.log(
-                f"Season {season.year}: qualifying done ({races_fetched} races fetched, {races_skipped} skipped)"
-            )
+            if season_fetched > 0:
+                self.log(f"Season {season.year}: {season_fetched} qualifying ingested")
 
         self.log(
-            f"Ingested {records} qualifying results from {races_fetched} races ({races_skipped} skipped)"
+            f"Ingested {total_records} qualifying results from {total_fetched} races ({total_skipped} skipped)"
         )
 
 
@@ -238,16 +262,35 @@ class SprintResultIngestor(BaseIngestor):
             .all()
         )
 
+        today = date.today()
+
+        # Past seasons with sprint data are fully processed — skip them entirely.
+        # (Most races don't have sprints, so they'll never be in `existing`;
+        # this avoids re-checking ~16 non-sprint races per season every run.)
+        past_sprint_seasons = set(
+            self.db.execute(
+                select(Race.season_year)
+                .join(SprintResult, SprintResult.race_id == Race.id)
+                .where(Race.season_year < today.year)
+                .group_by(Race.season_year)
+            )
+            .scalars()
+            .all()
+        )
+
         seasons = (
             self.db.execute(select(Season).where(Season.year >= 2021).order_by(Season.year))
             .scalars()
             .all()
         )
 
-        races_fetched = 0
-        races_skipped = 0
-        records = 0
+        total_fetched = 0
+        total_skipped = 0
+        total_records = 0
         for season in seasons:
+            if season.year in past_sprint_seasons:
+                continue
+
             races = (
                 self.db.execute(
                     select(Race).where(Race.season_year == season.year).order_by(Race.round)
@@ -256,14 +299,18 @@ class SprintResultIngestor(BaseIngestor):
                 .all()
             )
 
+            season_fetched = 0
             for race in races:
                 if is_interrupted():
                     break
                 if race.id in existing:
-                    races_skipped += 1
+                    total_skipped += 1
+                    continue
+                if race.date and race.date > today:
                     continue
 
                 try:
+                    self.log(f"{season.year} R{race.round}: fetching sprint...")
                     response = api_call(
                         erg.get_sprint_results,
                         season=season.year,
@@ -293,10 +340,11 @@ class SprintResultIngestor(BaseIngestor):
                             status_id=_safe_int(row.get("statusId")),
                         )
                         self.db.merge(result)
-                        records += 1
+                        total_records += 1
 
                     self.db.commit()
-                    races_fetched += 1
+                    season_fetched += 1
+                    total_fetched += 1
                 except InterruptedError:
                     raise
                 except Exception as e:
@@ -306,11 +354,9 @@ class SprintResultIngestor(BaseIngestor):
 
             if is_interrupted():
                 break
-            if races_fetched > 0 or races_skipped > 0:
-                self.log(
-                    f"Season {season.year}: sprints done ({races_fetched} races fetched, {races_skipped} skipped)"
-                )
+            if season_fetched > 0:
+                self.log(f"Season {season.year}: {season_fetched} sprints ingested")
 
         self.log(
-            f"Ingested {records} sprint results from {races_fetched} races ({races_skipped} skipped)"
+            f"Ingested {total_records} sprint results from {total_fetched} races ({total_skipped} skipped)"
         )
