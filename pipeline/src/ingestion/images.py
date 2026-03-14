@@ -27,65 +27,19 @@ OPENF1_YEARS = [2023, 2024, 2025]
 # --- TheSportsDB ---
 SPORTSDB_BASE = "https://www.thesportsdb.com/api/v1/json/3"
 
-# TheSportsDB team ID → Ergast constructor ref
-# Current teams (from search_all_teams.php?l=Formula_1)
-SPORTSDB_CURRENT_TEAMS: dict[str, str] = {
-    "135126": "aston_martin",
-    "137569": "sauber",       # Audi/Sauber entry
-    "135706": "alpine",
-    "134811": "mclaren",
-    "134812": "mercedes",
-    "135705": "haas",
-    "134813": "red_bull",
-    "134806": "ferrari",
-    "139631": "rb",           # Racing Bulls / AlphaTauri
-    "134816": "williams",
-}
-
-# Defunct/historical teams (manually discovered IDs)
-SPORTSDB_DEFUNCT_TEAMS: dict[str, str] = {
-    "135504": "lotus_f1",
-    "135131": "force_india",
-    "135130": "toro_rosso",
-    "135129": "renault",
-    "135505": "caterham",
-    "135506": "marussia",
-    "135132": "racing_point",
-    "136042": "alphatauri",
-    "134810": "toyota",
-    "134807": "bmw_sauber",
-    "134818": "honda",
-    "134817": "jordan",
-    "134808": "jaguar",
-    "134815": "minardi",
-    "134814": "bar",
-    "134809": "prost",
-    "134819": "arrows",
-    "134820": "benetton",
-    "134821": "tyrrell",
-    "134822": "ligier",
-    "135507": "brabham",
-    "135508": "lotus",
-    "135509": "march",
-    "135133": "brawn",
-    "135510": "hesketh",
-    "135511": "shadow",
-    "135134": "super_aguri",
-    "135512": "surtees",
-    "135513": "wolf",
-    "135135": "spyker",
-    "135136": "midland",
-    "135514": "matra",
-    "135515": "cooper",
-    "135516": "vanwall",
-    "135517": "brm",
-    "135518": "eagle",
-    "135519": "lancia",
-    "135520": "maserati",
-    "135521": "alfa_romeo",
-    "135137": "manor",
-    "135138": "virgin",
-    "135139": "hrt",
+# TheSportsDB team name (from search endpoint) → Ergast constructor ref
+# The free tier only supports search_all_teams by league, not individual lookups
+SPORTSDB_NAME_TO_REF: dict[str, str] = {
+    "Scuderia Ferrari HP": "ferrari",
+    "McLaren Formula 1 Team": "mclaren",
+    "Oracle Red Bull Racing": "red_bull",
+    "Mercedes-AMG PETRONAS Formula One Team": "mercedes",
+    "Aston Martin Aramco Formula One Team": "aston_martin",
+    "BWT Alpine Formula One Team": "alpine",
+    "Williams Racing": "williams",
+    "MoneyGram Haas F1 Team": "haas",
+    "Visa Cash App Racing Bulls Formula One Team": "rb",
+    "Audi Revolut F1 Team": "sauber",
 }
 
 # --- Wikidata ---
@@ -531,64 +485,57 @@ class WikidataHeadshotIngestor(BaseIngestor):
 
 
 class ConstructorLogoIngestor(BaseIngestor):
-    """Fetch constructor logos/badges from TheSportsDB."""
+    """Fetch constructor logos/badges from TheSportsDB search endpoint."""
 
     def ingest(self) -> None:
-        has_logos = self.db.scalar(
-            select(Constructor).where(Constructor.has_logo.is_(True)).limit(1)
-        )
-        if has_logos:
-            self.log("Skipping — constructor logos already downloaded")
-            return
-
         self.log("Fetching constructor logos from TheSportsDB...")
         LOGOS_DIR.mkdir(parents=True, exist_ok=True)
 
-        # Combine current + defunct team mappings
-        all_teams = {**SPORTSDB_CURRENT_TEAMS, **SPORTSDB_DEFUNCT_TEAMS}
+        # Use search endpoint (free tier) — lookupteam is paywalled
+        data = _fetch_json(
+            f"{SPORTSDB_BASE}/search_all_teams.php?l=Formula_1"
+        )
+        if not data or not data.get("teams"):
+            self.log("Warning: TheSportsDB search returned no teams")
+            return
 
         updated = 0
-        not_found = []
+        skipped = 0
 
-        for team_id, ref in all_teams.items():
+        for team in data["teams"]:
+            team_name = team.get("strTeam", "")
+            ref = SPORTSDB_NAME_TO_REF.get(team_name)
+            if not ref:
+                continue
+
             constructor = self.db.execute(
                 select(Constructor).where(Constructor.ref == ref)
             ).scalar_one_or_none()
-
             if not constructor:
-                not_found.append(ref)
                 continue
 
-            # Look up team to get badge URL
-            team_data = _fetch_json(
-                f"{SPORTSDB_BASE}/lookupteam.php?id={team_id}"
-            )
-            if not team_data or not team_data.get("teams"):
-                self.log(f"Warning: TheSportsDB team {team_id} ({ref}) not found")
+            # Skip if already has a valid logo
+            local_path = LOGOS_DIR / f"{ref}.png"
+            if constructor.has_logo and local_path.exists():
+                skipped += 1
                 continue
 
-            team = team_data["teams"][0]
             badge_url = team.get("strBadge")
             if not badge_url:
+                self.log(f"  {ref}: no badge URL")
                 continue
 
-            # Download badge
-            local_path = LOGOS_DIR / f"{ref}.png"
             if _download_file(badge_url, local_path):
                 constructor.has_logo = True
                 updated += 1
-
-            # Respect rate limit (30 req/min)
-            time.sleep(2)
+                self.log(f"  {ref}: downloaded")
+            else:
+                self.log(f"  {ref}: download failed")
 
         self.db.commit()
-
-        failed = len(all_teams) - updated - len(not_found)
         msg = f"Downloaded logos for {updated} constructors"
-        if failed > 0:
-            msg += f" ({failed} failed)"
-        if not_found:
-            msg += f", {len(not_found)} refs not in DB"
+        if skipped:
+            msg += f" ({skipped} already had logos)"
         self.log(msg)
 
 
