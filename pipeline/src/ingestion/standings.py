@@ -39,9 +39,13 @@ class StandingsIngestor(BaseIngestor):
         constructor_total = 0
 
         for season in seasons:
+            # Find the last race that has results (not just scheduled)
             last_race = self.db.execute(
                 select(Race)
-                .where(Race.season_year == season.year)
+                .where(
+                    Race.season_year == season.year,
+                    Race.id.in_(select(RaceResult.race_id)),
+                )
                 .order_by(Race.round.desc())
                 .limit(1)
             ).scalar_one_or_none()
@@ -65,8 +69,12 @@ class StandingsIngestor(BaseIngestor):
 
     def _compute_driver_standings(self, year: int, last_race_id: str) -> int:
         """Sum points + count wins from race_results and sprint_results for a season."""
+        # Only include races that have results
         race_ids = self.db.execute(
-            select(Race.id).where(Race.season_year == year)
+            select(Race.id).where(
+                Race.season_year == year,
+                Race.id.in_(select(RaceResult.race_id)),
+            )
         ).scalars().all()
 
         if not race_ids:
@@ -135,8 +143,12 @@ class StandingsIngestor(BaseIngestor):
 
     def _compute_constructor_standings(self, year: int, last_race_id: str) -> int:
         """Sum points + count wins from race_results and sprint_results for a season."""
+        # Only include races that have results
         race_ids = self.db.execute(
-            select(Race.id).where(Race.season_year == year)
+            select(Race.id).where(
+                Race.season_year == year,
+                Race.id.in_(select(RaceResult.race_id)),
+            )
         ).scalars().all()
 
         if not race_ids:
