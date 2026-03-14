@@ -1,8 +1,9 @@
 import Link from 'next/link'
-import { ExternalLink, MapPin, Calendar } from 'lucide-react'
+import { MapPin, Calendar } from 'lucide-react'
 import { api } from '@/lib/api'
 import type { Circuit } from '@/lib/types'
 import { COUNTRY_FLAGS } from '@/lib/constants'
+import { getTrackLayout } from '@/lib/track-data'
 import { Breadcrumbs } from '@/components/layout/breadcrumbs'
 import { StatCard } from '@/components/ui/stat-card'
 import { Badge } from '@/components/ui/badge'
@@ -14,6 +15,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { TrackLayout } from '@/components/circuits/track-layout'
 
 export const dynamic = 'force-dynamic'
 
@@ -46,6 +48,7 @@ export default async function CircuitDetailPage({ params }: { params: Promise<{ 
   const firstRaceYear =
     circuit.races.length > 0 ? circuit.races[circuit.races.length - 1]?.seasonYear : null
   const lastRaceYear = circuit.races.length > 0 ? circuit.races[0]?.seasonYear : null
+  const trackCoords = getTrackLayout(circuit.ref)
 
   // Group races by decade
   const racesByDecade = circuit.races.reduce<Record<string, CircuitRace[]>>((acc, race) => {
@@ -69,25 +72,17 @@ export default async function CircuitDetailPage({ params }: { params: Promise<{ 
       <div className="space-y-4">
         <h1 className="text-gradient">{circuit.name}</h1>
         <div className="glass rounded-xl px-5 py-4">
-          <p className="text-foreground font-medium">
-            {flag && <span className="mr-1.5">{flag}</span>}
+          <p className="text-foreground flex items-center gap-2 font-medium">
+            <MapPin className="text-primary h-4 w-4" />
+            {flag && <span>{flag}</span>}
             {circuit.location}, {circuit.country}
           </p>
-          {circuit.latitude != null && circuit.longitude != null && (
-            <a
-              href={`https://www.openstreetmap.org/?mlat=${circuit.latitude}&mlon=${circuit.longitude}#map=15/${circuit.latitude}/${circuit.longitude}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="border-border mt-3 inline-flex h-8 items-center gap-1.5 rounded-lg border bg-[var(--surface-1)] px-2.5 text-sm font-medium transition-all hover:bg-[var(--surface-2)]"
-            >
-              <MapPin className="h-3.5 w-3.5" />
-              View on Map
-              <ExternalLink className="h-3 w-3" />
-            </a>
-          )}
         </div>
         <div className="accent-line" />
       </div>
+
+      {/* Track Layout */}
+      {trackCoords && <TrackLayout coordinates={trackCoords} name={circuit.name} />}
 
       {/* Stats row */}
       <div className="grid grid-cols-3 gap-4">

@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/table'
 import { Pagination } from '@/components/pagination'
 import { ListFilter } from '@/components/list-filter'
+import { WorldMapWrapper } from '@/components/circuits/world-map-wrapper'
 
 export const dynamic = 'force-dynamic'
 
@@ -32,8 +33,9 @@ export default async function CircuitsPage({
   const pageSize = 50
   const country = params.country || undefined
 
-  const [circuitsResponse, countriesResult] = await Promise.allSettled([
+  const [circuitsResponse, allCircuitsResponse, countriesResult] = await Promise.allSettled([
     api.circuits.list(page, pageSize, country) as Promise<PaginatedResponse<Circuit>>,
+    api.circuits.list(1, 1000) as Promise<PaginatedResponse<Circuit>>,
     api.circuits.countries(),
   ])
 
@@ -42,7 +44,24 @@ export default async function CircuitsPage({
       ? circuitsResponse.value
       : { data: [] as Circuit[], total: 0 }
 
+  const allCircuits =
+    allCircuitsResponse.status === 'fulfilled' ? allCircuitsResponse.value.data : []
+
   const countries = countriesResult.status === 'fulfilled' ? countriesResult.value.countries : []
+
+  // Filter circuits with valid coordinates for the map
+  const mapCircuits = allCircuits
+    .filter(
+      (c): c is Circuit & { latitude: number; longitude: number } =>
+        c.latitude != null && c.longitude != null,
+    )
+    .map((c) => ({
+      ref: c.ref,
+      name: c.name,
+      country: c.country,
+      latitude: c.latitude,
+      longitude: c.longitude,
+    }))
 
   return (
     <div className="space-y-6">
@@ -50,6 +69,8 @@ export default async function CircuitsPage({
         title="Circuits"
         description={`${total} circuits${country ? ` in ${country}` : ' across F1 history'}`}
       />
+
+      {mapCircuits.length > 0 && <WorldMapWrapper circuits={mapCircuits} />}
 
       <Suspense>
         <ListFilter label="Country" paramName="country" options={countries} />
