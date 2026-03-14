@@ -85,6 +85,7 @@ class Constructor(Base):
     nationality: Mapped[str | None] = mapped_column(String)
     country_code: Mapped[str | None] = mapped_column(String(2))
     color: Mapped[str | None] = mapped_column(String(7))
+    has_logo: Mapped[bool] = mapped_column(Boolean, default=False)
     url: Mapped[str | None] = mapped_column(String)
 
 

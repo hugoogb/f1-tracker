@@ -40,6 +40,7 @@ def list_constructors(
                 "nationality": c.nationality,
                 "countryCode": c.country_code,
                 "color": c.color,
+                "logoUrl": f"/logos/{c.ref}.png" if c.has_logo else None,
             }
             for c in constructors
         ],
@@ -78,6 +79,7 @@ def get_constructor(ref: str, db: Session = Depends(get_db)):
         "nationality": constructor.nationality,
         "countryCode": constructor.country_code,
         "color": constructor.color,
+        "logoUrl": f"/logos/{constructor.ref}.png" if constructor.has_logo else None,
         "stats": stats,
     }
 

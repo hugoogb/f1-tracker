@@ -16,7 +16,7 @@ from src.ingestion.base import BaseIngestor
 class StandingsIngestor(BaseIngestor):
     """Compute end-of-season standings from race_results + sprint_results."""
 
-    def ingest(self) -> None:
+    def ingest(self, year_range: tuple[int, int] | None = None) -> None:
         self.log("Computing standings from race results...")
 
         # Find races that already have standings — skip them
@@ -33,7 +33,10 @@ class StandingsIngestor(BaseIngestor):
             .all()
         )
 
-        seasons = self.db.execute(select(Season).order_by(Season.year)).scalars().all()
+        query = select(Season).order_by(Season.year)
+        if year_range:
+            query = query.where(Season.year >= year_range[0], Season.year <= year_range[1])
+        seasons = self.db.execute(query).scalars().all()
 
         driver_total = 0
         constructor_total = 0

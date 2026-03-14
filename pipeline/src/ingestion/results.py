@@ -57,7 +57,7 @@ def _timedelta_to_str(val) -> str | None:
 
 
 class RaceResultIngestor(BaseIngestor):
-    def ingest(self) -> None:
+    def ingest(self, year_range: tuple[int, int] | None = None) -> None:
         self.log("Fetching race results...")
         erg = Ergast()
 
@@ -67,7 +67,10 @@ class RaceResultIngestor(BaseIngestor):
         )
 
         today = date.today()
-        seasons = self.db.execute(select(Season).order_by(Season.year)).scalars().all()
+        query = select(Season).order_by(Season.year)
+        if year_range:
+            query = query.where(Season.year >= year_range[0], Season.year <= year_range[1])
+        seasons = self.db.execute(query).scalars().all()
 
         total_fetched = 0
         total_skipped = 0
@@ -154,7 +157,7 @@ class RaceResultIngestor(BaseIngestor):
 class QualifyingIngestor(BaseIngestor):
     """Ingest qualifying results (1994+ only)."""
 
-    def ingest(self) -> None:
+    def ingest(self, year_range: tuple[int, int] | None = None) -> None:
         self.log("Fetching qualifying results...")
         erg = Ergast()
 
@@ -165,11 +168,11 @@ class QualifyingIngestor(BaseIngestor):
         )
 
         today = date.today()
-        seasons = (
-            self.db.execute(select(Season).where(Season.year >= 1994).order_by(Season.year))
-            .scalars()
-            .all()
-        )
+        min_year = max(1994, year_range[0]) if year_range else 1994
+        query = select(Season).where(Season.year >= min_year).order_by(Season.year)
+        if year_range:
+            query = query.where(Season.year <= year_range[1])
+        seasons = self.db.execute(query).scalars().all()
 
         total_fetched = 0
         total_skipped = 0
@@ -252,7 +255,7 @@ class QualifyingIngestor(BaseIngestor):
 class SprintResultIngestor(BaseIngestor):
     """Ingest sprint results (2021+ only)."""
 
-    def ingest(self) -> None:
+    def ingest(self, year_range: tuple[int, int] | None = None) -> None:
         self.log("Fetching sprint results (2021+)...")
         erg = Ergast()
 
@@ -278,11 +281,11 @@ class SprintResultIngestor(BaseIngestor):
             .all()
         )
 
-        seasons = (
-            self.db.execute(select(Season).where(Season.year >= 2021).order_by(Season.year))
-            .scalars()
-            .all()
-        )
+        min_year = max(2021, year_range[0]) if year_range else 2021
+        query = select(Season).where(Season.year >= min_year).order_by(Season.year)
+        if year_range:
+            query = query.where(Season.year <= year_range[1])
+        seasons = self.db.execute(query).scalars().all()
 
         total_fetched = 0
         total_skipped = 0
