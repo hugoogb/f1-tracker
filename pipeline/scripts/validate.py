@@ -11,6 +11,7 @@ from sqlalchemy import func, select  # noqa: E402
 from src.db.database import SessionLocal  # noqa: E402
 from src.db.models import (  # noqa: E402
     Circuit,
+    CircuitLayout,
     Constructor,
     ConstructorStanding,
     Driver,
@@ -54,6 +55,29 @@ def validate():
         print("Base entities:")
         for name, count in counts.items():
             print(f"  {name + ':':<16} {count}")
+
+        # --- Circuit layouts ---
+        total_circuits = counts["Circuits"] or 0
+        layout_count = db.scalar(select(func.count()).select_from(CircuitLayout))
+        circuits_with_layouts = db.scalar(
+            select(func.count(CircuitLayout.circuit_id.distinct()))
+        )
+        layouts_ok = circuits_with_layouts == total_circuits
+        print(f"\nCircuit layouts:")
+        print(f"  Circuits with layouts: {circuits_with_layouts}/{total_circuits}  {check_mark(layouts_ok)}")
+        print(f"  Total layout variants: {layout_count}")
+        if not layouts_ok:
+            has_gaps = True
+            # Find circuits missing layouts
+            circuits_missing = db.execute(
+                select(Circuit.ref, Circuit.name)
+                .where(~Circuit.id.in_(select(CircuitLayout.circuit_id)))
+                .order_by(Circuit.name)
+            ).all()
+            if circuits_missing:
+                print(f"  Missing layouts:")
+                for ref, name in circuits_missing:
+                    print(f"    {ref}: {name}")
 
         # --- Build race maps ---
         seasons = db.execute(select(Season).order_by(Season.year)).scalars().all()

@@ -6,7 +6,7 @@ from sqlalchemy.pool import StaticPool
 
 from src.api.main import app
 from src.db.database import Base, get_db
-from src.db.models import Circuit, Constructor, Driver, Season
+from src.db.models import Circuit, CircuitLayout, Constructor, Driver, Season
 
 engine = create_engine(
     "sqlite://",
@@ -74,6 +74,20 @@ def seed_data(db):
         latitude=45.6156,
         longitude=9.2811,
     )
-    db.add_all([season, driver, constructor, circuit])
+    layout1 = CircuitLayout(
+        id="layout-1",
+        circuit_id="circuit-1",
+        layout_number=6,
+        svg_id="monza-6",
+        seasons_active="1976-1979,1981-1999",
+    )
+    layout2 = CircuitLayout(
+        id="layout-2",
+        circuit_id="circuit-1",
+        layout_number=7,
+        svg_id="monza-7",
+        seasons_active="2000-2026",
+    )
+    db.add_all([season, driver, constructor, circuit, layout1, layout2])
     db.commit()
     return {"season": season, "driver": driver, "constructor": constructor, "circuit": circuit}

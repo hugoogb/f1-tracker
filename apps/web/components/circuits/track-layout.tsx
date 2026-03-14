@@ -1,66 +1,23 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useState } from 'react'
+import Image from 'next/image'
 import { cn } from '@/lib/utils'
+import type { CircuitLayout } from '@/lib/types'
 
 interface TrackLayoutProps {
-  coordinates: [number, number][]
+  layouts: CircuitLayout[]
   name?: string
   className?: string
 }
 
-function toMercatorY(lat: number): number {
-  const rad = (lat * Math.PI) / 180
-  return Math.log(Math.tan(Math.PI / 4 + rad / 2))
-}
+export function TrackLayout({ layouts, name, className }: TrackLayoutProps) {
+  // Default to the most recent layout (highest number)
+  const [selectedIdx, setSelectedIdx] = useState(layouts.length - 1)
 
-export function TrackLayout({ coordinates, name, className }: TrackLayoutProps) {
-  const { points, viewBox } = useMemo(() => {
-    if (coordinates.length === 0) return { points: '', viewBox: '0 0 100 100' }
+  if (layouts.length === 0) return null
 
-    // Convert [lng, lat] to [x, y] using mercator projection
-    const projected = coordinates.map(([lng, lat]) => ({
-      x: lng,
-      y: -toMercatorY(lat), // Negate so north is up
-    }))
-
-    // Find bounds
-    const xs = projected.map((p) => p.x)
-    const ys = projected.map((p) => p.y)
-    const minX = Math.min(...xs)
-    const maxX = Math.max(...xs)
-    const minY = Math.min(...ys)
-    const maxY = Math.max(...ys)
-
-    const rangeX = maxX - minX || 1
-    const rangeY = maxY - minY || 1
-
-    // Scale to viewBox with padding
-    const padding = 40
-    const width = 800
-    const height = 600
-    const innerW = width - padding * 2
-    const innerH = height - padding * 2
-
-    // Maintain aspect ratio
-    const scaleX = innerW / rangeX
-    const scaleY = innerH / rangeY
-    const scale = Math.min(scaleX, scaleY)
-
-    const offsetX = padding + (innerW - rangeX * scale) / 2
-    const offsetY = padding + (innerH - rangeY * scale) / 2
-
-    const scaled = projected.map((p) => ({
-      x: offsetX + (p.x - minX) * scale,
-      y: offsetY + (p.y - minY) * scale,
-    }))
-
-    const pointStr = scaled.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ')
-
-    return { points: pointStr, viewBox: `0 0 ${width} ${height}` }
-  }, [coordinates])
-
-  if (coordinates.length === 0) return null
+  const current = layouts[selectedIdx]
 
   return (
     <div
@@ -69,54 +26,37 @@ export function TrackLayout({ coordinates, name, className }: TrackLayoutProps) 
         className,
       )}
     >
-      <svg
-        viewBox={viewBox}
-        className="h-auto w-full"
-        preserveAspectRatio="xMidYMid meet"
-        role="img"
-        aria-label={name ? `Track layout of ${name}` : 'Track layout'}
-      >
-        <defs>
-          <filter id="track-glow">
-            <feGaussianBlur stdDeviation="4" result="blur" />
-            <feMerge>
-              <feMergeNode in="blur" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
-        </defs>
+      {/* Layout selector (only show if multiple variants) */}
+      {layouts.length > 1 && (
+        <div className="flex flex-wrap gap-2 border-b border-[var(--glass-border)] px-4 py-3">
+          {layouts.map((layout, idx) => (
+            <button
+              key={layout.svgId}
+              onClick={() => setSelectedIdx(idx)}
+              className={cn(
+                'rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
+                idx === selectedIdx
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+              )}
+            >
+              {layout.seasonsActive}
+            </button>
+          ))}
+        </div>
+      )}
 
-        {/* Track outline glow layer */}
-        <polyline
-          points={points}
-          fill="none"
-          stroke="oklch(0.55 0.25 27 / 30%)"
-          strokeWidth="8"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          filter="url(#track-glow)"
+      {/* Track SVG */}
+      <div className="flex items-center justify-center p-8">
+        <Image
+          src={`/tracks/${current.svgId}.svg`}
+          alt={name ? `Track layout of ${name}` : 'Track layout'}
+          width={500}
+          height={500}
+          className="h-auto max-h-[400px] w-auto max-w-full"
+          priority
         />
-
-        {/* Main track line */}
-        <polyline
-          points={points}
-          fill="none"
-          stroke="#E10600"
-          strokeWidth="3"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-
-        {/* Start/finish marker */}
-        {points &&
-          (() => {
-            const first = points.split(' ')[0]?.split(',')
-            if (!first || first.length < 2) return null
-            const cx = parseFloat(first[0])
-            const cy = parseFloat(first[1])
-            return <circle cx={cx} cy={cy} r="6" fill="#ffffff" stroke="#E10600" strokeWidth="2" />
-          })()}
-      </svg>
+      </div>
     </div>
   )
 }

@@ -3,7 +3,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from src.db.database import get_db
-from src.db.models import Circuit, Race
+from src.db.models import Circuit, CircuitLayout, Race
 
 router = APIRouter()
 
@@ -78,6 +78,16 @@ def get_circuit(ref: str, db: Session = Depends(get_db)):
         .all()
     )
 
+    layouts = (
+        db.execute(
+            select(CircuitLayout)
+            .where(CircuitLayout.circuit_id == circuit.id)
+            .order_by(CircuitLayout.layout_number)
+        )
+        .scalars()
+        .all()
+    )
+
     return {
         "id": circuit.id,
         "ref": circuit.ref,
@@ -86,6 +96,14 @@ def get_circuit(ref: str, db: Session = Depends(get_db)):
         "country": circuit.country,
         "latitude": circuit.latitude,
         "longitude": circuit.longitude,
+        "layouts": [
+            {
+                "layoutNumber": l.layout_number,
+                "svgId": l.svg_id,
+                "seasonsActive": l.seasons_active,
+            }
+            for l in layouts
+        ],
         "races": [
             {
                 "id": r.id,
