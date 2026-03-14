@@ -151,6 +151,14 @@ def validate():
         print(f"\nConstructor colors:")
         print(f"  Constructors with colors: {constructors_with_colors}/{total_constructors}  {check_mark(colors_ok)}")
 
+        # --- Constructor logos ---
+        constructors_with_logos = db.scalar(
+            select(func.count()).select_from(Constructor).where(Constructor.has_logo.is_(True))
+        )
+        logos_ok = constructors_with_logos > 0
+        print(f"\nConstructor logos:")
+        print(f"  Constructors with logos: {constructors_with_logos}/{total_constructors}  {check_mark(logos_ok)}")
+
         # --- Build race maps ---
         seasons = db.execute(select(Season).order_by(Season.year)).scalars().all()
         all_races = db.execute(select(Race).order_by(Race.season_year, Race.round)).scalars().all()

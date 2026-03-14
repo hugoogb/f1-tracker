@@ -13,7 +13,7 @@ from src.ingestion.base import BaseIngestor, api_call, clean, is_interrupted
 class PitStopIngestor(BaseIngestor):
     """Ingest pit stops (available from 2012 onwards)."""
 
-    def ingest(self) -> None:
+    def ingest(self, year_range: tuple[int, int] | None = None) -> None:
         self.log("Fetching pit stops (2012+)...")
         erg = Ergast()
 
@@ -23,11 +23,11 @@ class PitStopIngestor(BaseIngestor):
         )
 
         today = date.today()
-        seasons = (
-            self.db.execute(select(Season).where(Season.year >= 2012).order_by(Season.year))
-            .scalars()
-            .all()
-        )
+        min_year = max(2012, year_range[0]) if year_range else 2012
+        query = select(Season).where(Season.year >= min_year).order_by(Season.year)
+        if year_range:
+            query = query.where(Season.year <= year_range[1])
+        seasons = self.db.execute(query).scalars().all()
 
         total_fetched = 0
         total_skipped = 0

@@ -24,6 +24,7 @@ export interface Constructor {
   nationality: string | null
   countryCode: string | null
   color: string | null
+  logoUrl: string | null
   url?: string
 }
 

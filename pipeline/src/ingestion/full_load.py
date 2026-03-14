@@ -8,12 +8,18 @@ from sqlalchemy.orm import Session
 
 from src.db.database import SessionLocal
 from src.db.models import Driver, QualifyingResult, RaceResult
+from src.ingestion.circuit_layouts import CircuitLayoutIngestor
 from src.ingestion.drivers import ConstructorIngestor, DriverIngestor, StatusIngestor
+from src.ingestion.images import (
+    ConstructorColorIngestor,
+    ConstructorLogoIngestor,
+    DriverHeadshotIngestor,
+    WikidataHeadshotIngestor,
+)
+from src.ingestion.lap_times import LapTimeIngestor
 from src.ingestion.pit_stops import PitStopIngestor
 from src.ingestion.races import RaceIngestor
 from src.ingestion.results import QualifyingIngestor, RaceResultIngestor, SprintResultIngestor
-from src.ingestion.circuit_layouts import CircuitLayoutIngestor
-from src.ingestion.images import ConstructorColorIngestor, DriverHeadshotIngestor
 from src.ingestion.seasons import CircuitIngestor, SeasonIngestor
 from src.ingestion.standings import StandingsIngestor
 
@@ -162,12 +168,19 @@ def _should_run(targets: set[str] | None, key: str) -> bool:
     return targets is None or key in targets
 
 
-def run_full_load(targets: set[str] | None = None) -> None:
-    """Run the data load. If targets is None, run everything."""
+def run_full_load(
+    targets: set[str] | None = None,
+    year_range: tuple[int, int] | None = None,
+) -> None:
+    """Run the data load. If targets is None, run everything.
+    If year_range is provided, only ingest data for seasons in [start, end].
+    """
     db: Session = SessionLocal()
     start = time.time()
 
     label = "full data load" if targets is None else f"selective load ({', '.join(sorted(targets))})"
+    if year_range:
+        label += f" [{year_range[0]}-{year_range[1]}]"
 
     try:
         logger.info("=" * 60)
@@ -192,27 +205,36 @@ def run_full_load(targets: set[str] | None = None) -> None:
         if _should_run(targets, "images"):
             logger.info("\n--- Images (headshots + colors) ---")
             DriverHeadshotIngestor(db).ingest()
+            WikidataHeadshotIngestor(db).ingest()
             ConstructorColorIngestor(db).ingest()
+
+        if _should_run(targets, "logos"):
+            logger.info("\n--- Constructor logos ---")
+            ConstructorLogoIngestor(db).ingest()
 
         if _should_run(targets, "results"):
             logger.info("\n--- Race results ---")
-            RaceResultIngestor(db).ingest()
+            RaceResultIngestor(db).ingest(year_range=year_range)
 
         if _should_run(targets, "qualifying"):
             logger.info("\n--- Qualifying ---")
-            QualifyingIngestor(db).ingest()
+            QualifyingIngestor(db).ingest(year_range=year_range)
 
         if _should_run(targets, "sprints"):
             logger.info("\n--- Sprint results ---")
-            SprintResultIngestor(db).ingest()
+            SprintResultIngestor(db).ingest(year_range=year_range)
 
         if _should_run(targets, "standings"):
             logger.info("\n--- Standings ---")
-            StandingsIngestor(db).ingest()
+            StandingsIngestor(db).ingest(year_range=year_range)
 
         if _should_run(targets, "pitstops"):
             logger.info("\n--- Pit stops ---")
-            PitStopIngestor(db).ingest()
+            PitStopIngestor(db).ingest(year_range=year_range)
+
+        if _should_run(targets, "laptimes"):
+            logger.info("\n--- Lap times ---")
+            LapTimeIngestor(db).ingest(year_range=year_range)
 
         if _should_run(targets, "backfill-qualifying"):
             logger.info("\n--- Backfill qualifying ---")
