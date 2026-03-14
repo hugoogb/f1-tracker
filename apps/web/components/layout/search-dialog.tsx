@@ -88,7 +88,7 @@ export function SearchDialog() {
               {results.drivers.map((d) => (
                 <button
                   key={d.ref}
-                  className="hover:bg-accent flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm"
+                  className="hover:bg-accent flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors"
                   onClick={() => navigate(`/drivers/${d.ref}`)}
                 >
                   {d.code && (
@@ -107,7 +107,7 @@ export function SearchDialog() {
               {results.constructors.map((c) => (
                 <button
                   key={c.ref}
-                  className="hover:bg-accent flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm"
+                  className="hover:bg-accent flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors"
                   onClick={() => navigate(`/constructors/${c.ref}`)}
                 >
                   <span>{c.name}</span>
@@ -127,7 +127,7 @@ export function SearchDialog() {
               {results.circuits.map((c) => (
                 <button
                   key={c.ref}
-                  className="hover:bg-accent flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm"
+                  className="hover:bg-accent flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors"
                   onClick={() => navigate(`/circuits/${c.ref}`)}
                 >
                   <span>{c.name}</span>

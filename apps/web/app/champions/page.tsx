@@ -25,7 +25,7 @@ export default async function ChampionsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Champions</h1>
+        <h1>Champions</h1>
         <p className="text-muted-foreground">F1 World Champions from every season</p>
       </div>
 
@@ -43,12 +43,18 @@ export default async function ChampionsPage() {
           {champions.map((champion) => (
             <TableRow key={champion.year}>
               <TableCell className="font-medium">
-                <Link href={`/seasons/${champion.year}`} className="hover:underline">
+                <Link
+                  href={`/seasons/${champion.year}`}
+                  className="hover:text-primary transition-colors"
+                >
                   {champion.year}
                 </Link>
               </TableCell>
               <TableCell>
-                <Link href={`/drivers/${champion.driver.ref}`} className="hover:underline">
+                <Link
+                  href={`/drivers/${champion.driver.ref}`}
+                  className="hover:text-primary transition-colors"
+                >
                   {champion.driver.firstName} {champion.driver.lastName}
                 </Link>
               </TableCell>
@@ -57,7 +63,7 @@ export default async function ChampionsPage() {
                 {champion.constructor ? (
                   <Link
                     href={`/constructors/${champion.constructor.ref}`}
-                    className="inline-flex items-center gap-2 hover:underline"
+                    className="hover:text-primary inline-flex items-center gap-2 transition-colors"
                   >
                     {champion.constructor.color && (
                       <span

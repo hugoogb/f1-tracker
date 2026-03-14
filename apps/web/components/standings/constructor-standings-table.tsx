@@ -47,7 +47,10 @@ export function ConstructorStandingsTable({ standings, limit }: ConstructorStand
                       style={{ backgroundColor: teamColor }}
                     />
                   )}
-                  <Link href={`/constructors/${entry.constructor.ref}`} className="hover:underline">
+                  <Link
+                    href={`/constructors/${entry.constructor.ref}`}
+                    className="hover:text-primary transition-colors"
+                  >
                     {entry.constructor.name}
                   </Link>
                 </div>

@@ -33,7 +33,10 @@ export function PitStopsTable({ pitStops }: PitStopsTableProps) {
           <TableRow key={`${stop.driver.ref}-${stop.stopNumber}-${idx}`}>
             <TableCell className="font-medium">{stop.stopNumber}</TableCell>
             <TableCell>
-              <Link href={`/drivers/${stop.driver.ref}`} className="hover:underline">
+              <Link
+                href={`/drivers/${stop.driver.ref}`}
+                className="hover:text-primary transition-colors"
+              >
                 {stop.driver.firstName} {stop.driver.lastName}
               </Link>
             </TableCell>

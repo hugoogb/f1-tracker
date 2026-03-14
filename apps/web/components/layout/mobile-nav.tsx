@@ -24,7 +24,7 @@ export function MobileNav() {
       </SheetTrigger>
       <SheetContent side="left" className="w-64 p-6">
         <Link href="/" className="text-lg font-bold tracking-tight" onClick={() => setOpen(false)}>
-          F1 Tracker
+          <span className="text-primary">F1</span> Tracker
         </Link>
         <nav className="mt-6 flex flex-col gap-4">
           <NavLink href="/seasons">Seasons</NavLink>

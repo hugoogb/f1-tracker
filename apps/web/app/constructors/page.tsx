@@ -46,7 +46,7 @@ export default async function ConstructorsPage({
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Constructors</h1>
+        <h1>Constructors</h1>
         <p className="text-muted-foreground">
           {total} constructors{nationality ? ` from ${nationality}` : ' across F1 history'}
         </p>
@@ -69,7 +69,7 @@ export default async function ConstructorsPage({
               <TableCell>
                 <Link
                   href={`/constructors/${constructor.ref}`}
-                  className="inline-flex items-center gap-2 font-medium hover:underline"
+                  className="hover:text-primary inline-flex items-center gap-2 font-medium transition-colors"
                 >
                   {constructor.color && (
                     <span

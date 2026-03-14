@@ -75,12 +75,12 @@ export default async function CompareDriversPage({
         ]}
       />
 
-      <h1 className="text-3xl font-bold tracking-tight">
-        <Link href={`/drivers/${driver1.ref}`} className="hover:underline">
+      <h1>
+        <Link href={`/drivers/${driver1.ref}`} className="hover:text-primary transition-colors">
           {d1Name}
         </Link>
         {' vs '}
-        <Link href={`/drivers/${driver2.ref}`} className="hover:underline">
+        <Link href={`/drivers/${driver2.ref}`} className="hover:text-primary transition-colors">
           {d2Name}
         </Link>
       </h1>
@@ -93,8 +93,10 @@ export default async function CompareDriversPage({
         <CardContent>
           <div className="flex items-center gap-4">
             <div className="flex-1 text-right">
-              <p className="text-3xl font-bold tabular-nums">{headToHead.driver1Wins}</p>
-              <p className="text-muted-foreground text-sm">{driver1.lastName}</p>
+              <p className="text-primary text-3xl font-bold tabular-nums">
+                {headToHead.driver1Wins}
+              </p>
+              <p className="text-muted-foreground text-sm font-medium">{driver1.lastName}</p>
             </div>
             <div className="flex flex-col items-center">
               <p className="text-muted-foreground text-sm">from</p>
@@ -102,20 +104,22 @@ export default async function CompareDriversPage({
               <p className="text-muted-foreground text-sm">shared races</p>
             </div>
             <div className="flex-1">
-              <p className="text-3xl font-bold tabular-nums">{headToHead.driver2Wins}</p>
-              <p className="text-muted-foreground text-sm">{driver2.lastName}</p>
+              <p className="text-3xl font-bold text-blue-500 tabular-nums">
+                {headToHead.driver2Wins}
+              </p>
+              <p className="text-muted-foreground text-sm font-medium">{driver2.lastName}</p>
             </div>
           </div>
           {headToHead.totalRaces > 0 && (
             <div className="bg-muted mt-4 flex h-3 overflow-hidden rounded-full">
               <div
-                className="rounded-l-full bg-red-500 transition-all"
+                className="bg-primary rounded-l-full transition-all duration-500"
                 style={{
                   width: `${(headToHead.driver1Wins / headToHead.totalRaces) * 100}%`,
                 }}
               />
               <div
-                className="rounded-r-full bg-blue-500 transition-all"
+                className="rounded-r-full bg-blue-500 transition-all duration-500"
                 style={{
                   width: `${(headToHead.driver2Wins / headToHead.totalRaces) * 100}%`,
                 }}
@@ -130,7 +134,10 @@ export default async function CompareDriversPage({
         <Card>
           <CardHeader>
             <CardTitle>
-              <Link href={`/drivers/${driver1.ref}`} className="hover:underline">
+              <Link
+                href={`/drivers/${driver1.ref}`}
+                className="hover:text-primary transition-colors"
+              >
                 {d1Name}
               </Link>
             </CardTitle>
@@ -148,7 +155,10 @@ export default async function CompareDriversPage({
         <Card>
           <CardHeader>
             <CardTitle>
-              <Link href={`/drivers/${driver2.ref}`} className="hover:underline">
+              <Link
+                href={`/drivers/${driver2.ref}`}
+                className="hover:text-primary transition-colors"
+              >
                 {d2Name}
               </Link>
             </CardTitle>
@@ -187,12 +197,12 @@ export default async function CompareDriversPage({
 function StatItem({ label, value }: { label: string; value: number }) {
   return (
     <div>
-      <p className="text-2xl font-bold tabular-nums">
+      <p className="text-primary text-2xl font-bold tabular-nums">
         {typeof value === 'number' && !Number.isInteger(value)
           ? value.toLocaleString('en-US', { maximumFractionDigits: 1 })
           : value.toLocaleString('en-US')}
       </p>
-      <p className="text-muted-foreground text-sm">{label}</p>
+      <p className="text-muted-foreground text-sm font-medium">{label}</p>
     </div>
   )
 }

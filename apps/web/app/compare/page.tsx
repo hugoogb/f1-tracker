@@ -22,7 +22,7 @@ export default function ComparePage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Compare Drivers</h1>
+        <h1>Compare Drivers</h1>
         <p className="text-muted-foreground mt-1">
           Select two drivers to compare their career stats and head-to-head record
         </p>

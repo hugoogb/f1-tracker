@@ -34,7 +34,10 @@ export function ConstructorSeasonHistoryTable({ seasons }: SeasonHistoryTablePro
         {seasons.map((season) => (
           <TableRow key={season.year}>
             <TableCell>
-              <Link href={`/seasons/${season.year}`} className="hover:underline">
+              <Link
+                href={`/seasons/${season.year}`}
+                className="hover:text-primary transition-colors"
+              >
                 {season.year}
               </Link>
             </TableCell>

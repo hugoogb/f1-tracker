@@ -47,13 +47,19 @@ export function ResultsTable({ results }: ResultsTableProps) {
                       style={{ backgroundColor: teamColor }}
                     />
                   )}
-                  <Link href={`/drivers/${result.driver.ref}`} className="hover:underline">
+                  <Link
+                    href={`/drivers/${result.driver.ref}`}
+                    className="hover:text-primary transition-colors"
+                  >
                     {result.driver.firstName} {result.driver.lastName}
                   </Link>
                 </div>
               </TableCell>
               <TableCell>
-                <Link href={`/constructors/${result.constructor.ref}`} className="hover:underline">
+                <Link
+                  href={`/constructors/${result.constructor.ref}`}
+                  className="hover:text-primary transition-colors"
+                >
                   {result.constructor.name}
                 </Link>
               </TableCell>

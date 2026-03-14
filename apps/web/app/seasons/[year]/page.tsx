@@ -64,7 +64,7 @@ export default async function SeasonDetailPage({ params }: { params: Promise<{ y
         ]}
       />
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">{year} Season</h1>
+        <h1>{year} Season</h1>
         <p className="text-muted-foreground mt-1">{season.races.length} races</p>
       </div>
 
@@ -107,7 +107,10 @@ function RacesTable({ races, year }: { races: Race[]; year: number }) {
           <TableRow key={race.round}>
             <TableCell className="font-medium">{race.round}</TableCell>
             <TableCell>
-              <Link href={`/seasons/${year}/races/${race.round}`} className="hover:underline">
+              <Link
+                href={`/seasons/${year}/races/${race.round}`}
+                className="hover:text-primary transition-colors"
+              >
                 {race.name}
               </Link>
             </TableCell>

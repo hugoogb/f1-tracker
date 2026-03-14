@@ -30,7 +30,7 @@ export function ListFilter({ label, paramName, options }: ListFilterProps) {
       <select
         value={current}
         onChange={(e) => handleChange(e.target.value)}
-        className="border-border bg-background h-9 rounded-md border px-3 text-sm"
+        className="border-border bg-background focus:border-primary focus:ring-primary/20 h-9 rounded-lg border px-3 text-sm transition-colors focus:ring-2 focus:outline-none"
       >
         <option value="">All</option>
         {options.map((opt) => (

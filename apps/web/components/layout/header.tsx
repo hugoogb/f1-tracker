@@ -6,11 +6,11 @@ import { SearchDialog } from './search-dialog'
 
 export function Header() {
   return (
-    <header className="border-border/40 bg-background/95 supports-[backdrop-filter]:bg-background/60 border-b backdrop-blur">
+    <header className="border-border/40 bg-background/95 supports-[backdrop-filter]:bg-background/60 sticky top-0 z-40 border-b backdrop-blur">
       <div className="mx-auto flex h-14 max-w-7xl items-center gap-4 px-4 md:gap-6">
         <MobileNav />
         <Link href="/" className="text-lg font-bold tracking-tight">
-          F1 Tracker
+          <span className="text-primary">F1</span> Tracker
         </Link>
         <nav className="hidden items-center gap-6 md:flex">
           <NavLink href="/seasons">Seasons</NavLink>

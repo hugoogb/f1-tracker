@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { api } from '@/lib/api'
 import type { DriverStanding, ConstructorStanding, Race, SeasonChampion } from '@/lib/types'
+import { cn } from '@/lib/utils'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Table,
@@ -65,7 +66,7 @@ export default async function Home() {
 
   return (
     <div className="space-y-8">
-      <h1 className="text-3xl font-bold tracking-tight">Formula 1 {latestYear} Season</h1>
+      <h1>Formula 1 {latestYear} Season</h1>
 
       {stats && (
         <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
@@ -127,12 +128,18 @@ export default async function Home() {
                 {recentChampions.map((c) => (
                   <TableRow key={c.year}>
                     <TableCell className="font-medium">
-                      <Link href={`/seasons/${c.year}`} className="hover:underline">
+                      <Link
+                        href={`/seasons/${c.year}`}
+                        className="hover:text-primary transition-colors"
+                      >
                         {c.year}
                       </Link>
                     </TableCell>
                     <TableCell>
-                      <Link href={`/drivers/${c.driver.ref}`} className="hover:underline">
+                      <Link
+                        href={`/drivers/${c.driver.ref}`}
+                        className="hover:text-primary transition-colors"
+                      >
                         {c.driver.firstName} {c.driver.lastName}
                       </Link>
                     </TableCell>
@@ -140,7 +147,7 @@ export default async function Home() {
                       {c.constructor ? (
                         <Link
                           href={`/constructors/${c.constructor.ref}`}
-                          className="inline-flex items-center gap-2 hover:underline"
+                          className="hover:text-primary inline-flex items-center gap-2 transition-colors"
                         >
                           {c.constructor.color && (
                             <span
@@ -185,7 +192,7 @@ export default async function Home() {
                     <TableCell>
                       <Link
                         href={`/seasons/${latestYear}/races/${race.round}`}
-                        className="hover:underline"
+                        className="hover:text-primary transition-colors"
                       >
                         {race.name}
                       </Link>
@@ -214,10 +221,15 @@ export default async function Home() {
 
 function StatCard({ label, value, href }: { label: string; value: number; href?: string }) {
   const content = (
-    <Card className={href ? 'hover:bg-accent/50 transition-colors' : ''}>
+    <Card
+      className={cn(
+        'transition-all duration-200',
+        href && 'hover:border-primary/30 hover:-translate-y-0.5 hover:shadow-md',
+      )}
+    >
       <CardContent className="pt-2">
-        <p className="text-2xl font-bold tabular-nums">{value.toLocaleString()}</p>
-        <p className="text-muted-foreground text-sm">{label}</p>
+        <p className="text-primary text-2xl font-bold tabular-nums">{value.toLocaleString()}</p>
+        <p className="text-muted-foreground text-sm font-medium">{label}</p>
       </CardContent>
     </Card>
   )

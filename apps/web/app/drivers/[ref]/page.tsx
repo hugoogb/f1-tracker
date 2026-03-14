@@ -48,7 +48,7 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ r
         ]}
       />
       <div className="space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight">
+        <h1>
           {driverData.firstName} {driverData.lastName}
         </h1>
         <div className="flex flex-wrap items-center gap-2">
@@ -78,7 +78,7 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ r
       </div>
 
       <div>
-        <h2 className="mb-4 text-xl font-semibold">Season History</h2>
+        <h2 className="mb-4">Season History</h2>
         <CareerPointsChart seasons={seasons.map((s) => ({ year: s.year, points: s.points }))} />
         <SeasonHistoryTable seasons={seasons} />
       </div>
@@ -90,12 +90,12 @@ function StatCard({ label, value }: { label: string; value: number }) {
   return (
     <Card>
       <CardContent className="pt-2">
-        <p className="text-3xl font-bold tabular-nums">
+        <p className="text-primary text-3xl font-bold tabular-nums">
           {typeof value === 'number' && !Number.isInteger(value)
             ? value.toLocaleString('en-US', { maximumFractionDigits: 1 })
             : value.toLocaleString('en-US')}
         </p>
-        <p className="text-muted-foreground text-sm">{label}</p>
+        <p className="text-muted-foreground text-sm font-medium">{label}</p>
       </CardContent>
     </Card>
   )

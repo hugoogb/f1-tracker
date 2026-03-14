@@ -45,7 +45,7 @@ export default async function CircuitsPage({
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Circuits</h1>
+        <h1>Circuits</h1>
         <p className="text-muted-foreground">
           {total} circuits{country ? ` in ${country}` : ' across F1 history'}
         </p>
@@ -67,7 +67,10 @@ export default async function CircuitsPage({
           {circuits.map((circuit) => (
             <TableRow key={circuit.id}>
               <TableCell>
-                <Link href={`/circuits/${circuit.ref}`} className="font-medium hover:underline">
+                <Link
+                  href={`/circuits/${circuit.ref}`}
+                  className="hover:text-primary font-medium transition-colors"
+                >
                   {circuit.name}
                 </Link>
               </TableCell>

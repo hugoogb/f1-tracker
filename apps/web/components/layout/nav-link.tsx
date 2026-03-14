@@ -11,7 +11,7 @@ export function NavLink({ href, children }: { href: string; children: React.Reac
     <Link
       href={href}
       className={`hover:text-foreground text-sm font-medium transition-colors ${
-        isActive ? 'text-foreground' : 'text-muted-foreground'
+        isActive ? 'text-primary' : 'text-muted-foreground'
       }`}
     >
       {children}

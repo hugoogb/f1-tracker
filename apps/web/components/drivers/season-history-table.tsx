@@ -41,7 +41,10 @@ export function SeasonHistoryTable({ seasons }: SeasonHistoryTableProps) {
           return (
             <TableRow key={`${season.year}-${season.constructor?.ref ?? ''}`}>
               <TableCell>
-                <Link href={`/seasons/${season.year}`} className="hover:underline">
+                <Link
+                  href={`/seasons/${season.year}`}
+                  className="hover:text-primary transition-colors"
+                >
                   {season.year}
                 </Link>
               </TableCell>
@@ -56,7 +59,7 @@ export function SeasonHistoryTable({ seasons }: SeasonHistoryTableProps) {
                     )}
                     <Link
                       href={`/constructors/${season.constructor.ref}`}
-                      className="hover:underline"
+                      className="hover:text-primary transition-colors"
                     >
                       {season.constructor.name}
                     </Link>

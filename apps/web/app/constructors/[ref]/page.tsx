@@ -63,7 +63,7 @@ export default async function ConstructorDetailPage({
               style={{ backgroundColor: constructor.color }}
             />
           )}
-          <h1 className="text-3xl font-bold tracking-tight">{constructor.name}</h1>
+          <h1>{constructor.name}</h1>
         </div>
         {constructor.nationality && (
           <p className="text-muted-foreground">{constructor.nationality}</p>
@@ -79,7 +79,7 @@ export default async function ConstructorDetailPage({
 
       {roster && roster.year && roster.drivers.length > 0 && (
         <div>
-          <h2 className="mb-4 text-xl font-semibold">Drivers ({roster.year})</h2>
+          <h2 className="mb-4">Drivers ({roster.year})</h2>
           <div className="flex flex-wrap gap-3">
             {roster.drivers.map((d) => (
               <Link key={d.ref} href={`/drivers/${d.ref}`}>
@@ -96,7 +96,7 @@ export default async function ConstructorDetailPage({
       )}
 
       <div>
-        <h2 className="mb-4 text-xl font-semibold">Season History</h2>
+        <h2 className="mb-4">Season History</h2>
         <CareerPointsChart
           seasons={seasons.map((s) => ({ year: s.year, points: s.points }))}
           color={TEAM_COLORS[constructor.ref] ?? constructor.color ?? '#E8002D'}
@@ -111,12 +111,12 @@ function StatCard({ label, value }: { label: string; value: number }) {
   return (
     <Card>
       <CardContent className="pt-2">
-        <p className="text-3xl font-bold tabular-nums">
+        <p className="text-primary text-3xl font-bold tabular-nums">
           {typeof value === 'number' && !Number.isInteger(value)
             ? value.toLocaleString('en-US', { maximumFractionDigits: 1 })
             : value.toLocaleString('en-US')}
         </p>
-        <p className="text-muted-foreground text-sm">{label}</p>
+        <p className="text-muted-foreground text-sm font-medium">{label}</p>
       </CardContent>
     </Card>
   )

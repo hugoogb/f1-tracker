@@ -1,6 +1,15 @@
 'use client'
 
-import { Line, LineChart, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import {
+  CartesianGrid,
+  Line,
+  LineChart,
+  Legend,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts'
 
 interface ComparisonChartProps {
   driver1Name: string
@@ -41,32 +50,37 @@ export function ComparisonChart({
     <div className="h-72 w-full" role="img" aria-label="Driver comparison points chart">
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={data} margin={{ left: 0, right: 20, top: 5, bottom: 5 }}>
-          <XAxis dataKey="year" tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }} />
-          <YAxis tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }} width={50} />
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+          <XAxis dataKey="year" tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }} />
+          <YAxis tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }} width={50} />
           <Tooltip
             contentStyle={{
-              backgroundColor: 'hsl(var(--popover))',
-              border: '1px solid hsl(var(--border))',
-              borderRadius: '6px',
-              color: 'hsl(var(--foreground))',
+              backgroundColor: 'var(--popover)',
+              border: '1px solid var(--border)',
+              borderRadius: '8px',
+              color: 'var(--foreground)',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+              padding: '8px 12px',
             }}
             labelFormatter={(label) => `${label} Season`}
           />
-          <Legend />
+          <Legend wrapperStyle={{ fontSize: '13px', paddingTop: '8px' }} />
           <Line
             type="monotone"
             dataKey={driver1Name}
             stroke={color1}
-            strokeWidth={2}
-            dot={{ r: 3 }}
+            strokeWidth={2.5}
+            dot={{ r: 3, strokeWidth: 0 }}
+            activeDot={{ r: 6, strokeWidth: 2, stroke: 'var(--background)' }}
             connectNulls
           />
           <Line
             type="monotone"
             dataKey={driver2Name}
             stroke={color2}
-            strokeWidth={2}
-            dot={{ r: 3 }}
+            strokeWidth={2.5}
+            dot={{ r: 3, strokeWidth: 0 }}
+            activeDot={{ r: 6, strokeWidth: 2, stroke: 'var(--background)' }}
             connectNulls
           />
         </LineChart>

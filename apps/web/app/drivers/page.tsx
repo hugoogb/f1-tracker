@@ -47,7 +47,7 @@ export default async function DriversPage({
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Drivers</h1>
+        <h1>Drivers</h1>
         <p className="text-muted-foreground">
           {total} drivers{nationality ? ` from ${nationality}` : ' across F1 history'}
         </p>
@@ -69,7 +69,10 @@ export default async function DriversPage({
           {drivers.map((driver) => (
             <TableRow key={driver.id}>
               <TableCell>
-                <Link href={`/drivers/${driver.ref}`} className="font-medium hover:underline">
+                <Link
+                  href={`/drivers/${driver.ref}`}
+                  className="hover:text-primary font-medium transition-colors"
+                >
                   {driver.firstName} {driver.lastName}
                 </Link>
               </TableCell>

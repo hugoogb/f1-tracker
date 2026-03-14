@@ -106,7 +106,7 @@ export default async function RaceDetailPage({
         ]}
       />
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">{race.name}</h1>
+        <h1>{race.name}</h1>
         <p className="text-muted-foreground mt-1">
           {race.circuit.name} - {race.circuit.location}, {race.circuit.country}
         </p>

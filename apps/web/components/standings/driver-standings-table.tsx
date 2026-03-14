@@ -47,7 +47,10 @@ export function DriverStandingsTable({ standings, limit }: DriverStandingsTableP
                       style={{ backgroundColor: teamColor }}
                     />
                   )}
-                  <Link href={`/drivers/${entry.driver.ref}`} className="hover:underline">
+                  <Link
+                    href={`/drivers/${entry.driver.ref}`}
+                    className="hover:text-primary transition-colors"
+                  >
                     {entry.driver.firstName} {entry.driver.lastName}
                   </Link>
                 </div>

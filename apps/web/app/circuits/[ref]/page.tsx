@@ -48,7 +48,7 @@ export default async function CircuitDetailPage({ params }: { params: Promise<{ 
         ]}
       />
       <div className="space-y-1">
-        <h1 className="text-3xl font-bold tracking-tight">{circuit.name}</h1>
+        <h1>{circuit.name}</h1>
         <p className="text-muted-foreground">
           {circuit.location}, {circuit.country}
         </p>
@@ -60,7 +60,7 @@ export default async function CircuitDetailPage({ params }: { params: Promise<{ 
       </div>
 
       <div>
-        <h2 className="mb-4 text-xl font-semibold">Races ({circuit.races.length})</h2>
+        <h2 className="mb-4">Races ({circuit.races.length})</h2>
         {circuit.races.length === 0 ? (
           <p className="text-muted-foreground text-sm">No race data available.</p>
         ) : (
@@ -77,7 +77,10 @@ export default async function CircuitDetailPage({ params }: { params: Promise<{ 
               {circuit.races.map((race) => (
                 <TableRow key={race.id}>
                   <TableCell>
-                    <Link href={`/seasons/${race.seasonYear}`} className="hover:underline">
+                    <Link
+                      href={`/seasons/${race.seasonYear}`}
+                      className="hover:text-primary transition-colors"
+                    >
                       {race.seasonYear}
                     </Link>
                   </TableCell>
@@ -85,7 +88,7 @@ export default async function CircuitDetailPage({ params }: { params: Promise<{ 
                   <TableCell>
                     <Link
                       href={`/seasons/${race.seasonYear}/races/${race.round}`}
-                      className="hover:underline"
+                      className="hover:text-primary transition-colors"
                     >
                       {race.name}
                     </Link>
