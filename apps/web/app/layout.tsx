@@ -1,6 +1,5 @@
 import type { Metadata } from 'next'
-import { Plus_Jakarta_Sans, Space_Grotesk, JetBrains_Mono } from 'next/font/google'
-import { ThemeProvider } from '@/components/providers/theme-provider'
+import { Plus_Jakarta_Sans, Orbitron, JetBrains_Mono } from 'next/font/google'
 import { Header } from '@/components/layout/header'
 import { Footer } from '@/components/layout/footer'
 import './globals.css'
@@ -10,8 +9,8 @@ const plusJakarta = Plus_Jakarta_Sans({
   subsets: ['latin'],
 })
 
-const spaceGrotesk = Space_Grotesk({
-  variable: '--font-space-grotesk',
+const orbitron = Orbitron({
+  variable: '--font-orbitron',
   subsets: ['latin'],
 })
 
@@ -32,9 +31,9 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" className="dark">
       <body
-        className={`${plusJakarta.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable} flex min-h-screen flex-col font-sans antialiased`}
+        className={`${plusJakarta.variable} ${orbitron.variable} ${jetbrainsMono.variable} flex min-h-screen flex-col font-sans antialiased`}
       >
         <a
           href="#main-content"
@@ -42,13 +41,11 @@ export default function RootLayout({
         >
           Skip to main content
         </a>
-        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
-          <Header />
-          <main id="main-content" className="mx-auto w-full max-w-7xl flex-1 px-6 py-10 md:px-8">
-            {children}
-          </main>
-          <Footer />
-        </ThemeProvider>
+        <Header />
+        <main id="main-content" className="mx-auto w-full max-w-[1400px] flex-1 px-6 py-10 md:px-8">
+          {children}
+        </main>
+        <Footer />
       </body>
     </html>
   )

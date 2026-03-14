@@ -84,29 +84,33 @@ export default async function CompareDriversPage({
         ]}
       />
 
-      <div className="flex items-center gap-4">
-        <h1 className="flex-1 text-right">
-          <Link href={`/drivers/${driver1.ref}`} className="hover:text-primary transition-colors">
-            {d1Name}
+      <div className="glass rounded-xl px-6 py-8">
+        <div className="flex items-center gap-4">
+          <h1 className="flex-1 text-right">
+            <Link href={`/drivers/${driver1.ref}`} className="hover:text-primary transition-colors">
+              {d1Name}
+            </Link>
+          </h1>
+          <span className="text-muted-foreground font-heading shrink-0 text-xl font-bold">vs</span>
+          <h1 className="flex-1">
+            <Link href={`/drivers/${driver2.ref}`} className="hover:text-primary transition-colors">
+              {d2Name}
+            </Link>
+          </h1>
+        </div>
+
+        <div className="mt-4 flex justify-center">
+          <Link
+            href={`/compare/drivers?d1=${params.d2}&d2=${params.d1}`}
+            className="border-border inline-flex h-8 items-center gap-1.5 rounded-lg border bg-[var(--surface-1)] px-2.5 text-sm font-medium transition-all hover:bg-[var(--surface-2)]"
+          >
+            <ArrowLeftRight className="h-3.5 w-3.5" />
+            Swap drivers
           </Link>
-        </h1>
-        <span className="text-muted-foreground font-heading shrink-0 text-xl font-bold">vs</span>
-        <h1 className="flex-1">
-          <Link href={`/drivers/${driver2.ref}`} className="hover:text-primary transition-colors">
-            {d2Name}
-          </Link>
-        </h1>
+        </div>
       </div>
 
-      <div className="flex justify-center">
-        <Link
-          href={`/compare/drivers?d1=${params.d2}&d2=${params.d1}`}
-          className="border-border bg-background hover:bg-muted inline-flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-sm font-medium transition-all"
-        >
-          <ArrowLeftRight className="h-3.5 w-3.5" />
-          Swap drivers
-        </Link>
-      </div>
+      <div className="accent-line" />
 
       {/* Head to Head */}
       <Card>

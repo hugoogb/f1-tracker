@@ -66,7 +66,10 @@ export default async function ConstructorDetailPage({
         <div className="flex items-center gap-4">
           <div
             className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl text-lg font-bold text-white"
-            style={{ backgroundColor: teamColor }}
+            style={{
+              backgroundColor: teamColor,
+              boxShadow: `0 0 30px ${teamColor}40`,
+            }}
           >
             {constructor.name[0]}
           </div>
@@ -81,6 +84,8 @@ export default async function ConstructorDetailPage({
           </div>
         </div>
       </div>
+
+      <div className="accent-line" />
 
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         <StatCard

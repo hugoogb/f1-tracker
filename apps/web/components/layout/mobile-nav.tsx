@@ -27,15 +27,18 @@ export function MobileNav() {
         <Menu className="h-5 w-5" />
         <span className="sr-only">Toggle menu</span>
       </SheetTrigger>
-      <SheetContent side="left" className="w-64 p-6">
+      <SheetContent
+        side="left"
+        className="w-64 border-r border-[var(--glass-border)] bg-[var(--surface-0)]/95 p-6 backdrop-blur-xl"
+      >
         <Link
           href="/"
-          className="font-heading text-lg font-bold tracking-tight"
+          className="font-heading text-lg font-bold tracking-wider uppercase"
           onClick={() => setOpen(false)}
         >
           <span className="text-primary">F1</span> Tracker
         </Link>
-        <div className="border-border/40 my-4 border-t" />
+        <div className="accent-line my-4" />
         <nav className="flex flex-col gap-1">
           {navItems.map(({ href, label, icon: Icon }) => {
             const isActive = pathname.startsWith(href)
@@ -45,9 +48,9 @@ export function MobileNav() {
                 href={href}
                 onClick={() => setOpen(false)}
                 className={cn(
-                  'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                  'flex items-center gap-3 rounded-lg px-3 py-2 text-xs font-semibold tracking-wider uppercase transition-colors',
                   isActive
-                    ? 'bg-primary/10 text-primary border-primary border-l-2'
+                    ? 'border-primary bg-primary/10 text-primary border-l-2'
                     : 'text-muted-foreground hover:text-foreground hover:bg-accent/50',
                 )}
               >

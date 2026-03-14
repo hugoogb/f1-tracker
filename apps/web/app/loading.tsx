@@ -5,10 +5,15 @@ export default function HomeLoading() {
   return (
     <div className="space-y-10">
       {/* Hero skeleton */}
-      <div className="space-y-3">
-        <Skeleton className="h-4 w-48" />
-        <Skeleton className="h-12 w-80" />
-        <Skeleton className="h-6 w-96" />
+      <div className="relative mx-[-1.5rem] overflow-hidden md:mx-[-2rem]">
+        <div className="px-6 py-16 md:px-8 md:py-20">
+          <div className="mx-auto max-w-[1400px] space-y-4">
+            <Skeleton className="h-4 w-48" />
+            <Skeleton className="h-12 w-80" />
+            <Skeleton className="h-6 w-96" />
+          </div>
+        </div>
+        <div className="accent-line" />
       </div>
 
       {/* Stat cards skeleton */}

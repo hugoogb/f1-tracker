@@ -30,6 +30,7 @@ export function PageHeader({
       </div>
       {description && <p className="text-muted-foreground max-w-2xl">{description}</p>}
       {children}
+      <div className="accent-line" />
     </div>
   )
 }

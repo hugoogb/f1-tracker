@@ -34,9 +34,12 @@ export default async function SeasonsPage() {
 
       {decades.map(([decade, years]) => (
         <section key={decade}>
-          <div className="mb-4 flex items-center gap-3">
-            <div className="bg-primary/20 h-6 w-1 rounded-full" />
-            <h2>{decade}</h2>
+          <div className="mb-4 space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="bg-primary/20 h-6 w-1 rounded-full" />
+              <h2>{decade}</h2>
+            </div>
+            <div className="accent-line" />
           </div>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
             {years.map((year) => {
