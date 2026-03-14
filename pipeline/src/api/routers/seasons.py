@@ -30,6 +30,7 @@ def get_season(year: int, db: Session = Depends(get_db)):
                     "name": r.circuit.name,
                     "location": r.circuit.location,
                     "country": r.circuit.country,
+                    "countryCode": r.circuit.country_code,
                 },
             }
             for r in races

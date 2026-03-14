@@ -35,6 +35,7 @@ def get_race(year: int, round: int, db: Session = Depends(get_db)):
             "name": race.circuit.name,
             "location": race.circuit.location,
             "country": race.circuit.country,
+            "countryCode": race.circuit.country_code,
         },
         "results": [
             {
@@ -52,6 +53,7 @@ def get_race(year: int, round: int, db: Session = Depends(get_db)):
                     "code": r.driver.code,
                     "firstName": r.driver.first_name,
                     "lastName": r.driver.last_name,
+                    "headshotUrl": f"/headshots/{r.driver.ref}.png" if r.driver.has_headshot else None,
                 },
                 "constructor": {
                     "id": r.constructor.id,
@@ -97,6 +99,7 @@ def get_qualifying(year: int, round: int, db: Session = Depends(get_db)):
                     "code": r.driver.code,
                     "firstName": r.driver.first_name,
                     "lastName": r.driver.last_name,
+                    "headshotUrl": f"/headshots/{r.driver.ref}.png" if r.driver.has_headshot else None,
                 },
                 "constructor": {
                     "id": r.constructor.id,
@@ -145,6 +148,7 @@ def get_sprint(year: int, round: int, db: Session = Depends(get_db)):
                     "code": r.driver.code,
                     "firstName": r.driver.first_name,
                     "lastName": r.driver.last_name,
+                    "headshotUrl": f"/headshots/{r.driver.ref}.png" if r.driver.has_headshot else None,
                 },
                 "constructor": {
                     "id": r.constructor.id,
@@ -190,6 +194,7 @@ def get_pitstops(year: int, round: int, db: Session = Depends(get_db)):
                     "code": s.driver.code,
                     "firstName": s.driver.first_name,
                     "lastName": s.driver.last_name,
+                    "headshotUrl": f"/headshots/{s.driver.ref}.png" if s.driver.has_headshot else None,
                 },
             }
             for s in stops

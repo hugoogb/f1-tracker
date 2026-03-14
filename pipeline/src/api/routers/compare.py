@@ -103,7 +103,9 @@ def compare_drivers(d1: str, d2: str, db: Session = Depends(get_db)):
             "firstName": driver.first_name,
             "lastName": driver.last_name,
             "nationality": driver.nationality,
+            "countryCode": driver.country_code,
             "dateOfBirth": str(driver.date_of_birth) if driver.date_of_birth else None,
+            "headshotUrl": f"/headshots/{driver.ref}.png" if driver.has_headshot else None,
             "stats": stats,
         }
 

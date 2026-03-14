@@ -57,12 +57,15 @@ def seed_data(db):
         code="VER",
         number=1,
         nationality="Dutch",
+        country_code="NL",
+        has_headshot=True,
     )
     constructor = Constructor(
         id="constructor-1",
         ref="red_bull",
         name="Red Bull",
         nationality="Austrian",
+        country_code="AT",
         color="#3671C6",
     )
     circuit = Circuit(
@@ -71,6 +74,7 @@ def seed_data(db):
         name="Autodromo Nazionale di Monza",
         location="Monza",
         country="Italy",
+        country_code="IT",
         latitude=45.6156,
         longitude=9.2811,
     )

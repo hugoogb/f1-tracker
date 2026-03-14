@@ -4,6 +4,7 @@ import pandas as pd
 from fastf1.ergast import Ergast
 from sqlalchemy import func, select
 
+from src.api.country_codes import country_code
 from src.db.models import Constructor, Driver, Status
 from src.ingestion.base import BaseIngestor, api_call, clean
 
@@ -45,6 +46,7 @@ class DriverIngestor(BaseIngestor):
                 elif hasattr(dob, "date"):
                     dob = dob.date()
 
+            nationality = clean(row.get("driverNationality"))
             driver = Driver(
                 id=row["driverId"],
                 ref=row["driverId"],
@@ -53,7 +55,8 @@ class DriverIngestor(BaseIngestor):
                 first_name=row["givenName"],
                 last_name=row["familyName"],
                 date_of_birth=dob,
-                nationality=clean(row.get("driverNationality")),
+                nationality=nationality,
+                country_code=country_code(nationality),
                 url=clean(row.get("driverUrl")),
             )
             self.db.merge(driver)
@@ -76,11 +79,13 @@ class ConstructorIngestor(BaseIngestor):
 
         count = 0
         for _, row in df.iterrows():
+            nationality = clean(row.get("constructorNationality"))
             constructor = Constructor(
                 id=row["constructorId"],
                 ref=row["constructorId"],
                 name=row["constructorName"],
-                nationality=clean(row.get("constructorNationality")),
+                nationality=nationality,
+                country_code=country_code(nationality),
                 color=None,
                 url=clean(row.get("constructorUrl")),
             )

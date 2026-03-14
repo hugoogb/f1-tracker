@@ -2,6 +2,7 @@ import uuid
 
 from sqlalchemy import (
     BigInteger,
+    Boolean,
     Date,
     Float,
     ForeignKey,
@@ -35,6 +36,7 @@ class Circuit(Base):
     name: Mapped[str] = mapped_column(String)
     location: Mapped[str | None] = mapped_column(String)
     country: Mapped[str | None] = mapped_column(String)
+    country_code: Mapped[str | None] = mapped_column(String(2))
     latitude: Mapped[float | None] = mapped_column(Float)
     longitude: Mapped[float | None] = mapped_column(Float)
     altitude: Mapped[int | None] = mapped_column(Integer)
@@ -69,6 +71,8 @@ class Driver(Base):
     last_name: Mapped[str] = mapped_column(String)
     date_of_birth: Mapped[str | None] = mapped_column(Date)
     nationality: Mapped[str | None] = mapped_column(String)
+    country_code: Mapped[str | None] = mapped_column(String(2))
+    has_headshot: Mapped[bool] = mapped_column(Boolean, default=False)
     url: Mapped[str | None] = mapped_column(String)
 
 
@@ -79,6 +83,7 @@ class Constructor(Base):
     ref: Mapped[str] = mapped_column(String, unique=True, index=True)
     name: Mapped[str] = mapped_column(String)
     nationality: Mapped[str | None] = mapped_column(String)
+    country_code: Mapped[str | None] = mapped_column(String(2))
     color: Mapped[str | None] = mapped_column(String(7))
     url: Mapped[str | None] = mapped_column(String)
 

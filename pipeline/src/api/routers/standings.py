@@ -46,6 +46,8 @@ def driver_standings(year: int, db: Session = Depends(get_db)):
                     "firstName": s.driver.first_name,
                     "lastName": s.driver.last_name,
                     "nationality": s.driver.nationality,
+                    "countryCode": s.driver.country_code,
+                    "headshotUrl": f"/headshots/{s.driver.ref}.png" if s.driver.has_headshot else None,
                 },
                 "constructor": {
                     "id": c.id,
@@ -76,6 +78,7 @@ def constructor_standings(year: int, db: Session = Depends(get_db)):
                     "ref": s.constructor.ref,
                     "name": s.constructor.name,
                     "nationality": s.constructor.nationality,
+                    "countryCode": s.constructor.country_code,
                     "color": s.constructor.color,
                 },
             }

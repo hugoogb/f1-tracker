@@ -12,6 +12,8 @@ def test_list_drivers_with_data(client, seed_data):
     data = response.json()
     assert len(data["data"]) == 1
     assert data["data"][0]["ref"] == "max_verstappen"
+    assert data["data"][0]["headshotUrl"] == "/headshots/max_verstappen.png"
+    assert data["data"][0]["countryCode"] == "NL"
     assert data["total"] == 1
 
 
@@ -37,4 +39,6 @@ def test_get_driver(client, seed_data):
     assert data["firstName"] == "Max"
     assert data["lastName"] == "Verstappen"
     assert data["code"] == "VER"
+    assert data["headshotUrl"] == "/headshots/max_verstappen.png"
+    assert data["countryCode"] == "NL"
     assert "stats" in data

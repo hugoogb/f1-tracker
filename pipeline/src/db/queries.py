@@ -219,6 +219,7 @@ def get_season_champions(db: Session) -> list[dict]:
                     "ref": driver.ref,
                     "firstName": driver.first_name,
                     "lastName": driver.last_name,
+                    "headshotUrl": f"/headshots/{driver.ref}.png" if driver.has_headshot else None,
                 }
                 if driver
                 else None,
