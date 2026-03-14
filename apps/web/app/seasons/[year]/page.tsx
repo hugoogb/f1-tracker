@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { api } from '@/lib/api'
 import type { Race, DriverStanding, ConstructorStanding } from '@/lib/types'
-import { COUNTRY_FLAGS } from '@/lib/constants'
+import { CountryFlag } from '@/components/ui/country-flag'
 import { Breadcrumbs } from '@/components/layout/breadcrumbs'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -130,40 +130,39 @@ function RacesTable({ races, year }: { races: Race[]; year: number }) {
         </TableRow>
       </TableHeader>
       <TableBody>
-        {races.map((race) => {
-          const flag = race.circuit.country ? COUNTRY_FLAGS[race.circuit.country] : null
-          return (
-            <TableRow key={race.round}>
-              <TableCell>
-                <Badge variant="outline" className="font-mono text-xs">
-                  R{race.round}
-                </Badge>
-              </TableCell>
-              <TableCell>
-                <Link
-                  href={`/seasons/${year}/races/${race.round}`}
-                  className="hover:text-primary font-medium transition-colors"
-                >
-                  {race.name}
-                </Link>
-              </TableCell>
-              <TableCell className="text-muted-foreground hidden md:table-cell">
-                {race.circuit.name}
-              </TableCell>
-              <TableCell className="hidden sm:table-cell">
-                {flag && <span className="mr-1.5">{flag}</span>}
+        {races.map((race) => (
+          <TableRow key={race.round}>
+            <TableCell>
+              <Badge variant="outline" className="font-mono text-xs">
+                R{race.round}
+              </Badge>
+            </TableCell>
+            <TableCell>
+              <Link
+                href={`/seasons/${year}/races/${race.round}`}
+                className="hover:text-primary font-medium transition-colors"
+              >
+                {race.name}
+              </Link>
+            </TableCell>
+            <TableCell className="text-muted-foreground hidden md:table-cell">
+              {race.circuit.name}
+            </TableCell>
+            <TableCell className="hidden sm:table-cell">
+              <span className="inline-flex items-center gap-1.5">
+                {race.circuit.country && <CountryFlag code={race.circuit.countryCode} />}
                 {race.circuit.country}
-              </TableCell>
-              <TableCell className="text-right whitespace-nowrap tabular-nums">
-                {new Date(race.date).toLocaleDateString('en-GB', {
-                  day: 'numeric',
-                  month: 'short',
-                  year: 'numeric',
-                })}
-              </TableCell>
-            </TableRow>
-          )
-        })}
+              </span>
+            </TableCell>
+            <TableCell className="text-right whitespace-nowrap tabular-nums">
+              {new Date(race.date).toLocaleDateString('en-GB', {
+                day: 'numeric',
+                month: 'short',
+                year: 'numeric',
+              })}
+            </TableCell>
+          </TableRow>
+        ))}
       </TableBody>
     </Table>
   )

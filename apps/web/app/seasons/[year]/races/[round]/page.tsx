@@ -1,7 +1,8 @@
 import { notFound } from 'next/navigation'
 import { api } from '@/lib/api'
 import type { Race, RaceResult, QualifyingResult, SprintResult, PitStop } from '@/lib/types'
-import { COUNTRY_FLAGS, TEAM_COLORS } from '@/lib/constants'
+import { TEAM_COLORS } from '@/lib/constants'
+import { CountryFlag } from '@/components/ui/country-flag'
 import { Breadcrumbs } from '@/components/layout/breadcrumbs'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
@@ -99,7 +100,6 @@ export default async function RaceDetailPage({
     notFound()
   }
 
-  const flag = race.circuit.country ? COUNTRY_FLAGS[race.circuit.country] : null
   const podium = race.results
     .filter((r) => r.position && r.position <= 3)
     .sort((a, b) => (a.position ?? 99) - (b.position ?? 99))
@@ -125,8 +125,8 @@ export default async function RaceDetailPage({
           <h1 className="text-gradient">{race.name}</h1>
         </div>
         <div className="glass rounded-xl px-5 py-4">
-          <p className="text-foreground font-medium">
-            {flag && <span className="mr-1.5">{flag}</span>}
+          <p className="text-foreground inline-flex items-center gap-1.5 font-medium">
+            {race.circuit.country && <CountryFlag code={race.circuit.countryCode} />}
             {race.circuit.name}
           </p>
           <p className="text-muted-foreground text-sm">

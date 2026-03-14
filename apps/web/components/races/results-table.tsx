@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { ArrowUp, ArrowDown } from 'lucide-react'
 import { TEAM_COLORS } from '@/lib/constants'
 import type { RaceResult } from '@/lib/types'
+import { DriverAvatar } from '@/components/ui/driver-avatar'
 import { PositionBadge } from '@/components/ui/position-badge'
 import {
   Table,
@@ -53,6 +54,12 @@ export function ResultsTable({ results }: ResultsTableProps) {
               </TableCell>
               <TableCell>
                 <div className="flex items-center gap-2">
+                  <DriverAvatar
+                    firstName={result.driver.firstName}
+                    lastName={result.driver.lastName}
+                    headshotUrl={result.driver.headshotUrl}
+                    teamColor={teamColor ?? undefined}
+                  />
                   {teamColor && (
                     <span
                       className="inline-block h-4 w-1 rounded-full"

@@ -2,7 +2,9 @@ import Link from 'next/link'
 import { Flag, Trophy, Medal, TrendingUp } from 'lucide-react'
 import { api } from '@/lib/api'
 import type { Constructor, ConstructorSeasonSummary, Driver } from '@/lib/types'
-import { COUNTRY_FLAGS, TEAM_COLORS } from '@/lib/constants'
+import { TEAM_COLORS } from '@/lib/constants'
+import { CountryFlag } from '@/components/ui/country-flag'
+import { DriverAvatar } from '@/components/ui/driver-avatar'
 import { Breadcrumbs } from '@/components/layout/breadcrumbs'
 import { Card, CardContent } from '@/components/ui/card'
 import { StatCard } from '@/components/ui/stat-card'
@@ -48,7 +50,6 @@ export default async function ConstructorDetailPage({
   const roster = rosterResult.status === 'fulfilled' ? rosterResult.value : null
 
   const teamColor = TEAM_COLORS[constructor.ref] ?? constructor.color ?? '#E8002D'
-  const flag = constructor.nationality ? COUNTRY_FLAGS[constructor.nationality] : null
 
   return (
     <div className="space-y-8">
@@ -76,8 +77,8 @@ export default async function ConstructorDetailPage({
           <div>
             <h1>{constructor.name}</h1>
             {constructor.nationality && (
-              <p className="text-muted-foreground">
-                {flag && <span className="mr-1">{flag}</span>}
+              <p className="text-muted-foreground inline-flex items-center gap-1.5">
+                <CountryFlag code={constructor.countryCode} />
                 {constructor.nationality}
               </p>
             )}
@@ -113,37 +114,35 @@ export default async function ConstructorDetailPage({
         <div>
           <h2 className="mb-4">Drivers ({roster.year})</h2>
           <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3">
-            {roster.drivers.map((d) => {
-              const driverFlag = d.nationality ? COUNTRY_FLAGS[d.nationality] : null
-              return (
-                <Link key={d.ref} href={`/drivers/${d.ref}`}>
-                  <Card className="hover:border-primary/30 transition-all duration-200 hover:-translate-y-0.5">
-                    <CardContent className="flex items-center gap-3 px-4 py-3">
-                      <div
-                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-sm font-bold text-white"
-                        style={{ backgroundColor: teamColor }}
-                      >
-                        {(d.firstName?.[0] ?? '') + (d.lastName?.[0] ?? '')}
+            {roster.drivers.map((d) => (
+              <Link key={d.ref} href={`/drivers/${d.ref}`}>
+                <Card className="hover:border-primary/30 transition-all duration-200 hover:-translate-y-0.5">
+                  <CardContent className="flex items-center gap-3 px-4 py-3">
+                    <DriverAvatar
+                      firstName={d.firstName}
+                      lastName={d.lastName}
+                      headshotUrl={d.headshotUrl}
+                      size="md"
+                      teamColor={teamColor}
+                    />
+                    <div>
+                      <p className="text-sm font-medium">
+                        {d.firstName} {d.lastName}
+                      </p>
+                      <div className="text-muted-foreground flex items-center gap-2 text-xs">
+                        {d.code && <span className="font-mono">{d.code}</span>}
+                        {d.nationality && (
+                          <span className="inline-flex items-center gap-1">
+                            <CountryFlag code={d.countryCode} size={12} />
+                            {d.nationality}
+                          </span>
+                        )}
                       </div>
-                      <div>
-                        <p className="text-sm font-medium">
-                          {d.firstName} {d.lastName}
-                        </p>
-                        <div className="text-muted-foreground flex items-center gap-2 text-xs">
-                          {d.code && <span className="font-mono">{d.code}</span>}
-                          {d.nationality && (
-                            <span>
-                              {driverFlag && <span className="mr-0.5">{driverFlag}</span>}
-                              {d.nationality}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </Link>
-              )
-            })}
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
+            ))}
           </div>
         </div>
       )}

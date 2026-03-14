@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { Suspense } from 'react'
 import { api } from '@/lib/api'
 import type { Constructor, PaginatedResponse } from '@/lib/types'
-import { COUNTRY_FLAGS } from '@/lib/constants'
+import { CountryFlag } from '@/components/ui/country-flag'
 import { PageHeader } from '@/components/ui/page-header'
 import {
   Table,
@@ -64,31 +64,30 @@ export default async function ConstructorsPage({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {constructors.map((constructor) => {
-            const flag = constructor.nationality ? COUNTRY_FLAGS[constructor.nationality] : null
-            return (
-              <TableRow key={constructor.id}>
-                <TableCell>
-                  <Link
-                    href={`/constructors/${constructor.ref}`}
-                    className="hover:text-primary inline-flex items-center gap-2.5 font-medium transition-colors"
-                  >
-                    {constructor.color && (
-                      <span
-                        className="inline-block h-4 w-1 rounded-full"
-                        style={{ backgroundColor: constructor.color }}
-                      />
-                    )}
-                    {constructor.name}
-                  </Link>
-                </TableCell>
-                <TableCell className="text-muted-foreground">
-                  {flag && <span className="mr-1.5">{flag}</span>}
+          {constructors.map((constructor) => (
+            <TableRow key={constructor.id}>
+              <TableCell>
+                <Link
+                  href={`/constructors/${constructor.ref}`}
+                  className="hover:text-primary inline-flex items-center gap-2.5 font-medium transition-colors"
+                >
+                  {constructor.color && (
+                    <span
+                      className="inline-block h-4 w-1 rounded-full"
+                      style={{ backgroundColor: constructor.color }}
+                    />
+                  )}
+                  {constructor.name}
+                </Link>
+              </TableCell>
+              <TableCell className="text-muted-foreground">
+                <span className="inline-flex items-center gap-1.5">
+                  {constructor.nationality && <CountryFlag code={constructor.countryCode} />}
                   {constructor.nationality ?? '—'}
-                </TableCell>
-              </TableRow>
-            )
-          })}
+                </span>
+              </TableCell>
+            </TableRow>
+          ))}
         </TableBody>
       </Table>
 

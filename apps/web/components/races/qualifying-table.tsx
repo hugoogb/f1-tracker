@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { TEAM_COLORS } from '@/lib/constants'
 import type { QualifyingResult } from '@/lib/types'
+import { DriverAvatar } from '@/components/ui/driver-avatar'
 import {
   Table,
   TableBody,
@@ -40,6 +41,12 @@ export function QualifyingTable({ results }: QualifyingTableProps) {
               <TableCell className="font-medium">{result.position}</TableCell>
               <TableCell>
                 <div className="flex items-center gap-2">
+                  <DriverAvatar
+                    firstName={result.driver.firstName}
+                    lastName={result.driver.lastName}
+                    headshotUrl={result.driver.headshotUrl}
+                    teamColor={teamColor ?? undefined}
+                  />
                   {teamColor && (
                     <span
                       className="inline-block h-3 w-1 rounded-full"

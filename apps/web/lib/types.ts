@@ -12,6 +12,8 @@ export interface Driver {
   lastName: string
   dateOfBirth: string | null
   nationality: string | null
+  countryCode: string | null
+  headshotUrl: string | null
   url?: string
 }
 
@@ -20,6 +22,7 @@ export interface Constructor {
   ref: string
   name: string
   nationality: string | null
+  countryCode: string | null
   color: string | null
   url?: string
 }
@@ -30,6 +33,7 @@ export interface Circuit {
   name: string
   location: string | null
   country: string | null
+  countryCode: string | null
   latitude: number | null
   longitude: number | null
   url?: string

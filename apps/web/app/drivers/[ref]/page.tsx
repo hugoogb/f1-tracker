@@ -2,7 +2,9 @@ import Link from 'next/link'
 import { Flag, Trophy, Medal, TrendingUp, GitCompareArrows } from 'lucide-react'
 import { api } from '@/lib/api'
 import type { Driver, DriverSeasonSummary } from '@/lib/types'
-import { COUNTRY_FLAGS, TEAM_COLORS } from '@/lib/constants'
+import { TEAM_COLORS } from '@/lib/constants'
+import { CountryFlag } from '@/components/ui/country-flag'
+import { DriverAvatar } from '@/components/ui/driver-avatar'
 import { Breadcrumbs } from '@/components/layout/breadcrumbs'
 import { Badge } from '@/components/ui/badge'
 import { StatCard } from '@/components/ui/stat-card'
@@ -41,13 +43,10 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ r
   const driverData = driver.value
   const seasons = seasonsResult.status === 'fulfilled' ? seasonsResult.value.seasons : []
 
-  const flag = driverData.nationality ? COUNTRY_FLAGS[driverData.nationality] : null
   const latestTeam = seasons[0]?.constructor
   const teamColor = latestTeam
     ? (TEAM_COLORS[latestTeam.ref] ?? latestTeam.color ?? undefined)
     : undefined
-
-  const initials = (driverData.firstName?.[0] ?? '') + (driverData.lastName?.[0] ?? '')
 
   return (
     <div className="space-y-8">
@@ -60,23 +59,22 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ r
       />
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-6">
-        <div
-          className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl text-xl font-bold text-white"
-          style={{
-            backgroundColor: teamColor ?? 'var(--primary)',
-            boxShadow: `0 0 30px ${teamColor ?? 'oklch(0.55 0.25 27)'}40`,
-          }}
-        >
-          {initials}
-        </div>
+        <DriverAvatar
+          firstName={driverData.firstName}
+          lastName={driverData.lastName}
+          headshotUrl={driverData.headshotUrl}
+          size="lg"
+          teamColor={teamColor}
+          className="rounded-2xl"
+        />
         <div className="space-y-2">
           <h1>
             {driverData.firstName} {driverData.lastName}
           </h1>
           <div className="flex flex-wrap items-center gap-2">
             {driverData.nationality && (
-              <span className="text-muted-foreground">
-                {flag && <span className="mr-1">{flag}</span>}
+              <span className="text-muted-foreground inline-flex items-center gap-1.5">
+                <CountryFlag code={driverData.countryCode} />
                 {driverData.nationality}
               </span>
             )}

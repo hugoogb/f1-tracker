@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { MapPin, Calendar } from 'lucide-react'
 import { api } from '@/lib/api'
 import type { Circuit, CircuitLayout } from '@/lib/types'
-import { COUNTRY_FLAGS } from '@/lib/constants'
+import { CountryFlag } from '@/components/ui/country-flag'
 import { Breadcrumbs } from '@/components/layout/breadcrumbs'
 import { StatCard } from '@/components/ui/stat-card'
 import { Badge } from '@/components/ui/badge'
@@ -44,7 +44,6 @@ export default async function CircuitDetailPage({ params }: { params: Promise<{ 
   const { ref } = await params
   const circuit = (await api.circuits.get(ref)) as CircuitDetail
 
-  const flag = circuit.country ? COUNTRY_FLAGS[circuit.country] : null
   const firstRaceYear =
     circuit.races.length > 0 ? circuit.races[circuit.races.length - 1]?.seasonYear : null
   const lastRaceYear = circuit.races.length > 0 ? circuit.races[0]?.seasonYear : null
@@ -72,7 +71,7 @@ export default async function CircuitDetailPage({ params }: { params: Promise<{ 
         <div className="glass rounded-xl px-5 py-4">
           <p className="text-foreground flex items-center gap-2 font-medium">
             <MapPin className="text-primary h-4 w-4" />
-            {flag && <span>{flag}</span>}
+            {circuit.country && <CountryFlag code={circuit.countryCode} />}
             {circuit.location}, {circuit.country}
           </p>
         </div>
