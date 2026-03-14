@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { Suspense } from 'react'
 import { api } from '@/lib/api'
 import type { Circuit, PaginatedResponse } from '@/lib/types'
-import { COUNTRY_FLAGS } from '@/lib/constants'
+import { CountryFlag } from '@/components/ui/country-flag'
 import { PageHeader } from '@/components/ui/page-header'
 import {
   Table,
@@ -85,28 +85,27 @@ export default async function CircuitsPage({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {circuits.map((circuit) => {
-            const flag = circuit.country ? COUNTRY_FLAGS[circuit.country] : null
-            return (
-              <TableRow key={circuit.id}>
-                <TableCell>
-                  <Link
-                    href={`/circuits/${circuit.ref}`}
-                    className="hover:text-primary font-medium transition-colors"
-                  >
-                    {circuit.name}
-                  </Link>
-                </TableCell>
-                <TableCell className="text-muted-foreground hidden sm:table-cell">
-                  {circuit.location ?? '—'}
-                </TableCell>
-                <TableCell className="text-muted-foreground">
-                  {flag && <span className="mr-1.5">{flag}</span>}
+          {circuits.map((circuit) => (
+            <TableRow key={circuit.id}>
+              <TableCell>
+                <Link
+                  href={`/circuits/${circuit.ref}`}
+                  className="hover:text-primary font-medium transition-colors"
+                >
+                  {circuit.name}
+                </Link>
+              </TableCell>
+              <TableCell className="text-muted-foreground hidden sm:table-cell">
+                {circuit.location ?? '—'}
+              </TableCell>
+              <TableCell className="text-muted-foreground">
+                <span className="inline-flex items-center gap-1.5">
+                  {circuit.country && <CountryFlag code={circuit.countryCode} />}
                   {circuit.country ?? '—'}
-                </TableCell>
-              </TableRow>
-            )
-          })}
+                </span>
+              </TableCell>
+            </TableRow>
+          ))}
         </TableBody>
       </Table>
 

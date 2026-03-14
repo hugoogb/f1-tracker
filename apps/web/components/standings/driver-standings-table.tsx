@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { TEAM_COLORS } from '@/lib/constants'
 import type { DriverStanding } from '@/lib/types'
+import { DriverAvatar } from '@/components/ui/driver-avatar'
 import { PositionBadge } from '@/components/ui/position-badge'
 import {
   Table,
@@ -44,6 +45,12 @@ export function DriverStandingsTable({ standings, limit }: DriverStandingsTableP
               </TableCell>
               <TableCell>
                 <div className="flex items-center gap-2">
+                  <DriverAvatar
+                    firstName={entry.driver.firstName}
+                    lastName={entry.driver.lastName}
+                    headshotUrl={entry.driver.headshotUrl}
+                    teamColor={teamColor ?? undefined}
+                  />
                   {teamColor && (
                     <span
                       className="inline-block h-4 w-1 rounded-full"

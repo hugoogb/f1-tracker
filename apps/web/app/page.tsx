@@ -2,7 +2,8 @@ import Link from 'next/link'
 import { Calendar, Users, Building2, MapPin, Flag, Trophy } from 'lucide-react'
 import { api } from '@/lib/api'
 import type { DriverStanding, ConstructorStanding, Race, SeasonChampion } from '@/lib/types'
-import { COUNTRY_FLAGS } from '@/lib/constants'
+import { CountryFlag } from '@/components/ui/country-flag'
+import { DriverAvatar } from '@/components/ui/driver-avatar'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Table,
@@ -178,7 +179,12 @@ export default async function Home() {
                     </Link>
                     <Trophy className="h-4 w-4 text-amber-500/60" />
                   </div>
-                  <div>
+                  <div className="flex items-center gap-2">
+                    <DriverAvatar
+                      firstName={c.driver.firstName}
+                      lastName={c.driver.lastName}
+                      headshotUrl={c.driver.headshotUrl}
+                    />
                     <Link
                       href={`/drivers/${c.driver.ref}`}
                       className="hover:text-primary text-sm font-medium transition-colors"
@@ -230,7 +236,6 @@ export default async function Home() {
                 {races.map((race) => {
                   const raceDate = new Date(race.date)
                   const isPast = raceDate < now
-                  const flag = race.circuit.country ? COUNTRY_FLAGS[race.circuit.country] : null
 
                   return (
                     <TableRow key={race.id} className={isPast ? 'opacity-60' : ''}>
@@ -251,8 +256,10 @@ export default async function Home() {
                         {race.circuit.name}
                       </TableCell>
                       <TableCell className="hidden sm:table-cell">
-                        {flag && <span className="mr-1.5">{flag}</span>}
-                        {race.circuit.country}
+                        <span className="inline-flex items-center gap-1.5">
+                          {race.circuit.country && <CountryFlag code={race.circuit.countryCode} />}
+                          {race.circuit.country}
+                        </span>
                       </TableCell>
                       <TableCell className="text-right text-sm tabular-nums">
                         {raceDate.toLocaleDateString('en-GB', {

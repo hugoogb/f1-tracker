@@ -5,6 +5,7 @@ import { api } from '@/lib/api'
 import type { Driver } from '@/lib/types'
 import { Breadcrumbs } from '@/components/layout/breadcrumbs'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { DriverAvatar } from '@/components/ui/driver-avatar'
 import { cn } from '@/lib/utils'
 import { ComparisonChart } from '@/components/charts/comparison-chart'
 
@@ -86,17 +87,39 @@ export default async function CompareDriversPage({
 
       <div className="glass rounded-xl px-6 py-8">
         <div className="flex items-center gap-4">
-          <h1 className="flex-1 text-right">
-            <Link href={`/drivers/${driver1.ref}`} className="hover:text-primary transition-colors">
-              {d1Name}
-            </Link>
-          </h1>
+          <div className="flex flex-1 items-center justify-end gap-3">
+            <h1>
+              <Link
+                href={`/drivers/${driver1.ref}`}
+                className="hover:text-primary transition-colors"
+              >
+                {d1Name}
+              </Link>
+            </h1>
+            <DriverAvatar
+              firstName={driver1.firstName}
+              lastName={driver1.lastName}
+              headshotUrl={driver1.headshotUrl}
+              size="lg"
+            />
+          </div>
           <span className="text-muted-foreground font-heading shrink-0 text-xl font-bold">vs</span>
-          <h1 className="flex-1">
-            <Link href={`/drivers/${driver2.ref}`} className="hover:text-primary transition-colors">
-              {d2Name}
-            </Link>
-          </h1>
+          <div className="flex flex-1 items-center gap-3">
+            <DriverAvatar
+              firstName={driver2.firstName}
+              lastName={driver2.lastName}
+              headshotUrl={driver2.headshotUrl}
+              size="lg"
+            />
+            <h1>
+              <Link
+                href={`/drivers/${driver2.ref}`}
+                className="hover:text-primary transition-colors"
+              >
+                {d2Name}
+              </Link>
+            </h1>
+          </div>
         </div>
 
         <div className="mt-4 flex justify-center">

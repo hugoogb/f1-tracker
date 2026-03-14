@@ -2,7 +2,8 @@ import Link from 'next/link'
 import { Suspense } from 'react'
 import { api } from '@/lib/api'
 import type { Driver, PaginatedResponse } from '@/lib/types'
-import { COUNTRY_FLAGS } from '@/lib/constants'
+import { CountryFlag } from '@/components/ui/country-flag'
+import { DriverAvatar } from '@/components/ui/driver-avatar'
 import { Badge } from '@/components/ui/badge'
 import { PageHeader } from '@/components/ui/page-header'
 import {
@@ -66,32 +67,36 @@ export default async function DriversPage({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {drivers.map((driver) => {
-            const flag = driver.nationality ? COUNTRY_FLAGS[driver.nationality] : null
-            return (
-              <TableRow key={driver.id}>
-                <TableCell>
-                  <Link
-                    href={`/drivers/${driver.ref}`}
-                    className="hover:text-primary font-medium transition-colors"
-                  >
-                    {driver.firstName} {driver.lastName}
-                  </Link>
-                </TableCell>
-                <TableCell className="hidden sm:table-cell">
-                  {driver.code && (
-                    <Badge variant="secondary" className="font-mono">
-                      {driver.code}
-                    </Badge>
-                  )}
-                </TableCell>
-                <TableCell className="text-muted-foreground">
-                  {flag && <span className="mr-1.5">{flag}</span>}
+          {drivers.map((driver) => (
+            <TableRow key={driver.id}>
+              <TableCell>
+                <Link
+                  href={`/drivers/${driver.ref}`}
+                  className="hover:text-primary inline-flex items-center gap-2.5 font-medium transition-colors"
+                >
+                  <DriverAvatar
+                    firstName={driver.firstName}
+                    lastName={driver.lastName}
+                    headshotUrl={driver.headshotUrl}
+                  />
+                  {driver.firstName} {driver.lastName}
+                </Link>
+              </TableCell>
+              <TableCell className="hidden sm:table-cell">
+                {driver.code && (
+                  <Badge variant="secondary" className="font-mono">
+                    {driver.code}
+                  </Badge>
+                )}
+              </TableCell>
+              <TableCell className="text-muted-foreground">
+                <span className="inline-flex items-center gap-1.5">
+                  {driver.nationality && <CountryFlag code={driver.countryCode} />}
                   {driver.nationality ?? '—'}
-                </TableCell>
-              </TableRow>
-            )
-          })}
+                </span>
+              </TableCell>
+            </TableRow>
+          ))}
         </TableBody>
       </Table>
 
