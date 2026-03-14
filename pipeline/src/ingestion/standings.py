@@ -1,43 +1,23 @@
-"""Ingest end-of-season driver and constructor standings from Fast-F1 Ergast API."""
+"""Compute end-of-season driver and constructor standings from race results."""
 
-from fastf1.ergast import Ergast
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from src.db.models import (
     ConstructorStanding,
     DriverStanding,
     Race,
+    RaceResult,
     Season,
+    SprintResult,
 )
-from src.ingestion.base import BaseIngestor, api_call, clean, is_interrupted
-
-
-def _safe_int(val) -> int | None:
-    val = clean(val)
-    if val is None:
-        return None
-    try:
-        return int(val)
-    except (ValueError, TypeError):
-        return None
-
-
-def _safe_float(val) -> float:
-    val = clean(val)
-    if val is None:
-        return 0.0
-    try:
-        return float(val)
-    except (ValueError, TypeError):
-        return 0.0
+from src.ingestion.base import BaseIngestor
 
 
 class StandingsIngestor(BaseIngestor):
-    """Ingest end-of-season standings (last round only per season)."""
+    """Compute end-of-season standings from race_results + sprint_results."""
 
     def ingest(self) -> None:
-        self.log("Fetching end-of-season standings...")
-        erg = Ergast()
+        self.log("Computing standings from race results...")
 
         # Find races that already have standings — skip them
         ds_existing = set(
@@ -59,9 +39,6 @@ class StandingsIngestor(BaseIngestor):
         constructor_total = 0
 
         for season in seasons:
-            if is_interrupted():
-                break
-
             last_race = self.db.execute(
                 select(Race)
                 .where(Race.season_year == season.year)
@@ -74,58 +51,153 @@ class StandingsIngestor(BaseIngestor):
 
             # Driver standings
             if last_race.id not in ds_existing:
-                try:
-                    ds_response = api_call(erg.get_driver_standings, season=season.year)
-                    if ds_response.content:
-                        df = ds_response.content[0]
-                        for _, row in df.iterrows():
-                            standing_id = f"{last_race.id}_DS_{row['driverId']}"
-                            standing = DriverStanding(
-                                id=standing_id,
-                                race_id=last_race.id,
-                                driver_id=row["driverId"],
-                                points=_safe_float(row.get("points")),
-                                position=_safe_int(row.get("position")),
-                                wins=_safe_int(row.get("wins")) or 0,
-                            )
-                            self.db.merge(standing)
-                            driver_total += 1
-
-                    self.db.commit()
-                except InterruptedError:
-                    raise
-                except Exception as e:
-                    self.log(f"Driver standings {season.year}: ERROR - {e}")
-                    self.db.rollback()
+                count = self._compute_driver_standings(season.year, last_race.id)
+                driver_total += count
 
             # Constructor standings
             if last_race.id not in cs_existing:
-                try:
-                    cs_response = api_call(erg.get_constructor_standings, season=season.year)
-                    if cs_response.content:
-                        df = cs_response.content[0]
-                        for _, row in df.iterrows():
-                            standing_id = f"{last_race.id}_CS_{row['constructorId']}"
-                            standing = ConstructorStanding(
-                                id=standing_id,
-                                race_id=last_race.id,
-                                constructor_id=row["constructorId"],
-                                points=_safe_float(row.get("points")),
-                                position=_safe_int(row.get("position")),
-                                wins=_safe_int(row.get("wins")) or 0,
-                            )
-                            self.db.merge(standing)
-                            constructor_total += 1
-
-                    self.db.commit()
-                except InterruptedError:
-                    raise
-                except Exception as e:
-                    self.log(f"Constructor standings {season.year}: ERROR - {e}")
-                    self.db.rollback()
-
-            self.log(f"Season {season.year}: standings done")
+                count = self._compute_constructor_standings(season.year, last_race.id)
+                constructor_total += count
 
         self.log(
-            f"Ingested {driver_total} driver standings, {constructor_total} constructor standings"
+            f"Computed {driver_total} driver standings, {constructor_total} constructor standings"
         )
+
+    def _compute_driver_standings(self, year: int, last_race_id: str) -> int:
+        """Sum points + count wins from race_results and sprint_results for a season."""
+        race_ids = self.db.execute(
+            select(Race.id).where(Race.season_year == year)
+        ).scalars().all()
+
+        if not race_ids:
+            return 0
+
+        # Race points + wins
+        race_stats = dict(
+            self.db.execute(
+                select(
+                    RaceResult.driver_id,
+                    func.coalesce(func.sum(RaceResult.points), 0).label("pts"),
+                )
+                .where(RaceResult.race_id.in_(race_ids))
+                .group_by(RaceResult.driver_id)
+            ).all()
+        )
+
+        race_wins: dict[str, int] = {}
+        for row in self.db.execute(
+            select(
+                RaceResult.driver_id,
+                func.count().label("w"),
+            )
+            .where(RaceResult.race_id.in_(race_ids), RaceResult.position == 1)
+            .group_by(RaceResult.driver_id)
+        ).all():
+            race_wins[row[0]] = row[1]
+
+        # Sprint points (2021+)
+        sprint_pts: dict[str, float] = {}
+        if year >= 2021:
+            for row in self.db.execute(
+                select(
+                    SprintResult.driver_id,
+                    func.coalesce(func.sum(SprintResult.points), 0).label("pts"),
+                )
+                .where(SprintResult.race_id.in_(race_ids))
+                .group_by(SprintResult.driver_id)
+            ).all():
+                sprint_pts[row[0]] = float(row[1])
+
+        # Merge and rank
+        all_drivers = set(race_stats.keys()) | set(sprint_pts.keys())
+        standings = []
+        for driver_id in all_drivers:
+            total_pts = float(race_stats.get(driver_id, 0)) + sprint_pts.get(driver_id, 0)
+            wins = race_wins.get(driver_id, 0)
+            standings.append((driver_id, total_pts, wins))
+
+        # Sort by points desc, then wins desc
+        standings.sort(key=lambda x: (x[1], x[2]), reverse=True)
+
+        for pos, (driver_id, pts, wins) in enumerate(standings, 1):
+            standing = DriverStanding(
+                id=f"{last_race_id}_DS_{driver_id}",
+                race_id=last_race_id,
+                driver_id=driver_id,
+                points=pts,
+                position=pos,
+                wins=wins,
+            )
+            self.db.merge(standing)
+
+        self.db.commit()
+        return len(standings)
+
+    def _compute_constructor_standings(self, year: int, last_race_id: str) -> int:
+        """Sum points + count wins from race_results and sprint_results for a season."""
+        race_ids = self.db.execute(
+            select(Race.id).where(Race.season_year == year)
+        ).scalars().all()
+
+        if not race_ids:
+            return 0
+
+        # Race points + wins
+        race_stats = dict(
+            self.db.execute(
+                select(
+                    RaceResult.constructor_id,
+                    func.coalesce(func.sum(RaceResult.points), 0).label("pts"),
+                )
+                .where(RaceResult.race_id.in_(race_ids))
+                .group_by(RaceResult.constructor_id)
+            ).all()
+        )
+
+        race_wins: dict[str, int] = {}
+        for row in self.db.execute(
+            select(
+                RaceResult.constructor_id,
+                func.count().label("w"),
+            )
+            .where(RaceResult.race_id.in_(race_ids), RaceResult.position == 1)
+            .group_by(RaceResult.constructor_id)
+        ).all():
+            race_wins[row[0]] = row[1]
+
+        # Sprint points (2021+)
+        sprint_pts: dict[str, float] = {}
+        if year >= 2021:
+            for row in self.db.execute(
+                select(
+                    SprintResult.constructor_id,
+                    func.coalesce(func.sum(SprintResult.points), 0).label("pts"),
+                )
+                .where(SprintResult.race_id.in_(race_ids))
+                .group_by(SprintResult.constructor_id)
+            ).all():
+                sprint_pts[row[0]] = float(row[1])
+
+        # Merge and rank
+        all_constructors = set(race_stats.keys()) | set(sprint_pts.keys())
+        standings = []
+        for cid in all_constructors:
+            total_pts = float(race_stats.get(cid, 0)) + sprint_pts.get(cid, 0)
+            wins = race_wins.get(cid, 0)
+            standings.append((cid, total_pts, wins))
+
+        standings.sort(key=lambda x: (x[1], x[2]), reverse=True)
+
+        for pos, (cid, pts, wins) in enumerate(standings, 1):
+            standing = ConstructorStanding(
+                id=f"{last_race_id}_CS_{cid}",
+                race_id=last_race_id,
+                constructor_id=cid,
+                points=pts,
+                position=pos,
+                wins=wins,
+            )
+            self.db.merge(standing)
+
+        self.db.commit()
+        return len(standings)

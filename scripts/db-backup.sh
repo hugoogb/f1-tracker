@@ -5,14 +5,14 @@ set -euo pipefail
 BACKUP_DIR="$(cd "$(dirname "$0")/../docker/backups" && pwd)"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 BACKUP_FILE="${BACKUP_DIR}/f1tracker_${TIMESTAMP}.sql.gz"
-LATEST_LINK="${BACKUP_DIR}/latest.sql.gz"
+LATEST_COPY="${BACKUP_DIR}/latest.sql.gz"
 
 echo "Backing up f1tracker database..."
 docker exec docker-db-1 pg_dump -U f1tracker --data-only --no-owner --no-privileges f1tracker \
   | gzip > "$BACKUP_FILE"
 
-# Update latest symlink
-ln -sf "$(basename "$BACKUP_FILE")" "$LATEST_LINK"
+# Copy as latest (real file so git can track it)
+cp "$BACKUP_FILE" "$LATEST_COPY"
 
 SIZE=$(du -h "$BACKUP_FILE" | cut -f1)
 echo "Backup saved: $BACKUP_FILE ($SIZE)"
