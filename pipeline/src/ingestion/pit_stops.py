@@ -17,24 +17,26 @@ class PitStopIngestor(BaseIngestor):
 
         # Find races that already have pit stops — skip them
         existing = set(
-            self.db.execute(
-                select(PitStop.race_id).group_by(PitStop.race_id)
-            ).scalars().all()
+            self.db.execute(select(PitStop.race_id).group_by(PitStop.race_id)).scalars().all()
         )
 
-        seasons = self.db.execute(
-            select(Season).where(Season.year >= 2012).order_by(Season.year)
-        ).scalars().all()
+        seasons = (
+            self.db.execute(select(Season).where(Season.year >= 2012).order_by(Season.year))
+            .scalars()
+            .all()
+        )
 
         races_fetched = 0
         races_skipped = 0
         records = 0
         for season in seasons:
-            races = self.db.execute(
-                select(Race)
-                .where(Race.season_year == season.year)
-                .order_by(Race.round)
-            ).scalars().all()
+            races = (
+                self.db.execute(
+                    select(Race).where(Race.season_year == season.year).order_by(Race.round)
+                )
+                .scalars()
+                .all()
+            )
 
             for race in races:
                 if is_interrupted():
@@ -46,7 +48,9 @@ class PitStopIngestor(BaseIngestor):
                 try:
                     response = api_call(
                         erg.get_pit_stops,
-                        season=season.year, round=race.round, limit=100,
+                        season=season.year,
+                        round=race.round,
+                        limit=100,
                     )
                     if not response.content:
                         continue
@@ -64,22 +68,15 @@ class PitStopIngestor(BaseIngestor):
                         duration_ms = None
                         if duration is not None:
                             if isinstance(duration, pd.Timedelta):
-                                duration_ms = int(
-                                    duration.total_seconds() * 1000
-                                )
+                                duration_ms = int(duration.total_seconds() * 1000)
                             elif isinstance(duration, str):
                                 try:
                                     parts = duration.split(":")
                                     if len(parts) == 2:
                                         mins, secs = parts
-                                        duration_ms = int(
-                                            (int(mins) * 60 + float(secs))
-                                            * 1000
-                                        )
+                                        duration_ms = int((int(mins) * 60 + float(secs)) * 1000)
                                     else:
-                                        duration_ms = int(
-                                            float(duration) * 1000
-                                        )
+                                        duration_ms = int(float(duration) * 1000)
                                 except (ValueError, TypeError):
                                     pass
 
@@ -90,9 +87,7 @@ class PitStopIngestor(BaseIngestor):
                             driver_id=row["driverId"],
                             stop_number=stop_num,
                             lap=int(row["lap"]),
-                            time_of_day=str(time_of_day)
-                            if time_of_day is not None
-                            else None,
+                            time_of_day=str(time_of_day) if time_of_day is not None else None,
                             duration_ms=duration_ms,
                         )
                         self.db.merge(pit_stop)
@@ -103,15 +98,17 @@ class PitStopIngestor(BaseIngestor):
                 except InterruptedError:
                     raise
                 except Exception as e:
-                    self.log(
-                        f"Pit stops {season.year} R{race.round}: ERROR - {e}"
-                    )
+                    self.log(f"Pit stops {season.year} R{race.round}: ERROR - {e}")
                     self.db.rollback()
                     continue
 
             if is_interrupted():
                 break
 
-            self.log(f"Season {season.year}: pit stops done ({races_fetched} races fetched, {races_skipped} skipped)")
+            self.log(
+                f"Season {season.year}: pit stops done ({races_fetched} races fetched, {races_skipped} skipped)"
+            )
 
-        self.log(f"Ingested {records} pit stops from {races_fetched} races ({races_skipped} skipped)")
+        self.log(
+            f"Ingested {records} pit stops from {races_fetched} races ({races_skipped} skipped)"
+        )

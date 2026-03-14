@@ -23,11 +23,7 @@ def backfill_driver_codes(db: Session) -> None:
     logger.info("Backfilling driver numbers and codes from race results...")
 
     # Get the most recent race result for each driver to extract number/code
-    results = (
-        db.query(RaceResult)
-        .order_by(RaceResult.race_id.desc())
-        .all()
-    )
+    results = db.query(RaceResult).order_by(RaceResult.race_id.desc()).all()
 
     seen = set()
     updated = 0
@@ -52,15 +48,12 @@ def refresh_materialized_views(db: Session) -> None:
 
     # Drop existing views first
     db.execute(text("DROP MATERIALIZED VIEW IF EXISTS season_champions CASCADE"))
-    db.execute(text(
-        "DROP MATERIALIZED VIEW IF EXISTS driver_career_stats CASCADE"
-    ))
-    db.execute(text(
-        "DROP MATERIALIZED VIEW IF EXISTS constructor_career_stats CASCADE"
-    ))
+    db.execute(text("DROP MATERIALIZED VIEW IF EXISTS driver_career_stats CASCADE"))
+    db.execute(text("DROP MATERIALIZED VIEW IF EXISTS constructor_career_stats CASCADE"))
 
     # Season champions: position=1 in final round standings
-    db.execute(text("""
+    db.execute(
+        text("""
         CREATE MATERIALIZED VIEW season_champions AS
         SELECT
             r.season_year AS year,
@@ -79,10 +72,12 @@ def refresh_materialized_views(db: Session) -> None:
             WHERE r2.season_year = r.season_year
         )
         ORDER BY r.season_year
-    """))
+    """)
+    )
 
     # Driver career stats
-    db.execute(text("""
+    db.execute(
+        text("""
         CREATE MATERIALIZED VIEW driver_career_stats AS
         SELECT
             rr.driver_id,
@@ -94,10 +89,12 @@ def refresh_materialized_views(db: Session) -> None:
         FROM race_results rr
         JOIN races r ON rr.race_id = r.id
         GROUP BY rr.driver_id
-    """))
+    """)
+    )
 
     # Constructor career stats
-    db.execute(text("""
+    db.execute(
+        text("""
         CREATE MATERIALIZED VIEW constructor_career_stats AS
         SELECT
             rr.constructor_id,
@@ -109,7 +106,8 @@ def refresh_materialized_views(db: Session) -> None:
         FROM race_results rr
         JOIN races r ON rr.race_id = r.id
         GROUP BY rr.constructor_id
-    """))
+    """)
+    )
 
     db.commit()
     logger.info("Materialized views created")

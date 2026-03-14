@@ -27,9 +27,7 @@ def list_drivers(
 
     total = db.execute(count_query).scalar()
     drivers = (
-        db.execute(
-            base_query.order_by(Driver.last_name).offset(offset).limit(page_size)
-        )
+        db.execute(base_query.order_by(Driver.last_name).offset(offset).limit(page_size))
         .scalars()
         .all()
     )
@@ -94,38 +92,32 @@ def get_driver_seasons(ref: str, db: Session = Depends(get_db)):
     if not driver:
         raise HTTPException(status_code=404, detail="Driver not found")
 
-    season_stats = (
-        db.execute(
-            select(
-                Race.season_year,
-                RaceResult.constructor_id,
-                func.count().label("races"),
-                func.sum(case((RaceResult.position == 1, 1), else_=0)).label("wins"),
-                func.sum(case((RaceResult.position <= 3, 1), else_=0)).label("podiums"),
-                func.sum(RaceResult.points).label("points"),
-            )
-            .join(Race, RaceResult.race_id == Race.id)
-            .where(RaceResult.driver_id == driver.id)
-            .group_by(Race.season_year, RaceResult.constructor_id)
-            .order_by(Race.season_year.desc())
+    season_stats = db.execute(
+        select(
+            Race.season_year,
+            RaceResult.constructor_id,
+            func.count().label("races"),
+            func.sum(case((RaceResult.position == 1, 1), else_=0)).label("wins"),
+            func.sum(case((RaceResult.position <= 3, 1), else_=0)).label("podiums"),
+            func.sum(RaceResult.points).label("points"),
         )
-        .all()
-    )
+        .join(Race, RaceResult.race_id == Race.id)
+        .where(RaceResult.driver_id == driver.id)
+        .group_by(Race.season_year, RaceResult.constructor_id)
+        .order_by(Race.season_year.desc())
+    ).all()
 
     results = []
     for row in season_stats:
         constructor = db.get(Constructor, row.constructor_id)
 
         # Look up championship position from final standings
-        last_race = (
-            db.execute(
-                select(Race)
-                .where(Race.season_year == row.season_year)
-                .order_by(Race.round.desc())
-                .limit(1)
-            )
-            .scalar_one_or_none()
-        )
+        last_race = db.execute(
+            select(Race)
+            .where(Race.season_year == row.season_year)
+            .order_by(Race.round.desc())
+            .limit(1)
+        ).scalar_one_or_none()
         championship_position = None
         if last_race:
             standing = db.execute(
@@ -137,19 +129,23 @@ def get_driver_seasons(ref: str, db: Session = Depends(get_db)):
             if standing:
                 championship_position = standing.position
 
-        results.append({
-            "year": row.season_year,
-            "races": row.races,
-            "wins": row.wins,
-            "podiums": row.podiums,
-            "points": float(row.points or 0),
-            "championshipPosition": championship_position,
-            "constructor": {
-                "id": constructor.id,
-                "ref": constructor.ref,
-                "name": constructor.name,
-                "color": constructor.color,
-            } if constructor else None,
-        })
+        results.append(
+            {
+                "year": row.season_year,
+                "races": row.races,
+                "wins": row.wins,
+                "podiums": row.podiums,
+                "points": float(row.points or 0),
+                "championshipPosition": championship_position,
+                "constructor": {
+                    "id": constructor.id,
+                    "ref": constructor.ref,
+                    "name": constructor.name,
+                    "color": constructor.color,
+                }
+                if constructor
+                else None,
+            }
+        )
 
     return {"seasons": results}

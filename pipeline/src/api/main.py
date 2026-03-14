@@ -1,7 +1,18 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from src.api.routers import champions, circuits, compare, constructors, drivers, health, races, search, seasons, standings
+from src.api.routers import (
+    champions,
+    circuits,
+    compare,
+    constructors,
+    drivers,
+    health,
+    races,
+    search,
+    seasons,
+    standings,
+)
 
 app = FastAPI(
     title="F1 Tracker API",

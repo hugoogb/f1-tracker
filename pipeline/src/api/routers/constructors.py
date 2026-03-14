@@ -27,9 +27,7 @@ def list_constructors(
 
     total = db.execute(count_query).scalar()
     constructors = (
-        db.execute(
-            base_query.order_by(Constructor.name).offset(offset).limit(page_size)
-        )
+        db.execute(base_query.order_by(Constructor.name).offset(offset).limit(page_size))
         .scalars()
         .all()
     )
@@ -83,9 +81,7 @@ def get_constructor(ref: str, db: Session = Depends(get_db)):
 
 
 @router.get("/constructors/{ref}/roster")
-def get_constructor_roster(
-    ref: str, year: int | None = None, db: Session = Depends(get_db)
-):
+def get_constructor_roster(ref: str, year: int | None = None, db: Session = Depends(get_db)):
     constructor = get_constructor_by_ref(db, ref)
     if not constructor:
         raise HTTPException(status_code=404, detail="Constructor not found")
@@ -139,35 +135,29 @@ def get_constructor_seasons(ref: str, db: Session = Depends(get_db)):
     if not constructor:
         raise HTTPException(status_code=404, detail="Constructor not found")
 
-    season_stats = (
-        db.execute(
-            select(
-                Race.season_year,
-                func.count().label("races"),
-                func.sum(case((RaceResult.position == 1, 1), else_=0)).label("wins"),
-                func.sum(case((RaceResult.position <= 3, 1), else_=0)).label("podiums"),
-                func.sum(RaceResult.points).label("points"),
-            )
-            .join(Race, RaceResult.race_id == Race.id)
-            .where(RaceResult.constructor_id == constructor.id)
-            .group_by(Race.season_year)
-            .order_by(Race.season_year.desc())
+    season_stats = db.execute(
+        select(
+            Race.season_year,
+            func.count().label("races"),
+            func.sum(case((RaceResult.position == 1, 1), else_=0)).label("wins"),
+            func.sum(case((RaceResult.position <= 3, 1), else_=0)).label("podiums"),
+            func.sum(RaceResult.points).label("points"),
         )
-        .all()
-    )
+        .join(Race, RaceResult.race_id == Race.id)
+        .where(RaceResult.constructor_id == constructor.id)
+        .group_by(Race.season_year)
+        .order_by(Race.season_year.desc())
+    ).all()
 
     results = []
     for row in season_stats:
         # Look up championship position from final standings
-        last_race = (
-            db.execute(
-                select(Race)
-                .where(Race.season_year == row.season_year)
-                .order_by(Race.round.desc())
-                .limit(1)
-            )
-            .scalar_one_or_none()
-        )
+        last_race = db.execute(
+            select(Race)
+            .where(Race.season_year == row.season_year)
+            .order_by(Race.round.desc())
+            .limit(1)
+        ).scalar_one_or_none()
         championship_position = None
         if last_race:
             standing = db.execute(
@@ -179,13 +169,15 @@ def get_constructor_seasons(ref: str, db: Session = Depends(get_db)):
             if standing:
                 championship_position = standing.position
 
-        results.append({
-            "year": row.season_year,
-            "races": row.races,
-            "wins": row.wins,
-            "podiums": row.podiums,
-            "points": float(row.points or 0),
-            "championshipPosition": championship_position,
-        })
+        results.append(
+            {
+                "year": row.season_year,
+                "races": row.races,
+                "wins": row.wins,
+                "podiums": row.podiums,
+                "points": float(row.points or 0),
+                "championshipPosition": championship_position,
+            }
+        )
 
     return {"seasons": results}

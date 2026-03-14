@@ -28,11 +28,18 @@ def restore_backup() -> None:
 
     logger.info(f"Restoring from backup: {BACKUP_FILE}")
     result = subprocess.run(
-        ["bash", "-c", f'gunzip -c "{BACKUP_FILE}" | docker exec -i docker-db-1 psql -U f1tracker -d f1tracker --single-transaction -q'],
-        capture_output=True, text=True,
+        [
+            "bash",
+            "-c",
+            f'gunzip -c "{BACKUP_FILE}" | docker exec -i docker-db-1 psql -U f1tracker -d f1tracker --single-transaction -q',
+        ],
+        capture_output=True,
+        text=True,
     )
     if result.returncode != 0:
-        logger.warning(f"Restore failed (may be OK if data already exists): {result.stderr.strip()}")
+        logger.warning(
+            f"Restore failed (may be OK if data already exists): {result.stderr.strip()}"
+        )
     else:
         logger.info("Backup restored successfully")
 
@@ -46,7 +53,8 @@ def create_backup() -> None:
     logger.info("Creating backup...")
     result = subprocess.run(
         ["bash", str(BACKUP_SCRIPT)],
-        capture_output=True, text=True,
+        capture_output=True,
+        text=True,
     )
     if result.returncode != 0:
         logger.warning(f"Backup failed: {result.stderr.strip()}")

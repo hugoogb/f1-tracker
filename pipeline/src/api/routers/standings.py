@@ -3,7 +3,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from src.db.database import get_db
-from src.db.models import Constructor, Race, RaceResult
+from src.db.models import Constructor, RaceResult
 from src.db.queries import (
     get_constructor_standings_for_season,
     get_driver_standings_for_season,
@@ -52,7 +52,9 @@ def driver_standings(year: int, db: Session = Depends(get_db)):
                     "ref": c.ref,
                     "name": c.name,
                     "color": c.color,
-                } if (c := constructor_map.get(s.driver_id)) else None,
+                }
+                if (c := constructor_map.get(s.driver_id))
+                else None,
             }
             for s in standings
         ],

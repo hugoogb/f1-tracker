@@ -28,9 +28,7 @@ def get_season_races(db: Session, year: int) -> list[Race]:
 def get_race_results(db: Session, race_id: str) -> list[RaceResult]:
     return (
         db.execute(
-            select(RaceResult)
-            .where(RaceResult.race_id == race_id)
-            .order_by(RaceResult.position)
+            select(RaceResult).where(RaceResult.race_id == race_id).order_by(RaceResult.position)
         )
         .scalars()
         .all()
@@ -38,15 +36,9 @@ def get_race_results(db: Session, race_id: str) -> list[RaceResult]:
 
 
 def get_driver_standings_for_season(db: Session, year: int) -> list[DriverStanding]:
-    last_race = (
-        db.execute(
-            select(Race)
-            .where(Race.season_year == year)
-            .order_by(Race.round.desc())
-            .limit(1)
-        )
-        .scalar_one_or_none()
-    )
+    last_race = db.execute(
+        select(Race).where(Race.season_year == year).order_by(Race.round.desc()).limit(1)
+    ).scalar_one_or_none()
     if not last_race:
         return []
     return (
@@ -61,15 +53,9 @@ def get_driver_standings_for_season(db: Session, year: int) -> list[DriverStandi
 
 
 def get_constructor_standings_for_season(db: Session, year: int) -> list[ConstructorStanding]:
-    last_race = (
-        db.execute(
-            select(Race)
-            .where(Race.season_year == year)
-            .order_by(Race.round.desc())
-            .limit(1)
-        )
-        .scalar_one_or_none()
-    )
+    last_race = db.execute(
+        select(Race).where(Race.season_year == year).order_by(Race.round.desc()).limit(1)
+    ).scalar_one_or_none()
     if not last_race:
         return []
     return (
@@ -92,18 +78,12 @@ def get_constructor_by_ref(db: Session, ref: str) -> Constructor | None:
 
 
 def get_driver_career_stats(db: Session, driver_id: str) -> dict:
-    total_races = db.execute(
-        select(func.count()).where(RaceResult.driver_id == driver_id)
-    ).scalar()
+    total_races = db.execute(select(func.count()).where(RaceResult.driver_id == driver_id)).scalar()
     wins = db.execute(
-        select(func.count()).where(
-            RaceResult.driver_id == driver_id, RaceResult.position == 1
-        )
+        select(func.count()).where(RaceResult.driver_id == driver_id, RaceResult.position == 1)
     ).scalar()
     podiums = db.execute(
-        select(func.count()).where(
-            RaceResult.driver_id == driver_id, RaceResult.position <= 3
-        )
+        select(func.count()).where(RaceResult.driver_id == driver_id, RaceResult.position <= 3)
     ).scalar()
     total_points = db.execute(
         select(func.sum(RaceResult.points)).where(RaceResult.driver_id == driver_id)
@@ -140,9 +120,7 @@ def search_constructors(db: Session, query: str, limit: int = 10) -> list[Constr
     return (
         db.execute(
             select(Constructor)
-            .where(
-                (Constructor.name.ilike(pattern)) | (Constructor.ref.ilike(pattern))
-            )
+            .where((Constructor.name.ilike(pattern)) | (Constructor.ref.ilike(pattern)))
             .limit(limit)
         )
         .scalars()
@@ -182,9 +160,7 @@ def get_constructor_career_stats(db: Session, constructor_id: str) -> dict:
         )
     ).scalar()
     total_points = db.execute(
-        select(func.sum(RaceResult.points)).where(
-            RaceResult.constructor_id == constructor_id
-        )
+        select(func.sum(RaceResult.points)).where(RaceResult.constructor_id == constructor_id)
     ).scalar()
 
     return {
@@ -199,26 +175,20 @@ def get_season_champions(db: Session) -> list[dict]:
     seasons = db.execute(select(Season).order_by(Season.year.desc())).scalars().all()
     champions = []
     for season in seasons:
-        last_race = (
-            db.execute(
-                select(Race)
-                .where(Race.season_year == season.year)
-                .order_by(Race.round.desc())
-                .limit(1)
-            )
-            .scalar_one_or_none()
-        )
+        last_race = db.execute(
+            select(Race).where(Race.season_year == season.year).order_by(Race.round.desc()).limit(1)
+        ).scalar_one_or_none()
         if not last_race:
             continue
 
         driver_champ = db.execute(
-            select(DriverStanding)
-            .where(DriverStanding.race_id == last_race.id, DriverStanding.position == 1)
+            select(DriverStanding).where(
+                DriverStanding.race_id == last_race.id, DriverStanding.position == 1
+            )
         ).scalar_one_or_none()
 
         constructor_champ = db.execute(
-            select(ConstructorStanding)
-            .where(
+            select(ConstructorStanding).where(
                 ConstructorStanding.race_id == last_race.id,
                 ConstructorStanding.position == 1,
             )
@@ -229,27 +199,31 @@ def get_season_champions(db: Session) -> list[dict]:
 
         driver = db.get(Driver, driver_champ.driver_id)
         constructor = (
-            db.get(Constructor, constructor_champ.constructor_id)
-            if constructor_champ
-            else None
+            db.get(Constructor, constructor_champ.constructor_id) if constructor_champ else None
         )
 
-        champions.append({
-            "year": season.year,
-            "driver": {
-                "id": driver.id,
-                "ref": driver.ref,
-                "firstName": driver.first_name,
-                "lastName": driver.last_name,
-            } if driver else None,
-            "driverPoints": driver_champ.points,
-            "constructor": {
-                "id": constructor.id,
-                "ref": constructor.ref,
-                "name": constructor.name,
-                "color": constructor.color,
-            } if constructor else None,
-            "constructorPoints": constructor_champ.points if constructor_champ else None,
-        })
+        champions.append(
+            {
+                "year": season.year,
+                "driver": {
+                    "id": driver.id,
+                    "ref": driver.ref,
+                    "firstName": driver.first_name,
+                    "lastName": driver.last_name,
+                }
+                if driver
+                else None,
+                "driverPoints": driver_champ.points,
+                "constructor": {
+                    "id": constructor.id,
+                    "ref": constructor.ref,
+                    "name": constructor.name,
+                    "color": constructor.color,
+                }
+                if constructor
+                else None,
+                "constructorPoints": constructor_champ.points if constructor_champ else None,
+            }
+        )
 
     return champions

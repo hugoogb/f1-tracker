@@ -26,9 +26,7 @@ def list_circuits(
 
     total = db.execute(count_query).scalar()
     circuits = (
-        db.execute(
-            base_query.order_by(Circuit.name).offset(offset).limit(page_size)
-        )
+        db.execute(base_query.order_by(Circuit.name).offset(offset).limit(page_size))
         .scalars()
         .all()
     )
@@ -68,17 +66,13 @@ def list_circuit_countries(db: Session = Depends(get_db)):
 
 @router.get("/circuits/{ref}")
 def get_circuit(ref: str, db: Session = Depends(get_db)):
-    circuit = db.execute(
-        select(Circuit).where(Circuit.ref == ref)
-    ).scalar_one_or_none()
+    circuit = db.execute(select(Circuit).where(Circuit.ref == ref)).scalar_one_or_none()
     if not circuit:
         raise HTTPException(status_code=404, detail="Circuit not found")
 
     races = (
         db.execute(
-            select(Race)
-            .where(Race.circuit_id == circuit.id)
-            .order_by(Race.season_year.desc())
+            select(Race).where(Race.circuit_id == circuit.id).order_by(Race.season_year.desc())
         )
         .scalars()
         .all()

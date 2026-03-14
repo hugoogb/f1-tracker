@@ -1,6 +1,5 @@
 """Ingest end-of-season driver and constructor standings from Fast-F1 Ergast API."""
 
-import pandas as pd
 from fastf1.ergast import Ergast
 from sqlalchemy import select
 
@@ -42,19 +41,19 @@ class StandingsIngestor(BaseIngestor):
 
         # Find races that already have standings — skip them
         ds_existing = set(
-            self.db.execute(
-                select(DriverStanding.race_id).group_by(DriverStanding.race_id)
-            ).scalars().all()
+            self.db.execute(select(DriverStanding.race_id).group_by(DriverStanding.race_id))
+            .scalars()
+            .all()
         )
         cs_existing = set(
             self.db.execute(
                 select(ConstructorStanding.race_id).group_by(ConstructorStanding.race_id)
-            ).scalars().all()
+            )
+            .scalars()
+            .all()
         )
 
-        seasons = self.db.execute(
-            select(Season).order_by(Season.year)
-        ).scalars().all()
+        seasons = self.db.execute(select(Season).order_by(Season.year)).scalars().all()
 
         driver_total = 0
         constructor_total = 0
@@ -76,9 +75,7 @@ class StandingsIngestor(BaseIngestor):
             # Driver standings
             if last_race.id not in ds_existing:
                 try:
-                    ds_response = api_call(
-                        erg.get_driver_standings, season=season.year
-                    )
+                    ds_response = api_call(erg.get_driver_standings, season=season.year)
                     if ds_response.content:
                         df = ds_response.content[0]
                         for _, row in df.iterrows():
@@ -104,15 +101,11 @@ class StandingsIngestor(BaseIngestor):
             # Constructor standings
             if last_race.id not in cs_existing:
                 try:
-                    cs_response = api_call(
-                        erg.get_constructor_standings, season=season.year
-                    )
+                    cs_response = api_call(erg.get_constructor_standings, season=season.year)
                     if cs_response.content:
                         df = cs_response.content[0]
                         for _, row in df.iterrows():
-                            standing_id = (
-                                f"{last_race.id}_CS_{row['constructorId']}"
-                            )
+                            standing_id = f"{last_race.id}_CS_{row['constructorId']}"
                             standing = ConstructorStanding(
                                 id=standing_id,
                                 race_id=last_race.id,
@@ -134,6 +127,5 @@ class StandingsIngestor(BaseIngestor):
             self.log(f"Season {season.year}: standings done")
 
         self.log(
-            f"Ingested {driver_total} driver standings, "
-            f"{constructor_total} constructor standings"
+            f"Ingested {driver_total} driver standings, {constructor_total} constructor standings"
         )

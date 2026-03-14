@@ -18,9 +18,7 @@ def get_race(year: int, round: int, db: Session = Depends(get_db)):
 
     results = (
         db.execute(
-            select(RaceResult)
-            .where(RaceResult.race_id == race.id)
-            .order_by(RaceResult.position)
+            select(RaceResult).where(RaceResult.race_id == race.id).order_by(RaceResult.position)
         )
         .scalars()
         .all()

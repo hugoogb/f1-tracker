@@ -3,16 +3,14 @@ from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
 
 from src.db.database import get_db
-from src.db.models import Driver, Race, RaceResult
+from src.db.models import Race, RaceResult
 from src.db.queries import get_driver_by_ref, get_driver_career_stats
 
 router = APIRouter()
 
 
 @router.get("/compare/drivers")
-def compare_drivers(
-    d1: str, d2: str, db: Session = Depends(get_db)
-):
+def compare_drivers(d1: str, d2: str, db: Session = Depends(get_db)):
     driver1 = get_driver_by_ref(db, d1)
     if not driver1:
         raise HTTPException(status_code=404, detail=f"Driver '{d1}' not found")
@@ -26,16 +24,8 @@ def compare_drivers(
     stats2 = get_driver_career_stats(db, driver2.id)
 
     # Head-to-head: find races where both drivers participated
-    d1_races = (
-        select(RaceResult.race_id)
-        .where(RaceResult.driver_id == driver1.id)
-        .subquery()
-    )
-    d2_races = (
-        select(RaceResult.race_id)
-        .where(RaceResult.driver_id == driver2.id)
-        .subquery()
-    )
+    d1_races = select(RaceResult.race_id).where(RaceResult.driver_id == driver1.id).subquery()
+    d2_races = select(RaceResult.race_id).where(RaceResult.driver_id == driver2.id).subquery()
 
     common_race_ids = (
         select(d1_races.c.race_id)
@@ -102,10 +92,7 @@ def compare_drivers(
             .group_by(Race.season_year)
             .order_by(Race.season_year)
         ).all()
-        return [
-            {"year": row.season_year, "points": float(row.points or 0)}
-            for row in rows
-        ]
+        return [{"year": row.season_year, "points": float(row.points or 0)} for row in rows]
 
     def format_driver(driver, stats):
         return {

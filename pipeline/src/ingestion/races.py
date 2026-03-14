@@ -18,18 +18,14 @@ class RaceIngestor(BaseIngestor):
         self.log("Fetching race schedules...")
         erg = Ergast()
 
-        seasons = self.db.execute(
-            select(Season).order_by(Season.year)
-        ).scalars().all()
+        seasons = self.db.execute(select(Season).order_by(Season.year)).scalars().all()
 
         total = 0
         for season in seasons:
             if is_interrupted():
                 break
             try:
-                schedule = api_call(
-                    erg.get_race_schedule, season=season.year, limit=50
-                )
+                schedule = api_call(erg.get_race_schedule, season=season.year, limit=50)
                 count = 0
                 for _, row in schedule.iterrows():
                     race_date = clean(row.get("raceDate"))
