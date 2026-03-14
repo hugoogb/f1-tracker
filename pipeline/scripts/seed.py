@@ -1,5 +1,6 @@
 """Run the full initial data load."""
 
+import argparse
 import logging
 import signal
 import subprocess
@@ -69,26 +70,43 @@ def _handle_signal(signum, frame):
     logger.warning(f"{sig_name} received, finishing current operation then backing up...")
 
 
+INGESTOR_FLAGS = ["base", "results", "qualifying", "sprints", "standings", "pitstops", "postprocess"]
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="F1 Tracker data ingestion")
+    for flag in INGESTOR_FLAGS:
+        parser.add_argument(f"--{flag}", action="store_true", help=f"Run {flag} ingestion")
+    parser.add_argument("--no-restore", action="store_true", help="Skip backup restore")
+    parser.add_argument("--no-backup", action="store_true", help="Skip backup after completion")
+    return parser.parse_args()
+
+
 if __name__ == "__main__":
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s %(levelname)-5s %(message)s",
         datefmt="%H:%M:%S",
     )
-    # Suppress noisy fast-f1 debug messages (e.g. "Failed to parse timestamp")
     logging.getLogger("fastf1").setLevel(logging.WARNING)
 
-    signal.signal(signal.SIGINT, _handle_signal)
+    args = parse_args()
     signal.signal(signal.SIGTERM, _handle_signal)
 
-    # 1. Restore existing backup so we don't re-fetch data we already have
-    restore_backup()
+    # Build targets: None = run all, set = run only selected
+    selected = {f for f in INGESTOR_FLAGS if getattr(args, f)}
+    targets = selected or None
 
-    # 2. Run the full load (skips already-loaded data)
+    # 1. Restore existing backup so we don't re-fetch data we already have
+    if not args.no_restore:
+        restore_backup()
+
+    # 2. Run the load
     try:
-        run_full_load()
+        run_full_load(targets)
     except (InterruptedError, KeyboardInterrupt):
         logger.warning("Seed interrupted by user")
 
-    # 3. Always backup (even on interrupt, to preserve progress)
-    create_backup()
+    # 3. Backup (even on interrupt, to preserve progress)
+    if not args.no_backup:
+        create_backup()

@@ -113,50 +113,61 @@ def refresh_materialized_views(db: Session) -> None:
     logger.info("Materialized views created")
 
 
-def run_full_load() -> None:
-    """Run the complete initial data load."""
+def _should_run(targets: set[str] | None, key: str) -> bool:
+    return targets is None or key in targets
+
+
+def run_full_load(targets: set[str] | None = None) -> None:
+    """Run the data load. If targets is None, run everything."""
     db: Session = SessionLocal()
     start = time.time()
 
+    label = "full data load" if targets is None else f"selective load ({', '.join(sorted(targets))})"
+
     try:
         logger.info("=" * 60)
-        logger.info("Starting full data load...")
+        logger.info(f"Starting {label}...")
         logger.info("=" * 60)
 
-        # 1. Independent entities (no FK dependencies)
-        logger.info("\n--- Phase 1: Independent entities ---")
-        SeasonIngestor(db).ingest()
-        CircuitIngestor(db).ingest()
-        StatusIngestor(db).ingest()
-        DriverIngestor(db).ingest()
-        ConstructorIngestor(db).ingest()
+        if _should_run(targets, "base"):
+            logger.info("\n--- Phase 1: Independent entities ---")
+            SeasonIngestor(db).ingest()
+            CircuitIngestor(db).ingest()
+            StatusIngestor(db).ingest()
+            DriverIngestor(db).ingest()
+            ConstructorIngestor(db).ingest()
 
-        # 2. Races (depends on seasons + circuits)
-        logger.info("\n--- Phase 2: Races ---")
-        RaceIngestor(db).ingest()
+            logger.info("\n--- Phase 2: Races ---")
+            RaceIngestor(db).ingest()
 
-        # 3. Per-race data (depends on races + drivers + constructors)
-        logger.info("\n--- Phase 3: Race data ---")
-        RaceResultIngestor(db).ingest()
-        QualifyingIngestor(db).ingest()
-        SprintResultIngestor(db).ingest()
+        if _should_run(targets, "results"):
+            logger.info("\n--- Race results ---")
+            RaceResultIngestor(db).ingest()
 
-        # 4. Standings (depends on races + drivers + constructors)
-        logger.info("\n--- Phase 4: Standings ---")
-        StandingsIngestor(db).ingest()
+        if _should_run(targets, "qualifying"):
+            logger.info("\n--- Qualifying ---")
+            QualifyingIngestor(db).ingest()
 
-        # 5. Pit stops (depends on races + drivers, 2012+ only)
-        logger.info("\n--- Phase 5: Pit stops ---")
-        PitStopIngestor(db).ingest()
+        if _should_run(targets, "sprints"):
+            logger.info("\n--- Sprint results ---")
+            SprintResultIngestor(db).ingest()
 
-        # 6. Post-processing
-        logger.info("\n--- Phase 6: Post-processing ---")
-        backfill_driver_codes(db)
-        refresh_materialized_views(db)
+        if _should_run(targets, "standings"):
+            logger.info("\n--- Standings ---")
+            StandingsIngestor(db).ingest()
+
+        if _should_run(targets, "pitstops"):
+            logger.info("\n--- Pit stops ---")
+            PitStopIngestor(db).ingest()
+
+        if _should_run(targets, "postprocess"):
+            logger.info("\n--- Post-processing ---")
+            backfill_driver_codes(db)
+            refresh_materialized_views(db)
 
         elapsed = time.time() - start
         logger.info("=" * 60)
-        logger.info(f"Full data load complete in {elapsed:.1f}s")
+        logger.info(f"{label.capitalize()} complete in {elapsed:.1f}s")
         logger.info("=" * 60)
 
     except InterruptedError:
