@@ -43,6 +43,7 @@ def api_call(fn, *args, **kwargs):
     if _interrupted:
         raise InterruptedError("Seed interrupted by user")
 
+    fn_name = getattr(fn, "__name__", str(fn))
     max_retries = 5
     for attempt in range(max_retries):
         try:
@@ -51,7 +52,11 @@ def api_call(fn, *args, **kwargs):
             elapsed = time.time() - start
             # Only delay if the call was slow (hit the network, not cache)
             if elapsed > 0.3:
+                logger.info(f"API ← {fn_name} ({elapsed:.1f}s)")
+                logger.info(f"⏳ Rate-limit delay ({API_DELAY:.0f}s)...")
                 time.sleep(API_DELAY)
+            else:
+                logger.info(f"API ← {fn_name} ({elapsed:.1f}s, cached)")
             return result
         except KeyboardInterrupt:
             set_interrupted()
@@ -60,7 +65,10 @@ def api_call(fn, *args, **kwargs):
             err = str(e)
             if "Too Many Requests" in err or "calls/h" in err:
                 wait = 60 * (attempt + 1)
-                logger.warning(f"Rate limited, waiting {wait}s before retry...")
+                logger.warning(
+                    f"Rate limited on {fn_name} (attempt {attempt + 1}/{max_retries}), "
+                    f"waiting {wait}s before retry..."
+                )
                 try:
                     time.sleep(wait)
                 except KeyboardInterrupt:
