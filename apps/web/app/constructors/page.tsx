@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/table'
 import { Pagination } from '@/components/pagination'
 import { ListFilter } from '@/components/list-filter'
+import { FadeIn } from '@/components/ui/motion'
 
 export const dynamic = 'force-dynamic'
 
@@ -56,40 +57,42 @@ export default async function ConstructorsPage({
         <ListFilter label="Nationality" paramName="nationality" options={nationalities} />
       </Suspense>
 
-      <Table aria-label="Constructors">
-        <TableHeader>
-          <TableRow>
-            <TableHead>Name</TableHead>
-            <TableHead>Nationality</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {constructors.map((constructor) => (
-            <TableRow key={constructor.id}>
-              <TableCell>
-                <Link
-                  href={`/constructors/${constructor.ref}`}
-                  className="hover:text-primary inline-flex items-center gap-2.5 font-medium transition-colors"
-                >
-                  {constructor.color && (
-                    <span
-                      className="inline-block h-4 w-1 rounded-full"
-                      style={{ backgroundColor: constructor.color }}
-                    />
-                  )}
-                  {constructor.name}
-                </Link>
-              </TableCell>
-              <TableCell className="text-muted-foreground">
-                <span className="inline-flex items-center gap-1.5">
-                  {constructor.nationality && <CountryFlag code={constructor.countryCode} />}
-                  {constructor.nationality ?? '—'}
-                </span>
-              </TableCell>
+      <FadeIn>
+        <Table aria-label="Constructors">
+          <TableHeader>
+            <TableRow>
+              <TableHead>Name</TableHead>
+              <TableHead>Nationality</TableHead>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+          </TableHeader>
+          <TableBody>
+            {constructors.map((constructor) => (
+              <TableRow key={constructor.id}>
+                <TableCell>
+                  <Link
+                    href={`/constructors/${constructor.ref}`}
+                    className="hover:text-primary inline-flex items-center gap-2.5 font-medium transition-colors"
+                  >
+                    {constructor.color && (
+                      <span
+                        className="inline-block h-4 w-1 rounded-full"
+                        style={{ backgroundColor: constructor.color }}
+                      />
+                    )}
+                    {constructor.name}
+                  </Link>
+                </TableCell>
+                <TableCell className="text-muted-foreground">
+                  <span className="inline-flex items-center gap-1.5">
+                    {constructor.nationality && <CountryFlag code={constructor.countryCode} />}
+                    {constructor.nationality ?? '—'}
+                  </span>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </FadeIn>
 
       <Suspense>
         <Pagination total={total} page={page} pageSize={pageSize} />

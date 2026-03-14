@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/table'
 import { Pagination } from '@/components/pagination'
 import { ListFilter } from '@/components/list-filter'
+import { FadeIn } from '@/components/ui/motion'
 
 export const dynamic = 'force-dynamic'
 
@@ -58,47 +59,49 @@ export default async function DriversPage({
         <ListFilter label="Nationality" paramName="nationality" options={nationalities} />
       </Suspense>
 
-      <Table aria-label="Drivers">
-        <TableHeader>
-          <TableRow>
-            <TableHead>Name</TableHead>
-            <TableHead className="hidden sm:table-cell">Code</TableHead>
-            <TableHead>Nationality</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {drivers.map((driver) => (
-            <TableRow key={driver.id}>
-              <TableCell>
-                <Link
-                  href={`/drivers/${driver.ref}`}
-                  className="hover:text-primary inline-flex items-center gap-2.5 font-medium transition-colors"
-                >
-                  <DriverAvatar
-                    firstName={driver.firstName}
-                    lastName={driver.lastName}
-                    headshotUrl={driver.headshotUrl}
-                  />
-                  {driver.firstName} {driver.lastName}
-                </Link>
-              </TableCell>
-              <TableCell className="hidden sm:table-cell">
-                {driver.code && (
-                  <Badge variant="secondary" className="font-mono">
-                    {driver.code}
-                  </Badge>
-                )}
-              </TableCell>
-              <TableCell className="text-muted-foreground">
-                <span className="inline-flex items-center gap-1.5">
-                  {driver.nationality && <CountryFlag code={driver.countryCode} />}
-                  {driver.nationality ?? '—'}
-                </span>
-              </TableCell>
+      <FadeIn>
+        <Table aria-label="Drivers">
+          <TableHeader>
+            <TableRow>
+              <TableHead>Name</TableHead>
+              <TableHead className="hidden sm:table-cell">Code</TableHead>
+              <TableHead>Nationality</TableHead>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+          </TableHeader>
+          <TableBody>
+            {drivers.map((driver) => (
+              <TableRow key={driver.id}>
+                <TableCell>
+                  <Link
+                    href={`/drivers/${driver.ref}`}
+                    className="hover:text-primary inline-flex items-center gap-2.5 font-medium transition-colors"
+                  >
+                    <DriverAvatar
+                      firstName={driver.firstName}
+                      lastName={driver.lastName}
+                      headshotUrl={driver.headshotUrl}
+                    />
+                    {driver.firstName} {driver.lastName}
+                  </Link>
+                </TableCell>
+                <TableCell className="hidden sm:table-cell">
+                  {driver.code && (
+                    <Badge variant="secondary" className="font-mono">
+                      {driver.code}
+                    </Badge>
+                  )}
+                </TableCell>
+                <TableCell className="text-muted-foreground">
+                  <span className="inline-flex items-center gap-1.5">
+                    {driver.nationality && <CountryFlag code={driver.countryCode} />}
+                    {driver.nationality ?? '—'}
+                  </span>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </FadeIn>
 
       <Suspense>
         <Pagination total={total} page={page} pageSize={pageSize} />

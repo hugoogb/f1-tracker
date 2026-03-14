@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge'
 import { StatCard } from '@/components/ui/stat-card'
 import { SeasonHistoryTable } from '@/components/drivers/season-history-table'
 import { CareerPointsChart } from '@/components/charts/career-points-chart'
+import { FadeIn, StaggerList, StaggerItem } from '@/components/ui/motion'
 
 export const dynamic = 'force-dynamic'
 
@@ -58,64 +59,79 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ r
         ]}
       />
 
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-6">
-        <DriverAvatar
-          firstName={driverData.firstName}
-          lastName={driverData.lastName}
-          headshotUrl={driverData.headshotUrl}
-          size="lg"
-          teamColor={teamColor}
-          className="rounded-2xl"
-        />
-        <div className="space-y-2">
-          <h1>
-            {driverData.firstName} {driverData.lastName}
-          </h1>
-          <div className="flex flex-wrap items-center gap-2">
-            {driverData.nationality && (
-              <span className="text-muted-foreground inline-flex items-center gap-1.5">
-                <CountryFlag code={driverData.countryCode} />
-                {driverData.nationality}
-              </span>
-            )}
-            {driverData.dateOfBirth && (
-              <span className="text-muted-foreground">
-                Born{' '}
-                {new Date(driverData.dateOfBirth).toLocaleDateString('en-GB', {
-                  day: 'numeric',
-                  month: 'long',
-                  year: 'numeric',
-                })}
-              </span>
-            )}
-            {driverData.number != null && <Badge variant="outline">#{driverData.number}</Badge>}
-            {driverData.code && (
-              <Badge variant="secondary" className="font-mono">
-                {driverData.code}
-              </Badge>
-            )}
+      <FadeIn>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-6">
+          <DriverAvatar
+            firstName={driverData.firstName}
+            lastName={driverData.lastName}
+            headshotUrl={driverData.headshotUrl}
+            size="lg"
+            teamColor={teamColor}
+            className="rounded-2xl"
+          />
+          <div className="space-y-2">
+            <h1>
+              {driverData.firstName} {driverData.lastName}
+            </h1>
+            <div className="flex flex-wrap items-center gap-2">
+              {driverData.nationality && (
+                <span className="text-muted-foreground inline-flex items-center gap-1.5">
+                  <CountryFlag code={driverData.countryCode} />
+                  {driverData.nationality}
+                </span>
+              )}
+              {driverData.dateOfBirth && (
+                <span className="text-muted-foreground">
+                  Born{' '}
+                  {new Date(driverData.dateOfBirth).toLocaleDateString('en-GB', {
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric',
+                  })}
+                </span>
+              )}
+              {driverData.number != null && <Badge variant="outline">#{driverData.number}</Badge>}
+              {driverData.code && (
+                <Badge variant="secondary" className="font-mono">
+                  {driverData.code}
+                </Badge>
+              )}
+            </div>
           </div>
         </div>
-      </div>
+      </FadeIn>
 
       <div className="accent-line" />
 
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-        <StatCard
-          label="Races"
-          value={driverData.stats.total_races}
-          icon={Flag}
-          color={teamColor}
-        />
-        <StatCard label="Wins" value={driverData.stats.wins} icon={Trophy} color={teamColor} />
-        <StatCard label="Podiums" value={driverData.stats.podiums} icon={Medal} color={teamColor} />
-        <StatCard
-          label="Points"
-          value={driverData.stats.total_points}
-          icon={TrendingUp}
-          color={teamColor}
-        />
-      </div>
+      <StaggerList className="grid grid-cols-2 gap-4 md:grid-cols-4">
+        <StaggerItem>
+          <StatCard
+            label="Races"
+            value={driverData.stats.total_races}
+            icon={Flag}
+            color={teamColor}
+          />
+        </StaggerItem>
+        <StaggerItem>
+          <StatCard label="Wins" value={driverData.stats.wins} icon={Trophy} color={teamColor} />
+        </StaggerItem>
+        <StaggerItem>
+          <StatCard
+            label="Podiums"
+            value={driverData.stats.podiums}
+            icon={Medal}
+            color={teamColor}
+          />
+        </StaggerItem>
+        <StaggerItem>
+          <StatCard
+            label="Points"
+            value={driverData.stats.total_points}
+            icon={TrendingUp}
+            color={teamColor}
+          />
+        </StaggerItem>
+      </StaggerList>
 
       <div className="flex">
         <Link
@@ -127,14 +143,16 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ r
         </Link>
       </div>
 
-      <div>
-        <h2 className="mb-4">Season History</h2>
-        <CareerPointsChart
-          seasons={seasons.map((s) => ({ year: s.year, points: s.points }))}
-          color={teamColor}
-        />
-        <SeasonHistoryTable seasons={seasons} />
-      </div>
+      <FadeIn>
+        <div>
+          <h2 className="mb-4">Season History</h2>
+          <CareerPointsChart
+            seasons={seasons.map((s) => ({ year: s.year, points: s.points }))}
+            color={teamColor}
+          />
+          <SeasonHistoryTable seasons={seasons} />
+        </div>
+      </FadeIn>
     </div>
   )
 }

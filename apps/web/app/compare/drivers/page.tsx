@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { DriverAvatar } from '@/components/ui/driver-avatar'
 import { cn } from '@/lib/utils'
 import { ComparisonChart } from '@/components/charts/comparison-chart'
+import { FadeIn } from '@/components/ui/motion'
 
 export const dynamic = 'force-dynamic'
 
@@ -85,160 +86,170 @@ export default async function CompareDriversPage({
         ]}
       />
 
-      <div className="glass rounded-xl px-6 py-8">
-        <div className="flex items-center gap-4">
-          <div className="flex flex-1 items-center justify-end gap-3">
-            <h1>
-              <Link
-                href={`/drivers/${driver1.ref}`}
-                className="hover:text-primary transition-colors"
-              >
-                {d1Name}
-              </Link>
-            </h1>
-            <DriverAvatar
-              firstName={driver1.firstName}
-              lastName={driver1.lastName}
-              headshotUrl={driver1.headshotUrl}
-              size="lg"
-            />
+      <FadeIn>
+        <div className="glass rounded-xl px-6 py-8">
+          <div className="flex items-center gap-4">
+            <div className="flex flex-1 items-center justify-end gap-3">
+              <h1>
+                <Link
+                  href={`/drivers/${driver1.ref}`}
+                  className="hover:text-primary transition-colors"
+                >
+                  {d1Name}
+                </Link>
+              </h1>
+              <DriverAvatar
+                firstName={driver1.firstName}
+                lastName={driver1.lastName}
+                headshotUrl={driver1.headshotUrl}
+                size="lg"
+              />
+            </div>
+            <span className="text-muted-foreground font-heading shrink-0 text-xl font-bold">
+              vs
+            </span>
+            <div className="flex flex-1 items-center gap-3">
+              <DriverAvatar
+                firstName={driver2.firstName}
+                lastName={driver2.lastName}
+                headshotUrl={driver2.headshotUrl}
+                size="lg"
+              />
+              <h1>
+                <Link
+                  href={`/drivers/${driver2.ref}`}
+                  className="hover:text-primary transition-colors"
+                >
+                  {d2Name}
+                </Link>
+              </h1>
+            </div>
           </div>
-          <span className="text-muted-foreground font-heading shrink-0 text-xl font-bold">vs</span>
-          <div className="flex flex-1 items-center gap-3">
-            <DriverAvatar
-              firstName={driver2.firstName}
-              lastName={driver2.lastName}
-              headshotUrl={driver2.headshotUrl}
-              size="lg"
-            />
-            <h1>
-              <Link
-                href={`/drivers/${driver2.ref}`}
-                className="hover:text-primary transition-colors"
-              >
-                {d2Name}
-              </Link>
-            </h1>
-          </div>
-        </div>
 
-        <div className="mt-4 flex justify-center">
-          <Link
-            href={`/compare/drivers?d1=${params.d2}&d2=${params.d1}`}
-            className="border-border inline-flex h-8 items-center gap-1.5 rounded-lg border bg-[var(--surface-1)] px-2.5 text-sm font-medium transition-all hover:bg-[var(--surface-2)]"
-          >
-            <ArrowLeftRight className="h-3.5 w-3.5" />
-            Swap drivers
-          </Link>
+          <div className="mt-4 flex justify-center">
+            <Link
+              href={`/compare/drivers?d1=${params.d2}&d2=${params.d1}`}
+              className="border-border inline-flex h-8 items-center gap-1.5 rounded-lg border bg-[var(--surface-1)] px-2.5 text-sm font-medium transition-all hover:bg-[var(--surface-2)]"
+            >
+              <ArrowLeftRight className="h-3.5 w-3.5" />
+              Swap drivers
+            </Link>
+          </div>
         </div>
-      </div>
+      </FadeIn>
 
       <div className="accent-line" />
 
       {/* Head to Head */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Head to Head</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center gap-4">
-            <div className="flex-1 text-right">
-              <p className="text-primary text-3xl font-bold tabular-nums">
-                {headToHead.driver1Wins}
-              </p>
-              <p className="text-muted-foreground text-sm font-medium">{driver1.lastName}</p>
-            </div>
-            <div className="flex flex-col items-center">
-              <p className="text-muted-foreground text-sm">from</p>
-              <p className="text-lg font-semibold">{headToHead.totalRaces}</p>
-              <p className="text-muted-foreground text-sm">shared races</p>
-            </div>
-            <div className="flex-1">
-              <p className="text-3xl font-bold text-blue-500 tabular-nums">
-                {headToHead.driver2Wins}
-              </p>
-              <p className="text-muted-foreground text-sm font-medium">{driver2.lastName}</p>
-            </div>
-          </div>
-          {headToHead.totalRaces > 0 && (
-            <div className="bg-muted mt-4 flex h-4 overflow-hidden rounded-full">
-              <div
-                className="bg-primary flex items-center justify-center rounded-l-full text-[10px] font-bold text-white transition-all duration-500"
-                style={{
-                  width: `${(headToHead.driver1Wins / headToHead.totalRaces) * 100}%`,
-                }}
-              >
-                {headToHead.driver1Wins > 0 &&
-                  `${Math.round((headToHead.driver1Wins / headToHead.totalRaces) * 100)}%`}
+      <FadeIn>
+        <Card>
+          <CardHeader>
+            <CardTitle>Head to Head</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-4">
+              <div className="flex-1 text-right">
+                <p className="text-primary text-3xl font-bold tabular-nums">
+                  {headToHead.driver1Wins}
+                </p>
+                <p className="text-muted-foreground text-sm font-medium">{driver1.lastName}</p>
               </div>
-              <div
-                className="flex items-center justify-center rounded-r-full bg-blue-500 text-[10px] font-bold text-white transition-all duration-500"
-                style={{
-                  width: `${(headToHead.driver2Wins / headToHead.totalRaces) * 100}%`,
-                }}
-              >
-                {headToHead.driver2Wins > 0 &&
-                  `${Math.round((headToHead.driver2Wins / headToHead.totalRaces) * 100)}%`}
+              <div className="flex flex-col items-center">
+                <p className="text-muted-foreground text-sm">from</p>
+                <p className="text-lg font-semibold">{headToHead.totalRaces}</p>
+                <p className="text-muted-foreground text-sm">shared races</p>
+              </div>
+              <div className="flex-1">
+                <p className="text-3xl font-bold text-blue-500 tabular-nums">
+                  {headToHead.driver2Wins}
+                </p>
+                <p className="text-muted-foreground text-sm font-medium">{driver2.lastName}</p>
               </div>
             </div>
-          )}
-        </CardContent>
-      </Card>
+            {headToHead.totalRaces > 0 && (
+              <div className="bg-muted mt-4 flex h-4 overflow-hidden rounded-full">
+                <div
+                  className="bg-primary flex items-center justify-center rounded-l-full text-[10px] font-bold text-white transition-all duration-500"
+                  style={{
+                    width: `${(headToHead.driver1Wins / headToHead.totalRaces) * 100}%`,
+                  }}
+                >
+                  {headToHead.driver1Wins > 0 &&
+                    `${Math.round((headToHead.driver1Wins / headToHead.totalRaces) * 100)}%`}
+                </div>
+                <div
+                  className="flex items-center justify-center rounded-r-full bg-blue-500 text-[10px] font-bold text-white transition-all duration-500"
+                  style={{
+                    width: `${(headToHead.driver2Wins / headToHead.totalRaces) * 100}%`,
+                  }}
+                >
+                  {headToHead.driver2Wins > 0 &&
+                    `${Math.round((headToHead.driver2Wins / headToHead.totalRaces) * 100)}%`}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </FadeIn>
 
       {/* Stat-by-Stat Comparison */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Career Stats</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-0 divide-y">
-          {statLabels.map(({ key, label }) => {
-            const v1 = driver1.stats[key]
-            const v2 = driver2.stats[key]
-            const d1Higher = v1 > v2
-            const d2Higher = v2 > v1
+      <FadeIn>
+        <Card>
+          <CardHeader>
+            <CardTitle>Career Stats</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-0 divide-y">
+            {statLabels.map(({ key, label }) => {
+              const v1 = driver1.stats[key]
+              const v2 = driver2.stats[key]
+              const d1Higher = v1 > v2
+              const d2Higher = v2 > v1
 
-            return (
-              <div key={key} className="flex items-center py-3">
-                <span
-                  className={cn(
-                    'font-heading flex-1 text-right text-xl font-bold tabular-nums',
-                    d1Higher ? 'text-primary' : 'text-muted-foreground',
-                  )}
-                >
-                  {v1.toLocaleString()}
-                </span>
-                <span className="text-muted-foreground w-24 text-center text-sm font-medium">
-                  {label}
-                </span>
-                <span
-                  className={cn(
-                    'font-heading flex-1 text-xl font-bold tabular-nums',
-                    d2Higher ? 'text-blue-500' : 'text-muted-foreground',
-                  )}
-                >
-                  {v2.toLocaleString()}
-                </span>
-              </div>
-            )
-          })}
-        </CardContent>
-      </Card>
+              return (
+                <div key={key} className="flex items-center py-3">
+                  <span
+                    className={cn(
+                      'font-heading flex-1 text-right text-xl font-bold tabular-nums',
+                      d1Higher ? 'text-primary' : 'text-muted-foreground',
+                    )}
+                  >
+                    {v1.toLocaleString()}
+                  </span>
+                  <span className="text-muted-foreground w-24 text-center text-sm font-medium">
+                    {label}
+                  </span>
+                  <span
+                    className={cn(
+                      'font-heading flex-1 text-xl font-bold tabular-nums',
+                      d2Higher ? 'text-blue-500' : 'text-muted-foreground',
+                    )}
+                  >
+                    {v2.toLocaleString()}
+                  </span>
+                </div>
+              )
+            })}
+          </CardContent>
+        </Card>
+      </FadeIn>
 
       {/* Career Points Chart */}
       {(driver1Seasons.length > 0 || driver2Seasons.length > 0) && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Career Points per Season</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ComparisonChart
-              driver1Name={driver1.lastName}
-              driver2Name={driver2.lastName}
-              driver1Seasons={driver1Seasons}
-              driver2Seasons={driver2Seasons}
-            />
-          </CardContent>
-        </Card>
+        <FadeIn>
+          <Card>
+            <CardHeader>
+              <CardTitle>Career Points per Season</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ComparisonChart
+                driver1Name={driver1.lastName}
+                driver2Name={driver2.lastName}
+                driver1Seasons={driver1Seasons}
+                driver2Seasons={driver2Seasons}
+              />
+            </CardContent>
+          </Card>
+        </FadeIn>
       )}
     </div>
   )

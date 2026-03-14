@@ -12,6 +12,7 @@ import { SprintTable } from '@/components/races/sprint-table'
 import { PitStopsTable } from '@/components/races/pit-stops-table'
 import { RaceTabs } from './race-tabs'
 import Link from 'next/link'
+import { FadeIn, PodiumReveal } from '@/components/ui/motion'
 
 export const dynamic = 'force-dynamic'
 
@@ -115,38 +116,40 @@ export default async function RaceDetailPage({
         ]}
       />
 
-      <div className="space-y-4">
-        <div className="space-y-2">
-          <div className="flex items-center gap-3">
-            <Badge variant="outline" className="font-mono">
-              Round {round}
-            </Badge>
+      <FadeIn>
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <div className="flex items-center gap-3">
+              <Badge variant="outline" className="font-mono">
+                Round {round}
+              </Badge>
+            </div>
+            <h1 className="text-gradient">{race.name}</h1>
           </div>
-          <h1 className="text-gradient">{race.name}</h1>
+          <div className="glass rounded-xl px-5 py-4">
+            <p className="text-foreground inline-flex items-center gap-1.5 font-medium">
+              {race.circuit.country && <CountryFlag code={race.circuit.countryCode} />}
+              {race.circuit.name}
+            </p>
+            <p className="text-muted-foreground text-sm">
+              {race.circuit.location}, {race.circuit.country}
+            </p>
+            <p className="text-muted-foreground mt-1 text-sm">
+              {new Date(race.date).toLocaleDateString('en-GB', {
+                weekday: 'long',
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric',
+              })}
+            </p>
+          </div>
+          <div className="accent-line" />
         </div>
-        <div className="glass rounded-xl px-5 py-4">
-          <p className="text-foreground inline-flex items-center gap-1.5 font-medium">
-            {race.circuit.country && <CountryFlag code={race.circuit.countryCode} />}
-            {race.circuit.name}
-          </p>
-          <p className="text-muted-foreground text-sm">
-            {race.circuit.location}, {race.circuit.country}
-          </p>
-          <p className="text-muted-foreground mt-1 text-sm">
-            {new Date(race.date).toLocaleDateString('en-GB', {
-              weekday: 'long',
-              day: 'numeric',
-              month: 'long',
-              year: 'numeric',
-            })}
-          </p>
-        </div>
-        <div className="accent-line" />
-      </div>
+      </FadeIn>
 
       {/* Podium */}
       {podium.length > 0 && (
-        <div className="grid grid-cols-3 gap-3">
+        <PodiumReveal>
           {podium.map((result) => {
             const teamColor =
               TEAM_COLORS[result.constructor.ref] ?? result.constructor.color ?? null
@@ -188,7 +191,7 @@ export default async function RaceDetailPage({
               </Card>
             )
           })}
-        </div>
+        </PodiumReveal>
       )}
 
       <RaceTabs
