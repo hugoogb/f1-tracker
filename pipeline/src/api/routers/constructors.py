@@ -38,6 +38,7 @@ def list_constructors(
                 "ref": c.ref,
                 "name": c.name,
                 "nationality": c.nationality,
+                "countryCode": c.country_code,
                 "color": c.color,
             }
             for c in constructors
@@ -75,6 +76,7 @@ def get_constructor(ref: str, db: Session = Depends(get_db)):
         "ref": constructor.ref,
         "name": constructor.name,
         "nationality": constructor.nationality,
+        "countryCode": constructor.country_code,
         "color": constructor.color,
         "stats": stats,
     }
@@ -122,6 +124,8 @@ def get_constructor_roster(ref: str, year: int | None = None, db: Session = Depe
                 "firstName": d.first_name,
                 "lastName": d.last_name,
                 "nationality": d.nationality,
+                "countryCode": d.country_code,
+                "headshotUrl": f"/headshots/{d.ref}.png" if d.has_headshot else None,
             }
             for d in drivers
             if d

@@ -4,6 +4,7 @@ import pandas as pd
 from fastf1.ergast import Ergast
 from sqlalchemy import func, select
 
+from src.api.country_codes import country_code
 from src.db.models import Circuit, Season
 from src.ingestion.base import BaseIngestor, api_call, clean
 
@@ -64,12 +65,14 @@ class CircuitIngestor(BaseIngestor):
         for _, row in df.iterrows():
             lat = clean(row.get("lat"))
             lng = clean(row.get("long"))
+            ctry = clean(row.get("country"))
             circuit = Circuit(
                 id=row["circuitId"],
                 ref=row["circuitId"],
                 name=row["circuitName"],
                 location=clean(row.get("locality")),
-                country=clean(row.get("country")),
+                country=ctry,
+                country_code=country_code(ctry),
                 latitude=float(lat) if lat is not None else None,
                 longitude=float(lng) if lng is not None else None,
                 url=clean(row.get("circuitUrl")),

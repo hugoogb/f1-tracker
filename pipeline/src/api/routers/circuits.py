@@ -38,6 +38,7 @@ def list_circuits(
                 "name": c.name,
                 "location": c.location,
                 "country": c.country,
+                "countryCode": c.country_code,
                 "latitude": c.latitude,
                 "longitude": c.longitude,
             }
@@ -94,6 +95,7 @@ def get_circuit(ref: str, db: Session = Depends(get_db)):
         "name": circuit.name,
         "location": circuit.location,
         "country": circuit.country,
+        "countryCode": circuit.country_code,
         "latitude": circuit.latitude,
         "longitude": circuit.longitude,
         "layouts": [

@@ -41,7 +41,9 @@ def list_drivers(
                 "firstName": d.first_name,
                 "lastName": d.last_name,
                 "nationality": d.nationality,
+                "countryCode": d.country_code,
                 "dateOfBirth": str(d.date_of_birth) if d.date_of_birth else None,
+                "headshotUrl": f"/headshots/{d.ref}.png" if d.has_headshot else None,
             }
             for d in drivers
         ],
@@ -81,7 +83,9 @@ def get_driver(ref: str, db: Session = Depends(get_db)):
         "firstName": driver.first_name,
         "lastName": driver.last_name,
         "nationality": driver.nationality,
+        "countryCode": driver.country_code,
         "dateOfBirth": str(driver.date_of_birth) if driver.date_of_birth else None,
+        "headshotUrl": f"/headshots/{driver.ref}.png" if driver.has_headshot else None,
         "stats": stats,
     }
 

@@ -79,6 +79,78 @@ def validate():
                 for ref, name in circuits_missing:
                     print(f"    {ref}: {name}")
 
+        # --- Country codes ---
+        total_drivers = counts["Drivers"] or 0
+        total_constructors = counts["Constructors"] or 0
+        total_circuits = counts["Circuits"] or 0
+
+        drivers_with_cc = db.scalar(
+            select(func.count()).select_from(Driver).where(Driver.country_code.isnot(None))
+        )
+        constructors_with_cc = db.scalar(
+            select(func.count()).select_from(Constructor).where(Constructor.country_code.isnot(None))
+        )
+        circuits_with_cc = db.scalar(
+            select(func.count()).select_from(Circuit).where(Circuit.country_code.isnot(None))
+        )
+        drivers_with_nationality = db.scalar(
+            select(func.count()).select_from(Driver).where(Driver.nationality.isnot(None))
+        )
+        constructors_with_nationality = db.scalar(
+            select(func.count()).select_from(Constructor).where(Constructor.nationality.isnot(None))
+        )
+        circuits_with_country = db.scalar(
+            select(func.count()).select_from(Circuit).where(Circuit.country.isnot(None))
+        )
+
+        drv_cc_ok = drivers_with_cc == drivers_with_nationality
+        con_cc_ok = constructors_with_cc == constructors_with_nationality
+        cir_cc_ok = circuits_with_cc == circuits_with_country
+
+        print(f"\nCountry codes:")
+        print(f"  Drivers:      {drivers_with_cc}/{drivers_with_nationality}  {check_mark(drv_cc_ok)}")
+        print(f"  Constructors: {constructors_with_cc}/{constructors_with_nationality}  {check_mark(con_cc_ok)}")
+        print(f"  Circuits:     {circuits_with_cc}/{circuits_with_country}  {check_mark(cir_cc_ok)}")
+        if not (drv_cc_ok and con_cc_ok and cir_cc_ok):
+            has_gaps = True
+            if not drv_cc_ok:
+                missing = db.execute(
+                    select(Driver.nationality)
+                    .where(Driver.nationality.isnot(None), Driver.country_code.is_(None))
+                    .distinct()
+                ).scalars().all()
+                print(f"    Missing driver mappings: {', '.join(missing)}")
+            if not con_cc_ok:
+                missing = db.execute(
+                    select(Constructor.nationality)
+                    .where(Constructor.nationality.isnot(None), Constructor.country_code.is_(None))
+                    .distinct()
+                ).scalars().all()
+                print(f"    Missing constructor mappings: {', '.join(missing)}")
+            if not cir_cc_ok:
+                missing = db.execute(
+                    select(Circuit.country)
+                    .where(Circuit.country.isnot(None), Circuit.country_code.is_(None))
+                    .distinct()
+                ).scalars().all()
+                print(f"    Missing circuit mappings: {', '.join(missing)}")
+
+        # --- Driver headshots ---
+        drivers_with_headshots = db.scalar(
+            select(func.count()).select_from(Driver).where(Driver.has_headshot.is_(True))
+        )
+        headshots_ok = drivers_with_headshots > 0
+        print(f"\nDriver headshots:")
+        print(f"  Drivers with headshots: {drivers_with_headshots}/{total_drivers}  {check_mark(headshots_ok)}")
+
+        # --- Constructor colors ---
+        constructors_with_colors = db.scalar(
+            select(func.count()).select_from(Constructor).where(Constructor.color.isnot(None))
+        )
+        colors_ok = constructors_with_colors > 0
+        print(f"\nConstructor colors:")
+        print(f"  Constructors with colors: {constructors_with_colors}/{total_constructors}  {check_mark(colors_ok)}")
+
         # --- Build race maps ---
         seasons = db.execute(select(Season).order_by(Season.year)).scalars().all()
         all_races = db.execute(select(Race).order_by(Race.season_year, Race.round)).scalars().all()

@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import Image from 'next/image'
 import { cn } from '@/lib/utils'
 import type { CircuitLayout } from '@/lib/types'
 
@@ -46,15 +45,16 @@ export function TrackLayout({ layouts, name, className }: TrackLayoutProps) {
         </div>
       )}
 
-      {/* Track SVG */}
+      {/* Track SVG — plain <img> since SVGs don't benefit from next/image optimization */}
       <div className="flex items-center justify-center p-8">
-        <Image
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
           src={`/tracks/${current.svgId}.svg`}
           alt={name ? `Track layout of ${name}` : 'Track layout'}
           width={500}
           height={500}
           className="h-auto max-h-[400px] w-auto max-w-full"
-          priority
+          loading="lazy"
         />
       </div>
     </div>

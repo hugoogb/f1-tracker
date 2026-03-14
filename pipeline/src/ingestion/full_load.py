@@ -13,6 +13,7 @@ from src.ingestion.pit_stops import PitStopIngestor
 from src.ingestion.races import RaceIngestor
 from src.ingestion.results import QualifyingIngestor, RaceResultIngestor, SprintResultIngestor
 from src.ingestion.circuit_layouts import CircuitLayoutIngestor
+from src.ingestion.images import ConstructorColorIngestor, DriverHeadshotIngestor
 from src.ingestion.seasons import CircuitIngestor, SeasonIngestor
 from src.ingestion.standings import StandingsIngestor
 
@@ -187,6 +188,11 @@ def run_full_load(targets: set[str] | None = None) -> None:
         if _should_run(targets, "layouts"):
             logger.info("\n--- Circuit layouts ---")
             CircuitLayoutIngestor(db).ingest()
+
+        if _should_run(targets, "images"):
+            logger.info("\n--- Images (headshots + colors) ---")
+            DriverHeadshotIngestor(db).ingest()
+            ConstructorColorIngestor(db).ingest()
 
         if _should_run(targets, "results"):
             logger.info("\n--- Race results ---")
