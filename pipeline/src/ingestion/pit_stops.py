@@ -2,12 +2,18 @@
 
 from datetime import date
 
-import pandas as pd
 from fastf1.ergast import Ergast
 from sqlalchemy import select
 
 from src.db.models import PitStop, Race, Season
-from src.ingestion.base import BaseIngestor, api_call, clean, is_interrupted
+from src.ingestion.base import (
+    BaseIngestor,
+    api_call,
+    clean,
+    is_interrupted,
+    is_rate_limit_error,
+    timedelta_to_ms,
+)
 
 
 class PitStopIngestor(BaseIngestor):
@@ -78,20 +84,17 @@ class PitStopIngestor(BaseIngestor):
 
                         # Convert duration to milliseconds
                         duration = clean(row.get("duration"))
-                        duration_ms = None
-                        if duration is not None:
-                            if isinstance(duration, pd.Timedelta):
-                                duration_ms = int(duration.total_seconds() * 1000)
-                            elif isinstance(duration, str):
-                                try:
-                                    parts = duration.split(":")
-                                    if len(parts) == 2:
-                                        mins, secs = parts
-                                        duration_ms = int((int(mins) * 60 + float(secs)) * 1000)
-                                    else:
-                                        duration_ms = int(float(duration) * 1000)
-                                except (ValueError, TypeError):
-                                    pass
+                        duration_ms = timedelta_to_ms(duration)
+                        if duration_ms is None and isinstance(duration, str):
+                            try:
+                                parts = duration.split(":")
+                                if len(parts) == 2:
+                                    mins, secs = parts
+                                    duration_ms = int((int(mins) * 60 + float(secs)) * 1000)
+                                else:
+                                    duration_ms = int(float(duration) * 1000)
+                            except (ValueError, TypeError):
+                                pass
 
                         time_of_day = clean(row.get("time"))
                         pit_stop = PitStop(
@@ -111,9 +114,21 @@ class PitStopIngestor(BaseIngestor):
                     total_fetched += 1
                 except InterruptedError:
                     raise
+                except KeyboardInterrupt:
+                    raise InterruptedError("Seed interrupted by user")
                 except Exception as e:
-                    self.log(f"Pit stops {season.year} R{race.round}: ERROR - {e}")
                     self.db.rollback()
+                    if is_rate_limit_error(e):
+                        self.log(
+                            f"{season.year} R{race.round}: rate limited, "
+                            f"stopping. Re-run later to continue."
+                        )
+                        self.log(
+                            f"Ingested {total_records} pit stops from {total_fetched} races "
+                            f"({total_skipped} skipped) before rate limit"
+                        )
+                        return
+                    self.log(f"Pit stops {season.year} R{race.round}: ERROR - {e}")
                     continue
 
             if is_interrupted():

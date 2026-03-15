@@ -6,24 +6,7 @@ from sqlalchemy import func, select
 
 from src.api.country_codes import country_code
 from src.db.models import Constructor, Driver, Status
-from src.ingestion.base import BaseIngestor, api_call, clean
-
-PAGE_SIZE = 100
-
-
-def _fetch_all(method, **kwargs) -> pd.DataFrame:
-    """Paginate through an Ergast simple-response endpoint."""
-    frames = []
-    offset = 0
-    while True:
-        df = api_call(method, limit=PAGE_SIZE, offset=offset, **kwargs)
-        if df.empty:
-            break
-        frames.append(df)
-        if len(df) < PAGE_SIZE:
-            break
-        offset += PAGE_SIZE
-    return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
+from src.ingestion.base import BaseIngestor, clean, fetch_all_pages
 
 
 class DriverIngestor(BaseIngestor):
@@ -35,7 +18,7 @@ class DriverIngestor(BaseIngestor):
 
         self.log("Fetching drivers...")
         erg = Ergast()
-        df = _fetch_all(erg.get_driver_info)
+        df = fetch_all_pages(erg.get_driver_info)
 
         count = 0
         for _, row in df.iterrows():
@@ -75,7 +58,7 @@ class ConstructorIngestor(BaseIngestor):
 
         self.log("Fetching constructors...")
         erg = Ergast()
-        df = _fetch_all(erg.get_constructor_info)
+        df = fetch_all_pages(erg.get_constructor_info)
 
         count = 0
         for _, row in df.iterrows():
@@ -105,7 +88,7 @@ class StatusIngestor(BaseIngestor):
 
         self.log("Fetching statuses...")
         erg = Ergast()
-        df = _fetch_all(erg.get_finishing_status)
+        df = fetch_all_pages(erg.get_finishing_status)
 
         count = 0
         for _, row in df.iterrows():

@@ -4,28 +4,16 @@ import time
 from datetime import date
 
 import fastf1
-import pandas as pd
 from sqlalchemy import select
 
 from src.db.models import Driver, QualifyingResult, Race, Season
-from src.ingestion.base import BaseIngestor, clean, is_interrupted
-
-THROTTLE_DELAY = 45  # seconds between uncached session loads
-
-
-def _timedelta_to_ms(val) -> int | None:
-    """Convert a pandas Timedelta to milliseconds."""
-    val = clean(val)
-    if val is None:
-        return None
-    if isinstance(val, pd.Timedelta):
-        return int(val.total_seconds() * 1000)
-    return None
-
-
-def _is_rate_limit_error(e: Exception) -> bool:
-    err = str(e)
-    return "calls/h" in err or "RateLimitExceeded" in type(e).__name__
+from src.ingestion.base import (
+    THROTTLE_DELAY,
+    BaseIngestor,
+    is_interrupted,
+    is_rate_limit_error,
+    timedelta_to_ms,
+)
 
 
 class QualifyingSectorIngestor(BaseIngestor):
@@ -128,22 +116,7 @@ class QualifyingSectorIngestor(BaseIngestor):
                         continue
 
                     # Build abbreviation -> driver_id map
-                    abbr_to_id: dict[str, str] = {}
-                    if (
-                        session.results is not None
-                        and not session.results.empty
-                    ):
-                        for _, res in session.results.iterrows():
-                            abbr = clean(res.get("Abbreviation"))
-                            driver_ref = clean(res.get("DriverId"))
-                            if (
-                                abbr
-                                and driver_ref
-                                and driver_ref in ref_to_id
-                            ):
-                                abbr_to_id[str(abbr)] = ref_to_id[
-                                    driver_ref
-                                ]
+                    abbr_to_id = self.build_abbr_to_driver_id(session.results, ref_to_id)
 
                     if not abbr_to_id:
                         self.log(
@@ -187,19 +160,19 @@ class QualifyingSectorIngestor(BaseIngestor):
                             if not driver_id:
                                 continue
 
-                            lap_time = _timedelta_to_ms(
+                            lap_time = timedelta_to_ms(
                                 row.get("LapTime")
                             )
                             if lap_time is None:
                                 continue
 
-                            s1 = _timedelta_to_ms(
+                            s1 = timedelta_to_ms(
                                 row.get("Sector1Time")
                             )
-                            s2 = _timedelta_to_ms(
+                            s2 = timedelta_to_ms(
                                 row.get("Sector2Time")
                             )
-                            s3 = _timedelta_to_ms(
+                            s3 = timedelta_to_ms(
                                 row.get("Sector3Time")
                             )
 
@@ -276,7 +249,7 @@ class QualifyingSectorIngestor(BaseIngestor):
                     raise InterruptedError("Seed interrupted by user")
                 except Exception as e:
                     self.db.rollback()
-                    if _is_rate_limit_error(e):
+                    if is_rate_limit_error(e):
                         self.log(
                             f"{season.year} R{race.round}: rate limited, "
                             f"stopping. Re-run later to continue."

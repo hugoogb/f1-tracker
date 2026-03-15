@@ -4,32 +4,17 @@ import time
 from datetime import date
 
 import fastf1
-import pandas as pd
 from sqlalchemy import select
 
 from src.db.models import Driver, LapTime, Race, Season
-from src.ingestion.base import BaseIngestor, clean, is_interrupted
-
-# Fast-F1 enforces 500 calls/hr (rolling 3600s window) for non-Ergast APIs.
-# Each session.load() makes ~5-8 internal API calls, so we can do ~70 races/hr.
-# Throttle: 3600s / 70 races ≈ 50s per race. We use 45s to stay safely under.
-THROTTLE_DELAY = 45  # seconds between uncached session loads
-
-
-def _timedelta_to_ms(val) -> int | None:
-    """Convert a pandas Timedelta to milliseconds."""
-    val = clean(val)
-    if val is None:
-        return None
-    if isinstance(val, pd.Timedelta):
-        return int(val.total_seconds() * 1000)
-    return None
-
-
-def _is_rate_limit_error(e: Exception) -> bool:
-    """Check if an exception is a Fast-F1 rate limit error."""
-    err = str(e)
-    return "calls/h" in err or "RateLimitExceeded" in type(e).__name__
+from src.ingestion.base import (
+    THROTTLE_DELAY,
+    BaseIngestor,
+    clean,
+    is_interrupted,
+    is_rate_limit_error,
+    timedelta_to_ms,
+)
 
 
 class LapTimeIngestor(BaseIngestor):
@@ -100,13 +85,7 @@ class LapTimeIngestor(BaseIngestor):
                         continue
 
                     # Build abbreviation -> driver_id map from session results
-                    abbr_to_id: dict[str, str] = {}
-                    if session.results is not None and not session.results.empty:
-                        for _, res in session.results.iterrows():
-                            abbr = clean(res.get("Abbreviation"))
-                            driver_ref = clean(res.get("DriverId"))
-                            if abbr and driver_ref and driver_ref in ref_to_id:
-                                abbr_to_id[str(abbr)] = ref_to_id[driver_ref]
+                    abbr_to_id = self.build_abbr_to_driver_id(session.results, ref_to_id)
 
                     if not abbr_to_id:
                         self.log(
@@ -134,10 +113,10 @@ class LapTimeIngestor(BaseIngestor):
                             race_id=race.id,
                             driver_id=driver_id,
                             lap_number=lap_num,
-                            time_millis=_timedelta_to_ms(row.get("LapTime")),
-                            sector1_ms=_timedelta_to_ms(row.get("Sector1Time")),
-                            sector2_ms=_timedelta_to_ms(row.get("Sector2Time")),
-                            sector3_ms=_timedelta_to_ms(row.get("Sector3Time")),
+                            time_millis=timedelta_to_ms(row.get("LapTime")),
+                            sector1_ms=timedelta_to_ms(row.get("Sector1Time")),
+                            sector2_ms=timedelta_to_ms(row.get("Sector2Time")),
+                            sector3_ms=timedelta_to_ms(row.get("Sector3Time")),
                             compound=clean(row.get("Compound")),
                             stint=int(stint) if stint is not None else None,
                             tyre_life=int(tyre_life) if tyre_life is not None else None,
@@ -169,7 +148,7 @@ class LapTimeIngestor(BaseIngestor):
                     raise InterruptedError("Seed interrupted by user")
                 except Exception as e:
                     self.db.rollback()
-                    if _is_rate_limit_error(e):
+                    if is_rate_limit_error(e):
                         self.log(
                             f"{season.year} R{race.round}: rate limited, "
                             f"stopping lap time ingestion. Re-run later to continue."
