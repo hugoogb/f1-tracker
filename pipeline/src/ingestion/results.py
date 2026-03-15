@@ -13,35 +13,16 @@ from src.db.models import (
     Season,
     SprintResult,
 )
-from src.ingestion.base import BaseIngestor, api_call, clean, is_interrupted
-
-
-def _safe_int(val) -> int | None:
-    val = clean(val)
-    if val is None:
-        return None
-    try:
-        return int(val)
-    except (ValueError, TypeError):
-        return None
-
-
-def _safe_float(val) -> float:
-    val = clean(val)
-    if val is None:
-        return 0.0
-    try:
-        return float(val)
-    except (ValueError, TypeError):
-        return 0.0
-
-
-def _safe_str(val) -> str | None:
-    val = clean(val)
-    if val is None:
-        return None
-    s = str(val)
-    return s if s else None
+from src.ingestion.base import (
+    BaseIngestor,
+    api_call,
+    clean,
+    is_interrupted,
+    is_rate_limit_error,
+    safe_float,
+    safe_int,
+    safe_str,
+)
 
 
 def _timedelta_to_str(val) -> str | None:
@@ -118,18 +99,18 @@ class RaceResultIngestor(BaseIngestor):
                             race_id=race.id,
                             driver_id=row["driverId"],
                             constructor_id=row["constructorId"],
-                            number=_safe_int(row.get("number")),
-                            grid=_safe_int(row.get("grid")),
-                            position=_safe_int(row.get("position")),
-                            position_text=_safe_str(row.get("positionText")),
-                            points=_safe_float(row.get("points")),
-                            laps=_safe_int(row.get("laps")),
+                            number=safe_int(row.get("number")),
+                            grid=safe_int(row.get("grid")),
+                            position=safe_int(row.get("position")),
+                            position_text=safe_str(row.get("positionText")),
+                            points=safe_float(row.get("points")),
+                            laps=safe_int(row.get("laps")),
                             time_text=_timedelta_to_str(row.get("totalRaceTime")),
-                            time_millis=_safe_int(row.get("totalRaceTimeMillis")),
-                            fastest_lap=_safe_int(row.get("fastestLapNumber")),
+                            time_millis=safe_int(row.get("totalRaceTimeMillis")),
+                            fastest_lap=safe_int(row.get("fastestLapNumber")),
                             fastest_lap_time=_timedelta_to_str(row.get("fastestLapTime")),
-                            fastest_lap_speed=_safe_str(row.get("fastestLapAvgSpeed")),
-                            status_id=_safe_int(row.get("statusId")),
+                            fastest_lap_speed=safe_str(row.get("fastestLapAvgSpeed")),
+                            status_id=safe_int(row.get("statusId")),
                         )
                         self.db.merge(result)
                         total_records += 1
@@ -139,9 +120,21 @@ class RaceResultIngestor(BaseIngestor):
                     total_fetched += 1
                 except InterruptedError:
                     raise
+                except KeyboardInterrupt:
+                    raise InterruptedError("Seed interrupted by user")
                 except Exception as e:
-                    self.log(f"Race results {season.year} R{race.round}: ERROR - {e}")
                     self.db.rollback()
+                    if is_rate_limit_error(e):
+                        self.log(
+                            f"{season.year} R{race.round}: rate limited, "
+                            f"stopping. Re-run later to continue."
+                        )
+                        self.log(
+                            f"Ingested {total_records} race results from {total_fetched} races "
+                            f"({total_skipped} skipped) before rate limit"
+                        )
+                        return
+                    self.log(f"Race results {season.year} R{race.round}: ERROR - {e}")
                     continue
 
             if is_interrupted():
@@ -223,8 +216,8 @@ class QualifyingIngestor(BaseIngestor):
                             race_id=race.id,
                             driver_id=row["driverId"],
                             constructor_id=row["constructorId"],
-                            number=_safe_int(row.get("number")),
-                            position=_safe_int(row.get("position")),
+                            number=safe_int(row.get("number")),
+                            position=safe_int(row.get("position")),
                             q1=_timedelta_to_str(row.get("Q1")),
                             q2=_timedelta_to_str(row.get("Q2")),
                             q3=_timedelta_to_str(row.get("Q3")),
@@ -237,9 +230,21 @@ class QualifyingIngestor(BaseIngestor):
                     total_fetched += 1
                 except InterruptedError:
                     raise
+                except KeyboardInterrupt:
+                    raise InterruptedError("Seed interrupted by user")
                 except Exception as e:
-                    self.log(f"Qualifying {season.year} R{race.round}: ERROR - {e}")
                     self.db.rollback()
+                    if is_rate_limit_error(e):
+                        self.log(
+                            f"{season.year} R{race.round}: rate limited, "
+                            f"stopping. Re-run later to continue."
+                        )
+                        self.log(
+                            f"Ingested {total_records} qualifying results from {total_fetched} races "
+                            f"({total_skipped} skipped) before rate limit"
+                        )
+                        return
+                    self.log(f"Qualifying {season.year} R{race.round}: ERROR - {e}")
                     continue
 
             if is_interrupted():
@@ -333,14 +338,14 @@ class SprintResultIngestor(BaseIngestor):
                             race_id=race.id,
                             driver_id=row["driverId"],
                             constructor_id=row["constructorId"],
-                            number=_safe_int(row.get("number")),
-                            grid=_safe_int(row.get("grid")),
-                            position=_safe_int(row.get("position")),
-                            position_text=_safe_str(row.get("positionText")),
-                            points=_safe_float(row.get("points")),
-                            laps=_safe_int(row.get("laps")),
+                            number=safe_int(row.get("number")),
+                            grid=safe_int(row.get("grid")),
+                            position=safe_int(row.get("position")),
+                            position_text=safe_str(row.get("positionText")),
+                            points=safe_float(row.get("points")),
+                            laps=safe_int(row.get("laps")),
                             time_text=_timedelta_to_str(row.get("totalRaceTime")),
-                            status_id=_safe_int(row.get("statusId")),
+                            status_id=safe_int(row.get("statusId")),
                         )
                         self.db.merge(result)
                         total_records += 1
@@ -350,9 +355,21 @@ class SprintResultIngestor(BaseIngestor):
                     total_fetched += 1
                 except InterruptedError:
                     raise
+                except KeyboardInterrupt:
+                    raise InterruptedError("Seed interrupted by user")
                 except Exception as e:
-                    self.log(f"Sprint {season.year} R{race.round}: ERROR - {e}")
                     self.db.rollback()
+                    if is_rate_limit_error(e):
+                        self.log(
+                            f"{season.year} R{race.round}: rate limited, "
+                            f"stopping. Re-run later to continue."
+                        )
+                        self.log(
+                            f"Ingested {total_records} sprint results from {total_fetched} races "
+                            f"({total_skipped} skipped) before rate limit"
+                        )
+                        return
+                    self.log(f"Sprint {season.year} R{race.round}: ERROR - {e}")
                     continue
 
             if is_interrupted():
