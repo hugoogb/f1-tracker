@@ -12,3 +12,13 @@ export const TEAM_COLORS: Record<string, string> = {
   rb: '#6692FF',
   sauber: '#52E252',
 } as const
+
+export const TYRE_COLORS: Record<string, string> = {
+  SOFT: '#FF3333',
+  MEDIUM: '#FFC906',
+  HARD: '#CCCCCC',
+  INTERMEDIATE: '#39B54A',
+  WET: '#0067FF',
+  UNKNOWN: '#888888',
+  TEST_UNKNOWN: '#888888',
+} as const

@@ -62,6 +62,7 @@ export const api = {
       fetchApi(`/seasons/${year}/races/${round}/qualifying`),
     sprint: (year: number, round: number) => fetchApi(`/seasons/${year}/races/${round}/sprint`),
     pitStops: (year: number, round: number) => fetchApi(`/seasons/${year}/races/${round}/pitstops`),
+    laps: (year: number, round: number) => fetchApi(`/seasons/${year}/races/${round}/laps`),
   },
   champions: () => fetchApi('/champions'),
   search: (query: string) => fetchApi(`/search?q=${encodeURIComponent(query)}`),
