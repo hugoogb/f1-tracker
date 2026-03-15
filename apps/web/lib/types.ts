@@ -120,6 +120,14 @@ export interface FastestSectorEntry {
   }
 }
 
+export interface CircuitLapRecord {
+  time: string | null
+  speed: string | null
+  year: number
+  driver: { ref: string; firstName: string; lastName: string }
+  constructor: { ref: string; name: string; color: string | null } | null
+}
+
 export interface FastestSectors {
   s1: FastestSectorEntry | null
   s2: FastestSectorEntry | null
