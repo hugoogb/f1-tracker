@@ -37,7 +37,7 @@ export function ListFilter({ label, paramName, options }: ListFilterProps) {
         {label}
       </label>
       <Select value={current || 'all'} onValueChange={handleChange}>
-        <SelectTrigger className="h-9 w-[180px]">
+        <SelectTrigger className="h-9 w-[180px]" aria-label={`Filter by ${label}`}>
           <SelectValue placeholder="All" />
         </SelectTrigger>
         <SelectContent>
