@@ -1,0 +1,207 @@
+from fastapi import APIRouter, Depends
+from sqlalchemy import func, select
+from sqlalchemy.orm import Session
+
+from src.db.database import get_db
+from src.db.models import (
+    Constructor,
+    ConstructorStanding,
+    Driver,
+    DriverStanding,
+    QualifyingResult,
+    Race,
+    RaceResult,
+)
+
+router = APIRouter()
+
+
+def _driver_dict(driver: Driver) -> dict:
+    return {
+        "ref": driver.ref,
+        "code": driver.code,
+        "firstName": driver.first_name,
+        "lastName": driver.last_name,
+        "nationality": driver.nationality,
+        "countryCode": driver.country_code,
+        "headshotUrl": (
+            f"/headshots/{driver.ref}.png"
+            if driver.has_headshot
+            else None
+        ),
+    }
+
+
+def _constructor_dict(constructor: Constructor) -> dict:
+    return {
+        "ref": constructor.ref,
+        "name": constructor.name,
+        "nationality": constructor.nationality,
+        "countryCode": constructor.country_code,
+        "color": constructor.color,
+    }
+
+
+@router.get("/records")
+def get_records(limit: int = 10, db: Session = Depends(get_db)):
+    # --- Driver Records ---
+
+    # Most wins
+    most_wins = db.execute(
+        select(RaceResult.driver_id, func.count().label("count"))
+        .where(RaceResult.position == 1)
+        .group_by(RaceResult.driver_id)
+        .order_by(func.count().desc())
+        .limit(limit)
+    ).all()
+
+    # Most podiums
+    most_podiums = db.execute(
+        select(RaceResult.driver_id, func.count().label("count"))
+        .where(RaceResult.position <= 3)
+        .group_by(RaceResult.driver_id)
+        .order_by(func.count().desc())
+        .limit(limit)
+    ).all()
+
+    # Most poles
+    most_poles = db.execute(
+        select(
+            QualifyingResult.driver_id,
+            func.count().label("count"),
+        )
+        .where(QualifyingResult.position == 1)
+        .group_by(QualifyingResult.driver_id)
+        .order_by(func.count().desc())
+        .limit(limit)
+    ).all()
+
+    # Most race starts
+    most_starts = db.execute(
+        select(RaceResult.driver_id, func.count().label("count"))
+        .group_by(RaceResult.driver_id)
+        .order_by(func.count().desc())
+        .limit(limit)
+    ).all()
+
+    # Most championships
+    last_rounds = (
+        select(
+            Race.season_year,
+            func.max(Race.round).label("max_round"),
+        )
+        .group_by(Race.season_year)
+        .subquery()
+    )
+    last_race_ids = (
+        select(Race.id)
+        .join(
+            last_rounds,
+            (Race.season_year == last_rounds.c.season_year)
+            & (Race.round == last_rounds.c.max_round),
+        )
+        .subquery()
+    )
+    most_championships = db.execute(
+        select(
+            DriverStanding.driver_id,
+            func.count().label("count"),
+        )
+        .where(
+            DriverStanding.position == 1,
+            DriverStanding.race_id.in_(select(last_race_ids)),
+        )
+        .group_by(DriverStanding.driver_id)
+        .order_by(func.count().desc())
+        .limit(limit)
+    ).all()
+
+    # Most fastest laps
+    most_fastest_laps = db.execute(
+        select(
+            Race.fastest_lap_driver_id,
+            func.count().label("count"),
+        )
+        .where(Race.fastest_lap_driver_id.isnot(None))
+        .group_by(Race.fastest_lap_driver_id)
+        .order_by(func.count().desc())
+        .limit(limit)
+    ).all()
+
+    # --- Constructor Records ---
+
+    # Most constructor wins
+    constructor_wins = db.execute(
+        select(RaceResult.constructor_id, func.count().label("count"))
+        .where(RaceResult.position == 1)
+        .group_by(RaceResult.constructor_id)
+        .order_by(func.count().desc())
+        .limit(limit)
+    ).all()
+
+    # Most constructor championships
+    most_constructor_champs = db.execute(
+        select(
+            ConstructorStanding.constructor_id,
+            func.count().label("count"),
+        )
+        .where(
+            ConstructorStanding.position == 1,
+            ConstructorStanding.race_id.in_(select(last_race_ids)),
+        )
+        .group_by(ConstructorStanding.constructor_id)
+        .order_by(func.count().desc())
+        .limit(limit)
+    ).all()
+
+    def _resolve_driver(rows):
+        result = []
+        for row in rows:
+            driver = db.get(Driver, row.driver_id)
+            if driver:
+                result.append({
+                    "driver": _driver_dict(driver),
+                    "count": row.count,
+                })
+        return result
+
+    def _resolve_fastest_lap_driver(rows):
+        result = []
+        for row in rows:
+            driver = db.get(Driver, row.fastest_lap_driver_id)
+            if driver:
+                result.append({
+                    "driver": _driver_dict(driver),
+                    "count": row.count,
+                })
+        return result
+
+    def _resolve_constructor(rows):
+        result = []
+        for row in rows:
+            constructor = db.get(Constructor, row.constructor_id)
+            if constructor:
+                result.append({
+                    "constructor": _constructor_dict(constructor),
+                    "count": row.count,
+                })
+        return result
+
+    return {
+        "drivers": {
+            "mostWins": _resolve_driver(most_wins),
+            "mostPodiums": _resolve_driver(most_podiums),
+            "mostPoles": _resolve_driver(most_poles),
+            "mostStarts": _resolve_driver(most_starts),
+            "mostChampionships": _resolve_driver(most_championships),
+            "mostFastestLaps": _resolve_fastest_lap_driver(
+                most_fastest_laps
+            ),
+        },
+        "constructors": {
+            "mostWins": _resolve_constructor(constructor_wins),
+            "mostChampionships": _resolve_constructor(
+                most_constructor_champs
+            ),
+        },
+    }

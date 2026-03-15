@@ -3,8 +3,13 @@ from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
 
 from src.db.database import get_db
-from src.db.models import Race, RaceResult
-from src.db.queries import get_driver_by_ref, get_driver_career_stats
+from src.db.models import Constructor, Race, RaceResult
+from src.db.queries import (
+    get_constructor_by_ref,
+    get_constructor_career_stats,
+    get_driver_by_ref,
+    get_driver_career_stats,
+)
 
 router = APIRouter()
 
@@ -119,4 +124,140 @@ def compare_drivers(d1: str, d2: str, db: Session = Depends(get_db)):
         },
         "driver1Seasons": get_driver_season_history(driver1.id),
         "driver2Seasons": get_driver_season_history(driver2.id),
+    }
+
+
+@router.get("/compare/constructors")
+def compare_constructors(
+    c1: str, c2: str, db: Session = Depends(get_db)
+):
+    con1 = get_constructor_by_ref(db, c1)
+    if not con1:
+        raise HTTPException(
+            status_code=404, detail=f"Constructor '{c1}' not found"
+        )
+
+    con2 = get_constructor_by_ref(db, c2)
+    if not con2:
+        raise HTTPException(
+            status_code=404, detail=f"Constructor '{c2}' not found"
+        )
+
+    stats1 = get_constructor_career_stats(db, con1.id)
+    stats2 = get_constructor_career_stats(db, con2.id)
+
+    # Head-to-head: races where both constructors had a driver finish
+    c1_races = (
+        select(RaceResult.race_id)
+        .where(RaceResult.constructor_id == con1.id)
+        .subquery()
+    )
+    c2_races = (
+        select(RaceResult.race_id)
+        .where(RaceResult.constructor_id == con2.id)
+        .subquery()
+    )
+    common_race_ids = (
+        select(c1_races.c.race_id)
+        .where(c1_races.c.race_id.in_(select(c2_races.c.race_id)))
+        .subquery()
+    )
+
+    # Best finish per constructor per race
+    r1 = RaceResult.__table__.alias("r1")
+    r2 = RaceResult.__table__.alias("r2")
+
+    # Subqueries for best position per constructor per race
+    best_c1 = (
+        select(
+            r1.c.race_id,
+            func.min(r1.c.position).label("best_pos"),
+        )
+        .where(
+            r1.c.constructor_id == con1.id,
+            r1.c.position.isnot(None),
+            r1.c.race_id.in_(select(common_race_ids.c.race_id)),
+        )
+        .group_by(r1.c.race_id)
+        .subquery()
+    )
+    best_c2 = (
+        select(
+            r2.c.race_id,
+            func.min(r2.c.position).label("best_pos"),
+        )
+        .where(
+            r2.c.constructor_id == con2.id,
+            r2.c.position.isnot(None),
+            r2.c.race_id.in_(select(common_race_ids.c.race_id)),
+        )
+        .group_by(r2.c.race_id)
+        .subquery()
+    )
+
+    h2h = db.execute(
+        select(
+            func.count().label("total"),
+            func.sum(
+                case(
+                    (best_c1.c.best_pos < best_c2.c.best_pos, 1),
+                    else_=0,
+                )
+            ).label("c1_wins"),
+            func.sum(
+                case(
+                    (best_c2.c.best_pos < best_c1.c.best_pos, 1),
+                    else_=0,
+                )
+            ).label("c2_wins"),
+        )
+        .select_from(best_c1)
+        .join(best_c2, best_c1.c.race_id == best_c2.c.race_id)
+    ).one()
+
+    # Season history for both constructors
+    def get_constructor_season_history(constructor_id: str):
+        rows = db.execute(
+            select(
+                Race.season_year,
+                func.sum(RaceResult.points).label("points"),
+            )
+            .join(Race, RaceResult.race_id == Race.id)
+            .where(RaceResult.constructor_id == constructor_id)
+            .group_by(Race.season_year)
+            .order_by(Race.season_year)
+        ).all()
+        return [
+            {"year": r.season_year, "points": float(r.points or 0)}
+            for r in rows
+        ]
+
+    def format_constructor(con: Constructor, stats: dict):
+        return {
+            "id": con.id,
+            "ref": con.ref,
+            "name": con.name,
+            "nationality": con.nationality,
+            "countryCode": con.country_code,
+            "color": con.color,
+            "logoUrl": (
+                f"/logos/{con.ref}.png" if con.has_logo else None
+            ),
+            "stats": stats,
+        }
+
+    return {
+        "constructor1": format_constructor(con1, stats1),
+        "constructor2": format_constructor(con2, stats2),
+        "headToHead": {
+            "constructor1Wins": int(h2h.c1_wins or 0),
+            "constructor2Wins": int(h2h.c2_wins or 0),
+            "totalRaces": int(h2h.total or 0),
+        },
+        "constructor1Seasons": get_constructor_season_history(
+            con1.id
+        ),
+        "constructor2Seasons": get_constructor_season_history(
+            con2.id
+        ),
     }

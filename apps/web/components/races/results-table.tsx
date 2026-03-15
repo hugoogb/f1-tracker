@@ -90,9 +90,15 @@ export function ResultsTable({ results, fastestLapDriverRef }: ResultsTableProps
                   {positionDelta != null &&
                     positionDelta !== 0 &&
                     (positionDelta > 0 ? (
-                      <ArrowUp className="text-positive h-3 w-3" />
+                      <span className="text-positive inline-flex items-center text-xs font-medium">
+                        <ArrowUp className="h-3 w-3" />
+                        {positionDelta}
+                      </span>
                     ) : (
-                      <ArrowDown className="text-negative h-3 w-3" />
+                      <span className="text-negative inline-flex items-center text-xs font-medium">
+                        <ArrowDown className="h-3 w-3" />
+                        {Math.abs(positionDelta)}
+                      </span>
                     ))}
                 </div>
               </TableCell>

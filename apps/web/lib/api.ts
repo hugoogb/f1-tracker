@@ -22,6 +22,10 @@ export const api = {
     get: (year: number) => fetchApi(`/seasons/${year}`),
     driverStandings: (year: number) => fetchApi(`/seasons/${year}/standings/drivers`),
     constructorStandings: (year: number) => fetchApi(`/seasons/${year}/standings/constructors`),
+    standingsProgression: (year: number, top = 10) => {
+      const params = new URLSearchParams({ top: String(top) })
+      return fetchApi(`/seasons/${year}/standings/progression?${params}`)
+    },
   },
   drivers: {
     list: (page = 1, pageSize = 50, nationality?: string) => {
@@ -79,10 +83,15 @@ export const api = {
       races: number
       circuits: number
     }>('/stats'),
+  records: () => fetchApi('/records'),
   compare: {
     drivers: (d1: string, d2: string) => {
       const params = new URLSearchParams({ d1, d2 })
       return fetchApi(`/compare/drivers?${params}`)
+    },
+    constructors: (c1: string, c2: string) => {
+      const params = new URLSearchParams({ c1, c2 })
+      return fetchApi(`/compare/constructors?${params}`)
     },
   },
 }

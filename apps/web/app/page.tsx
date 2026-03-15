@@ -18,6 +18,7 @@ import { StatCard } from '@/components/ui/stat-card'
 import { DriverStandingsTable } from '@/components/standings/driver-standings-table'
 import { ConstructorStandingsTable } from '@/components/standings/constructor-standings-table'
 import { FadeIn, StaggerList, StaggerItem, HeroGlow } from '@/components/ui/motion'
+import { NextRaceCountdown } from '@/components/ui/next-race-countdown'
 
 export const dynamic = 'force-dynamic'
 
@@ -70,6 +71,7 @@ export default async function Home() {
   const recentChampions = champions.slice(0, 5)
 
   const now = new Date()
+  const nextRace = races.find((r) => new Date(r.date) > now) ?? null
 
   return (
     <div className="space-y-10">
@@ -99,6 +101,13 @@ export default async function Home() {
         </div>
         <div className="accent-line" />
       </div>
+
+      {/* Next Race Countdown */}
+      {nextRace && (
+        <FadeIn>
+          <NextRaceCountdown race={nextRace} seasonYear={latestYear} />
+        </FadeIn>
+      )}
 
       {/* Stat Cards */}
       {stats && (

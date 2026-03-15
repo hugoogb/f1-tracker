@@ -235,3 +235,56 @@ export interface PaginatedResponse<T> {
   page: number
   pageSize: number
 }
+
+export interface DriverRecordEntry {
+  driver: {
+    ref: string
+    code: string | null
+    firstName: string
+    lastName: string
+    nationality: string | null
+    countryCode: string | null
+    headshotUrl: string | null
+  }
+  count: number
+}
+
+export interface ConstructorRecordEntry {
+  constructor: {
+    ref: string
+    name: string
+    nationality: string | null
+    countryCode: string | null
+    color: string | null
+  }
+  count: number
+}
+
+export interface RecordsResponse {
+  drivers: {
+    mostWins: DriverRecordEntry[]
+    mostPodiums: DriverRecordEntry[]
+    mostPoles: DriverRecordEntry[]
+    mostStarts: DriverRecordEntry[]
+    mostChampionships: DriverRecordEntry[]
+    mostFastestLaps: DriverRecordEntry[]
+  }
+  constructors: {
+    mostWins: ConstructorRecordEntry[]
+    mostChampionships: ConstructorRecordEntry[]
+  }
+}
+
+export interface StandingsProgressionDriver {
+  ref: string
+  code: string | null
+  firstName: string
+  lastName: string
+  color: string | null
+}
+
+export interface StandingsProgressionResponse {
+  year: number
+  rounds: Record<string, number | string>[]
+  drivers: StandingsProgressionDriver[]
+}

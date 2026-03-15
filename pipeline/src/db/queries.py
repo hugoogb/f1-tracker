@@ -7,6 +7,7 @@ from src.db.models import (
     ConstructorStanding,
     Driver,
     DriverStanding,
+    QualifyingResult,
     Race,
     RaceResult,
     Season,
@@ -88,11 +89,38 @@ def get_driver_career_stats(db: Session, driver_id: str) -> dict:
     total_points = db.execute(
         select(func.sum(RaceResult.points)).where(RaceResult.driver_id == driver_id)
     ).scalar()
+    poles = db.execute(
+        select(func.count()).where(
+            QualifyingResult.driver_id == driver_id, QualifyingResult.position == 1
+        )
+    ).scalar()
+    fastest_laps = db.execute(
+        select(func.count()).where(Race.fastest_lap_driver_id == driver_id)
+    ).scalar()
+    last_rounds = (
+        select(Race.season_year, func.max(Race.round).label("max_round"))
+        .group_by(Race.season_year)
+        .subquery()
+    )
+    last_race_ids = select(Race.id).join(
+        last_rounds,
+        (Race.season_year == last_rounds.c.season_year) & (Race.round == last_rounds.c.max_round),
+    )
+    championships = db.execute(
+        select(func.count()).where(
+            DriverStanding.driver_id == driver_id,
+            DriverStanding.position == 1,
+            DriverStanding.race_id.in_(last_race_ids),
+        )
+    ).scalar()
 
     return {
         "total_races": total_races or 0,
         "wins": wins or 0,
         "podiums": podiums or 0,
+        "poles": poles or 0,
+        "fastest_laps": fastest_laps or 0,
+        "championships": championships or 0,
         "total_points": float(total_points or 0),
     }
 

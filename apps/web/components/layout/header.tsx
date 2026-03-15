@@ -18,6 +18,7 @@ export function Header() {
           <NavLink href="/constructors">Constructors</NavLink>
           <NavLink href="/circuits">Circuits</NavLink>
           <NavLink href="/champions">Champions</NavLink>
+          <NavLink href="/records">Records</NavLink>
           <NavLink href="/compare">Compare</NavLink>
         </nav>
         <div className="ml-auto flex items-center gap-1">
