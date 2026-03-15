@@ -155,6 +155,28 @@ export interface ConstructorSeasonSummary {
   championshipPosition: number | null
 }
 
+export interface LapData {
+  lapNumber: number
+  timeMs: number | null
+  sector1Ms: number | null
+  sector2Ms: number | null
+  sector3Ms: number | null
+  compound: string | null
+  stint: number | null
+  tyreLife: number | null
+}
+
+export interface DriverLaps {
+  driver: Driver
+  constructor: Constructor
+  laps: LapData[]
+}
+
+export interface LapsResponse {
+  raceId: string
+  drivers: DriverLaps[]
+}
+
 export interface PaginatedResponse<T> {
   data: T[]
   total: number

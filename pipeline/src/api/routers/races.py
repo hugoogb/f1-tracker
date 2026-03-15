@@ -1,9 +1,11 @@
+from collections import defaultdict
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from src.db.database import get_db
-from src.db.models import PitStop, QualifyingResult, Race, RaceResult, SprintResult
+from src.db.models import LapTime, PitStop, QualifyingResult, Race, RaceResult, SprintResult
 
 router = APIRouter()
 
@@ -199,4 +201,87 @@ def get_pitstops(year: int, round: int, db: Session = Depends(get_db)):
             }
             for s in stops
         ],
+    }
+
+
+@router.get("/seasons/{year}/races/{round}/laps")
+def get_laps(year: int, round: int, db: Session = Depends(get_db)):
+    race = db.execute(
+        select(Race).where(Race.season_year == year, Race.round == round)
+    ).scalar_one_or_none()
+    if not race:
+        raise HTTPException(status_code=404, detail="Race not found")
+
+    laps = (
+        db.execute(
+            select(LapTime)
+            .where(LapTime.race_id == race.id)
+            .order_by(LapTime.driver_id, LapTime.lap_number)
+        )
+        .scalars()
+        .all()
+    )
+
+    # Build constructor lookup from race results (LapTime has no constructor_id)
+    results = (
+        db.execute(
+            select(RaceResult)
+            .where(RaceResult.race_id == race.id)
+            .order_by(RaceResult.position)
+        )
+        .scalars()
+        .all()
+    )
+    driver_constructor = {r.driver_id: r.constructor for r in results}
+    driver_position = {r.driver_id: r.position for r in results}
+
+    # Group laps by driver
+    by_driver: dict[str, list[LapTime]] = defaultdict(list)
+    for lap in laps:
+        by_driver[lap.driver_id].append(lap)
+
+    # Sort drivers by finishing position
+    driver_ids = sorted(
+        by_driver.keys(),
+        key=lambda did: driver_position.get(did) or 999,
+    )
+
+    drivers_data = []
+    for driver_id in driver_ids:
+        driver_laps = by_driver[driver_id]
+        driver = driver_laps[0].driver
+        constructor = driver_constructor.get(driver_id)
+
+        drivers_data.append({
+            "driver": {
+                "id": driver.id,
+                "ref": driver.ref,
+                "code": driver.code,
+                "firstName": driver.first_name,
+                "lastName": driver.last_name,
+                "headshotUrl": f"/headshots/{driver.ref}.png" if driver.has_headshot else None,
+            },
+            "constructor": {
+                "ref": constructor.ref if constructor else None,
+                "name": constructor.name if constructor else None,
+                "color": constructor.color if constructor else None,
+            },
+            "laps": [
+                {
+                    "lapNumber": lap.lap_number,
+                    "timeMs": lap.time_millis,
+                    "sector1Ms": lap.sector1_ms,
+                    "sector2Ms": lap.sector2_ms,
+                    "sector3Ms": lap.sector3_ms,
+                    "compound": lap.compound,
+                    "stint": lap.stint,
+                    "tyreLife": lap.tyre_life,
+                }
+                for lap in driver_laps
+            ],
+        })
+
+    return {
+        "raceId": race.id,
+        "drivers": drivers_data,
     }
