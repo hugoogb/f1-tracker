@@ -1,5 +1,6 @@
 """Ingest lap time data from Fast-F1 (2018+ only)."""
 
+import time
 from datetime import date
 
 import fastf1
@@ -8,6 +9,11 @@ from sqlalchemy import select
 
 from src.db.models import Driver, LapTime, Race, Season
 from src.ingestion.base import BaseIngestor, clean, is_interrupted
+
+# Fast-F1 enforces 500 calls/hr (rolling 3600s window) for non-Ergast APIs.
+# Each session.load() makes ~5-8 internal API calls, so we can do ~70 races/hr.
+# Throttle: 3600s / 70 races ≈ 50s per race. We use 45s to stay safely under.
+THROTTLE_DELAY = 45  # seconds between uncached session loads
 
 
 def _timedelta_to_ms(val) -> int | None:
@@ -18,6 +24,12 @@ def _timedelta_to_ms(val) -> int | None:
     if isinstance(val, pd.Timedelta):
         return int(val.total_seconds() * 1000)
     return None
+
+
+def _is_rate_limit_error(e: Exception) -> bool:
+    """Check if an exception is a Fast-F1 rate limit error."""
+    err = str(e)
+    return "calls/h" in err or "RateLimitExceeded" in type(e).__name__
 
 
 class LapTimeIngestor(BaseIngestor):
@@ -36,12 +48,9 @@ class LapTimeIngestor(BaseIngestor):
             self.db.execute(select(LapTime.race_id).group_by(LapTime.race_id)).scalars().all()
         )
 
-        # Build driver code -> driver_id lookup
+        # Build driver ref -> driver_id lookup (ref matches Fast-F1's DriverId)
         drivers = self.db.execute(select(Driver)).scalars().all()
-        code_to_id: dict[str, str] = {}
-        for d in drivers:
-            if d.code:
-                code_to_id[d.code] = d.id
+        ref_to_id: dict[str, str] = {d.ref: d.id for d in drivers}
 
         today = date.today()
         min_year = max(2018, year_range[0]) if year_range else 2018
@@ -80,18 +89,35 @@ class LapTimeIngestor(BaseIngestor):
 
                 try:
                     self.log(f"{season.year} R{race.round}: fetching lap times...")
+                    load_start = time.time()
                     session = fastf1.get_session(season.year, race.round, "R")
                     session.load(laps=True, telemetry=False, weather=False, messages=False)
+                    load_elapsed = time.time() - load_start
 
                     laps = session.laps
                     if laps is None or laps.empty:
                         self.log(f"{season.year} R{race.round}: no lap data available")
                         continue
 
+                    # Build abbreviation -> driver_id map from session results
+                    abbr_to_id: dict[str, str] = {}
+                    if session.results is not None and not session.results.empty:
+                        for _, res in session.results.iterrows():
+                            abbr = clean(res.get("Abbreviation"))
+                            driver_ref = clean(res.get("DriverId"))
+                            if abbr and driver_ref and driver_ref in ref_to_id:
+                                abbr_to_id[str(abbr)] = ref_to_id[driver_ref]
+
+                    if not abbr_to_id:
+                        self.log(
+                            f"{season.year} R{race.round}: no driver mapping available"
+                        )
+                        continue
+
                     race_records = 0
                     for _, row in laps.iterrows():
-                        driver_code = str(row.get("Driver", ""))
-                        driver_id = code_to_id.get(driver_code)
+                        driver_abbr = str(row.get("Driver", ""))
+                        driver_id = abbr_to_id.get(driver_abbr)
                         if not driver_id:
                             continue
 
@@ -101,6 +127,8 @@ class LapTimeIngestor(BaseIngestor):
                         lap_num = int(lap_num)
 
                         lap_id = f"{race.id}_L_{driver_id}_{lap_num}"
+                        stint = clean(row.get("Stint"))
+                        tyre_life = clean(row.get("TyreLife"))
                         lap_time = LapTime(
                             id=lap_id,
                             race_id=race.id,
@@ -111,8 +139,8 @@ class LapTimeIngestor(BaseIngestor):
                             sector2_ms=_timedelta_to_ms(row.get("Sector2Time")),
                             sector3_ms=_timedelta_to_ms(row.get("Sector3Time")),
                             compound=clean(row.get("Compound")),
-                            stint=int(clean(row.get("Stint"))) if clean(row.get("Stint")) is not None else None,
-                            tyre_life=int(clean(row.get("TyreLife"))) if clean(row.get("TyreLife")) is not None else None,
+                            stint=int(stint) if stint is not None else None,
+                            tyre_life=int(tyre_life) if tyre_life is not None else None,
                         )
                         self.db.merge(lap_time)
                         race_records += 1
@@ -121,13 +149,43 @@ class LapTimeIngestor(BaseIngestor):
                     total_records += race_records
                     season_fetched += 1
                     total_fetched += 1
-                    self.log(f"{season.year} R{race.round}: {race_records} lap times ingested")
+                    self.log(
+                        f"{season.year} R{race.round}: {race_records} lap times ingested"
+                    )
+
+                    # Throttle: only delay if the load hit the network (not cached)
+                    if load_elapsed > 1.0:
+                        remaining = max(0, THROTTLE_DELAY - load_elapsed)
+                        if remaining > 0:
+                            self.log(f"⏳ Throttle delay ({remaining:.0f}s)...")
+                            try:
+                                time.sleep(remaining)
+                            except KeyboardInterrupt:
+                                raise InterruptedError("Seed interrupted by user")
+
                 except InterruptedError:
                     raise
+                except KeyboardInterrupt:
+                    raise InterruptedError("Seed interrupted by user")
                 except Exception as e:
-                    self.log(f"Lap times {season.year} R{race.round}: ERROR - {e}")
                     self.db.rollback()
-                    continue
+                    if _is_rate_limit_error(e):
+                        self.log(
+                            f"{season.year} R{race.round}: rate limited, "
+                            f"stopping lap time ingestion. Re-run later to continue."
+                        )
+                        # Commit progress and return — no point retrying within same process
+                        # since the rolling window needs time to clear
+                        self.log(
+                            f"Ingested {total_records} lap times from {total_fetched} races "
+                            f"({total_skipped} skipped) before rate limit"
+                        )
+                        return
+                    else:
+                        self.log(
+                            f"Lap times {season.year} R{race.round}: ERROR - {e}"
+                        )
+                        continue
 
             if is_interrupted():
                 break
