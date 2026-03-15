@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { Flag, Trophy, Medal, TrendingUp, GitCompareArrows } from 'lucide-react'
+import { Flag, Trophy, Medal, TrendingUp, GitCompareArrows, Timer, Zap, Award } from 'lucide-react'
 import { api } from '@/lib/api'
 import type { Driver, DriverSeasonSummary } from '@/lib/types'
 import { TEAM_COLORS } from '@/lib/constants'
@@ -19,6 +19,9 @@ interface DriverDetail extends Driver {
     total_races: number
     wins: number
     podiums: number
+    poles: number
+    fastest_laps: number
+    championships: number
     total_points: number
   }
 }
@@ -103,7 +106,17 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ r
 
       <div className="accent-line" />
 
-      <StaggerList className="grid grid-cols-2 gap-4 md:grid-cols-4">
+      <StaggerList className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+        {driverData.stats.championships > 0 && (
+          <StaggerItem>
+            <StatCard
+              label="Championships"
+              value={driverData.stats.championships}
+              icon={Award}
+              color={teamColor}
+            />
+          </StaggerItem>
+        )}
         <StaggerItem>
           <StatCard
             label="Races"
@@ -120,6 +133,17 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ r
             label="Podiums"
             value={driverData.stats.podiums}
             icon={Medal}
+            color={teamColor}
+          />
+        </StaggerItem>
+        <StaggerItem>
+          <StatCard label="Poles" value={driverData.stats.poles} icon={Timer} color={teamColor} />
+        </StaggerItem>
+        <StaggerItem>
+          <StatCard
+            label="Fastest Laps"
+            value={driverData.stats.fastest_laps}
+            icon={Zap}
             color={teamColor}
           />
         </StaggerItem>

@@ -2,7 +2,12 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { api } from '@/lib/api'
-import type { Race, DriverStanding, ConstructorStanding } from '@/lib/types'
+import type {
+  Race,
+  DriverStanding,
+  ConstructorStanding,
+  StandingsProgressionResponse,
+} from '@/lib/types'
 import { CountryFlag } from '@/components/ui/country-flag'
 import { Breadcrumbs } from '@/components/layout/breadcrumbs'
 import { Badge } from '@/components/ui/badge'
@@ -18,6 +23,7 @@ import { DriverStandingsTable } from '@/components/standings/driver-standings-ta
 import { ConstructorStandingsTable } from '@/components/standings/constructor-standings-table'
 import { PointsBarChart } from '@/components/charts/points-bar-chart'
 import { ConstructorPointsChart } from '@/components/charts/constructor-points-chart'
+import { ChampionshipProgressionChart } from '@/components/charts/championship-progression-chart'
 import { SeasonTabs } from './season-tabs'
 import { FadeIn } from '@/components/ui/motion'
 
@@ -52,11 +58,24 @@ export default async function SeasonDetailPage({ params }: { params: Promise<{ y
 
   if (isNaN(year)) notFound()
 
-  const [season, driverStandings, constructorStandings] = await Promise.all([
-    api.seasons.get(year) as Promise<SeasonDetailResponse>,
-    api.seasons.driverStandings(year) as Promise<DriverStandingsResponse>,
-    api.seasons.constructorStandings(year) as Promise<ConstructorStandingsResponse>,
-  ])
+  const [season, driverStandings, constructorStandings, progressionResult] =
+    await Promise.allSettled([
+      api.seasons.get(year) as Promise<SeasonDetailResponse>,
+      api.seasons.driverStandings(year) as Promise<DriverStandingsResponse>,
+      api.seasons.constructorStandings(year) as Promise<ConstructorStandingsResponse>,
+      api.seasons.standingsProgression(year) as Promise<StandingsProgressionResponse>,
+    ])
+
+  if (season.status === 'rejected') notFound()
+
+  const seasonData = season.value
+  const driverStandingsData =
+    driverStandings.status === 'fulfilled' ? driverStandings.value : { year, standings: [] }
+  const constructorStandingsData =
+    constructorStandings.status === 'fulfilled'
+      ? constructorStandings.value
+      : { year, standings: [] }
+  const progression = progressionResult.status === 'fulfilled' ? progressionResult.value : null
 
   return (
     <div className="space-y-6">
@@ -83,7 +102,7 @@ export default async function SeasonDetailPage({ params }: { params: Promise<{ y
                 <span className="text-gradient">{year}</span>{' '}
                 <span className="text-foreground">Season</span>
               </h1>
-              <p className="text-muted-foreground">{season.races.length} races</p>
+              <p className="text-muted-foreground">{seasonData.races.length} races</p>
             </div>
             <Link
               href={`/seasons/${year + 1}`}
@@ -98,17 +117,23 @@ export default async function SeasonDetailPage({ params }: { params: Promise<{ y
       </FadeIn>
 
       <SeasonTabs
-        racesContent={<RacesTable races={season.races} year={year} />}
+        racesContent={<RacesTable races={seasonData.races} year={year} />}
         driverStandingsContent={
           <>
-            <PointsBarChart standings={driverStandings.standings} />
-            <DriverStandingsTable standings={driverStandings.standings} />
+            {progression && progression.rounds.length > 1 && (
+              <ChampionshipProgressionChart
+                rounds={progression.rounds}
+                drivers={progression.drivers}
+              />
+            )}
+            <PointsBarChart standings={driverStandingsData.standings} />
+            <DriverStandingsTable standings={driverStandingsData.standings} />
           </>
         }
         constructorStandingsContent={
           <>
-            <ConstructorPointsChart standings={constructorStandings.standings} />
-            <ConstructorStandingsTable standings={constructorStandings.standings} />
+            <ConstructorPointsChart standings={constructorStandingsData.standings} />
+            <ConstructorStandingsTable standings={constructorStandingsData.standings} />
           </>
         }
       />

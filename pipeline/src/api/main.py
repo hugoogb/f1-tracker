@@ -9,6 +9,7 @@ from src.api.routers import (
     drivers,
     health,
     races,
+    records,
     search,
     seasons,
     standings,
@@ -38,3 +39,4 @@ app.include_router(standings.router, prefix="/api", tags=["standings"])
 app.include_router(champions.router, prefix="/api", tags=["champions"])
 app.include_router(search.router, prefix="/api", tags=["search"])
 app.include_router(compare.router, prefix="/api", tags=["compare"])
+app.include_router(records.router, prefix="/api", tags=["records"])

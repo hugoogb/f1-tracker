@@ -3,7 +3,16 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Menu, Calendar, Users, Building2, MapPin, Trophy, GitCompareArrows } from 'lucide-react'
+import {
+  Menu,
+  Calendar,
+  Users,
+  Building2,
+  MapPin,
+  Trophy,
+  Award,
+  GitCompareArrows,
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 import { cn } from '@/lib/utils'
@@ -14,6 +23,7 @@ const navItems = [
   { href: '/constructors', label: 'Constructors', icon: Building2 },
   { href: '/circuits', label: 'Circuits', icon: MapPin },
   { href: '/champions', label: 'Champions', icon: Trophy },
+  { href: '/records', label: 'Records', icon: Award },
   { href: '/compare', label: 'Compare', icon: GitCompareArrows },
 ]
 
