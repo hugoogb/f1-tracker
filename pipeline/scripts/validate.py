@@ -16,6 +16,7 @@ from src.db.models import (  # noqa: E402
     ConstructorStanding,
     Driver,
     DriverStanding,
+    LapTime,
     PitStop,
     QualifyingResult,
     Race,
@@ -63,7 +64,7 @@ def validate():
             select(func.count(CircuitLayout.circuit_id.distinct()))
         )
         layouts_ok = circuits_with_layouts == total_circuits
-        print(f"\nCircuit layouts:")
+        print("\nCircuit layouts:")
         print(f"  Circuits with layouts: {circuits_with_layouts}/{total_circuits}  {check_mark(layouts_ok)}")
         print(f"  Total layout variants: {layout_count}")
         if not layouts_ok:
@@ -75,7 +76,7 @@ def validate():
                 .order_by(Circuit.name)
             ).all()
             if circuits_missing:
-                print(f"  Missing layouts:")
+                print("  Missing layouts:")
                 for ref, name in circuits_missing:
                     print(f"    {ref}: {name}")
 
@@ -107,7 +108,7 @@ def validate():
         con_cc_ok = constructors_with_cc == constructors_with_nationality
         cir_cc_ok = circuits_with_cc == circuits_with_country
 
-        print(f"\nCountry codes:")
+        print("\nCountry codes:")
         print(f"  Drivers:      {drivers_with_cc}/{drivers_with_nationality}  {check_mark(drv_cc_ok)}")
         print(f"  Constructors: {constructors_with_cc}/{constructors_with_nationality}  {check_mark(con_cc_ok)}")
         print(f"  Circuits:     {circuits_with_cc}/{circuits_with_country}  {check_mark(cir_cc_ok)}")
@@ -140,7 +141,7 @@ def validate():
             select(func.count()).select_from(Driver).where(Driver.has_headshot.is_(True))
         )
         headshots_ok = drivers_with_headshots > 0
-        print(f"\nDriver headshots:")
+        print("\nDriver headshots:")
         print(f"  Drivers with headshots: {drivers_with_headshots}/{total_drivers}  {check_mark(headshots_ok)}")
 
         # --- Constructor colors ---
@@ -148,7 +149,7 @@ def validate():
             select(func.count()).select_from(Constructor).where(Constructor.color.isnot(None))
         )
         colors_ok = constructors_with_colors > 0
-        print(f"\nConstructor colors:")
+        print("\nConstructor colors:")
         print(f"  Constructors with colors: {constructors_with_colors}/{total_constructors}  {check_mark(colors_ok)}")
 
         # --- Constructor logos ---
@@ -156,7 +157,7 @@ def validate():
             select(func.count()).select_from(Constructor).where(Constructor.has_logo.is_(True))
         )
         logos_ok = constructors_with_logos > 0
-        print(f"\nConstructor logos:")
+        print("\nConstructor logos:")
         print(f"  Constructors with logos: {constructors_with_logos}/{total_constructors}  {check_mark(logos_ok)}")
 
         # --- Build race maps ---
@@ -196,6 +197,11 @@ def validate():
                 select(SprintResult.race_id).group_by(SprintResult.race_id)
             ).scalars().all()
         )
+        races_with_laps = set(
+            db.execute(
+                select(LapTime.race_id).group_by(LapTime.race_id)
+            ).scalars().all()
+        )
         ds_races = set(
             db.execute(
                 select(DriverStanding.race_id).group_by(DriverStanding.race_id)
@@ -217,6 +223,7 @@ def validate():
             results_ok = sum(1 for r in past_yr if r.id in races_with_results)
             quali_ok = sum(1 for r in past_yr if r.id in races_with_quali)
             pits_ok = sum(1 for r in past_yr if r.id in races_with_pits)
+            laps_ok = sum(1 for r in past_yr if r.id in races_with_laps)
             sprints_count = sum(1 for r in past_yr if r.id in races_with_sprints)
 
             last_completed = max(past_yr, key=lambda r: r.round)
@@ -229,12 +236,15 @@ def validate():
             print(f"  Qualifying:  {quali_ok}/{completed}  {check_mark(quali_ok == completed)}")
             print(f"  Standings:   {check_mark(has_ds and has_cs)}")
             print(f"  Pit stops:   {pits_ok}/{completed}  {check_mark(pits_ok == completed)}")
+            print(f"  Lap times:   {laps_ok}/{completed}  {check_mark(laps_ok == completed)}")
             print(f"  Sprints:     {sprints_count} {DIM}(not all races have sprints){RESET}")
 
             # Flag current season gaps
             if results_ok < completed or quali_ok < completed or not has_ds or not has_cs:
                 has_gaps = True
             if current_year >= 2012 and pits_ok < completed:
+                has_gaps = True
+            if current_year >= 2018 and laps_ok < completed:
                 has_gaps = True
 
         # --- Completed seasons (exclude current) ---
@@ -243,7 +253,7 @@ def validate():
 
         # Race schedule coverage
         seasons_with_races = sum(1 for s in completed_seasons if races_by_year.get(s.year))
-        print(f"\nRace coverage:")
+        print("\nRace coverage:")
         complete = seasons_with_races == total_completed
         print(f"  Seasons with races: {seasons_with_races}/{total_completed}  {check_mark(complete)}")
         if not complete:
@@ -259,7 +269,7 @@ def validate():
             for r in races_by_year.get(s.year, []) if r.id in races_with_results
         )
         complete = past_with_results == total_past
-        print(f"\nRace results:")
+        print("\nRace results:")
         print(f"  Races with results: {past_with_results}/{total_past}  {check_mark(complete)}")
         if not complete:
             has_gaps = True
@@ -270,7 +280,7 @@ def validate():
         gaps = _season_gaps(completed_seasons, races_by_year, races_with_quali)
         seasons_complete = total_completed - len(gaps)
         complete = seasons_complete == total_completed
-        print(f"\nQualifying:")
+        print("\nQualifying:")
         print(f"  Complete: {seasons_complete}/{total_completed} seasons  {check_mark(complete)}")
         if not complete:
             has_gaps = True
@@ -288,7 +298,7 @@ def validate():
             sprint_counts[row[0]] = row[1]
 
         if sprint_counts:
-            print(f"\nSprints (2021+):")
+            print("\nSprints (2021+):")
             for year in sorted(sprint_counts):
                 print(f"  {year}: {sprint_counts[year]} sprint races")
 
@@ -313,7 +323,7 @@ def validate():
             else:
                 cs_missing.append(s.year)
 
-        print(f"\nStandings:")
+        print("\nStandings:")
         ds_ok = ds_count == total_completed
         cs_ok = cs_count == total_completed
         print(f"  Driver standings:      {ds_count}/{total_completed}  {check_mark(ds_ok)}")
@@ -331,11 +341,25 @@ def validate():
         pit_total = len(pit_seasons)
         pit_complete = pit_total - len(pit_gaps)
         pit_ok = pit_complete == pit_total
-        print(f"\nPit stops (2012+):")
+        print("\nPit stops (2012+):")
         print(f"  Complete: {pit_complete}/{pit_total} seasons  {check_mark(pit_ok)}")
         if not pit_ok:
             has_gaps = True
             _print_gaps(pit_gaps)
+
+        # Lap times (2018+)
+        lap_seasons = [s for s in completed_seasons if s.year >= 2018]
+        lap_gaps = _season_gaps(lap_seasons, races_by_year, races_with_laps)
+        lap_total = len(lap_seasons)
+        lap_complete = lap_total - len(lap_gaps)
+        lap_ok = lap_complete == lap_total
+        total_lap_records = db.scalar(select(func.count()).select_from(LapTime)) or 0
+        print("\nLap times (2018+):")
+        print(f"  Complete: {lap_complete}/{lap_total} seasons  {check_mark(lap_ok)}")
+        print(f"  Total lap time records: {total_lap_records:,}")
+        if not lap_ok:
+            has_gaps = True
+            _print_gaps(lap_gaps)
 
         print()
         return 0 if not has_gaps else 1
