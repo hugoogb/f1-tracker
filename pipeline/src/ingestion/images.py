@@ -548,6 +548,7 @@ class ConstructorLogoIngestor(BaseIngestor):
 
 # Curated Wikimedia Commons filenames for historic F1 team logos.
 # Each filename has been manually verified on Commons to be the correct team logo.
+# Some are from the "Mini Free Logo" series (50px) — small but recognizable.
 COMMONS_LOGOS: dict[str, str] = {
     # Recent teams (2010s-2020s)
     "toro_rosso": "Scuderia Toro Rosso 2007 Logo.png",
@@ -556,25 +557,48 @@ COMMONS_LOGOS: dict[str, str] = {
     "renault": "Renault F1 Team logo 2019.png",
     "caterham": "Caterham F1 Team logo.jpg",
     "lotus_f1": "Lotus F1 Team logo.jpg",
+    "lotus_racing": "Lotus F1 Team logo.jpg",
     "manor": "Logo Manor F1.png",
+    "marussia": "Mini Free Logo Marussia.png",
+    "virgin": "Mini Free Logo Virgin.png",
     "hrt": "HRT new logo.jpg",
     # 2000s
     "bmw_sauber": "BMW Sauber Logo.svg",
     "honda": "Honda Racing F1 Team logo.png",
+    "toyota": "Mini Free Logo Toyota.png",
+    "jordan": "Mini Free Logo Jordan v2.png",
+    "jaguar": "Mini Free Logo Jaguar v2.png",
+    "bar": "Mini Free Logo BAR v2.png",
     "prost": "Prost Grand Prix Formula One Logo.png",
     "arrows": "Arrows Grand Prix logo.png",
     "spyker": "Spyker MF1 Racing-Logo.jpg",
+    "mf1": "Spyker MF1 Racing-Logo.jpg",
     "minardi": "Logo Minardi.jpg",
+    "stewart": "Mini Free Logo Stewart.png",
+    "super_aguri": "Super Aguri logo.svg",
+    "force_india": "Mini Free Logo Force India.png",
     # 1990s
+    "benetton": "Mini Free Logo Benetton.png",
     "tyrrell": "Tyrrell Racing logo.svg",
+    "ligier": "Mini Free Logo Ligier.png",
+    "footwork": "Mini Free Logo Footwork.png",
+    "pacific": "Mini Free Logo Pacific.png",
+    "simtek": "Mini Free Logo Simtek.png",
+    "forti": "Mini Free Logo Forti.png",
+    "lola": "Mini Free Logo Lola.png",
+    "fondmetal": "Mini Free Logo Fondmetal.png",
     # 1970s-1980s
     "brawn": "Brawn GP logo.svg",
-    "super_aguri": "Super Aguri logo.svg",
+    "march": "Mini Free Logo March.png",
     "surtees": "SurteesLogo.svg",
+    "hesketh": "Hesketh.gif",
+    "penske": "Team Penske logo.svg",
     "matra": "Matra sports logo.svg",
     # Classic
     "alfa": "Alfa Romeo F1 Team Stake Logo.svg",
     "lancia": "Lancia Logo White.png",
+    "cooper": "Cooper car company.png",
+    "team_lotus": "Lotus F1 Team logo.jpg",
 }
 
 
