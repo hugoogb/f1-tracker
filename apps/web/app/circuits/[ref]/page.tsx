@@ -1,9 +1,10 @@
 import Link from 'next/link'
 import { MapPin, Calendar } from 'lucide-react'
 import { api } from '@/lib/api'
-import type { Circuit, CircuitLayout } from '@/lib/types'
+import type { Circuit, CircuitLayout, CircuitLapRecord } from '@/lib/types'
 import { CountryFlag } from '@/components/ui/country-flag'
 import { Breadcrumbs } from '@/components/layout/breadcrumbs'
+import { Card, CardContent } from '@/components/ui/card'
 import { StatCard } from '@/components/ui/stat-card'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -28,6 +29,7 @@ interface CircuitRace {
 }
 
 interface CircuitDetail extends Circuit {
+  lapRecord: CircuitLapRecord | null
   layouts: CircuitLayout[]
   races: CircuitRace[]
 }
@@ -104,6 +106,38 @@ export default async function CircuitDetailPage({ params }: { params: Promise<{ 
           </StaggerItem>
         )}
       </StaggerList>
+
+      {/* Lap Record */}
+      {circuit.lapRecord && (
+        <FadeIn>
+          <Card className="border border-purple-500/30 bg-purple-500/5">
+            <CardContent className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3">
+              <p className="text-xs font-medium tracking-wider text-purple-400 uppercase">
+                Lap Record
+              </p>
+              <div className="flex items-center gap-2">
+                {circuit.lapRecord.constructor?.color && (
+                  <span
+                    className="inline-block h-3 w-1 rounded-full"
+                    style={{ backgroundColor: circuit.lapRecord.constructor.color }}
+                  />
+                )}
+                <Link
+                  href={`/drivers/${circuit.lapRecord.driver.ref}`}
+                  className="hover:text-primary text-sm font-semibold transition-colors"
+                >
+                  {circuit.lapRecord.driver.firstName} {circuit.lapRecord.driver.lastName}
+                </Link>
+              </div>
+              <span className="font-mono text-sm text-purple-300">{circuit.lapRecord.time}</span>
+              <span className="text-muted-foreground text-xs">
+                {circuit.lapRecord.year}
+                {circuit.lapRecord.speed && ` · ${circuit.lapRecord.speed} km/h`}
+              </span>
+            </CardContent>
+          </Card>
+        </FadeIn>
+      )}
 
       {/* Race history grouped by decade */}
       <div className="space-y-6">

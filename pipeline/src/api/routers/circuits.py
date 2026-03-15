@@ -73,11 +73,23 @@ def get_circuit(ref: str, db: Session = Depends(get_db)):
 
     races = (
         db.execute(
-            select(Race).where(Race.circuit_id == circuit.id).order_by(Race.season_year.desc())
+            select(Race)
+            .where(Race.circuit_id == circuit.id)
+            .order_by(Race.season_year.desc())
         )
         .scalars()
         .all()
     )
+
+    record_race = db.execute(
+        select(Race)
+        .where(
+            Race.circuit_id == circuit.id,
+            Race.fastest_lap_time_ms.isnot(None),
+        )
+        .order_by(Race.fastest_lap_time_ms)
+        .limit(1)
+    ).scalar_one_or_none()
 
     layouts = (
         db.execute(
@@ -89,6 +101,24 @@ def get_circuit(ref: str, db: Session = Depends(get_db)):
         .all()
     )
 
+    lap_record = None
+    if record_race and record_race.fastest_lap_driver:
+        lap_record = {
+            "time": record_race.fastest_lap_time,
+            "speed": record_race.fastest_lap_speed,
+            "year": record_race.season_year,
+            "driver": {
+                "ref": record_race.fastest_lap_driver.ref,
+                "firstName": record_race.fastest_lap_driver.first_name,
+                "lastName": record_race.fastest_lap_driver.last_name,
+            },
+            "constructor": {
+                "ref": record_race.fastest_lap_constructor.ref,
+                "name": record_race.fastest_lap_constructor.name,
+                "color": record_race.fastest_lap_constructor.color,
+            } if record_race.fastest_lap_constructor else None,
+        }
+
     return {
         "id": circuit.id,
         "ref": circuit.ref,
@@ -98,13 +128,14 @@ def get_circuit(ref: str, db: Session = Depends(get_db)):
         "countryCode": circuit.country_code,
         "latitude": circuit.latitude,
         "longitude": circuit.longitude,
+        "lapRecord": lap_record,
         "layouts": [
             {
-                "layoutNumber": l.layout_number,
-                "svgId": l.svg_id,
-                "seasonsActive": l.seasons_active,
+                "layoutNumber": ly.layout_number,
+                "svgId": ly.svg_id,
+                "seasonsActive": ly.seasons_active,
             }
-            for l in layouts
+            for ly in layouts
         ],
         "races": [
             {
