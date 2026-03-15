@@ -7,6 +7,7 @@ class Settings(BaseSettings):
     fastapi_port: int = 8000
     fastapi_debug: bool = True
     fastf1_cache_dir: str = ".fastf1_cache"
+    cors_origins: str = "http://localhost:3000"
 
     model_config = {"env_file": "../../.env", "env_file_encoding": "utf-8"}
 
