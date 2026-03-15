@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { Flag, Trophy, Medal, TrendingUp, GitCompareArrows, Timer, Zap, Award } from 'lucide-react'
 import { api } from '@/lib/api'
-import type { Driver, DriverSeasonSummary } from '@/lib/types'
+import type { Driver, DriverSeasonSummary, DriverPaceResponse } from '@/lib/types'
 import { TEAM_COLORS } from '@/lib/constants'
 import { CountryFlag } from '@/components/ui/country-flag'
 import { DriverAvatar } from '@/components/ui/driver-avatar'
@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge'
 import { StatCard } from '@/components/ui/stat-card'
 import { SeasonHistoryTable } from '@/components/drivers/season-history-table'
 import { CareerPointsChart } from '@/components/charts/career-points-chart'
+import { QualiVsRaceChart } from '@/components/charts/quali-vs-race-chart'
 import { FadeIn, StaggerList, StaggerItem } from '@/components/ui/motion'
 
 export const dynamic = 'force-dynamic'
@@ -38,14 +39,16 @@ export async function generateMetadata({ params }: { params: Promise<{ ref: stri
 export default async function DriverDetailPage({ params }: { params: Promise<{ ref: string }> }) {
   const { ref } = await params
 
-  const [driver, seasonsResult] = await Promise.allSettled([
+  const [driver, seasonsResult, paceResult] = await Promise.allSettled([
     api.drivers.get(ref) as Promise<DriverDetail>,
     api.drivers.seasons(ref) as Promise<{ seasons: DriverSeasonSummary[] }>,
+    api.drivers.pace(ref) as Promise<DriverPaceResponse>,
   ])
 
   if (driver.status === 'rejected') throw new Error('Driver not found')
   const driverData = driver.value
   const seasons = seasonsResult.status === 'fulfilled' ? seasonsResult.value.seasons : []
+  const paceData = paceResult.status === 'fulfilled' ? paceResult.value : null
 
   const latestTeam = seasons[0]?.constructor
   const teamColor = latestTeam
@@ -166,6 +169,17 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ r
           Compare with...
         </Link>
       </div>
+
+      {paceData &&
+        paceData.seasons.filter((s) => s.avgQualiPosition !== null && s.avgRacePosition !== null)
+          .length >= 2 && (
+          <FadeIn>
+            <div>
+              <h2 className="mb-4">Qualifying vs Race Performance</h2>
+              <QualiVsRaceChart seasons={paceData.seasons} color={teamColor} />
+            </div>
+          </FadeIn>
+        )}
 
       <FadeIn>
         <div>

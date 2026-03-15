@@ -7,6 +7,7 @@ import type {
   DriverStanding,
   ConstructorStanding,
   StandingsProgressionResponse,
+  SeasonHeatmapResponse,
 } from '@/lib/types'
 import { CountryFlag } from '@/components/ui/country-flag'
 import { Breadcrumbs } from '@/components/layout/breadcrumbs'
@@ -24,6 +25,7 @@ import { ConstructorStandingsTable } from '@/components/standings/constructor-st
 import { PointsBarChart } from '@/components/charts/points-bar-chart'
 import { ConstructorPointsChart } from '@/components/charts/constructor-points-chart'
 import { ChampionshipProgressionChart } from '@/components/charts/championship-progression-chart'
+import { SeasonHeatmap } from '@/components/charts/season-heatmap'
 import { SeasonTabs } from './season-tabs'
 import { FadeIn } from '@/components/ui/motion'
 
@@ -58,12 +60,13 @@ export default async function SeasonDetailPage({ params }: { params: Promise<{ y
 
   if (isNaN(year)) notFound()
 
-  const [season, driverStandings, constructorStandings, progressionResult] =
+  const [season, driverStandings, constructorStandings, progressionResult, heatmapResult] =
     await Promise.allSettled([
       api.seasons.get(year) as Promise<SeasonDetailResponse>,
       api.seasons.driverStandings(year) as Promise<DriverStandingsResponse>,
       api.seasons.constructorStandings(year) as Promise<ConstructorStandingsResponse>,
       api.seasons.standingsProgression(year) as Promise<StandingsProgressionResponse>,
+      api.seasons.heatmap(year) as Promise<SeasonHeatmapResponse>,
     ])
 
   if (season.status === 'rejected') notFound()
@@ -76,6 +79,7 @@ export default async function SeasonDetailPage({ params }: { params: Promise<{ y
       ? constructorStandings.value
       : { year, standings: [] }
   const progression = progressionResult.status === 'fulfilled' ? progressionResult.value : null
+  const heatmap = heatmapResult.status === 'fulfilled' ? heatmapResult.value : null
 
   return (
     <div className="space-y-6">
@@ -118,6 +122,9 @@ export default async function SeasonDetailPage({ params }: { params: Promise<{ y
 
       <SeasonTabs
         racesContent={<RacesTable races={seasonData.races} year={year} />}
+        heatmapContent={
+          heatmap && heatmap.drivers.length > 0 ? <SeasonHeatmap data={heatmap} /> : undefined
+        }
         driverStandingsContent={
           <>
             {progression && progression.rounds.length > 1 && (

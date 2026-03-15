@@ -3,7 +3,7 @@ from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
 
 from src.db.database import get_db
-from src.db.models import Constructor, Driver, DriverStanding, Race, RaceResult
+from src.db.models import Constructor, Driver, DriverStanding, QualifyingResult, Race, RaceResult
 from src.db.queries import get_driver_by_ref, get_driver_career_stats
 
 router = APIRouter()
@@ -153,3 +153,69 @@ def get_driver_seasons(ref: str, db: Session = Depends(get_db)):
         )
 
     return {"seasons": results}
+
+
+@router.get("/drivers/{ref}/pace")
+def get_driver_pace(ref: str, db: Session = Depends(get_db)):
+    driver = get_driver_by_ref(db, ref)
+    if not driver:
+        raise HTTPException(status_code=404, detail="Driver not found")
+
+    # Average qualifying position per season
+    quali_data = db.execute(
+        select(
+            Race.season_year,
+            func.avg(QualifyingResult.position).label("avg_quali"),
+            func.count().label("quali_count"),
+        )
+        .join(Race, QualifyingResult.race_id == Race.id)
+        .where(QualifyingResult.driver_id == driver.id)
+        .group_by(Race.season_year)
+        .order_by(Race.season_year)
+    ).all()
+
+    # Average race finishing position per season (only classified finishers)
+    race_data = db.execute(
+        select(
+            Race.season_year,
+            func.avg(RaceResult.position).label("avg_race"),
+            func.count().label("race_count"),
+        )
+        .join(Race, RaceResult.race_id == Race.id)
+        .where(
+            RaceResult.driver_id == driver.id,
+            RaceResult.position.isnot(None),
+        )
+        .group_by(Race.season_year)
+        .order_by(Race.season_year)
+    ).all()
+
+    # Merge by year
+    quali_map = {row.season_year: row for row in quali_data}
+    race_map = {row.season_year: row for row in race_data}
+    all_years = sorted(set(quali_map.keys()) | set(race_map.keys()))
+
+    seasons = []
+    for year in all_years:
+        q = quali_map.get(year)
+        r = race_map.get(year)
+
+        avg_quali = round(float(q.avg_quali), 2) if q else None
+        avg_race = round(float(r.avg_race), 2) if r else None
+        delta = None
+        if avg_quali is not None and avg_race is not None:
+            delta = round(avg_race - avg_quali, 2)
+
+        seasons.append({
+            "year": year,
+            "avgQualiPosition": avg_quali,
+            "avgRacePosition": avg_race,
+            "qualiCount": q.quali_count if q else 0,
+            "raceCount": r.race_count if r else 0,
+            "delta": delta,
+        })
+
+    return {
+        "driverRef": driver.ref,
+        "seasons": seasons,
+    }

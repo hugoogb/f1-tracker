@@ -3,7 +3,7 @@ from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
 
 from src.db.database import get_db
-from src.db.models import Constructor, Race, RaceResult
+from src.db.models import Constructor, QualifyingResult, Race, RaceResult
 from src.db.queries import (
     get_constructor_by_ref,
     get_constructor_career_stats,
@@ -15,7 +15,7 @@ router = APIRouter()
 
 
 @router.get("/compare/drivers")
-def compare_drivers(d1: str, d2: str, db: Session = Depends(get_db)):
+def compare_drivers(d1: str, d2: str, teammate: bool = False, db: Session = Depends(get_db)):
     driver1 = get_driver_by_ref(db, d1)
     if not driver1:
         raise HTTPException(status_code=404, detail=f"Driver '{d1}' not found")
@@ -114,6 +114,132 @@ def compare_drivers(d1: str, d2: str, db: Session = Depends(get_db)):
             "stats": stats,
         }
 
+    # Teammate filtering: find races where both drove for same constructor
+    teammate_race_ids = None
+    teammate_seasons = []
+    if teammate:
+        tm_r1 = RaceResult.__table__.alias("tm_r1")
+        tm_r2 = RaceResult.__table__.alias("tm_r2")
+        teammate_rows = db.execute(
+            select(tm_r1.c.race_id)
+            .join(tm_r2, tm_r1.c.race_id == tm_r2.c.race_id)
+            .where(
+                tm_r1.c.driver_id == driver1.id,
+                tm_r2.c.driver_id == driver2.id,
+                tm_r1.c.constructor_id == tm_r2.c.constructor_id,
+            )
+        ).scalars().all()
+        teammate_race_ids = set(teammate_rows)
+
+    # Find teammate seasons regardless of filter
+    tm_seasons_r1 = RaceResult.__table__.alias("tms_r1")
+    tm_seasons_r2 = RaceResult.__table__.alias("tms_r2")
+    tm_season_rows = db.execute(
+        select(func.distinct(Race.season_year))
+        .select_from(tm_seasons_r1)
+        .join(tm_seasons_r2,
+              (tm_seasons_r1.c.race_id == tm_seasons_r2.c.race_id)
+              & (tm_seasons_r1.c.constructor_id == tm_seasons_r2.c.constructor_id))
+        .join(Race, tm_seasons_r1.c.race_id == Race.id)
+        .where(
+            tm_seasons_r1.c.driver_id == driver1.id,
+            tm_seasons_r2.c.driver_id == driver2.id,
+        )
+        .order_by(Race.season_year)
+    ).scalars().all()
+    teammate_seasons = list(tm_season_rows)
+
+    # Recompute head-to-head if teammate filter is applied
+    if teammate and teammate_race_ids:
+        # Filter common races to only teammate races
+        h2h_filter = r1_alias.c.race_id.in_(teammate_race_ids)
+        head_to_head = db.execute(
+            select(
+                func.count().label("total"),
+                func.sum(
+                    case(
+                        (
+                            (r1_alias.c.position.isnot(None)) & (r2_alias.c.position.is_(None)),
+                            1,
+                        ),
+                        (
+                            (r1_alias.c.position.isnot(None))
+                            & (r2_alias.c.position.isnot(None))
+                            & (r1_alias.c.position < r2_alias.c.position),
+                            1,
+                        ),
+                        else_=0,
+                    )
+                ).label("d1_wins"),
+                func.sum(
+                    case(
+                        (
+                            (r2_alias.c.position.isnot(None)) & (r1_alias.c.position.is_(None)),
+                            1,
+                        ),
+                        (
+                            (r1_alias.c.position.isnot(None))
+                            & (r2_alias.c.position.isnot(None))
+                            & (r2_alias.c.position < r1_alias.c.position),
+                            1,
+                        ),
+                        else_=0,
+                    )
+                ).label("d2_wins"),
+            )
+            .select_from(r1_alias)
+            .join(r2_alias, r1_alias.c.race_id == r2_alias.c.race_id)
+            .where(
+                r1_alias.c.driver_id == driver1.id,
+                r2_alias.c.driver_id == driver2.id,
+                h2h_filter,
+            )
+        ).one()
+
+    # Qualifying head-to-head
+    q1_alias = QualifyingResult.__table__.alias("q1")
+    q2_alias = QualifyingResult.__table__.alias("q2")
+
+    quali_filter_clause = []
+    if teammate and teammate_race_ids:
+        quali_filter_clause.append(q1_alias.c.race_id.in_(teammate_race_ids))
+
+    quali_h2h = db.execute(
+        select(
+            func.count().label("total"),
+            func.sum(
+                case(
+                    (q1_alias.c.position < q2_alias.c.position, 1),
+                    else_=0,
+                )
+            ).label("d1_wins"),
+            func.sum(
+                case(
+                    (q2_alias.c.position < q1_alias.c.position, 1),
+                    else_=0,
+                )
+            ).label("d2_wins"),
+        )
+        .select_from(q1_alias)
+        .join(q2_alias, q1_alias.c.race_id == q2_alias.c.race_id)
+        .where(
+            q1_alias.c.driver_id == driver1.id,
+            q2_alias.c.driver_id == driver2.id,
+            *quali_filter_clause,
+        )
+    ).one()
+
+    # Radar stats (rate-based)
+    def compute_radar(stats):
+        total = stats.get("total_races", 0) or 1
+        return {
+            "winRate": round(stats.get("wins", 0) / total * 100, 1),
+            "podiumRate": round(stats.get("podiums", 0) / total * 100, 1),
+            "poleRate": round(stats.get("poles", 0) / total * 100, 1),
+            "pointsPerRace": round(stats.get("total_points", 0) / total, 1),
+            "fastestLapRate": round(stats.get("fastest_laps", 0) / total * 100, 1),
+        }
+
     return {
         "driver1": format_driver(driver1, stats1),
         "driver2": format_driver(driver2, stats2),
@@ -122,6 +248,14 @@ def compare_drivers(d1: str, d2: str, db: Session = Depends(get_db)):
             "driver2Wins": int(head_to_head.d2_wins or 0),
             "totalRaces": int(head_to_head.total or 0),
         },
+        "qualifyingHeadToHead": {
+            "driver1Wins": int(quali_h2h.d1_wins or 0),
+            "driver2Wins": int(quali_h2h.d2_wins or 0),
+            "totalRaces": int(quali_h2h.total or 0),
+        },
+        "teammateSeasons": teammate_seasons,
+        "driver1Radar": compute_radar(stats1),
+        "driver2Radar": compute_radar(stats2),
         "driver1Seasons": get_driver_season_history(driver1.id),
         "driver2Seasons": get_driver_season_history(driver2.id),
     }

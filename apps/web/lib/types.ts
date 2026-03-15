@@ -275,6 +275,120 @@ export interface RecordsResponse {
   }
 }
 
+// Driver Comparison
+export interface RadarStats {
+  winRate: number
+  podiumRate: number
+  poleRate: number
+  pointsPerRace: number
+  fastestLapRate: number
+}
+
+// Race Positions (lap-by-lap)
+export interface DriverPositions {
+  driver: { id: string; ref: string; code: string | null; firstName: string; lastName: string }
+  constructor: { ref: string; name: string; color: string | null }
+  positions: Array<{ lap: number; position: number }>
+}
+
+export interface PositionsResponse {
+  raceId: string
+  totalLaps: number
+  drivers: DriverPositions[]
+}
+
+// Qualifying vs Race Pace
+export interface DriverPaceSeason {
+  year: number
+  avgQualiPosition: number | null
+  avgRacePosition: number | null
+  qualiCount: number
+  raceCount: number
+  delta: number | null
+}
+
+export interface DriverPaceResponse {
+  driverRef: string
+  seasons: DriverPaceSeason[]
+}
+
+// Season Heatmap
+export interface HeatmapDriverResult {
+  round: number
+  position: number | null
+  positionText: string
+  points: number
+  status: string | null
+}
+
+export interface HeatmapDriver {
+  driver: { ref: string; code: string | null; firstName: string; lastName: string }
+  constructor: { ref: string; name: string; color: string | null }
+  results: HeatmapDriverResult[]
+}
+
+export interface SeasonHeatmapResponse {
+  year: number
+  rounds: Array<{ round: number; name: string }>
+  drivers: HeatmapDriver[]
+}
+
+// Circuit Stats
+export interface CircuitStats {
+  circuitRef: string
+  mostWins: Array<{
+    driver: {
+      ref: string
+      code: string | null
+      firstName: string
+      lastName: string
+      countryCode: string | null
+      headshotUrl: string | null
+    }
+    count: number
+  }>
+  mostPoles: Array<{
+    driver: {
+      ref: string
+      code: string | null
+      firstName: string
+      lastName: string
+      countryCode: string | null
+      headshotUrl: string | null
+    }
+    count: number
+  }>
+  winningHistory: Array<{
+    year: number
+    round: number
+    raceName: string
+    winner: {
+      driver: { ref: string; code: string | null; firstName: string; lastName: string }
+      constructor: { ref: string; name: string; color: string | null }
+    }
+  }>
+}
+
+// Pit Stop Analysis
+export interface PitStopAnalysis {
+  raceId: string
+  totalStops: number
+  avgDuration: string | null
+  fastestStop: {
+    driver: { ref: string; code: string | null; firstName: string; lastName: string }
+    constructor: { ref: string; name: string; color: string | null } | null
+    lap: number
+    duration: string
+    stopNumber: number
+  } | null
+  teamAverages: Array<{
+    constructor: { ref: string; name: string; color: string | null }
+    avgDuration: string
+    stopCount: number
+  }>
+  distribution: Array<{ range: string; count: number }>
+}
+
 export interface StandingsProgressionDriver {
   ref: string
   code: string | null

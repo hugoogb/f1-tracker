@@ -22,6 +22,7 @@ export const api = {
     get: (year: number) => fetchApi(`/seasons/${year}`),
     driverStandings: (year: number) => fetchApi(`/seasons/${year}/standings/drivers`),
     constructorStandings: (year: number) => fetchApi(`/seasons/${year}/standings/constructors`),
+    heatmap: (year: number) => fetchApi(`/seasons/${year}/heatmap`),
     standingsProgression: (year: number, top = 10) => {
       const params = new URLSearchParams({ top: String(top) })
       return fetchApi(`/seasons/${year}/standings/progression?${params}`)
@@ -36,6 +37,7 @@ export const api = {
     nationalities: () => fetchApi<{ nationalities: string[] }>('/drivers/nationalities'),
     get: (ref: string) => fetchApi(`/drivers/${ref}`),
     seasons: (ref: string) => fetchApi(`/drivers/${ref}/seasons`),
+    pace: (ref: string) => fetchApi(`/drivers/${ref}/pace`),
   },
   constructors: {
     list: (page = 1, pageSize = 50, nationality?: string) => {
@@ -61,6 +63,7 @@ export const api = {
     },
     countries: () => fetchApi<{ countries: string[] }>('/circuits/countries'),
     get: (ref: string) => fetchApi(`/circuits/${ref}`),
+    stats: (ref: string) => fetchApi(`/circuits/${ref}/stats`),
   },
   races: {
     get: (year: number, round: number) => fetchApi(`/seasons/${year}/races/${round}`),
@@ -68,6 +71,10 @@ export const api = {
       fetchApi(`/seasons/${year}/races/${round}/qualifying`),
     sprint: (year: number, round: number) => fetchApi(`/seasons/${year}/races/${round}/sprint`),
     pitStops: (year: number, round: number) => fetchApi(`/seasons/${year}/races/${round}/pitstops`),
+    pitStopAnalysis: (year: number, round: number) =>
+      fetchApi(`/seasons/${year}/races/${round}/pitstops/analysis`),
+    positions: (year: number, round: number) =>
+      fetchApi(`/seasons/${year}/races/${round}/positions`),
     laps: (year: number, round: number) => fetchApi(`/seasons/${year}/races/${round}/laps`),
   },
   champions: () => fetchApi('/champions'),
@@ -85,8 +92,9 @@ export const api = {
     }>('/stats'),
   records: () => fetchApi('/records'),
   compare: {
-    drivers: (d1: string, d2: string) => {
+    drivers: (d1: string, d2: string, teammate?: boolean) => {
       const params = new URLSearchParams({ d1, d2 })
+      if (teammate) params.set('teammate', 'true')
       return fetchApi(`/compare/drivers?${params}`)
     },
     constructors: (c1: string, c2: string) => {

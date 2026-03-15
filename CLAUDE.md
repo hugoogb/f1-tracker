@@ -42,8 +42,8 @@ F1 analytics dashboard covering the complete history of Formula 1 (1950-present)
 
 - `components/ui/` - shadcn/ui base components (badge, button, card, table, tabs, sheet, dialog, dropdown-menu, country-flag, driver-avatar, constructor-logo, empty-state, motion, page-header, position-badge, sonner, stat-card, next-race-countdown)
 - `components/layout/` - Header, footer, mobile nav, breadcrumbs, search dialog, theme toggle, nav link
-- `components/charts/` - Recharts visualizations (points bar, constructor points, career line, comparison line, championship progression)
-- `components/races/` - Race result tables (results with position change indicators, qualifying, sprint, pit stops, lap-times-chart, tyre-strategy-chart)
+- `components/charts/` - Recharts visualizations (points bar, constructor points, career line, comparison line, championship progression, season heatmap, quali-vs-race, driver radar)
+- `components/races/` - Race result tables (results with position change indicators, qualifying, sprint, pit stops, lap-times-chart, tyre-strategy-chart, position-chart, pit-stop-analysis)
 - `components/standings/` - Driver + constructor standings tables
 - `components/drivers/` - Driver season history table
 - `components/constructors/` - Constructor season history table
@@ -62,11 +62,14 @@ F1 analytics dashboard covering the complete history of Formula 1 (1950-present)
 - `GET /api/seasons/{year}/races/{round}/qualifying` - Qualifying
 - `GET /api/seasons/{year}/races/{round}/sprint` - Sprint results (2021+)
 - `GET /api/seasons/{year}/races/{round}/pitstops` - Pit stops (2012+)
+- `GET /api/seasons/{year}/races/{round}/pitstops/analysis` - Pit stop analysis (2012+)
+- `GET /api/seasons/{year}/races/{round}/positions` - Lap-by-lap positions (2018+)
 - `GET /api/seasons/{year}/races/{round}/laps` - Lap times + tyre strategy (2018+)
 - `GET /api/drivers` - Drivers (pagination + nationality filter)
 - `GET /api/drivers/nationalities` - Distinct nationalities
 - `GET /api/drivers/{ref}` - Driver detail with career stats
 - `GET /api/drivers/{ref}/seasons` - Driver season-by-season history
+- `GET /api/drivers/{ref}/pace` - Qualifying vs race pace per season
 - `GET /api/constructors` - Constructors (pagination + nationality filter)
 - `GET /api/constructors/nationalities` - Distinct nationalities
 - `GET /api/constructors/{ref}` - Constructor detail with career stats
@@ -75,12 +78,14 @@ F1 analytics dashboard covering the complete history of Formula 1 (1950-present)
 - `GET /api/circuits` - Circuits (pagination + country filter)
 - `GET /api/circuits/countries` - Distinct countries
 - `GET /api/circuits/{ref}` - Circuit detail with race history
+- `GET /api/circuits/{ref}/stats` - Circuit performance stats (most wins, poles, history)
 - `GET /api/champions` - All championship winners
 - `GET /api/search?q={query}` - Search drivers, constructors, circuits
-- `GET /api/compare/drivers?d1={ref}&d2={ref}` - Driver comparison with head-to-head
+- `GET /api/compare/drivers?d1={ref}&d2={ref}&teammate=bool` - Driver comparison with H2H, quali H2H, radar stats
 - `GET /api/compare/constructors?c1={ref}&c2={ref}` - Constructor comparison with head-to-head
 - `GET /api/records` - All-time records (most wins, poles, podiums, championships, etc.)
 - `GET /api/seasons/{year}/standings/progression` - Round-by-round championship progression
+- `GET /api/seasons/{year}/heatmap` - Season results heatmap (driver × round grid)
 
 ## Commands
 
@@ -111,14 +116,6 @@ F1 analytics dashboard covering the complete history of Formula 1 (1950-present)
 - Client components (`'use client'`) only for interactive pieces (charts, filters, tabs, search)
 
 ## Next Phases
-
-### Phase 2 — Enhancements
-- **Season results heatmap**: Visual grid (rows=drivers, cols=rounds, cells colored by position)
-- **Race position chart**: Lap-by-lap "spaghetti" chart with team colors and inverted Y-axis
-- **Pit stop analysis**: Fastest stop highlight, avg time per team, pit time distribution chart
-- **Circuit performance stats**: Most wins/poles at each circuit, winning history chart
-- **Qualifying vs race pace**: Season-by-season avg qualifying pos vs avg race finish per driver
-- **Improved driver comparison**: Qualifying head-to-head, teammate filter, radar chart
 
 ### Phase 3 — Advanced Features
 - **Weather data** (2018+): Air/track temp, humidity, wind, rainfall from Fast-F1 — new `RaceWeather` model
