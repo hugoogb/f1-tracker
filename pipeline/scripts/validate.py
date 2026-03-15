@@ -391,14 +391,19 @@ def validate():
             select(func.count()).select_from(Race)
             .where(Race.fastest_lap_driver_id.isnot(None))
         ) or 0
+        # Count races that have fastest lap data in results (not all historical races do)
+        races_with_fl_data = db.scalar(
+            select(func.count(RaceResult.race_id.distinct()))
+            .where(RaceResult.fastest_lap_time.isnot(None))
+        ) or 0
         races_with_qs = db.scalar(
             select(func.count()).select_from(Race)
             .where(Race.best_quali_s1_ms.isnot(None))
         ) or 0
-        fl_ok = races_with_fl == past_with_results
+        fl_ok = races_with_fl == races_with_fl_data
         print("\nRace aggregates:")
         print(
-            f"  Fastest lap:        {races_with_fl}/{past_with_results}"
+            f"  Fastest lap:        {races_with_fl}/{races_with_fl_data}"
             f"  {check_mark(fl_ok)}"
         )
         print(
