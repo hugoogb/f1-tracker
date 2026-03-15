@@ -45,6 +45,7 @@ Create a `.env` file at the project root. All variables have development default
 | `FASTAPI_PORT`       | `8000`                                                           | Backend listen port                      |
 | `FASTAPI_DEBUG`      | `True`                                                           | Set to `False` in production             |
 | `FASTF1_CACHE_DIR`   | `.fastf1_cache`                                                  | Fast-F1 data cache directory             |
+| `CORS_ORIGINS`        | `http://localhost:3000`                                          | Comma-separated list of allowed CORS origins         |
 | `NEXT_PUBLIC_API_URL` | `http://localhost:8000/api`                                     | Backend API URL (used by the frontend at build time) |
 
 > **Note**: `NEXT_PUBLIC_API_URL` is baked into the Next.js bundle at build time. You must set it **before** running `pnpm build`.
@@ -96,6 +97,109 @@ pnpm dev
 ```
 
 The app will be available at `http://localhost:3000`.
+
+---
+
+## Free Deployment (Vercel + Render + Neon)
+
+Deploy the full app for **$0/month** using free tiers from three platforms:
+
+| Component  | Platform | Free Tier Limits                                      |
+| ---------- | -------- | ----------------------------------------------------- |
+| Frontend   | Vercel   | 100 GB bandwidth, 1M function invocations/month       |
+| Backend    | Render   | 750 instance hours/month, 100 GB bandwidth            |
+| Database   | Neon     | 0.5 GB storage, 100 compute-hours/month, no expiry    |
+
+> **Limitations**: Render free services spin down after 15 min of inactivity (30-60s cold start on next request). Vercel Hobby plan is for non-commercial use only.
+
+### 1. Set up the database (Neon)
+
+1. Create a free account at [neon.tech](https://neon.tech)
+2. Create a new project and copy the connection string (looks like `postgresql://user:pass@ep-xyz.region.aws.neon.tech/neondb?sslmode=require`)
+3. Run migrations from your local machine:
+
+```bash
+cd pipeline
+DATABASE_URL="<your-neon-connection-string>" uv run alembic upgrade head
+```
+
+4. Restore data from backup:
+
+```bash
+gunzip -c docker/backups/latest.sql.gz | psql "<your-neon-connection-string>" --single-transaction
+```
+
+> **Tip**: The F1 dataset is ~300 MB and fits within Neon's 0.5 GB free tier.
+
+### 2. Deploy the backend (Render)
+
+1. Push your repo to GitHub
+2. Go to [render.com](https://render.com), create a new **Web Service**, and connect your GitHub repo
+3. Configure the service:
+
+| Setting           | Value                                                          |
+| ----------------- | -------------------------------------------------------------- |
+| **Root Directory** | `pipeline`                                                    |
+| **Runtime**        | `Python`                                                      |
+| **Build Command**  | `pip install uv && uv sync`                                  |
+| **Start Command**  | `uv run uvicorn src.api.main:app --host 0.0.0.0 --port $PORT` |
+| **Instance Type**  | `Free`                                                        |
+
+4. Add environment variables in the Render dashboard:
+
+| Variable         | Value                                    |
+| ---------------- | ---------------------------------------- |
+| `DATABASE_URL`   | Your Neon connection string              |
+| `FASTAPI_DEBUG`  | `False`                                  |
+| `CORS_ORIGINS`   | `https://<your-app>.vercel.app`          |
+
+5. Deploy. Note the service URL (e.g., `https://f1-tracker-api.onrender.com`)
+
+### 3. Deploy the frontend (Vercel)
+
+1. Go to [vercel.com](https://vercel.com) and import your GitHub repo
+2. Configure the project:
+
+| Setting              | Value                                              |
+| -------------------- | -------------------------------------------------- |
+| **Root Directory**    | `apps/web`                                        |
+| **Framework Preset**  | `Next.js` (auto-detected)                         |
+| **Build Command**     | `pnpm build` (default)                            |
+| **Install Command**   | `pnpm install` (default)                          |
+
+3. Add the environment variable:
+
+| Variable              | Value                                               |
+| --------------------- | --------------------------------------------------- |
+| `NEXT_PUBLIC_API_URL` | `https://<your-render-service>.onrender.com/api`    |
+
+4. Deploy. Vercel auto-assigns a `.vercel.app` domain
+
+### 4. Update CORS
+
+After Vercel assigns your domain, go back to Render and update the `CORS_ORIGINS` env var to match:
+
+```
+CORS_ORIGINS=https://your-app.vercel.app
+```
+
+For multiple origins (e.g., custom domain + Vercel preview):
+
+```
+CORS_ORIGINS=https://your-app.vercel.app,https://your-custom-domain.com
+```
+
+### 5. Verify
+
+```bash
+# Health check
+curl https://<your-render-service>.onrender.com/api/health
+
+# Open the frontend
+open https://<your-app>.vercel.app
+```
+
+> **Note**: The first request after inactivity will be slow (~30-60s) while Render spins up the backend. Subsequent requests are fast.
 
 ---
 
@@ -252,13 +356,17 @@ When using a reverse proxy, set `NEXT_PUBLIC_API_URL` to the proxy URL (e.g., `h
 
 ## CORS Configuration
 
-The backend currently has CORS hardcoded to `http://localhost:3000` in `pipeline/src/api/main.py`:
+CORS origins are configurable via the `CORS_ORIGINS` environment variable (comma-separated):
 
-```python
-allow_origins=["http://localhost:3000"]
+```bash
+# Single origin (default)
+CORS_ORIGINS=http://localhost:3000
+
+# Multiple origins
+CORS_ORIGINS=https://your-app.vercel.app,https://your-custom-domain.com
 ```
 
-For production, update this to your actual domain(s) or make it configurable via environment variable. If using a reverse proxy where both frontend and API share the same domain, CORS may not be needed at all (same-origin requests).
+If using a reverse proxy where both frontend and API share the same domain, CORS may not be needed at all (same-origin requests).
 
 ---
 
@@ -297,7 +405,7 @@ The project includes a GitHub Actions workflow at `.github/workflows/ci.yml` tha
 
 - [ ] Set strong PostgreSQL credentials (not the dev defaults)
 - [ ] Set `FASTAPI_DEBUG=False`
-- [ ] Update CORS origins in `pipeline/src/api/main.py` to match your domain
+- [ ] Set `CORS_ORIGINS` to your frontend domain(s)
 - [ ] Set `NEXT_PUBLIC_API_URL` to your production API URL before building
 - [ ] Configure HTTPS (via reverse proxy or hosting platform)
 - [ ] Set up process management (systemd, Docker, or platform-specific)
