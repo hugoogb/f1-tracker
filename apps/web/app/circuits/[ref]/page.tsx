@@ -1,7 +1,8 @@
 import Link from 'next/link'
+import { notFound } from 'next/navigation'
 import { MapPin, Calendar } from 'lucide-react'
 import { api } from '@/lib/api'
-import type { Circuit, CircuitLayout, CircuitLapRecord } from '@/lib/types'
+import type { Circuit, CircuitLayout, CircuitLapRecord, CircuitStats } from '@/lib/types'
 import { CountryFlag } from '@/components/ui/country-flag'
 import { Breadcrumbs } from '@/components/layout/breadcrumbs'
 import { Card, CardContent } from '@/components/ui/card'
@@ -16,6 +17,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { TrackLayout } from '@/components/circuits/track-layout'
+import { CircuitStatsView } from '@/components/circuits/circuit-stats'
 import { FadeIn, StaggerList, StaggerItem } from '@/components/ui/motion'
 
 export const dynamic = 'force-dynamic'
@@ -45,7 +47,15 @@ export async function generateMetadata({ params }: { params: Promise<{ ref: stri
 
 export default async function CircuitDetailPage({ params }: { params: Promise<{ ref: string }> }) {
   const { ref } = await params
-  const circuit = (await api.circuits.get(ref)) as CircuitDetail
+
+  const [circuitResult, statsResult] = await Promise.allSettled([
+    api.circuits.get(ref) as Promise<CircuitDetail>,
+    api.circuits.stats(ref) as Promise<CircuitStats>,
+  ])
+
+  if (circuitResult.status === 'rejected') notFound()
+  const circuit = circuitResult.value
+  const circuitStats = statsResult.status === 'fulfilled' ? statsResult.value : null
 
   const firstRaceYear =
     circuit.races.length > 0 ? circuit.races[circuit.races.length - 1]?.seasonYear : null
@@ -136,6 +146,17 @@ export default async function CircuitDetailPage({ params }: { params: Promise<{ 
               </span>
             </CardContent>
           </Card>
+        </FadeIn>
+      )}
+
+      {/* Circuit Performance Stats */}
+      {circuitStats && (circuitStats.mostWins.length > 0 || circuitStats.mostPoles.length > 0) && (
+        <FadeIn>
+          <div className="space-y-4">
+            <h2>Circuit Stats</h2>
+            <div className="accent-line" />
+            <CircuitStatsView stats={circuitStats} />
+          </div>
         </FadeIn>
       )}
 

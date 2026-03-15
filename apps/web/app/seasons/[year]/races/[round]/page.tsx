@@ -9,6 +9,8 @@ import type {
   LapsResponse,
   FastestLap,
   FastestSectors,
+  PitStopAnalysis,
+  PositionsResponse,
 } from '@/lib/types'
 import { TEAM_COLORS } from '@/lib/constants'
 import { CountryFlag } from '@/components/ui/country-flag'
@@ -19,8 +21,10 @@ import { ResultsTable } from '@/components/races/results-table'
 import { QualifyingTable } from '@/components/races/qualifying-table'
 import { SprintTable } from '@/components/races/sprint-table'
 import { PitStopsTable } from '@/components/races/pit-stops-table'
+import { PitStopAnalysisView } from '@/components/races/pit-stop-analysis'
 import { LapTimesChart } from '@/components/races/lap-times-chart'
 import { TyreStrategyChart } from '@/components/races/tyre-strategy-chart'
+import { PositionChart } from '@/components/races/position-chart'
 import { RaceTabs } from './race-tabs'
 import Link from 'next/link'
 import { FadeIn, PodiumReveal } from '@/components/ui/motion'
@@ -85,23 +89,38 @@ export default async function RaceDetailPage({
   let qualifying: QualifyingResponse | null = null
   let sprint: SprintResponse | null = null
   let pitStops: PitStopsResponse | null = null
+  let pitStopAnalysis: PitStopAnalysis | null = null
+  let positions: PositionsResponse | null = null
   let laps: LapsResponse | null = null
 
   try {
-    const [raceResult, qualifyingResult, sprintResult, pitStopsResult, lapsResult] =
-      await Promise.allSettled([
-        api.races.get(year, round) as Promise<RaceDetailResponse>,
-        api.races.qualifying(year, round) as Promise<QualifyingResponse>,
-        year >= 2021
-          ? (api.races.sprint(year, round) as Promise<SprintResponse>)
-          : Promise.reject('not applicable'),
-        year >= 2012
-          ? (api.races.pitStops(year, round) as Promise<PitStopsResponse>)
-          : Promise.reject('not applicable'),
-        year >= 2018
-          ? (api.races.laps(year, round) as Promise<LapsResponse>)
-          : Promise.reject('not applicable'),
-      ])
+    const [
+      raceResult,
+      qualifyingResult,
+      sprintResult,
+      pitStopsResult,
+      pitStopAnalysisResult,
+      positionsResult,
+      lapsResult,
+    ] = await Promise.allSettled([
+      api.races.get(year, round) as Promise<RaceDetailResponse>,
+      api.races.qualifying(year, round) as Promise<QualifyingResponse>,
+      year >= 2021
+        ? (api.races.sprint(year, round) as Promise<SprintResponse>)
+        : Promise.reject('not applicable'),
+      year >= 2012
+        ? (api.races.pitStops(year, round) as Promise<PitStopsResponse>)
+        : Promise.reject('not applicable'),
+      year >= 2012
+        ? (api.races.pitStopAnalysis(year, round) as Promise<PitStopAnalysis>)
+        : Promise.reject('not applicable'),
+      year >= 2018
+        ? (api.races.positions(year, round) as Promise<PositionsResponse>)
+        : Promise.reject('not applicable'),
+      year >= 2018
+        ? (api.races.laps(year, round) as Promise<LapsResponse>)
+        : Promise.reject('not applicable'),
+    ])
 
     if (raceResult.status === 'rejected') notFound()
     race = raceResult.value
@@ -114,6 +133,15 @@ export default async function RaceDetailPage({
     }
     if (pitStopsResult.status === 'fulfilled' && pitStopsResult.value.pitStops?.length > 0) {
       pitStops = pitStopsResult.value
+    }
+    if (
+      pitStopAnalysisResult.status === 'fulfilled' &&
+      pitStopAnalysisResult.value.totalStops > 0
+    ) {
+      pitStopAnalysis = pitStopAnalysisResult.value
+    }
+    if (positionsResult.status === 'fulfilled' && positionsResult.value.drivers?.length > 0) {
+      positions = positionsResult.value
     }
     if (lapsResult.status === 'fulfilled' && lapsResult.value.drivers?.length > 0) {
       laps = lapsResult.value
@@ -273,7 +301,13 @@ export default async function RaceDetailPage({
         }
         pitStopsContent={
           pitStops ? (
-            <PitStopsTable pitStops={pitStops.pitStops} />
+            <div className="space-y-8">
+              {pitStopAnalysis && <PitStopAnalysisView analysis={pitStopAnalysis} />}
+              <div>
+                <h3 className="mb-3 text-sm font-medium">All Pit Stops</h3>
+                <PitStopsTable pitStops={pitStops.pitStops} />
+              </div>
+            </div>
           ) : year >= 2012 ? (
             <p className="text-muted-foreground text-sm">
               No pit stop data available for this race.
@@ -283,6 +317,12 @@ export default async function RaceDetailPage({
         lapsContent={
           laps ? (
             <div className="space-y-8">
+              {positions && (
+                <div>
+                  <h3 className="mb-3 text-sm font-medium">Race Positions</h3>
+                  <PositionChart drivers={positions.drivers} totalLaps={positions.totalLaps} />
+                </div>
+              )}
               <div>
                 <h3 className="mb-3 text-sm font-medium">Lap Times</h3>
                 <LapTimesChart drivers={laps.drivers} />

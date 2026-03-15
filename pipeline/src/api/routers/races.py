@@ -358,3 +358,241 @@ def get_laps(year: int, round: int, db: Session = Depends(get_db)):
         "raceId": race.id,
         "drivers": drivers_data,
     }
+
+
+@router.get("/seasons/{year}/races/{round}/positions")
+def get_positions(year: int, round: int, db: Session = Depends(get_db)):
+    race = db.execute(
+        select(Race).where(Race.season_year == year, Race.round == round)
+    ).scalar_one_or_none()
+    if not race:
+        raise HTTPException(status_code=404, detail="Race not found")
+
+    laps = (
+        db.execute(
+            select(LapTime)
+            .where(LapTime.race_id == race.id)
+            .order_by(LapTime.driver_id, LapTime.lap_number)
+        )
+        .scalars()
+        .all()
+    )
+
+    if not laps:
+        return {"raceId": race.id, "totalLaps": 0, "drivers": []}
+
+    # Get race results for grid positions and constructor info
+    results = (
+        db.execute(select(RaceResult).where(RaceResult.race_id == race.id))
+        .scalars()
+        .all()
+    )
+    driver_grid = {r.driver_id: r.grid for r in results}
+    driver_constructor = {r.driver_id: r.constructor for r in results}
+    driver_final_pos = {r.driver_id: r.position for r in results}
+
+    # Group laps by driver and compute cumulative times
+    by_driver: dict[int, list[LapTime]] = defaultdict(list)
+    for lap in laps:
+        by_driver[lap.driver_id].append(lap)
+
+    driver_cumulative: dict[int, dict[int, int]] = {}
+    for driver_id, driver_laps in by_driver.items():
+        cumulative = {}
+        total = 0
+        for lap in sorted(driver_laps, key=lambda lt: lt.lap_number):
+            if lap.time_millis is None:
+                break
+            total += lap.time_millis
+            cumulative[lap.lap_number] = total
+        if cumulative:
+            driver_cumulative[driver_id] = cumulative
+
+    if not driver_cumulative:
+        return {"raceId": race.id, "totalLaps": 0, "drivers": []}
+
+    max_lap = max(
+        max(cum.keys()) for cum in driver_cumulative.values()
+    )
+
+    # For each lap, rank drivers by cumulative time
+    positions_by_driver: dict[int, dict[int, int]] = defaultdict(dict)
+    for lap_num in range(1, max_lap + 1):
+        drivers_at_lap = []
+        for driver_id, cum in driver_cumulative.items():
+            if lap_num in cum:
+                drivers_at_lap.append((driver_id, cum[lap_num]))
+        drivers_at_lap.sort(key=lambda x: x[1])
+        for pos, (driver_id, _) in enumerate(drivers_at_lap, 1):
+            positions_by_driver[driver_id][lap_num] = pos
+
+    # Add grid position as lap 0
+    for driver_id in driver_cumulative:
+        grid = driver_grid.get(driver_id)
+        if grid:
+            positions_by_driver[driver_id][0] = grid
+
+    # Build response sorted by finishing position
+    sorted_driver_ids = sorted(
+        driver_cumulative.keys(),
+        key=lambda d: driver_final_pos.get(d) or 999,
+    )
+
+    drivers_data = []
+    for driver_id in sorted_driver_ids:
+        driver_laps = by_driver[driver_id]
+        driver = driver_laps[0].driver
+        constructor = driver_constructor.get(driver_id)
+        positions = positions_by_driver.get(driver_id, {})
+
+        drivers_data.append({
+            "driver": {
+                "id": driver.id,
+                "ref": driver.ref,
+                "code": driver.code,
+                "firstName": driver.first_name,
+                "lastName": driver.last_name,
+            },
+            "constructor": {
+                "ref": constructor.ref if constructor else None,
+                "name": constructor.name if constructor else None,
+                "color": constructor.color if constructor else None,
+            },
+            "positions": [
+                {"lap": lap_num, "position": pos}
+                for lap_num, pos in sorted(positions.items())
+            ],
+        })
+
+    return {
+        "raceId": race.id,
+        "totalLaps": max_lap,
+        "drivers": drivers_data,
+    }
+
+
+@router.get("/seasons/{year}/races/{round}/pitstops/analysis")
+def get_pitstops_analysis(year: int, round: int, db: Session = Depends(get_db)):
+    race = db.execute(
+        select(Race).where(Race.season_year == year, Race.round == round)
+    ).scalar_one_or_none()
+    if not race:
+        raise HTTPException(status_code=404, detail="Race not found")
+
+    stops = (
+        db.execute(
+            select(PitStop)
+            .where(PitStop.race_id == race.id)
+            .order_by(PitStop.duration_ms)
+        )
+        .scalars()
+        .all()
+    )
+
+    if not stops:
+        return {
+            "raceId": race.id,
+            "totalStops": 0,
+            "avgDuration": None,
+            "fastestStop": None,
+            "teamAverages": [],
+            "distribution": [],
+        }
+
+    # Build driver -> constructor map from race results
+    results = (
+        db.execute(select(RaceResult).where(RaceResult.race_id == race.id))
+        .scalars()
+        .all()
+    )
+    driver_constructor = {r.driver_id: r.constructor for r in results}
+
+    # Filter stops with valid duration
+    valid_stops = [s for s in stops if s.duration_ms is not None]
+    if not valid_stops:
+        return {
+            "raceId": race.id,
+            "totalStops": len(stops),
+            "avgDuration": None,
+            "fastestStop": None,
+            "teamAverages": [],
+            "distribution": [],
+        }
+
+    # Fastest stop
+    fastest = valid_stops[0]  # Already sorted by duration_ms
+    fastest_constructor = driver_constructor.get(fastest.driver_id)
+
+    # Average duration
+    total_duration = sum(s.duration_ms for s in valid_stops)
+    avg_duration = total_duration / len(valid_stops)
+
+    # Team averages
+    team_totals: dict[int, dict] = {}
+    for s in valid_stops:
+        constructor = driver_constructor.get(s.driver_id)
+        if not constructor:
+            continue
+        if constructor.id not in team_totals:
+            team_totals[constructor.id] = {
+                "constructor": constructor,
+                "total_ms": 0,
+                "count": 0,
+            }
+        team_totals[constructor.id]["total_ms"] += s.duration_ms
+        team_totals[constructor.id]["count"] += 1
+
+    team_averages = sorted(
+        [
+            {
+                "constructor": {
+                    "ref": t["constructor"].ref,
+                    "name": t["constructor"].name,
+                    "color": t["constructor"].color,
+                },
+                "avgDuration": f"{t['total_ms'] / t['count'] / 1000:.3f}",
+                "stopCount": t["count"],
+            }
+            for t in team_totals.values()
+        ],
+        key=lambda x: float(x["avgDuration"]),
+    )
+
+    # Distribution buckets
+    buckets = [
+        ("<2.0s", 0, 2000),
+        ("2.0-2.5s", 2000, 2500),
+        ("2.5-3.0s", 2500, 3000),
+        ("3.0-4.0s", 3000, 4000),
+        ("4.0-5.0s", 4000, 5000),
+        ("5.0s+", 5000, float("inf")),
+    ]
+    distribution = []
+    for label, low, high in buckets:
+        count = sum(1 for s in valid_stops if low <= s.duration_ms < high)
+        if count > 0:
+            distribution.append({"range": label, "count": count})
+
+    return {
+        "raceId": race.id,
+        "totalStops": len(stops),
+        "avgDuration": f"{avg_duration / 1000:.3f}",
+        "fastestStop": {
+            "driver": {
+                "ref": fastest.driver.ref,
+                "code": fastest.driver.code,
+                "firstName": fastest.driver.first_name,
+                "lastName": fastest.driver.last_name,
+            },
+            "constructor": {
+                "ref": fastest_constructor.ref,
+                "name": fastest_constructor.name,
+                "color": fastest_constructor.color,
+            } if fastest_constructor else None,
+            "lap": fastest.lap,
+            "duration": f"{fastest.duration_ms / 1000:.3f}",
+            "stopNumber": fastest.stop_number,
+        },
+        "teamAverages": team_averages,
+        "distribution": distribution,
+    }
