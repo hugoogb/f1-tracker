@@ -43,8 +43,10 @@ export const api = {
     get: (ref: string) => fetchApi(`/constructors/${ref}`),
     seasons: (ref: string) => fetchApi(`/constructors/${ref}/seasons`),
     roster: (ref: string, year?: number) => {
-      const params = year ? `?year=${year}` : ''
-      return fetchApi(`/constructors/${ref}/roster${params}`)
+      const params = new URLSearchParams()
+      if (year) params.set('year', String(year))
+      const qs = params.toString()
+      return fetchApi(`/constructors/${ref}/roster${qs ? `?${qs}` : ''}`)
     },
   },
   circuits: {
@@ -65,7 +67,10 @@ export const api = {
     laps: (year: number, round: number) => fetchApi(`/seasons/${year}/races/${round}/laps`),
   },
   champions: () => fetchApi('/champions'),
-  search: (query: string) => fetchApi(`/search?q=${encodeURIComponent(query)}`),
+  search: (query: string) => {
+    const params = new URLSearchParams({ q: query })
+    return fetchApi(`/search?${params}`)
+  },
   stats: () =>
     fetchApi<{
       seasons: number
@@ -75,6 +80,9 @@ export const api = {
       circuits: number
     }>('/stats'),
   compare: {
-    drivers: (d1: string, d2: string) => fetchApi(`/compare/drivers?d1=${d1}&d2=${d2}`),
+    drivers: (d1: string, d2: string) => {
+      const params = new URLSearchParams({ d1, d2 })
+      return fetchApi(`/compare/drivers?${params}`)
+    },
   },
 }
