@@ -6,17 +6,20 @@ A web-based Formula 1 analytics dashboard that covers the entire history of F1 (
 
 - **Season Overview**: World Champions (driver + constructor) for every season since 1950
 - **Driver Profiles**: Career stats including wins, podiums, poles, championships, points progression
-- **Constructor Profiles**: Team history, championship wins, driver roster by year
-- **Race Results**: Browse any race result from any season with detailed breakdowns
-- **Standings**: Driver and constructor standings for any selected season
-- **Charts**: Points progression, wins analysis, and more interactive visualizations
-- **Search**: Find any driver, team, or season instantly
+- **Constructor Profiles**: Team history, championship wins, driver roster by year, team colors and logos
+- **Race Results**: Full race results, qualifying, sprint, and pit stop data with interactive tabs
+- **Lap Times & Strategy**: Lap-by-lap times and tyre strategy visualizations (2018+)
+- **Circuit Pages**: Circuit details with race history, interactive world map, and track layouts
+- **Standings**: Driver and constructor standings with interactive charts
+- **Driver Comparison**: Head-to-head driver comparison with career overlays
+- **Search**: Find any driver, team, or circuit instantly
+- **Dark Mode**: F1-themed dark-first UI with team colors and smooth animations
 
 ## Tech Stack
 
 | Layer | Technology |
 |-------|-----------|
-| Frontend | Next.js 15, TypeScript, Tailwind CSS 4, shadcn/ui, Recharts |
+| Frontend | Next.js 16, TypeScript, Tailwind CSS 4, shadcn/ui, Recharts |
 | Backend | Python 3.12, FastAPI, SQLAlchemy 2, Alembic |
 | Database | PostgreSQL 16 |
 | Data Source | Fast-F1 (historical F1 data from 1950+, telemetry from 2018+) |
