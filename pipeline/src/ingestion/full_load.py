@@ -7,7 +7,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from src.db.database import SessionLocal
-from src.db.models import Driver, QualifyingResult, RaceResult
+from src.db.models import Driver, QualifyingResult, Race, RaceResult
 from src.ingestion.circuit_layouts import CircuitLayoutIngestor
 from src.ingestion.drivers import ConstructorIngestor, DriverIngestor, StatusIngestor
 from src.ingestion.images import (
@@ -19,6 +19,7 @@ from src.ingestion.images import (
 )
 from src.ingestion.lap_times import LapTimeIngestor
 from src.ingestion.pit_stops import PitStopIngestor
+from src.ingestion.qualifying_sectors import QualifyingSectorIngestor
 from src.ingestion.races import RaceIngestor
 from src.ingestion.results import QualifyingIngestor, RaceResultIngestor, SprintResultIngestor
 from src.ingestion.seasons import CircuitIngestor, SeasonIngestor
@@ -120,6 +121,85 @@ def refresh_materialized_views(db: Session) -> None:
 
     db.commit()
     logger.info("Materialized views created")
+
+
+def _parse_lap_time_ms(time_str: str) -> int | None:
+    """Parse a lap time string like '1:23.456' to milliseconds."""
+    try:
+        if ":" in time_str:
+            mins, secs = time_str.split(":", 1)
+            return int((int(mins) * 60 + float(secs)) * 1000)
+        return int(float(time_str) * 1000)
+    except (ValueError, TypeError):
+        return None
+
+
+def compute_race_aggregates(db: Session) -> None:
+    """Compute and store fastest lap + fastest qualifying sectors on Race rows."""
+    logger.info("Computing race aggregates (fastest lap + qualifying sectors)...")
+
+    races = db.query(Race).all()
+    updated = 0
+
+    for race in races:
+        changed = False
+
+        # --- Fastest lap ---
+        results = (
+            db.query(RaceResult)
+            .filter(RaceResult.race_id == race.id)
+            .all()
+        )
+        best_ms = None
+        best_result = None
+        for r in results:
+            if r.fastest_lap_time:
+                ms = _parse_lap_time_ms(r.fastest_lap_time)
+                if ms is not None and (best_ms is None or ms < best_ms):
+                    best_ms = ms
+                    best_result = r
+
+        if best_result:
+            race.fastest_lap_driver_id = best_result.driver_id
+            race.fastest_lap_constructor_id = best_result.constructor_id
+            race.fastest_lap_number = best_result.fastest_lap
+            race.fastest_lap_time = best_result.fastest_lap_time
+            race.fastest_lap_time_ms = best_ms
+            race.fastest_lap_speed = best_result.fastest_lap_speed
+            changed = True
+
+        # --- Fastest qualifying sectors ---
+        qualis = (
+            db.query(QualifyingResult)
+            .filter(QualifyingResult.race_id == race.id)
+            .all()
+        )
+        for sector_idx, (s1_attr, s2_attr, s3_attr) in enumerate([
+            ("q1_s1_ms", "q2_s1_ms", "q3_s1_ms"),
+            ("q1_s2_ms", "q2_s2_ms", "q3_s2_ms"),
+            ("q1_s3_ms", "q2_s3_ms", "q3_s3_ms"),
+        ], start=1):
+            best_sector_ms = None
+            best_sector_driver_id = None
+            for q in qualis:
+                for attr in (s1_attr, s2_attr, s3_attr):
+                    val = getattr(q, attr, None)
+                    if val is not None and (
+                        best_sector_ms is None or val < best_sector_ms
+                    ):
+                        best_sector_ms = val
+                        best_sector_driver_id = q.driver_id
+
+            if best_sector_driver_id:
+                setattr(race, f"best_quali_s{sector_idx}_driver_id", best_sector_driver_id)
+                setattr(race, f"best_quali_s{sector_idx}_ms", best_sector_ms)
+                changed = True
+
+        if changed:
+            updated += 1
+
+    db.commit()
+    logger.info(f"Updated aggregates for {updated} races")
 
 
 def backfill_qualifying(db: Session) -> None:
@@ -238,6 +318,10 @@ def run_full_load(
             logger.info("\n--- Lap times ---")
             LapTimeIngestor(db).ingest(year_range=year_range)
 
+        if _should_run(targets, "qualifying-sectors"):
+            logger.info("\n--- Qualifying sectors ---")
+            QualifyingSectorIngestor(db).ingest(year_range=year_range)
+
         if _should_run(targets, "backfill-qualifying"):
             logger.info("\n--- Backfill qualifying ---")
             backfill_qualifying(db)
@@ -245,6 +329,7 @@ def run_full_load(
         if _should_run(targets, "postprocess"):
             logger.info("\n--- Post-processing ---")
             backfill_driver_codes(db)
+            compute_race_aggregates(db)
             refresh_materialized_views(db)
 
         elapsed = time.time() - start

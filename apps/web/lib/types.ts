@@ -71,6 +71,12 @@ export interface RaceResult {
   status: string
 }
 
+export interface QualifyingSectorTimes {
+  s1Ms: number | null
+  s2Ms: number | null
+  s3Ms: number | null
+}
+
 export interface QualifyingResult {
   id: string
   raceId: string
@@ -80,6 +86,44 @@ export interface QualifyingResult {
   q1: string | null
   q2: string | null
   q3: string | null
+  sectors: {
+    q1: QualifyingSectorTimes
+    q2: QualifyingSectorTimes
+    q3: QualifyingSectorTimes
+  } | null
+}
+
+export interface FastestLap {
+  lapNumber: number | null
+  time: string | null
+  speed: string | null
+  driver: {
+    ref: string
+    code: string | null
+    firstName: string
+    lastName: string
+  }
+  constructor: {
+    ref: string
+    name: string
+    color: string | null
+  } | null
+}
+
+export interface FastestSectorEntry {
+  timeMs: number
+  driver: {
+    ref: string
+    code: string | null
+    firstName: string
+    lastName: string
+  }
+}
+
+export interface FastestSectors {
+  s1: FastestSectorEntry | null
+  s2: FastestSectorEntry | null
+  s3: FastestSectorEntry | null
 }
 
 export interface DriverStanding {

@@ -20,11 +20,32 @@ def get_race(year: int, round: int, db: Session = Depends(get_db)):
 
     results = (
         db.execute(
-            select(RaceResult).where(RaceResult.race_id == race.id).order_by(RaceResult.position)
+            select(RaceResult)
+            .where(RaceResult.race_id == race.id)
+            .order_by(RaceResult.position)
         )
         .scalars()
         .all()
     )
+
+    fastest_lap_data = None
+    if race.fastest_lap_driver:
+        fastest_lap_data = {
+            "lapNumber": race.fastest_lap_number,
+            "time": race.fastest_lap_time,
+            "speed": race.fastest_lap_speed,
+            "driver": {
+                "ref": race.fastest_lap_driver.ref,
+                "code": race.fastest_lap_driver.code,
+                "firstName": race.fastest_lap_driver.first_name,
+                "lastName": race.fastest_lap_driver.last_name,
+            },
+            "constructor": {
+                "ref": race.fastest_lap_constructor.ref,
+                "name": race.fastest_lap_constructor.name,
+                "color": race.fastest_lap_constructor.color,
+            } if race.fastest_lap_constructor else None,
+        }
 
     return {
         "id": race.id,
@@ -39,6 +60,7 @@ def get_race(year: int, round: int, db: Session = Depends(get_db)):
             "country": race.circuit.country,
             "countryCode": race.circuit.country_code,
         },
+        "fastestLap": fastest_lap_data,
         "results": [
             {
                 "position": r.position,
@@ -55,7 +77,10 @@ def get_race(year: int, round: int, db: Session = Depends(get_db)):
                     "code": r.driver.code,
                     "firstName": r.driver.first_name,
                     "lastName": r.driver.last_name,
-                    "headshotUrl": f"/headshots/{r.driver.ref}.png" if r.driver.has_headshot else None,
+                    "headshotUrl": (
+                        f"/headshots/{r.driver.ref}.png"
+                        if r.driver.has_headshot else None
+                    ),
                 },
                 "constructor": {
                     "id": r.constructor.id,
@@ -87,21 +112,63 @@ def get_qualifying(year: int, round: int, db: Session = Depends(get_db)):
         .all()
     )
 
+    def _sector_data(driver, time_ms):
+        if not driver or not time_ms:
+            return None
+        return {
+            "timeMs": time_ms,
+            "driver": {
+                "ref": driver.ref,
+                "code": driver.code,
+                "firstName": driver.first_name,
+                "lastName": driver.last_name,
+            },
+        }
+
+    fastest_sectors = None
+    if race.best_quali_s1_ms is not None:
+        fastest_sectors = {
+            "s1": _sector_data(race.best_quali_s1_driver, race.best_quali_s1_ms),
+            "s2": _sector_data(race.best_quali_s2_driver, race.best_quali_s2_ms),
+            "s3": _sector_data(race.best_quali_s3_driver, race.best_quali_s3_ms),
+        }
+
     return {
         "raceId": race.id,
+        "fastestSectors": fastest_sectors,
         "results": [
             {
                 "position": r.position,
                 "q1": r.q1,
                 "q2": r.q2,
                 "q3": r.q3,
+                "sectors": {
+                    "q1": {
+                        "s1Ms": r.q1_s1_ms,
+                        "s2Ms": r.q1_s2_ms,
+                        "s3Ms": r.q1_s3_ms,
+                    },
+                    "q2": {
+                        "s1Ms": r.q2_s1_ms,
+                        "s2Ms": r.q2_s2_ms,
+                        "s3Ms": r.q2_s3_ms,
+                    },
+                    "q3": {
+                        "s1Ms": r.q3_s1_ms,
+                        "s2Ms": r.q3_s2_ms,
+                        "s3Ms": r.q3_s3_ms,
+                    },
+                } if r.q1_s1_ms is not None else None,
                 "driver": {
                     "id": r.driver.id,
                     "ref": r.driver.ref,
                     "code": r.driver.code,
                     "firstName": r.driver.first_name,
                     "lastName": r.driver.last_name,
-                    "headshotUrl": f"/headshots/{r.driver.ref}.png" if r.driver.has_headshot else None,
+                    "headshotUrl": (
+                        f"/headshots/{r.driver.ref}.png"
+                        if r.driver.has_headshot else None
+                    ),
                 },
                 "constructor": {
                     "id": r.constructor.id,
@@ -150,7 +217,10 @@ def get_sprint(year: int, round: int, db: Session = Depends(get_db)):
                     "code": r.driver.code,
                     "firstName": r.driver.first_name,
                     "lastName": r.driver.last_name,
-                    "headshotUrl": f"/headshots/{r.driver.ref}.png" if r.driver.has_headshot else None,
+                    "headshotUrl": (
+                        f"/headshots/{r.driver.ref}.png"
+                        if r.driver.has_headshot else None
+                    ),
                 },
                 "constructor": {
                     "id": r.constructor.id,
@@ -196,7 +266,10 @@ def get_pitstops(year: int, round: int, db: Session = Depends(get_db)):
                     "code": s.driver.code,
                     "firstName": s.driver.first_name,
                     "lastName": s.driver.last_name,
-                    "headshotUrl": f"/headshots/{s.driver.ref}.png" if s.driver.has_headshot else None,
+                    "headshotUrl": (
+                        f"/headshots/{s.driver.ref}.png"
+                        if s.driver.has_headshot else None
+                    ),
                 },
             }
             for s in stops

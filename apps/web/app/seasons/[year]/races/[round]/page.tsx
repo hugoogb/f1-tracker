@@ -7,6 +7,8 @@ import type {
   SprintResult,
   PitStop,
   LapsResponse,
+  FastestLap,
+  FastestSectors,
 } from '@/lib/types'
 import { TEAM_COLORS } from '@/lib/constants'
 import { CountryFlag } from '@/components/ui/country-flag'
@@ -26,11 +28,13 @@ import { FadeIn, PodiumReveal } from '@/components/ui/motion'
 export const dynamic = 'force-dynamic'
 
 interface RaceDetailResponse extends Race {
+  fastestLap: FastestLap | null
   results: RaceResult[]
 }
 
 interface QualifyingResponse {
   raceId: string
+  fastestSectors: FastestSectors | null
   results: QualifyingResult[]
 }
 
@@ -211,11 +215,49 @@ export default async function RaceDetailPage({
         </PodiumReveal>
       )}
 
+      {/* Fastest Lap */}
+      {race.fastestLap && (
+        <FadeIn>
+          <Card className="border border-purple-500/30 bg-purple-500/5">
+            <CardContent className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3">
+              <p className="text-xs font-medium tracking-wider text-purple-400 uppercase">
+                Fastest Lap
+              </p>
+              <div className="flex items-center gap-2">
+                {race.fastestLap.constructor?.color && (
+                  <span
+                    className="inline-block h-3 w-1 rounded-full"
+                    style={{ backgroundColor: race.fastestLap.constructor.color }}
+                  />
+                )}
+                <Link
+                  href={`/drivers/${race.fastestLap.driver.ref}`}
+                  className="hover:text-primary text-sm font-semibold transition-colors"
+                >
+                  {race.fastestLap.driver.firstName} {race.fastestLap.driver.lastName}
+                </Link>
+              </div>
+              <span className="font-mono text-sm text-purple-300">{race.fastestLap.time}</span>
+              <span className="text-muted-foreground text-xs">
+                {race.fastestLap.lapNumber && `Lap ${race.fastestLap.lapNumber}`}
+                {race.fastestLap.lapNumber && race.fastestLap.speed && ' · '}
+                {race.fastestLap.speed && `${race.fastestLap.speed} km/h`}
+              </span>
+            </CardContent>
+          </Card>
+        </FadeIn>
+      )}
+
       <RaceTabs
-        raceResultsContent={<ResultsTable results={race.results} />}
+        raceResultsContent={
+          <ResultsTable results={race.results} fastestLapDriverRef={race.fastestLap?.driver.ref} />
+        }
         qualifyingContent={
           qualifying ? (
-            <QualifyingTable results={qualifying.results} />
+            <QualifyingTable
+              results={qualifying.results}
+              fastestSectors={qualifying.fastestSectors}
+            />
           ) : (
             <p className="text-muted-foreground text-sm">
               No qualifying data available for this race.
