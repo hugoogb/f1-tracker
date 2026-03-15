@@ -161,10 +161,10 @@ def _fetch_json(url: str, timeout: int = 30) -> list | dict | None:
         return None
 
 
-def _download_file(url: str, dest: pathlib.Path) -> bool:
+def _download_file(url: str, dest: pathlib.Path, ua: str = "F1Tracker/1.0") -> bool:
     """Download a file, returning True on success."""
     try:
-        req = urllib.request.Request(url, headers={"User-Agent": "F1Tracker/1.0"})
+        req = urllib.request.Request(url, headers={"User-Agent": ua})
         with urllib.request.urlopen(req, timeout=30) as resp:
             dest.write_bytes(resp.read())
         return True
@@ -176,23 +176,30 @@ COMMONS_API = "https://commons.wikimedia.org/w/api.php"
 WIKIMEDIA_UA = "F1TrackerBot/1.0 (https://github.com/hugoogb/f1-tracker)"
 
 
-def _wikimedia_thumb_url(file_path_url: str, width: int = 200) -> str | None:
+def _wikimedia_thumb_url(file_path_url_or_filename: str, width: int = 200) -> str | None:
     """Get a thumbnail URL via the Commons API.
 
-    Wikimedia rate-limits direct/Special:FilePath URLs for bulk access.
-    The API endpoint is the recommended way to get thumbnails.
+    Accepts either a Special:FilePath URL or a plain Commons filename.
     Returns None if the file is not found.
     """
-    filename_encoded = file_path_url.rsplit("/", 1)[-1]
-    filename = urllib.parse.unquote(filename_encoded).replace(" ", "_")
+    if "Special:FilePath" in file_path_url_or_filename:
+        encoded = file_path_url_or_filename.rsplit("/", 1)[-1]
+        filename = urllib.parse.unquote(encoded).replace(" ", "_")
+    else:
+        filename = file_path_url_or_filename.replace(" ", "_")
 
-    api_url = (
-        f"{COMMONS_API}?action=query"
-        f"&titles=File:{urllib.parse.quote(filename)}"
-        f"&prop=imageinfo&iiprop=url&iiurlwidth={width}&format=json"
-    )
+    params = urllib.parse.urlencode({
+        "action": "query",
+        "titles": f"File:{filename}",
+        "prop": "imageinfo",
+        "iiprop": "url",
+        "iiurlwidth": str(width),
+        "format": "json",
+    })
     try:
-        req = urllib.request.Request(api_url, headers={"User-Agent": WIKIMEDIA_UA})
+        req = urllib.request.Request(
+            f"{COMMONS_API}?{params}", headers={"User-Agent": WIKIMEDIA_UA}
+        )
         with urllib.request.urlopen(req, timeout=15) as resp:
             data = json.loads(resp.read())
         pages = data.get("query", {}).get("pages", {})
@@ -537,6 +544,106 @@ class ConstructorLogoIngestor(BaseIngestor):
         if skipped:
             msg += f" ({skipped} already had logos)"
         self.log(msg)
+
+
+# Curated Wikimedia Commons filenames for historic F1 team logos.
+# Each filename has been manually verified on Commons to be the correct team logo.
+COMMONS_LOGOS: dict[str, str] = {
+    # Recent teams (2010s-2020s)
+    "toro_rosso": "Scuderia Toro Rosso 2007 Logo.png",
+    "racing_point": "BWT Racing Point logo 2020.png",
+    "alphatauri": "Alphatauri logo.png",
+    "renault": "Renault F1 Team logo 2019.png",
+    "caterham": "Caterham F1 Team logo.jpg",
+    "lotus_f1": "Lotus F1 Team logo.jpg",
+    "manor": "Logo Manor F1.png",
+    "hrt": "HRT new logo.jpg",
+    # 2000s
+    "bmw_sauber": "BMW Sauber Logo.svg",
+    "honda": "Honda Racing F1 Team logo.png",
+    "prost": "Prost Grand Prix Formula One Logo.png",
+    "arrows": "Arrows Grand Prix logo.png",
+    "spyker": "Spyker MF1 Racing-Logo.jpg",
+    "minardi": "Logo Minardi.jpg",
+    # 1990s
+    "tyrrell": "Tyrrell Racing logo.svg",
+    # 1970s-1980s
+    "brawn": "Brawn GP logo.svg",
+    "super_aguri": "Super Aguri logo.svg",
+    "surtees": "SurteesLogo.svg",
+    "matra": "Matra sports logo.svg",
+    # Classic
+    "alfa": "Alfa Romeo F1 Team Stake Logo.svg",
+    "lancia": "Lancia Logo White.png",
+}
+
+
+class WikimediaLogoIngestor(BaseIngestor):
+    """Fetch historic constructor logos from Wikimedia Commons."""
+
+    def ingest(self) -> None:
+        # Self-healing: reset has_logo for constructors whose logo file is missing
+        for c in self.db.execute(
+            select(Constructor).where(Constructor.has_logo.is_(True))
+        ).scalars():
+            logo_path = LOGOS_DIR / f"{c.ref}.png"
+            if not logo_path.exists():
+                c.has_logo = False
+        self.db.commit()
+
+        LOGOS_DIR.mkdir(parents=True, exist_ok=True)
+
+        # Filter to only constructors that still need logos
+        refs_to_fetch = []
+        for ref in COMMONS_LOGOS:
+            constructor = self.db.execute(
+                select(Constructor).where(
+                    Constructor.ref == ref, Constructor.has_logo.is_(False)
+                )
+            ).scalar_one_or_none()
+            if constructor:
+                refs_to_fetch.append(ref)
+
+        if not refs_to_fetch:
+            self.log("All historic constructors have logos, skipping Wikimedia")
+            return
+
+        self.log(
+            f"Fetching logos for {len(refs_to_fetch)} historic constructors "
+            "from Wikimedia Commons..."
+        )
+
+        updated = 0
+        failed = 0
+
+        for ref in refs_to_fetch:
+            filename = COMMONS_LOGOS[ref]
+            thumb_url = _wikimedia_thumb_url(filename, width=200)
+
+            if not thumb_url:
+                self.log(f"  {ref}: not found on Commons ({filename})")
+                failed += 1
+                continue
+
+            local_path = LOGOS_DIR / f"{ref}.png"
+            if _download_file(thumb_url, local_path, ua=WIKIMEDIA_UA):
+                constructor = self.db.execute(
+                    select(Constructor).where(Constructor.ref == ref)
+                ).scalar_one()
+                constructor.has_logo = True
+                updated += 1
+                self.log(f"  {ref}: downloaded")
+            else:
+                failed += 1
+                self.log(f"  {ref}: download failed")
+
+            time.sleep(0.5)
+
+        self.db.commit()
+        self.log(
+            f"Downloaded {updated} logos from Wikimedia Commons"
+            + (f" ({failed} failed)" if failed else "")
+        )
 
 
 class ConstructorColorIngestor(BaseIngestor):

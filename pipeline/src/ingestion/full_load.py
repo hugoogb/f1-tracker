@@ -15,6 +15,7 @@ from src.ingestion.images import (
     ConstructorLogoIngestor,
     DriverHeadshotIngestor,
     WikidataHeadshotIngestor,
+    WikimediaLogoIngestor,
 )
 from src.ingestion.lap_times import LapTimeIngestor
 from src.ingestion.pit_stops import PitStopIngestor
@@ -211,6 +212,7 @@ def run_full_load(
         if _should_run(targets, "logos"):
             logger.info("\n--- Constructor logos ---")
             ConstructorLogoIngestor(db).ingest()
+            WikimediaLogoIngestor(db).ingest()
 
         if _should_run(targets, "results"):
             logger.info("\n--- Race results ---")
