@@ -12,9 +12,18 @@ import {
 import { TEAM_COLORS } from '@/lib/constants'
 import type { StandingsProgressionDriver } from '@/lib/types'
 
+interface ChartEntry {
+  ref: string
+  name?: string
+  code?: string | null
+  lastName?: string
+  color: string | null
+}
+
 interface ChampionshipProgressionChartProps {
   rounds: Record<string, number | string>[]
-  drivers: StandingsProgressionDriver[]
+  drivers?: StandingsProgressionDriver[]
+  entries?: ChartEntry[]
 }
 
 function CustomTooltip({
@@ -72,8 +81,12 @@ function CustomTooltip({
 export function ChampionshipProgressionChart({
   rounds,
   drivers,
+  entries: entriesProp,
 }: ChampionshipProgressionChartProps) {
-  if (rounds.length === 0 || drivers.length === 0) return null
+  // Support both 'drivers' (legacy) and 'entries' (generic) props
+  const items: ChartEntry[] = entriesProp ?? drivers ?? []
+
+  if (rounds.length === 0 || items.length === 0) return null
 
   return (
     <div className="mb-6 h-80 w-full" role="img" aria-label="Championship progression chart">
@@ -93,14 +106,15 @@ export function ChampionshipProgressionChart({
           />
           <YAxis tick={{ fontSize: 12, fill: 'oklch(0.6 0 0)' }} width={50} />
           <Tooltip content={<CustomTooltip />} />
-          {drivers.map((driver) => {
-            const color = TEAM_COLORS[driver.ref] ?? driver.color ?? '#888888'
+          {items.map((entry) => {
+            const color = TEAM_COLORS[entry.ref] ?? entry.color ?? '#888888'
+            const label = entry.code ?? entry.name ?? entry.lastName ?? entry.ref
             return (
               <Line
-                key={driver.ref}
+                key={entry.ref}
                 type="monotone"
-                dataKey={driver.ref}
-                name={driver.code ?? driver.lastName}
+                dataKey={entry.ref}
+                name={label}
                 stroke={color}
                 strokeWidth={2}
                 dot={false}

@@ -7,6 +7,7 @@ import type {
   DriverStanding,
   ConstructorStanding,
   StandingsProgressionResponse,
+  ConstructorProgressionResponse,
   SeasonHeatmapResponse,
 } from '@/lib/types'
 import { CountryFlag } from '@/components/ui/country-flag'
@@ -60,14 +61,21 @@ export default async function SeasonDetailPage({ params }: { params: Promise<{ y
 
   if (isNaN(year)) notFound()
 
-  const [season, driverStandings, constructorStandings, progressionResult, heatmapResult] =
-    await Promise.allSettled([
-      api.seasons.get(year) as Promise<SeasonDetailResponse>,
-      api.seasons.driverStandings(year) as Promise<DriverStandingsResponse>,
-      api.seasons.constructorStandings(year) as Promise<ConstructorStandingsResponse>,
-      api.seasons.standingsProgression(year) as Promise<StandingsProgressionResponse>,
-      api.seasons.heatmap(year) as Promise<SeasonHeatmapResponse>,
-    ])
+  const [
+    season,
+    driverStandings,
+    constructorStandings,
+    progressionResult,
+    constructorProgressionResult,
+    heatmapResult,
+  ] = await Promise.allSettled([
+    api.seasons.get(year) as Promise<SeasonDetailResponse>,
+    api.seasons.driverStandings(year) as Promise<DriverStandingsResponse>,
+    api.seasons.constructorStandings(year) as Promise<ConstructorStandingsResponse>,
+    api.seasons.standingsProgression(year) as Promise<StandingsProgressionResponse>,
+    api.seasons.constructorProgression(year) as Promise<ConstructorProgressionResponse>,
+    api.seasons.heatmap(year) as Promise<SeasonHeatmapResponse>,
+  ])
 
   if (season.status === 'rejected') notFound()
 
@@ -79,6 +87,8 @@ export default async function SeasonDetailPage({ params }: { params: Promise<{ y
       ? constructorStandings.value
       : { year, standings: [] }
   const progression = progressionResult.status === 'fulfilled' ? progressionResult.value : null
+  const constructorProgression =
+    constructorProgressionResult.status === 'fulfilled' ? constructorProgressionResult.value : null
   const heatmap = heatmapResult.status === 'fulfilled' ? heatmapResult.value : null
 
   return (
@@ -139,6 +149,12 @@ export default async function SeasonDetailPage({ params }: { params: Promise<{ y
         }
         constructorStandingsContent={
           <>
+            {constructorProgression && constructorProgression.rounds.length > 1 && (
+              <ChampionshipProgressionChart
+                rounds={constructorProgression.rounds}
+                entries={constructorProgression.constructors}
+              />
+            )}
             <ConstructorPointsChart standings={constructorStandingsData.standings} />
             <ConstructorStandingsTable standings={constructorStandingsData.standings} />
           </>

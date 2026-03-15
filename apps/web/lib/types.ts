@@ -402,3 +402,15 @@ export interface StandingsProgressionResponse {
   rounds: Record<string, number | string>[]
   drivers: StandingsProgressionDriver[]
 }
+
+export interface ConstructorProgressionEntry {
+  ref: string
+  name: string
+  color: string | null
+}
+
+export interface ConstructorProgressionResponse {
+  year: number
+  rounds: Record<string, number | string>[]
+  constructors: ConstructorProgressionEntry[]
+}

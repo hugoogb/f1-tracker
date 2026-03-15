@@ -27,6 +27,10 @@ export const api = {
       const params = new URLSearchParams({ top: String(top) })
       return fetchApi(`/seasons/${year}/standings/progression?${params}`)
     },
+    constructorProgression: (year: number, top = 10) => {
+      const params = new URLSearchParams({ top: String(top) })
+      return fetchApi(`/seasons/${year}/standings/constructors/progression?${params}`)
+    },
   },
   drivers: {
     list: (page = 1, pageSize = 50, nationality?: string) => {
