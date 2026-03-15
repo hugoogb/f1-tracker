@@ -6,7 +6,7 @@ F1 analytics dashboard covering the complete history of Formula 1 (1950-present)
 
 ## Tech Stack
 
-- **Frontend**: Next.js 15 (App Router), TypeScript, Tailwind CSS 4, shadcn/ui, Recharts
+- **Frontend**: Next.js 16 (App Router), TypeScript, Tailwind CSS 4, shadcn/ui, Recharts
 - **Backend**: Python 3.12, FastAPI, SQLAlchemy 2, Alembic
 - **Database**: PostgreSQL 16 (via Docker Compose)
 - **Data Source**: Fast-F1 Python library (historical F1 data)
@@ -14,8 +14,8 @@ F1 analytics dashboard covering the complete history of Formula 1 (1950-present)
 
 ## Project Structure
 
-- `apps/web/` - Next.js frontend (13 routes, 35 components)
-- `pipeline/` - Python data pipeline + FastAPI backend (10 routers, 28 endpoints)
+- `apps/web/` - Next.js frontend (13 routes, 27 components)
+- `pipeline/` - Python data pipeline + FastAPI backend (10 routers, 29 endpoints)
 - `docker/` - Docker Compose for PostgreSQL
 
 ### Frontend Routes
@@ -38,13 +38,14 @@ F1 analytics dashboard covering the complete history of Formula 1 (1950-present)
 
 ### Frontend Components
 
-- `components/ui/` - shadcn/ui base components (badge, button, card, table, tabs, sheet, etc.)
+- `components/ui/` - shadcn/ui base components (badge, button, card, table, tabs, sheet, dialog, dropdown-menu, country-flag, driver-avatar, constructor-logo, empty-state, motion, page-header, position-badge, sonner, stat-card)
 - `components/layout/` - Header, footer, mobile nav, breadcrumbs, search dialog, theme toggle, nav link
 - `components/charts/` - Recharts visualizations (points bar, constructor points, career line, comparison line)
-- `components/races/` - Race result tables (results, qualifying, sprint, pit stops)
+- `components/races/` - Race result tables (results, qualifying, sprint, pit stops, lap-times-chart, tyre-strategy-chart)
 - `components/standings/` - Driver + constructor standings tables
 - `components/drivers/` - Driver season history table
 - `components/constructors/` - Constructor season history table
+- `components/circuits/` - Track layout, world map, world map wrapper
 - `components/compare/` - Driver select component
 - `components/providers/` - Theme provider
 - Root: pagination, list-filter, error-boundary
@@ -59,6 +60,7 @@ F1 analytics dashboard covering the complete history of Formula 1 (1950-present)
 - `GET /api/seasons/{year}/races/{round}/qualifying` - Qualifying
 - `GET /api/seasons/{year}/races/{round}/sprint` - Sprint results (2021+)
 - `GET /api/seasons/{year}/races/{round}/pitstops` - Pit stops (2012+)
+- `GET /api/seasons/{year}/races/{round}/laps` - Lap times + tyre strategy (2018+)
 - `GET /api/drivers` - Drivers (pagination + nationality filter)
 - `GET /api/drivers/nationalities` - Distinct nationalities
 - `GET /api/drivers/{ref}` - Driver detail with career stats

@@ -71,3 +71,20 @@
 ## Remaining Work (Future)
 - [x] Complete data ingestion (qualifying, standings, pit stops, sprints, 2008-present)
 - [x] Run full initial load, verify data integrity
+
+## Recent Additions (Post-Phase 6)
+- [x] Country flags and driver headshot images
+- [x] Constructor logos via Wikidata/Wikimedia
+- [x] Constructor team colors
+- [x] Circuit track layout visualizations
+- [x] Interactive world map on circuits page
+- [x] Framer Motion animations across pages
+- [x] Lap time ingestion with throttling and year-range filtering
+- [x] Qualifying sector time ingestion (Fast-F1 2018+)
+- [x] Lap times and tyre strategy charts on race detail page
+- [x] Fastest lap and qualifying sector times on race/circuit pages
+- [x] All-time lap record on circuit detail page
+- [x] Extract shared ingestion utilities into base module (DRY refactor)
+- [x] Add OpenGraph/Twitter metadata and title template
+- [x] Standardize frontend API URL parameter building
+- [x] Accessibility: aria-label on ListFilter select
