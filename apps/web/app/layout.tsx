@@ -20,9 +20,26 @@ const jetbrainsMono = JetBrains_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'F1 Tracker',
+  title: {
+    default: 'F1 Tracker',
+    template: '%s | F1 Tracker',
+  },
   description:
     'Explore the complete history of Formula 1 with interactive analytics and visualizations',
+  openGraph: {
+    title: 'F1 Tracker',
+    description:
+      'Explore the complete history of Formula 1 with interactive analytics and visualizations',
+    siteName: 'F1 Tracker',
+    type: 'website',
+    locale: 'en_US',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'F1 Tracker',
+    description:
+      'Explore the complete history of Formula 1 with interactive analytics and visualizations',
+  },
 }
 
 export default function RootLayout({
