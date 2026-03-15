@@ -15,9 +15,10 @@ import {
 
 interface ResultsTableProps {
   results: RaceResult[]
+  fastestLapDriverRef?: string
 }
 
-export function ResultsTable({ results }: ResultsTableProps) {
+export function ResultsTable({ results, fastestLapDriverRef }: ResultsTableProps) {
   if (results.length === 0) {
     return <p className="text-muted-foreground text-sm">No race results available.</p>
   }
@@ -40,6 +41,7 @@ export function ResultsTable({ results }: ResultsTableProps) {
           const teamColor = TEAM_COLORS[result.constructor.ref] ?? result.constructor.color ?? null
           const isFinished = result.position != null
           const positionDelta = isFinished ? result.grid - (result.position ?? 0) : null
+          const hasFastestLap = fastestLapDriverRef === result.driver.ref
 
           return (
             <TableRow key={result.driver.ref ?? idx} className={!isFinished ? 'opacity-50' : ''}>
@@ -96,9 +98,19 @@ export function ResultsTable({ results }: ResultsTableProps) {
               </TableCell>
               <TableCell className="hidden text-right md:table-cell">{result.laps}</TableCell>
               <TableCell className="hidden sm:table-cell">
-                <span className="text-muted-foreground text-sm">
-                  {result.time ?? result.status}
-                </span>
+                <div className="space-y-0.5">
+                  <span className="text-muted-foreground text-sm">
+                    {result.time ?? result.status}
+                  </span>
+                  {hasFastestLap && result.fastestLapTime && (
+                    <div className="flex items-center gap-1">
+                      <span className="inline-block h-1.5 w-1.5 rounded-full bg-purple-500" />
+                      <span className="font-mono text-xs text-purple-400">
+                        {result.fastestLapTime}
+                      </span>
+                    </div>
+                  )}
+                </div>
               </TableCell>
               <TableCell className="text-right tabular-nums">{result.points}</TableCell>
             </TableRow>

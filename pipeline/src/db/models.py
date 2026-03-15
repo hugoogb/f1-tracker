@@ -108,11 +108,42 @@ class Race(Base):
     time: Mapped[str | None] = mapped_column(Time)
     url: Mapped[str | None] = mapped_column(String)
 
+    # Precomputed: race fastest lap
+    fastest_lap_driver_id: Mapped[str | None] = mapped_column(ForeignKey("drivers.id"))
+    fastest_lap_constructor_id: Mapped[str | None] = mapped_column(ForeignKey("constructors.id"))
+    fastest_lap_number: Mapped[int | None] = mapped_column(Integer)
+    fastest_lap_time: Mapped[str | None] = mapped_column(String)
+    fastest_lap_time_ms: Mapped[int | None] = mapped_column(BigInteger)
+    fastest_lap_speed: Mapped[str | None] = mapped_column(String)
+
+    # Precomputed: qualifying fastest sectors
+    best_quali_s1_driver_id: Mapped[str | None] = mapped_column(ForeignKey("drivers.id"))
+    best_quali_s1_ms: Mapped[int | None] = mapped_column(BigInteger)
+    best_quali_s2_driver_id: Mapped[str | None] = mapped_column(ForeignKey("drivers.id"))
+    best_quali_s2_ms: Mapped[int | None] = mapped_column(BigInteger)
+    best_quali_s3_driver_id: Mapped[str | None] = mapped_column(ForeignKey("drivers.id"))
+    best_quali_s3_ms: Mapped[int | None] = mapped_column(BigInteger)
+
     season: Mapped["Season"] = relationship(back_populates="races")
     circuit: Mapped["Circuit"] = relationship(back_populates="races")
     results: Mapped[list["RaceResult"]] = relationship(back_populates="race")
     qualifying_results: Mapped[list["QualifyingResult"]] = relationship(back_populates="race")
     pit_stops: Mapped[list["PitStop"]] = relationship(back_populates="race")
+    fastest_lap_driver: Mapped["Driver | None"] = relationship(
+        foreign_keys=[fastest_lap_driver_id],
+    )
+    fastest_lap_constructor: Mapped["Constructor | None"] = relationship(
+        foreign_keys=[fastest_lap_constructor_id],
+    )
+    best_quali_s1_driver: Mapped["Driver | None"] = relationship(
+        foreign_keys=[best_quali_s1_driver_id],
+    )
+    best_quali_s2_driver: Mapped["Driver | None"] = relationship(
+        foreign_keys=[best_quali_s2_driver_id],
+    )
+    best_quali_s3_driver: Mapped["Driver | None"] = relationship(
+        foreign_keys=[best_quali_s3_driver_id],
+    )
 
 
 class RaceResult(Base):
@@ -153,6 +184,15 @@ class QualifyingResult(Base):
     q1: Mapped[str | None] = mapped_column(String)
     q2: Mapped[str | None] = mapped_column(String)
     q3: Mapped[str | None] = mapped_column(String)
+    q1_s1_ms: Mapped[int | None] = mapped_column(BigInteger)
+    q1_s2_ms: Mapped[int | None] = mapped_column(BigInteger)
+    q1_s3_ms: Mapped[int | None] = mapped_column(BigInteger)
+    q2_s1_ms: Mapped[int | None] = mapped_column(BigInteger)
+    q2_s2_ms: Mapped[int | None] = mapped_column(BigInteger)
+    q2_s3_ms: Mapped[int | None] = mapped_column(BigInteger)
+    q3_s1_ms: Mapped[int | None] = mapped_column(BigInteger)
+    q3_s2_ms: Mapped[int | None] = mapped_column(BigInteger)
+    q3_s3_ms: Mapped[int | None] = mapped_column(BigInteger)
 
     race: Mapped["Race"] = relationship(back_populates="qualifying_results")
     driver: Mapped["Driver"] = relationship()

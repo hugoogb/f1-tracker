@@ -202,6 +202,13 @@ def validate():
                 select(LapTime.race_id).group_by(LapTime.race_id)
             ).scalars().all()
         )
+        races_with_sectors = set(
+            db.execute(
+                select(QualifyingResult.race_id)
+                .where(QualifyingResult.q1_s1_ms.isnot(None))
+                .group_by(QualifyingResult.race_id)
+            ).scalars().all()
+        )
         ds_races = set(
             db.execute(
                 select(DriverStanding.race_id).group_by(DriverStanding.race_id)
@@ -224,6 +231,7 @@ def validate():
             quali_ok = sum(1 for r in past_yr if r.id in races_with_quali)
             pits_ok = sum(1 for r in past_yr if r.id in races_with_pits)
             laps_ok = sum(1 for r in past_yr if r.id in races_with_laps)
+            sectors_ok = sum(1 for r in past_yr if r.id in races_with_sectors)
             sprints_count = sum(1 for r in past_yr if r.id in races_with_sprints)
 
             last_completed = max(past_yr, key=lambda r: r.round)
@@ -237,6 +245,7 @@ def validate():
             print(f"  Standings:   {check_mark(has_ds and has_cs)}")
             print(f"  Pit stops:   {pits_ok}/{completed}  {check_mark(pits_ok == completed)}")
             print(f"  Lap times:   {laps_ok}/{completed}  {check_mark(laps_ok == completed)}")
+            print(f"  Q sectors:   {sectors_ok}/{completed}  {check_mark(sectors_ok == completed)}")
             print(f"  Sprints:     {sprints_count} {DIM}(not all races have sprints){RESET}")
 
             # Flag current season gaps
@@ -245,6 +254,8 @@ def validate():
             if current_year >= 2012 and pits_ok < completed:
                 has_gaps = True
             if current_year >= 2018 and laps_ok < completed:
+                has_gaps = True
+            if current_year >= 2018 and sectors_ok < completed:
                 has_gaps = True
 
         # --- Completed seasons (exclude current) ---
@@ -360,6 +371,42 @@ def validate():
         if not lap_ok:
             has_gaps = True
             _print_gaps(lap_gaps)
+
+        # Qualifying sectors (2018+)
+        sector_seasons = [s for s in completed_seasons if s.year >= 2018]
+        sector_gaps = _season_gaps(
+            sector_seasons, races_by_year, races_with_sectors
+        )
+        sector_total = len(sector_seasons)
+        sector_complete = sector_total - len(sector_gaps)
+        sector_ok = sector_complete == sector_total
+        print("\nQualifying sectors (2018+):")
+        print(f"  Complete: {sector_complete}/{sector_total} seasons  {check_mark(sector_ok)}")
+        if not sector_ok:
+            has_gaps = True
+            _print_gaps(sector_gaps)
+
+        # Race aggregates (fastest lap + qualifying sectors)
+        races_with_fl = db.scalar(
+            select(func.count()).select_from(Race)
+            .where(Race.fastest_lap_driver_id.isnot(None))
+        ) or 0
+        races_with_qs = db.scalar(
+            select(func.count()).select_from(Race)
+            .where(Race.best_quali_s1_ms.isnot(None))
+        ) or 0
+        fl_ok = races_with_fl == past_with_results
+        print("\nRace aggregates:")
+        print(
+            f"  Fastest lap:        {races_with_fl}/{past_with_results}"
+            f"  {check_mark(fl_ok)}"
+        )
+        print(
+            f"  Qualifying sectors: {races_with_qs}"
+            f" {DIM}(2018+ with Fast-F1 data){RESET}"
+        )
+        if not fl_ok:
+            has_gaps = True
 
         print()
         return 0 if not has_gaps else 1
