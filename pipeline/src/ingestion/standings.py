@@ -1,6 +1,6 @@
 """Compute end-of-season driver and constructor standings from race results."""
 
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 
 from src.db.models import (
     ConstructorStanding,
@@ -18,20 +18,6 @@ class StandingsIngestor(BaseIngestor):
 
     def ingest(self, year_range: tuple[int, int] | None = None) -> None:
         self.log("Computing standings from race results...")
-
-        # Find races that already have standings — skip them
-        ds_existing = set(
-            self.db.execute(select(DriverStanding.race_id).group_by(DriverStanding.race_id))
-            .scalars()
-            .all()
-        )
-        cs_existing = set(
-            self.db.execute(
-                select(ConstructorStanding.race_id).group_by(ConstructorStanding.race_id)
-            )
-            .scalars()
-            .all()
-        )
 
         query = select(Season).order_by(Season.year)
         if year_range:
@@ -56,15 +42,21 @@ class StandingsIngestor(BaseIngestor):
             if not last_race:
                 continue
 
-            # Driver standings
-            if last_race.id not in ds_existing:
-                count = self._compute_driver_standings(season.year, last_race.id)
-                driver_total += count
+            # Always delete and recompute to ensure correctness
+            season_race_ids = select(Race.id).where(Race.season_year == season.year)
+            self.db.execute(
+                delete(DriverStanding).where(DriverStanding.race_id.in_(season_race_ids))
+            )
+            self.db.execute(
+                delete(ConstructorStanding).where(
+                    ConstructorStanding.race_id.in_(season_race_ids)
+                )
+            )
 
-            # Constructor standings
-            if last_race.id not in cs_existing:
-                count = self._compute_constructor_standings(season.year, last_race.id)
-                constructor_total += count
+            driver_total += self._compute_driver_standings(season.year, last_race.id)
+            constructor_total += self._compute_constructor_standings(
+                season.year, last_race.id
+            )
 
         self.log(
             f"Computed {driver_total} driver standings, {constructor_total} constructor standings"
