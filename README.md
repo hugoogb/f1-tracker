@@ -1,17 +1,16 @@
 # F1 Tracker
 
-A web-based Formula 1 analytics dashboard that covers the entire history of F1 (1950-present) with rich, interactive visualizations.
+A full-stack Formula 1 analytics dashboard covering the complete history of F1 (1950-present) with interactive visualizations, driver/constructor comparisons, and detailed race analysis.
 
 ## Features
 
-- **Season Overview**: World Champions (driver + constructor) for every season since 1950
-- **Driver Profiles**: Career stats including wins, podiums, poles, championships, points progression
-- **Constructor Profiles**: Team history, championship wins, driver roster by year, team colors and logos
-- **Race Results**: Full race results, qualifying, sprint, and pit stop data with interactive tabs
-- **Lap Times & Strategy**: Lap-by-lap times and tyre strategy visualizations (2018+)
-- **Circuit Pages**: Circuit details with race history, interactive world map, and track layouts
-- **Standings**: Driver and constructor standings with interactive charts
-- **Driver Comparison**: Head-to-head driver comparison with career overlays
+- **Season Overview**: World Champions (driver + constructor) for every season since 1950, championship progression charts
+- **Driver Profiles**: Career stats (wins, podiums, poles, fastest laps, championships), points progression, qualifying vs race pace analysis
+- **Constructor Profiles**: Team history, career stats, driver roster by year, team colors and logos
+- **Race Detail**: Full results, qualifying (with sector times), sprint, pit stops with analysis, lap-by-lap positions, tyre strategy charts
+- **Circuit Pages**: Circuit details with track layouts, race history, performance stats, interactive world map
+- **All-Time Records**: Most wins, poles, podiums, championships, fastest laps, starts — for drivers and constructors
+- **Comparison**: Side-by-side driver comparison (head-to-head, qualifying H2H, radar charts, teammate filter) and constructor comparison
 - **Search**: Find any driver, team, or circuit instantly
 - **Dark Mode**: F1-themed dark-first UI with team colors and smooth animations
 
@@ -28,76 +27,86 @@ A web-based Formula 1 analytics dashboard that covers the entire history of F1 (
 
 ### Prerequisites
 
-- Node.js 20+
-- pnpm 10+
-- Python 3.12+
-- uv (Python package manager)
+- Node.js 20+, pnpm 10+
+- Python 3.12+, [uv](https://docs.astral.sh/uv/)
 - Docker & Docker Compose
 
-### Setup
+### Quick Start
 
-1. Clone the repository:
 ```bash
-git clone <repo-url>
-cd f1-tracker
-```
-
-2. Copy environment variables:
-```bash
+# 1. Clone and configure
+git clone <repo-url> && cd f1-tracker
 cp .env.example .env
-```
 
-3. Start PostgreSQL:
-```bash
+# 2. Start PostgreSQL
 docker compose -f docker/docker-compose.yml up -d
-```
 
-4. Install frontend dependencies:
-```bash
+# 3. Install dependencies
 pnpm install
-```
+cd pipeline && uv sync && cd ..
 
-5. Install Python dependencies:
-```bash
-cd pipeline && uv sync
-```
+# 4. Set up database
+cd pipeline && uv run alembic upgrade head && cd ..
 
-6. Run database migrations:
-```bash
-cd pipeline && uv run alembic upgrade head
-```
+# 5. Seed data (or restore from backup: ./scripts/db-restore.sh)
+cd pipeline && uv run python scripts/seed.py && cd ..
 
-7. Seed the database with F1 data:
-```bash
-cd pipeline && uv run python scripts/seed.py
-```
-
-8. Start the backend API:
-```bash
+# 6. Start backend + frontend (in separate terminals)
 cd pipeline && uv run uvicorn src.api.main:app --reload
-```
-
-9. Start the frontend (in another terminal):
-```bash
 pnpm dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) to view the app.
 
+## Development
+
+### Commands
+
+| Command | Description |
+|---------|-------------|
+| `pnpm dev` | Start Next.js dev server |
+| `pnpm build` | Build frontend for production |
+| `pnpm lint` | Run ESLint |
+| `pnpm typecheck` | Run TypeScript type checking |
+| `pnpm format` | Format all files with Prettier |
+| `cd pipeline && uv run uvicorn src.api.main:app --reload` | Start FastAPI dev server |
+| `cd pipeline && uv run pytest -v` | Run backend tests (44 tests) |
+| `cd pipeline && uv run ruff check . && uv run ruff format --check .` | Lint + format check |
+| `docker compose -f docker/docker-compose.yml up -d` | Start PostgreSQL |
+
+### Pre-commit Hooks
+
+Husky runs automatically on `git commit`:
+- **Prettier** on staged TS/TSX, JSON, CSS, MD, YAML files
+- **Ruff** check + format on staged Python files
+
 ## Project Structure
 
 ```
 f1-tracker/
-├── apps/web/          # Next.js frontend
-├── pipeline/          # Python data pipeline + FastAPI
-│   ├── src/api/       # REST API
-│   ├── src/db/        # Database models and queries
-│   ├── src/ingestion/ # Data pipeline (Fast-F1 → PostgreSQL)
-│   └── alembic/       # Database migrations
-├── docker/            # Docker Compose (PostgreSQL)
-└── tasks/             # Project tracking
+├── apps/web/              # Next.js frontend (15 routes, 36+ components)
+│   ├── app/               # App Router pages
+│   ├── components/        # UI, charts, races, standings, compare, layout
+│   └── lib/               # API client, types, utils, constants
+├── pipeline/              # Python data pipeline + FastAPI (38 endpoints)
+│   ├── src/api/           # REST API (routers, constants, serializers, pagination)
+│   ├── src/db/            # SQLAlchemy models, queries, migrations
+│   ├── src/ingestion/     # Data pipeline (Fast-F1 → PostgreSQL)
+│   ├── tests/             # pytest test suite (44 tests)
+│   └── scripts/           # Seed, backup, restore scripts
+├── docker/                # Docker Compose (PostgreSQL) + backups
+├── docs/                  # Deployment guide
+└── tasks/                 # Project tracking + lessons learned
 ```
 
-## API Documentation
+## Testing & CI
 
-When the backend is running, visit [http://localhost:8000/docs](http://localhost:8000/docs) for interactive API documentation (Swagger UI).
+- **Backend**: 44 pytest tests across 11 test files (SQLite in-memory with StaticPool)
+- **Frontend**: TypeScript type checking (`tsc --noEmit`) + ESLint + production build verification
+- **CI**: GitHub Actions runs on push/PR to master — prettier, eslint, typecheck, build, ruff, pytest, security audits (`pnpm audit`, `pip-audit`)
+
+## Documentation
+
+- **API Docs**: Interactive Swagger UI at [http://localhost:8000/docs](http://localhost:8000/docs) when the backend is running
+- **Deployment**: See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for local dev, free tier (Vercel + Render + Neon), and production deployment guides
+- **Backend**: See [pipeline/README.md](pipeline/README.md) for API endpoints, testing, and project structure

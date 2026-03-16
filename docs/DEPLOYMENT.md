@@ -29,7 +29,7 @@ How to deploy the F1 Tracker application (Next.js frontend + FastAPI backend + P
 | ---------- | ------- | ------------------ |
 | Docker     | 20+     | PostgreSQL         |
 | Node.js    | 20+     | Next.js frontend   |
-| pnpm       | 9+      | Frontend packages  |
+| pnpm       | 10+     | Frontend packages  |
 | Python     | 3.12+   | FastAPI backend    |
 | uv         | latest  | Python packages    |
 | PostgreSQL | 16      | Database (or Docker) |
@@ -393,11 +393,15 @@ The restore script runs Alembic migrations first to ensure the schema is up to d
 
 ## CI/CD
 
-The project includes a GitHub Actions workflow at `.github/workflows/ci.yml` that runs on pushes and PRs to `main`:
+The project includes a GitHub Actions workflow at `.github/workflows/ci.yml` that runs on pushes and PRs to `master`:
 
-**Frontend checks**: Prettier, ESLint, TypeScript type check, production build.
+**Frontend checks**: `pnpm audit` (security), Prettier, ESLint, TypeScript type check, production build.
 
-**Backend checks**: Ruff (lint + format), pytest (with PostgreSQL service container).
+**Backend checks**: Ruff (lint + format), `pip-audit` (security), pytest with PostgreSQL service container.
+
+Security audits run with `continue-on-error: true` — findings are visible in CI output but don't block PRs.
+
+**Pre-commit hooks** (local): Husky runs Prettier on staged TS/config files via lint-staged, and `ruff check` + `ruff format --check` on staged Python files.
 
 ---
 
