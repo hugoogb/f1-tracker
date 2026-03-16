@@ -60,12 +60,12 @@ def validate():
         # --- Circuit layouts ---
         total_circuits = counts["Circuits"] or 0
         layout_count = db.scalar(select(func.count()).select_from(CircuitLayout))
-        circuits_with_layouts = db.scalar(
-            select(func.count(CircuitLayout.circuit_id.distinct()))
-        )
+        circuits_with_layouts = db.scalar(select(func.count(CircuitLayout.circuit_id.distinct())))
         layouts_ok = circuits_with_layouts == total_circuits
         print("\nCircuit layouts:")
-        print(f"  Circuits with layouts: {circuits_with_layouts}/{total_circuits}  {check_mark(layouts_ok)}")
+        print(
+            f"  Circuits with layouts: {circuits_with_layouts}/{total_circuits}  {check_mark(layouts_ok)}"
+        )
         print(f"  Total layout variants: {layout_count}")
         if not layouts_ok:
             has_gaps = True
@@ -89,7 +89,9 @@ def validate():
             select(func.count()).select_from(Driver).where(Driver.country_code.isnot(None))
         )
         constructors_with_cc = db.scalar(
-            select(func.count()).select_from(Constructor).where(Constructor.country_code.isnot(None))
+            select(func.count())
+            .select_from(Constructor)
+            .where(Constructor.country_code.isnot(None))
         )
         circuits_with_cc = db.scalar(
             select(func.count()).select_from(Circuit).where(Circuit.country_code.isnot(None))
@@ -109,31 +111,51 @@ def validate():
         cir_cc_ok = circuits_with_cc == circuits_with_country
 
         print("\nCountry codes:")
-        print(f"  Drivers:      {drivers_with_cc}/{drivers_with_nationality}  {check_mark(drv_cc_ok)}")
-        print(f"  Constructors: {constructors_with_cc}/{constructors_with_nationality}  {check_mark(con_cc_ok)}")
-        print(f"  Circuits:     {circuits_with_cc}/{circuits_with_country}  {check_mark(cir_cc_ok)}")
+        print(
+            f"  Drivers:      {drivers_with_cc}/{drivers_with_nationality}  {check_mark(drv_cc_ok)}"
+        )
+        print(
+            f"  Constructors: {constructors_with_cc}/{constructors_with_nationality}  {check_mark(con_cc_ok)}"
+        )
+        print(
+            f"  Circuits:     {circuits_with_cc}/{circuits_with_country}  {check_mark(cir_cc_ok)}"
+        )
         if not (drv_cc_ok and con_cc_ok and cir_cc_ok):
             has_gaps = True
             if not drv_cc_ok:
-                missing = db.execute(
-                    select(Driver.nationality)
-                    .where(Driver.nationality.isnot(None), Driver.country_code.is_(None))
-                    .distinct()
-                ).scalars().all()
+                missing = (
+                    db.execute(
+                        select(Driver.nationality)
+                        .where(Driver.nationality.isnot(None), Driver.country_code.is_(None))
+                        .distinct()
+                    )
+                    .scalars()
+                    .all()
+                )
                 print(f"    Missing driver mappings: {', '.join(missing)}")
             if not con_cc_ok:
-                missing = db.execute(
-                    select(Constructor.nationality)
-                    .where(Constructor.nationality.isnot(None), Constructor.country_code.is_(None))
-                    .distinct()
-                ).scalars().all()
+                missing = (
+                    db.execute(
+                        select(Constructor.nationality)
+                        .where(
+                            Constructor.nationality.isnot(None), Constructor.country_code.is_(None)
+                        )
+                        .distinct()
+                    )
+                    .scalars()
+                    .all()
+                )
                 print(f"    Missing constructor mappings: {', '.join(missing)}")
             if not cir_cc_ok:
-                missing = db.execute(
-                    select(Circuit.country)
-                    .where(Circuit.country.isnot(None), Circuit.country_code.is_(None))
-                    .distinct()
-                ).scalars().all()
+                missing = (
+                    db.execute(
+                        select(Circuit.country)
+                        .where(Circuit.country.isnot(None), Circuit.country_code.is_(None))
+                        .distinct()
+                    )
+                    .scalars()
+                    .all()
+                )
                 print(f"    Missing circuit mappings: {', '.join(missing)}")
 
         # --- Driver headshots ---
@@ -142,7 +164,9 @@ def validate():
         )
         headshots_ok = drivers_with_headshots > 0
         print("\nDriver headshots:")
-        print(f"  Drivers with headshots: {drivers_with_headshots}/{total_drivers}  {check_mark(headshots_ok)}")
+        print(
+            f"  Drivers with headshots: {drivers_with_headshots}/{total_drivers}  {check_mark(headshots_ok)}"
+        )
 
         # --- Constructor colors ---
         constructors_with_colors = db.scalar(
@@ -150,7 +174,9 @@ def validate():
         )
         colors_ok = constructors_with_colors > 0
         print("\nConstructor colors:")
-        print(f"  Constructors with colors: {constructors_with_colors}/{total_constructors}  {check_mark(colors_ok)}")
+        print(
+            f"  Constructors with colors: {constructors_with_colors}/{total_constructors}  {check_mark(colors_ok)}"
+        )
 
         # --- Constructor logos ---
         constructors_with_logos = db.scalar(
@@ -158,7 +184,9 @@ def validate():
         )
         logos_ok = constructors_with_logos > 0
         print("\nConstructor logos:")
-        print(f"  Constructors with logos: {constructors_with_logos}/{total_constructors}  {check_mark(logos_ok)}")
+        print(
+            f"  Constructors with logos: {constructors_with_logos}/{total_constructors}  {check_mark(logos_ok)}"
+        )
 
         # --- Build race maps ---
         seasons = db.execute(select(Season).order_by(Season.year)).scalars().all()
@@ -185,39 +213,37 @@ def validate():
             db.execute(select(RaceResult.race_id).group_by(RaceResult.race_id)).scalars().all()
         )
         races_with_quali = set(
-            db.execute(
-                select(QualifyingResult.race_id).group_by(QualifyingResult.race_id)
-            ).scalars().all()
+            db.execute(select(QualifyingResult.race_id).group_by(QualifyingResult.race_id))
+            .scalars()
+            .all()
         )
         races_with_pits = set(
             db.execute(select(PitStop.race_id).group_by(PitStop.race_id)).scalars().all()
         )
         races_with_sprints = set(
-            db.execute(
-                select(SprintResult.race_id).group_by(SprintResult.race_id)
-            ).scalars().all()
+            db.execute(select(SprintResult.race_id).group_by(SprintResult.race_id)).scalars().all()
         )
         races_with_laps = set(
-            db.execute(
-                select(LapTime.race_id).group_by(LapTime.race_id)
-            ).scalars().all()
+            db.execute(select(LapTime.race_id).group_by(LapTime.race_id)).scalars().all()
         )
         races_with_sectors = set(
             db.execute(
                 select(QualifyingResult.race_id)
                 .where(QualifyingResult.q1_s1_ms.isnot(None))
                 .group_by(QualifyingResult.race_id)
-            ).scalars().all()
+            )
+            .scalars()
+            .all()
         )
         ds_races = set(
-            db.execute(
-                select(DriverStanding.race_id).group_by(DriverStanding.race_id)
-            ).scalars().all()
+            db.execute(select(DriverStanding.race_id).group_by(DriverStanding.race_id))
+            .scalars()
+            .all()
         )
         cs_races = set(
-            db.execute(
-                select(ConstructorStanding.race_id).group_by(ConstructorStanding.race_id)
-            ).scalars().all()
+            db.execute(select(ConstructorStanding.race_id).group_by(ConstructorStanding.race_id))
+            .scalars()
+            .all()
         )
 
         # --- Current season summary ---
@@ -243,7 +269,9 @@ def validate():
             has_cs = last_with_results is not None and last_with_results.id in cs_races
 
             print(f"\nCurrent season ({current_year}):")
-            print(f"  Progress:    {completed}/{len(all_yr)} races completed ({remaining} remaining)")
+            print(
+                f"  Progress:    {completed}/{len(all_yr)} races completed ({remaining} remaining)"
+            )
             print(f"  Results:     {results_ok}/{completed}  {check_mark(results_ok == completed)}")
             print(f"  Qualifying:  {quali_ok}/{completed}  {check_mark(quali_ok == completed)}")
             print(f"  Standings:   {check_mark(has_ds and has_cs)}")
@@ -270,7 +298,9 @@ def validate():
         seasons_with_races = sum(1 for s in completed_seasons if races_by_year.get(s.year))
         print("\nRace coverage:")
         complete = seasons_with_races == total_completed
-        print(f"  Seasons with races: {seasons_with_races}/{total_completed}  {check_mark(complete)}")
+        print(
+            f"  Seasons with races: {seasons_with_races}/{total_completed}  {check_mark(complete)}"
+        )
         if not complete:
             has_gaps = True
             for s in completed_seasons:
@@ -280,8 +310,10 @@ def validate():
         # Race results
         total_past = sum(len(races_by_year.get(s.year, [])) for s in completed_seasons)
         past_with_results = sum(
-            1 for s in completed_seasons
-            for r in races_by_year.get(s.year, []) if r.id in races_with_results
+            1
+            for s in completed_seasons
+            for r in races_by_year.get(s.year, [])
+            if r.id in races_with_results
         )
         complete = past_with_results == total_past
         print("\nRace results:")
@@ -320,7 +352,8 @@ def validate():
         # Standings (include current season — standings should exist for all
         # seasons that have at least one race with results)
         all_seasons_for_standings = [
-            s for s in seasons
+            s
+            for s in seasons
             if any(r.id in races_with_results for r in races_by_year.get(s.year, []))
         ]
         total_with_results = len(all_seasons_for_standings)
@@ -389,9 +422,7 @@ def validate():
 
         # Qualifying sectors (2018+)
         sector_seasons = [s for s in completed_seasons if s.year >= 2018]
-        sector_gaps = _season_gaps(
-            sector_seasons, races_by_year, races_with_sectors
-        )
+        sector_gaps = _season_gaps(sector_seasons, races_by_year, races_with_sectors)
         sector_total = len(sector_seasons)
         sector_complete = sector_total - len(sector_gaps)
         sector_ok = sector_complete == sector_total
@@ -402,29 +433,31 @@ def validate():
             _print_gaps(sector_gaps)
 
         # Race aggregates (fastest lap + qualifying sectors)
-        races_with_fl = db.scalar(
-            select(func.count()).select_from(Race)
-            .where(Race.fastest_lap_driver_id.isnot(None))
-        ) or 0
+        races_with_fl = (
+            db.scalar(
+                select(func.count()).select_from(Race).where(Race.fastest_lap_driver_id.isnot(None))
+            )
+            or 0
+        )
         # Count races that have fastest lap data in results (not all historical races do)
-        races_with_fl_data = db.scalar(
-            select(func.count(RaceResult.race_id.distinct()))
-            .where(RaceResult.fastest_lap_time.isnot(None))
-        ) or 0
-        races_with_qs = db.scalar(
-            select(func.count()).select_from(Race)
-            .where(Race.best_quali_s1_ms.isnot(None))
-        ) or 0
+        races_with_fl_data = (
+            db.scalar(
+                select(func.count(RaceResult.race_id.distinct())).where(
+                    RaceResult.fastest_lap_time.isnot(None)
+                )
+            )
+            or 0
+        )
+        races_with_qs = (
+            db.scalar(
+                select(func.count()).select_from(Race).where(Race.best_quali_s1_ms.isnot(None))
+            )
+            or 0
+        )
         fl_ok = races_with_fl == races_with_fl_data
         print("\nRace aggregates:")
-        print(
-            f"  Fastest lap:        {races_with_fl}/{races_with_fl_data}"
-            f"  {check_mark(fl_ok)}"
-        )
-        print(
-            f"  Qualifying sectors: {races_with_qs}"
-            f" {DIM}(2018+ with Fast-F1 data){RESET}"
-        )
+        print(f"  Fastest lap:        {races_with_fl}/{races_with_fl_data}  {check_mark(fl_ok)}")
+        print(f"  Qualifying sectors: {races_with_qs} {DIM}(2018+ with Fast-F1 data){RESET}")
         if not fl_ok:
             has_gaps = True
 

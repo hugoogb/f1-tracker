@@ -53,12 +53,7 @@ def get_season_heatmap(year: int, db: Session = Depends(get_db)):
 
     # Fetch all race results for the season in one query
     all_results = (
-        db.execute(
-            select(RaceResult)
-            .where(RaceResult.race_id.in_(race_ids))
-        )
-        .scalars()
-        .all()
+        db.execute(select(RaceResult).where(RaceResult.race_id.in_(race_ids))).scalars().all()
     )
 
     # Get final standings to determine driver order
@@ -100,35 +95,34 @@ def get_season_heatmap(year: int, db: Session = Depends(get_db)):
         sample_result = next(iter(results_by_round.values()))
         constructor = driver_constructor.get(driver_id)
 
-        drivers_data.append({
-            "driver": {
-                "ref": sample_result.driver.ref,
-                "code": sample_result.driver.code,
-                "firstName": sample_result.driver.first_name,
-                "lastName": sample_result.driver.last_name,
-            },
-            "constructor": {
-                "ref": constructor.ref if constructor else None,
-                "name": constructor.name if constructor else None,
-                "color": constructor.color if constructor else None,
-            },
-            "results": [
-                {
-                    "round": rnd,
-                    "position": r.position,
-                    "positionText": r.position_text,
-                    "points": r.points,
-                    "status": r.status.description if r.status else None,
-                }
-                for rnd, r in sorted(results_by_round.items())
-            ],
-        })
+        drivers_data.append(
+            {
+                "driver": {
+                    "ref": sample_result.driver.ref,
+                    "code": sample_result.driver.code,
+                    "firstName": sample_result.driver.first_name,
+                    "lastName": sample_result.driver.last_name,
+                },
+                "constructor": {
+                    "ref": constructor.ref if constructor else None,
+                    "name": constructor.name if constructor else None,
+                    "color": constructor.color if constructor else None,
+                },
+                "results": [
+                    {
+                        "round": rnd,
+                        "position": r.position,
+                        "positionText": r.position_text,
+                        "points": r.points,
+                        "status": r.status.description if r.status else None,
+                    }
+                    for rnd, r in sorted(results_by_round.items())
+                ],
+            }
+        )
 
     return {
         "year": year,
-        "rounds": [
-            {"round": r.round, "name": r.name}
-            for r in races
-        ],
+        "rounds": [{"round": r.round, "name": r.name} for r in races],
         "drivers": drivers_data,
     }

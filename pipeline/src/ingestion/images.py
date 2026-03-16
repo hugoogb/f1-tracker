@@ -188,14 +188,16 @@ def _wikimedia_thumb_url(file_path_url_or_filename: str, width: int = 200) -> st
     else:
         filename = file_path_url_or_filename.replace(" ", "_")
 
-    params = urllib.parse.urlencode({
-        "action": "query",
-        "titles": f"File:{filename}",
-        "prop": "imageinfo",
-        "iiprop": "url",
-        "iiurlwidth": str(width),
-        "format": "json",
-    })
+    params = urllib.parse.urlencode(
+        {
+            "action": "query",
+            "titles": f"File:{filename}",
+            "prop": "imageinfo",
+            "iiprop": "url",
+            "iiurlwidth": str(width),
+            "format": "json",
+        }
+    )
     try:
         req = urllib.request.Request(
             f"{COMMONS_API}?{params}", headers={"User-Agent": WIKIMEDIA_UA}
@@ -251,9 +253,9 @@ class DriverHeadshotIngestor(BaseIngestor):
         HEADSHOTS_DIR.mkdir(parents=True, exist_ok=True)
 
         # Build name → driver lookup from DB (only drivers without headshots)
-        drivers_without = self.db.execute(
-            select(Driver).where(Driver.has_headshot.is_(False))
-        ).scalars().all()
+        drivers_without = (
+            self.db.execute(select(Driver).where(Driver.has_headshot.is_(False))).scalars().all()
+        )
 
         if not drivers_without:
             self.log("All drivers already have headshots, skipping OpenF1")
@@ -270,9 +272,7 @@ class DriverHeadshotIngestor(BaseIngestor):
 
         for year in OPENF1_YEARS:
             # Get first race session of the year
-            sessions = _fetch_json(
-                f"{OPENF1_BASE}/sessions?session_type=Race&year={year}"
-            )
+            sessions = _fetch_json(f"{OPENF1_BASE}/sessions?session_type=Race&year={year}")
             if not sessions:
                 self.log(f"Warning: No sessions found for {year}")
                 continue
@@ -467,9 +467,7 @@ class WikidataHeadshotIngestor(BaseIngestor):
                 not_found += 1
                 continue
 
-            driver = self.db.execute(
-                select(Driver).where(Driver.ref == ref)
-            ).scalar_one()
+            driver = self.db.execute(select(Driver).where(Driver.ref == ref)).scalar_one()
 
             local_path = HEADSHOTS_DIR / f"{ref}.png"
             err = _download_and_resize(image_url, local_path, HEADSHOT_SIZE)
@@ -499,9 +497,7 @@ class ConstructorLogoIngestor(BaseIngestor):
         LOGOS_DIR.mkdir(parents=True, exist_ok=True)
 
         # Use search endpoint (free tier) — lookupteam is paywalled
-        data = _fetch_json(
-            f"{SPORTSDB_BASE}/search_all_teams.php?l=Formula_1"
-        )
+        data = _fetch_json(f"{SPORTSDB_BASE}/search_all_teams.php?l=Formula_1")
         if not data or not data.get("teams"):
             self.log("Warning: TheSportsDB search returned no teams")
             return
@@ -621,9 +617,7 @@ class WikimediaLogoIngestor(BaseIngestor):
         refs_to_fetch = []
         for ref in COMMONS_LOGOS:
             constructor = self.db.execute(
-                select(Constructor).where(
-                    Constructor.ref == ref, Constructor.has_logo.is_(False)
-                )
+                select(Constructor).where(Constructor.ref == ref, Constructor.has_logo.is_(False))
             ).scalar_one_or_none()
             if constructor:
                 refs_to_fetch.append(ref)

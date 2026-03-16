@@ -73,9 +73,7 @@ def get_circuit(ref: str, db: Session = Depends(get_db)):
 
     races = (
         db.execute(
-            select(Race)
-            .where(Race.circuit_id == circuit.id)
-            .order_by(Race.season_year.desc())
+            select(Race).where(Race.circuit_id == circuit.id).order_by(Race.season_year.desc())
         )
         .scalars()
         .all()
@@ -116,7 +114,9 @@ def get_circuit(ref: str, db: Session = Depends(get_db)):
                 "ref": record_race.fastest_lap_constructor.ref,
                 "name": record_race.fastest_lap_constructor.name,
                 "color": record_race.fastest_lap_constructor.color,
-            } if record_race.fastest_lap_constructor else None,
+            }
+            if record_race.fastest_lap_constructor
+            else None,
         }
 
     return {
@@ -160,40 +160,34 @@ def get_circuit_stats(ref: str, limit: int = 10, db: Session = Depends(get_db)):
     race_ids_query = select(Race.id).where(Race.circuit_id == circuit.id)
 
     # Most wins (position = 1)
-    most_wins = (
-        db.execute(
-            select(
-                RaceResult.driver_id,
-                func.count().label("win_count"),
-            )
-            .where(
-                RaceResult.race_id.in_(race_ids_query),
-                RaceResult.position == 1,
-            )
-            .group_by(RaceResult.driver_id)
-            .order_by(func.count().desc())
-            .limit(limit)
+    most_wins = db.execute(
+        select(
+            RaceResult.driver_id,
+            func.count().label("win_count"),
         )
-        .all()
-    )
+        .where(
+            RaceResult.race_id.in_(race_ids_query),
+            RaceResult.position == 1,
+        )
+        .group_by(RaceResult.driver_id)
+        .order_by(func.count().desc())
+        .limit(limit)
+    ).all()
 
     # Most poles (qualifying position = 1)
-    most_poles = (
-        db.execute(
-            select(
-                QualifyingResult.driver_id,
-                func.count().label("pole_count"),
-            )
-            .where(
-                QualifyingResult.race_id.in_(race_ids_query),
-                QualifyingResult.position == 1,
-            )
-            .group_by(QualifyingResult.driver_id)
-            .order_by(func.count().desc())
-            .limit(limit)
+    most_poles = db.execute(
+        select(
+            QualifyingResult.driver_id,
+            func.count().label("pole_count"),
         )
-        .all()
-    )
+        .where(
+            QualifyingResult.race_id.in_(race_ids_query),
+            QualifyingResult.position == 1,
+        )
+        .group_by(QualifyingResult.driver_id)
+        .order_by(func.count().desc())
+        .limit(limit)
+    ).all()
 
     # Load driver objects for wins
     from src.db.models import Driver
@@ -206,11 +200,7 @@ def get_circuit_stats(ref: str, limit: int = 10, db: Session = Depends(get_db)):
 
     drivers_map = {}
     if driver_ids:
-        drivers = (
-            db.execute(select(Driver).where(Driver.id.in_(driver_ids)))
-            .scalars()
-            .all()
-        )
+        drivers = db.execute(select(Driver).where(Driver.id.in_(driver_ids))).scalars().all()
         drivers_map = {d.id: d for d in drivers}
 
     # Winning history: winner per race year

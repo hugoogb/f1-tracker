@@ -88,9 +88,7 @@ class LapTimeIngestor(BaseIngestor):
                     abbr_to_id = self.build_abbr_to_driver_id(session.results, ref_to_id)
 
                     if not abbr_to_id:
-                        self.log(
-                            f"{season.year} R{race.round}: no driver mapping available"
-                        )
+                        self.log(f"{season.year} R{race.round}: no driver mapping available")
                         continue
 
                     race_records = 0
@@ -128,9 +126,7 @@ class LapTimeIngestor(BaseIngestor):
                     total_records += race_records
                     season_fetched += 1
                     total_fetched += 1
-                    self.log(
-                        f"{season.year} R{race.round}: {race_records} lap times ingested"
-                    )
+                    self.log(f"{season.year} R{race.round}: {race_records} lap times ingested")
 
                     # Throttle: only delay if the load hit the network (not cached)
                     if load_elapsed > 1.0:
@@ -161,9 +157,7 @@ class LapTimeIngestor(BaseIngestor):
                         )
                         return
                     else:
-                        self.log(
-                            f"Lap times {season.year} R{race.round}: ERROR - {e}"
-                        )
+                        self.log(f"Lap times {season.year} R{race.round}: ERROR - {e}")
                         continue
 
             if is_interrupted():

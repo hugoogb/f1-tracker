@@ -54,9 +54,7 @@ class QualifyingSectorIngestor(BaseIngestor):
         for season in seasons:
             races = (
                 self.db.execute(
-                    select(Race)
-                    .where(Race.season_year == season.year)
-                    .order_by(Race.round)
+                    select(Race).where(Race.season_year == season.year).order_by(Race.round)
                 )
                 .scalars()
                 .all()
@@ -81,8 +79,7 @@ class QualifyingSectorIngestor(BaseIngestor):
                 # Check if qualifying results exist for this race
                 quali_results = (
                     self.db.execute(
-                        select(QualifyingResult)
-                        .where(QualifyingResult.race_id == race.id)
+                        select(QualifyingResult).where(QualifyingResult.race_id == race.id)
                     )
                     .scalars()
                     .all()
@@ -91,14 +88,9 @@ class QualifyingSectorIngestor(BaseIngestor):
                     continue
 
                 try:
-                    self.log(
-                        f"{season.year} R{race.round}: "
-                        f"fetching qualifying sectors..."
-                    )
+                    self.log(f"{season.year} R{race.round}: fetching qualifying sectors...")
                     load_start = time.time()
-                    session = fastf1.get_session(
-                        season.year, race.round, "Q"
-                    )
+                    session = fastf1.get_session(season.year, race.round, "Q")
                     session.load(
                         laps=True,
                         telemetry=False,
@@ -109,20 +101,14 @@ class QualifyingSectorIngestor(BaseIngestor):
 
                     laps = session.laps
                     if laps is None or laps.empty:
-                        self.log(
-                            f"{season.year} R{race.round}: "
-                            f"no qualifying lap data"
-                        )
+                        self.log(f"{season.year} R{race.round}: no qualifying lap data")
                         continue
 
                     # Build abbreviation -> driver_id map
                     abbr_to_id = self.build_abbr_to_driver_id(session.results, ref_to_id)
 
                     if not abbr_to_id:
-                        self.log(
-                            f"{season.year} R{race.round}: "
-                            f"no driver mapping"
-                        )
+                        self.log(f"{season.year} R{race.round}: no driver mapping")
                         continue
 
                     # Split laps into Q1/Q2/Q3 sessions
@@ -130,8 +116,7 @@ class QualifyingSectorIngestor(BaseIngestor):
                         q_parts = laps.split_qualifying_sessions()
                     except Exception:
                         self.log(
-                            f"{season.year} R{race.round}: "
-                            f"could not split qualifying sessions"
+                            f"{season.year} R{race.round}: could not split qualifying sessions"
                         )
                         continue
 
@@ -149,9 +134,7 @@ class QualifyingSectorIngestor(BaseIngestor):
                         ],
                     ] = {}
 
-                    for q_label, q_laps in zip(
-                        ["Q1", "Q2", "Q3"], q_parts
-                    ):
+                    for q_label, q_laps in zip(["Q1", "Q2", "Q3"], q_parts):
                         if q_laps is None or q_laps.empty:
                             continue
                         for _, row in q_laps.iterrows():
@@ -160,41 +143,26 @@ class QualifyingSectorIngestor(BaseIngestor):
                             if not driver_id:
                                 continue
 
-                            lap_time = timedelta_to_ms(
-                                row.get("LapTime")
-                            )
+                            lap_time = timedelta_to_ms(row.get("LapTime"))
                             if lap_time is None:
                                 continue
 
-                            s1 = timedelta_to_ms(
-                                row.get("Sector1Time")
-                            )
-                            s2 = timedelta_to_ms(
-                                row.get("Sector2Time")
-                            )
-                            s3 = timedelta_to_ms(
-                                row.get("Sector3Time")
-                            )
+                            s1 = timedelta_to_ms(row.get("Sector1Time"))
+                            s2 = timedelta_to_ms(row.get("Sector2Time"))
+                            s3 = timedelta_to_ms(row.get("Sector3Time"))
 
                             if driver_id not in driver_sectors:
                                 driver_sectors[driver_id] = {}
-                            current = driver_sectors[
-                                driver_id
-                            ].get(q_label)
+                            current = driver_sectors[driver_id].get(q_label)
                             # Keep the lap with the fastest time
                             if current is None or (
-                                current[3] is not None
-                                and lap_time < current[3]
+                                current[3] is not None and lap_time < current[3]
                             ):
-                                driver_sectors[driver_id][
-                                    q_label
-                                ] = (s1, s2, s3, lap_time)
+                                driver_sectors[driver_id][q_label] = (s1, s2, s3, lap_time)
 
                     # Update QualifyingResult rows with sector data
                     race_updated = 0
-                    quali_by_driver = {
-                        q.driver_id: q for q in quali_results
-                    }
+                    quali_by_driver = {q.driver_id: q for q in quali_results}
                     for driver_id, sessions in driver_sectors.items():
                         quali = quali_by_driver.get(driver_id)
                         if not quali:
@@ -225,23 +193,18 @@ class QualifyingSectorIngestor(BaseIngestor):
                     season_fetched += 1
                     total_fetched += 1
                     self.log(
-                        f"{season.year} R{race.round}: "
-                        f"{race_updated} qualifying sectors updated"
+                        f"{season.year} R{race.round}: {race_updated} qualifying sectors updated"
                     )
 
                     # Throttle uncached loads
                     if load_elapsed > 1.0:
                         remaining = max(0, THROTTLE_DELAY - load_elapsed)
                         if remaining > 0:
-                            self.log(
-                                f"Throttle delay ({remaining:.0f}s)..."
-                            )
+                            self.log(f"Throttle delay ({remaining:.0f}s)...")
                             try:
                                 time.sleep(remaining)
                             except KeyboardInterrupt:
-                                raise InterruptedError(
-                                    "Seed interrupted by user"
-                                )
+                                raise InterruptedError("Seed interrupted by user")
 
                 except InterruptedError:
                     raise
@@ -261,19 +224,13 @@ class QualifyingSectorIngestor(BaseIngestor):
                         )
                         return
                     else:
-                        self.log(
-                            f"Qualifying sectors {season.year} "
-                            f"R{race.round}: ERROR - {e}"
-                        )
+                        self.log(f"Qualifying sectors {season.year} R{race.round}: ERROR - {e}")
                         continue
 
             if is_interrupted():
                 break
             if season_fetched > 0:
-                self.log(
-                    f"Season {season.year}: "
-                    f"{season_fetched} qualifying sectors ingested"
-                )
+                self.log(f"Season {season.year}: {season_fetched} qualifying sectors ingested")
 
         self.log(
             f"Updated {total_updated} qualifying results from "

@@ -24,11 +24,7 @@ def _driver_dict(driver: Driver) -> dict:
         "lastName": driver.last_name,
         "nationality": driver.nationality,
         "countryCode": driver.country_code,
-        "headshotUrl": (
-            f"/headshots/{driver.ref}.png"
-            if driver.has_headshot
-            else None
-        ),
+        "headshotUrl": (f"/headshots/{driver.ref}.png" if driver.has_headshot else None),
     }
 
 
@@ -159,10 +155,12 @@ def get_records(limit: int = 10, db: Session = Depends(get_db)):
         for row in rows:
             driver = db.get(Driver, row.driver_id)
             if driver:
-                result.append({
-                    "driver": _driver_dict(driver),
-                    "count": row.count,
-                })
+                result.append(
+                    {
+                        "driver": _driver_dict(driver),
+                        "count": row.count,
+                    }
+                )
         return result
 
     def _resolve_fastest_lap_driver(rows):
@@ -170,10 +168,12 @@ def get_records(limit: int = 10, db: Session = Depends(get_db)):
         for row in rows:
             driver = db.get(Driver, row.fastest_lap_driver_id)
             if driver:
-                result.append({
-                    "driver": _driver_dict(driver),
-                    "count": row.count,
-                })
+                result.append(
+                    {
+                        "driver": _driver_dict(driver),
+                        "count": row.count,
+                    }
+                )
         return result
 
     def _resolve_constructor(rows):
@@ -181,10 +181,12 @@ def get_records(limit: int = 10, db: Session = Depends(get_db)):
         for row in rows:
             constructor = db.get(Constructor, row.constructor_id)
             if constructor:
-                result.append({
-                    "constructor": _constructor_dict(constructor),
-                    "count": row.count,
-                })
+                result.append(
+                    {
+                        "constructor": _constructor_dict(constructor),
+                        "count": row.count,
+                    }
+                )
         return result
 
     return {
@@ -194,14 +196,10 @@ def get_records(limit: int = 10, db: Session = Depends(get_db)):
             "mostPoles": _resolve_driver(most_poles),
             "mostStarts": _resolve_driver(most_starts),
             "mostChampionships": _resolve_driver(most_championships),
-            "mostFastestLaps": _resolve_fastest_lap_driver(
-                most_fastest_laps
-            ),
+            "mostFastestLaps": _resolve_fastest_lap_driver(most_fastest_laps),
         },
         "constructors": {
             "mostWins": _resolve_constructor(constructor_wins),
-            "mostChampionships": _resolve_constructor(
-                most_constructor_champs
-            ),
+            "mostChampionships": _resolve_constructor(most_constructor_champs),
         },
     }

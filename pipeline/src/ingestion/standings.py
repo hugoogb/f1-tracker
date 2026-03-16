@@ -48,15 +48,11 @@ class StandingsIngestor(BaseIngestor):
                 delete(DriverStanding).where(DriverStanding.race_id.in_(season_race_ids))
             )
             self.db.execute(
-                delete(ConstructorStanding).where(
-                    ConstructorStanding.race_id.in_(season_race_ids)
-                )
+                delete(ConstructorStanding).where(ConstructorStanding.race_id.in_(season_race_ids))
             )
 
             driver_total += self._compute_driver_standings(season.year, last_race.id)
-            constructor_total += self._compute_constructor_standings(
-                season.year, last_race.id
-            )
+            constructor_total += self._compute_constructor_standings(season.year, last_race.id)
 
         self.log(
             f"Computed {driver_total} driver standings, {constructor_total} constructor standings"
@@ -65,12 +61,16 @@ class StandingsIngestor(BaseIngestor):
     def _compute_driver_standings(self, year: int, last_race_id: str) -> int:
         """Sum points + count wins from race_results and sprint_results for a season."""
         # Only include races that have results
-        race_ids = self.db.execute(
-            select(Race.id).where(
-                Race.season_year == year,
-                Race.id.in_(select(RaceResult.race_id)),
+        race_ids = (
+            self.db.execute(
+                select(Race.id).where(
+                    Race.season_year == year,
+                    Race.id.in_(select(RaceResult.race_id)),
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
 
         if not race_ids:
             return 0
@@ -139,12 +139,16 @@ class StandingsIngestor(BaseIngestor):
     def _compute_constructor_standings(self, year: int, last_race_id: str) -> int:
         """Sum points + count wins from race_results and sprint_results for a season."""
         # Only include races that have results
-        race_ids = self.db.execute(
-            select(Race.id).where(
-                Race.season_year == year,
-                Race.id.in_(select(RaceResult.race_id)),
+        race_ids = (
+            self.db.execute(
+                select(Race.id).where(
+                    Race.season_year == year,
+                    Race.id.in_(select(RaceResult.race_id)),
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
 
         if not race_ids:
             return 0

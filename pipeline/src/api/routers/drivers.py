@@ -209,14 +209,16 @@ def get_driver_pace(ref: str, db: Session = Depends(get_db)):
         if avg_quali is not None and avg_race is not None:
             delta = round(avg_race - avg_quali, 2)
 
-        seasons.append({
-            "year": year,
-            "avgQualiPosition": avg_quali,
-            "avgRacePosition": avg_race,
-            "qualiCount": q.quali_count if q else 0,
-            "raceCount": r.race_count if r else 0,
-            "delta": delta,
-        })
+        seasons.append(
+            {
+                "year": year,
+                "avgQualiPosition": avg_quali,
+                "avgRacePosition": avg_race,
+                "qualiCount": q.quali_count if q else 0,
+                "raceCount": r.race_count if r else 0,
+                "delta": delta,
+            }
+        )
 
     return {
         "driverRef": driver.ref,
