@@ -8,7 +8,8 @@ BACKUP_FILE="${BACKUP_DIR}/f1tracker_${TIMESTAMP}.sql.gz"
 LATEST_COPY="${BACKUP_DIR}/latest.sql.gz"
 
 echo "Backing up f1tracker database..."
-docker exec docker-db-1 pg_dump -U f1tracker --data-only --no-owner --no-privileges f1tracker \
+docker exec docker-db-1 pg_dump -U f1tracker --data-only --no-owner --no-privileges \
+  --exclude-table=alembic_version f1tracker \
   | gzip > "$BACKUP_FILE"
 
 # Copy as latest (real file so git can track it)

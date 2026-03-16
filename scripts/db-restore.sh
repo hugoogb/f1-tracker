@@ -24,7 +24,10 @@ fi
 echo "Ensuring schema is up to date..."
 cd "$(dirname "$0")/../pipeline" && uv run alembic upgrade head
 
-# Truncate all tables (respecting FK order) then restore
+# Clear alembic_version to avoid conflict with backup data
+docker exec docker-db-1 psql -U f1tracker -d f1tracker -c "DELETE FROM alembic_version"
+
+# Restore data
 echo "Restoring data..."
 gunzip -c "$BACKUP_FILE" | docker exec -i docker-db-1 psql -U f1tracker -d f1tracker --single-transaction
 
