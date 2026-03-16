@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -10,8 +10,8 @@ router = APIRouter()
 
 @router.get("/circuits")
 def list_circuits(
-    page: int = 1,
-    page_size: int = 50,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
     country: str | None = None,
     db: Session = Depends(get_db),
 ):
@@ -151,7 +151,7 @@ def get_circuit(ref: str, db: Session = Depends(get_db)):
 
 
 @router.get("/circuits/{ref}/stats")
-def get_circuit_stats(ref: str, limit: int = 10, db: Session = Depends(get_db)):
+def get_circuit_stats(ref: str, limit: int = Query(10, ge=1, le=50), db: Session = Depends(get_db)):
     circuit = db.execute(select(Circuit).where(Circuit.ref == ref)).scalar_one_or_none()
     if not circuit:
         raise HTTPException(status_code=404, detail="Circuit not found")

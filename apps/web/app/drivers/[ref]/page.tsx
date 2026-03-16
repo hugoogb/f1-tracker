@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { Flag, Trophy, Medal, TrendingUp, GitCompareArrows, Timer, Zap, Award } from 'lucide-react'
 import { api } from '@/lib/api'
 import type { Driver, DriverSeasonSummary, DriverPaceResponse } from '@/lib/types'
-import { TEAM_COLORS } from '@/lib/constants'
+import { getTeamColor } from '@/lib/utils'
 import { CountryFlag } from '@/components/ui/country-flag'
 import { DriverAvatar } from '@/components/ui/driver-avatar'
 import { Breadcrumbs } from '@/components/layout/breadcrumbs'
@@ -52,7 +52,7 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ r
 
   const latestTeam = seasons[0]?.constructor
   const teamColor = latestTeam
-    ? (TEAM_COLORS[latestTeam.ref] ?? latestTeam.color ?? undefined)
+    ? (getTeamColor(latestTeam.ref, latestTeam.color, null) ?? undefined)
     : undefined
 
   return (

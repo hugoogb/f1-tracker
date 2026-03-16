@@ -9,7 +9,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
-import { TEAM_COLORS } from '@/lib/constants'
+import { getTeamColor } from '@/lib/utils'
 import type { StandingsProgressionDriver } from '@/lib/types'
 
 interface ChartEntry {
@@ -107,7 +107,7 @@ export function ChampionshipProgressionChart({
           <YAxis tick={{ fontSize: 12, fill: 'oklch(0.6 0 0)' }} width={50} />
           <Tooltip content={<CustomTooltip />} />
           {items.map((entry) => {
-            const color = TEAM_COLORS[entry.ref] ?? entry.color ?? '#888888'
+            const color = getTeamColor(entry.ref, entry.color)!
             const label = entry.code ?? entry.name ?? entry.lastName ?? entry.ref
             return (
               <Line

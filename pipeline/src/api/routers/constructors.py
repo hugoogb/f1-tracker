@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
 
@@ -11,8 +11,8 @@ router = APIRouter()
 
 @router.get("/constructors")
 def list_constructors(
-    page: int = 1,
-    page_size: int = 50,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
     nationality: str | None = None,
     db: Session = Depends(get_db),
 ):
@@ -114,7 +114,11 @@ def get_constructor_roster(ref: str, year: int | None = None, db: Session = Depe
         .all()
     )
 
-    drivers = [db.get(Driver, did) for did in driver_ids]
+    drivers = (
+        (db.execute(select(Driver).where(Driver.id.in_(driver_ids))).scalars().all())
+        if driver_ids
+        else []
+    )
 
     return {
         "year": year,
@@ -130,7 +134,6 @@ def get_constructor_roster(ref: str, year: int | None = None, db: Session = Depe
                 "headshotUrl": f"/headshots/{d.ref}.png" if d.has_headshot else None,
             }
             for d in drivers
-            if d
         ],
     }
 
@@ -155,28 +158,50 @@ def get_constructor_seasons(ref: str, db: Session = Depends(get_db)):
         .order_by(Race.season_year.desc())
     ).all()
 
-    results = []
-    for row in season_stats:
-        # Look up championship position from latest standings
-        last_race = db.execute(
-            select(Race)
-            .where(
-                Race.season_year == row.season_year,
-                Race.id.in_(select(ConstructorStanding.race_id)),
-            )
-            .order_by(Race.round.desc())
-            .limit(1)
-        ).scalar_one_or_none()
-        championship_position = None
-        if last_race:
-            standing = db.execute(
+    # Bulk-fetch championship positions: find last race with standings per season
+    season_years = [row.season_year for row in season_stats]
+    last_races_query = (
+        select(
+            Race.season_year,
+            func.max(Race.round).label("max_round"),
+        )
+        .where(
+            Race.season_year.in_(season_years),
+            Race.id.in_(select(ConstructorStanding.race_id)),
+        )
+        .group_by(Race.season_year)
+        .subquery()
+    )
+    last_race_rows = db.execute(
+        select(Race.id, Race.season_year).join(
+            last_races_query,
+            (Race.season_year == last_races_query.c.season_year)
+            & (Race.round == last_races_query.c.max_round),
+        )
+    ).all()
+    last_race_map = {row.season_year: row.id for row in last_race_rows}
+
+    last_race_ids = list(last_race_map.values())
+    standings_rows = (
+        (
+            db.execute(
                 select(ConstructorStanding).where(
-                    ConstructorStanding.race_id == last_race.id,
+                    ConstructorStanding.race_id.in_(last_race_ids),
                     ConstructorStanding.constructor_id == constructor.id,
                 )
-            ).scalar_one_or_none()
-            if standing:
-                championship_position = standing.position
+            )
+            .scalars()
+            .all()
+        )
+        if last_race_ids
+        else []
+    )
+    standing_by_race = {s.race_id: s.position for s in standings_rows}
+
+    results = []
+    for row in season_stats:
+        race_id = last_race_map.get(row.season_year)
+        championship_position = standing_by_race.get(race_id) if race_id else None
 
         results.append(
             {

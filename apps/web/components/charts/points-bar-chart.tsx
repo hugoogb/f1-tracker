@@ -10,7 +10,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
-import { TEAM_COLORS } from '@/lib/constants'
+import { getTeamColor } from '@/lib/utils'
 import type { DriverStanding } from '@/lib/types'
 
 interface PointsBarChartProps {
@@ -57,9 +57,7 @@ export function PointsBarChart({ standings }: PointsBarChartProps) {
   const data = standings.slice(0, 10).map((s) => ({
     name: s.driver.lastName,
     points: s.points,
-    color: s.constructor
-      ? (TEAM_COLORS[s.constructor.ref] ?? s.constructor.color ?? '#888888')
-      : '#888888',
+    color: s.constructor ? getTeamColor(s.constructor.ref, s.constructor.color)! : '#888888',
   }))
 
   if (data.length === 0) return null

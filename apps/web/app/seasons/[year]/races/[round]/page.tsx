@@ -12,7 +12,7 @@ import type {
   PitStopAnalysis,
   PositionsResponse,
 } from '@/lib/types'
-import { TEAM_COLORS } from '@/lib/constants'
+import { getTeamColor } from '@/lib/utils'
 import { CountryFlag } from '@/components/ui/country-flag'
 import { Breadcrumbs } from '@/components/layout/breadcrumbs'
 import { Badge } from '@/components/ui/badge'
@@ -200,8 +200,7 @@ export default async function RaceDetailPage({
       {podium.length > 0 && (
         <PodiumReveal>
           {podium.map((result) => {
-            const teamColor =
-              TEAM_COLORS[result.constructor.ref] ?? result.constructor.color ?? null
+            const teamColor = getTeamColor(result.constructor.ref, result.constructor.color, null)
             const podiumColors = [
               'border-amber-500/40 bg-amber-500/5',
               'border-zinc-400/40 bg-zinc-400/5',

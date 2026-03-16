@@ -9,6 +9,7 @@ from sqlalchemy import (
     Integer,
     String,
     Time,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -103,7 +104,7 @@ class Race(Base):
     season_year: Mapped[int] = mapped_column(ForeignKey("seasons.year"), index=True)
     round: Mapped[int] = mapped_column(Integer)
     name: Mapped[str] = mapped_column(String)
-    circuit_id: Mapped[str] = mapped_column(ForeignKey("circuits.id"))
+    circuit_id: Mapped[str] = mapped_column(ForeignKey("circuits.id"), index=True)
     date: Mapped[str | None] = mapped_column(Date)
     time: Mapped[str | None] = mapped_column(Time)
     url: Mapped[str | None] = mapped_column(String)
@@ -148,14 +149,15 @@ class Race(Base):
 
 class RaceResult(Base):
     __tablename__ = "race_results"
+    __table_args__ = (UniqueConstraint("race_id", "driver_id"),)
 
     id: Mapped[str] = mapped_column(String, primary_key=True, default=new_uuid)
     race_id: Mapped[str] = mapped_column(ForeignKey("races.id"), index=True)
     driver_id: Mapped[str] = mapped_column(ForeignKey("drivers.id"), index=True)
-    constructor_id: Mapped[str] = mapped_column(ForeignKey("constructors.id"))
+    constructor_id: Mapped[str] = mapped_column(ForeignKey("constructors.id"), index=True)
     number: Mapped[int | None] = mapped_column(Integer)
     grid: Mapped[int | None] = mapped_column(Integer)
-    position: Mapped[int | None] = mapped_column(Integer)
+    position: Mapped[int | None] = mapped_column(Integer, index=True)
     position_text: Mapped[str | None] = mapped_column(String)
     points: Mapped[float] = mapped_column(Float, default=0)
     laps: Mapped[int | None] = mapped_column(Integer)
@@ -174,13 +176,14 @@ class RaceResult(Base):
 
 class QualifyingResult(Base):
     __tablename__ = "qualifying_results"
+    __table_args__ = (UniqueConstraint("race_id", "driver_id"),)
 
     id: Mapped[str] = mapped_column(String, primary_key=True, default=new_uuid)
     race_id: Mapped[str] = mapped_column(ForeignKey("races.id"), index=True)
     driver_id: Mapped[str] = mapped_column(ForeignKey("drivers.id"), index=True)
     constructor_id: Mapped[str] = mapped_column(ForeignKey("constructors.id"))
     number: Mapped[int | None] = mapped_column(Integer)
-    position: Mapped[int | None] = mapped_column(Integer)
+    position: Mapped[int | None] = mapped_column(Integer, index=True)
     q1: Mapped[str | None] = mapped_column(String)
     q2: Mapped[str | None] = mapped_column(String)
     q3: Mapped[str | None] = mapped_column(String)
@@ -201,12 +204,13 @@ class QualifyingResult(Base):
 
 class DriverStanding(Base):
     __tablename__ = "driver_standings"
+    __table_args__ = (UniqueConstraint("race_id", "driver_id"),)
 
     id: Mapped[str] = mapped_column(String, primary_key=True, default=new_uuid)
     race_id: Mapped[str] = mapped_column(ForeignKey("races.id"), index=True)
     driver_id: Mapped[str] = mapped_column(ForeignKey("drivers.id"), index=True)
     points: Mapped[float] = mapped_column(Float, default=0)
-    position: Mapped[int | None] = mapped_column(Integer)
+    position: Mapped[int | None] = mapped_column(Integer, index=True)
     wins: Mapped[int] = mapped_column(Integer, default=0)
 
     race: Mapped["Race"] = relationship()
@@ -215,12 +219,13 @@ class DriverStanding(Base):
 
 class ConstructorStanding(Base):
     __tablename__ = "constructor_standings"
+    __table_args__ = (UniqueConstraint("race_id", "constructor_id"),)
 
     id: Mapped[str] = mapped_column(String, primary_key=True, default=new_uuid)
     race_id: Mapped[str] = mapped_column(ForeignKey("races.id"), index=True)
     constructor_id: Mapped[str] = mapped_column(ForeignKey("constructors.id"), index=True)
     points: Mapped[float] = mapped_column(Float, default=0)
-    position: Mapped[int | None] = mapped_column(Integer)
+    position: Mapped[int | None] = mapped_column(Integer, index=True)
     wins: Mapped[int] = mapped_column(Integer, default=0)
 
     race: Mapped["Race"] = relationship()
@@ -229,6 +234,7 @@ class ConstructorStanding(Base):
 
 class PitStop(Base):
     __tablename__ = "pit_stops"
+    __table_args__ = (UniqueConstraint("race_id", "driver_id", "stop_number"),)
 
     id: Mapped[str] = mapped_column(String, primary_key=True, default=new_uuid)
     race_id: Mapped[str] = mapped_column(ForeignKey("races.id"), index=True)
@@ -244,6 +250,7 @@ class PitStop(Base):
 
 class LapTime(Base):
     __tablename__ = "lap_times"
+    __table_args__ = (UniqueConstraint("race_id", "driver_id", "lap_number"),)
 
     id: Mapped[str] = mapped_column(String, primary_key=True, default=new_uuid)
     race_id: Mapped[str] = mapped_column(ForeignKey("races.id"), index=True)
@@ -263,6 +270,7 @@ class LapTime(Base):
 
 class SprintResult(Base):
     __tablename__ = "sprint_results"
+    __table_args__ = (UniqueConstraint("race_id", "driver_id"),)
 
     id: Mapped[str] = mapped_column(String, primary_key=True, default=new_uuid)
     race_id: Mapped[str] = mapped_column(ForeignKey("races.id"), index=True)

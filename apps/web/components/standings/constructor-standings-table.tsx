@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { TEAM_COLORS } from '@/lib/constants'
+import { getTeamColor } from '@/lib/utils'
 import type { ConstructorStanding } from '@/lib/types'
 import { PositionBadge } from '@/components/ui/position-badge'
 import {
@@ -35,7 +35,7 @@ export function ConstructorStandingsTable({ standings, limit }: ConstructorStand
       </TableHeader>
       <TableBody>
         {rows.map((entry) => {
-          const teamColor = TEAM_COLORS[entry.constructor.ref] ?? entry.constructor.color
+          const teamColor = getTeamColor(entry.constructor.ref, entry.constructor.color)
 
           return (
             <TableRow key={entry.constructor.ref}>

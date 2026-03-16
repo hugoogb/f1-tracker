@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -39,7 +39,7 @@ def _constructor_dict(constructor: Constructor) -> dict:
 
 
 @router.get("/records")
-def get_records(limit: int = 10, db: Session = Depends(get_db)):
+def get_records(limit: int = Query(10, ge=1, le=50), db: Session = Depends(get_db)):
     # --- Driver Records ---
 
     # Most wins
@@ -150,44 +150,59 @@ def get_records(limit: int = 10, db: Session = Depends(get_db)):
         .limit(limit)
     ).all()
 
-    def _resolve_driver(rows):
-        result = []
+    # Bulk-fetch all referenced drivers and constructors in 2 queries
+    all_driver_ids = set()
+    for rows in [most_wins, most_podiums, most_poles, most_starts, most_championships]:
         for row in rows:
-            driver = db.get(Driver, row.driver_id)
-            if driver:
-                result.append(
-                    {
-                        "driver": _driver_dict(driver),
-                        "count": row.count,
-                    }
-                )
-        return result
+            all_driver_ids.add(row.driver_id)
+    for row in most_fastest_laps:
+        all_driver_ids.add(row.fastest_lap_driver_id)
+
+    all_constructor_ids = set()
+    for rows in [constructor_wins, most_constructor_champs]:
+        for row in rows:
+            all_constructor_ids.add(row.constructor_id)
+
+    driver_map = {}
+    if all_driver_ids:
+        drivers = db.execute(select(Driver).where(Driver.id.in_(all_driver_ids))).scalars().all()
+        driver_map = {d.id: d for d in drivers}
+
+    constructor_map = {}
+    if all_constructor_ids:
+        constructors = (
+            db.execute(select(Constructor).where(Constructor.id.in_(all_constructor_ids)))
+            .scalars()
+            .all()
+        )
+        constructor_map = {c.id: c for c in constructors}
+
+    def _resolve_driver(rows):
+        return [
+            {"driver": _driver_dict(driver_map[row.driver_id]), "count": row.count}
+            for row in rows
+            if row.driver_id in driver_map
+        ]
 
     def _resolve_fastest_lap_driver(rows):
-        result = []
-        for row in rows:
-            driver = db.get(Driver, row.fastest_lap_driver_id)
-            if driver:
-                result.append(
-                    {
-                        "driver": _driver_dict(driver),
-                        "count": row.count,
-                    }
-                )
-        return result
+        return [
+            {
+                "driver": _driver_dict(driver_map[row.fastest_lap_driver_id]),
+                "count": row.count,
+            }
+            for row in rows
+            if row.fastest_lap_driver_id in driver_map
+        ]
 
     def _resolve_constructor(rows):
-        result = []
-        for row in rows:
-            constructor = db.get(Constructor, row.constructor_id)
-            if constructor:
-                result.append(
-                    {
-                        "constructor": _constructor_dict(constructor),
-                        "count": row.count,
-                    }
-                )
-        return result
+        return [
+            {
+                "constructor": _constructor_dict(constructor_map[row.constructor_id]),
+                "count": row.count,
+            }
+            for row in rows
+            if row.constructor_id in constructor_map
+        ]
 
     return {
         "drivers": {

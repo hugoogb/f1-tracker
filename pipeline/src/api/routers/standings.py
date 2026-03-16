@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -25,17 +25,32 @@ def driver_standings(year: int, db: Session = Depends(get_db)):
     constructor_map: dict[str, Constructor | None] = {}
     if standings:
         last_race_id = standings[0].race_id
-        for s in standings:
-            race_result = db.execute(
+        driver_ids = [s.driver_id for s in standings]
+        results = (
+            db.execute(
                 select(RaceResult).where(
                     RaceResult.race_id == last_race_id,
-                    RaceResult.driver_id == s.driver_id,
+                    RaceResult.driver_id.in_(driver_ids),
                 )
-            ).scalar_one_or_none()
-            if race_result:
-                constructor_map[s.driver_id] = db.get(Constructor, race_result.constructor_id)
-            else:
-                constructor_map[s.driver_id] = None
+            )
+            .scalars()
+            .all()
+        )
+        constructor_ids = {r.constructor_id for r in results}
+        constructors = (
+            (
+                db.execute(select(Constructor).where(Constructor.id.in_(constructor_ids)))
+                .scalars()
+                .all()
+            )
+            if constructor_ids
+            else []
+        )
+        c_map = {c.id: c for c in constructors}
+        result_map = {r.driver_id: r.constructor_id for r in results}
+        for did in driver_ids:
+            cid = result_map.get(did)
+            constructor_map[did] = c_map.get(cid) if cid else None
 
     return {
         "year": year,
@@ -95,7 +110,9 @@ def constructor_standings(year: int, db: Session = Depends(get_db)):
 
 
 @router.get("/seasons/{year}/standings/progression")
-def standings_progression(year: int, top: int = 10, db: Session = Depends(get_db)):
+def standings_progression(
+    year: int, top: int = Query(10, ge=1, le=30), db: Session = Depends(get_db)
+):
     """Round-by-round championship progression for the season."""
     races = (
         db.execute(select(Race).where(Race.season_year == year).order_by(Race.round))
@@ -111,17 +128,31 @@ def standings_progression(year: int, top: int = 10, db: Session = Depends(get_db
     final_standings = get_driver_standings_for_season(db, year)
     top_driver_ids = [s.driver_id for s in final_standings[:top]]
 
-    # Fetch driver info + constructor for display
+    # Fetch driver info + constructor for display (bulk)
+    last_race_results = (
+        db.execute(
+            select(RaceResult).where(
+                RaceResult.race_id == races[-1].id,
+                RaceResult.driver_id.in_(top_driver_ids),
+            )
+        )
+        .scalars()
+        .all()
+    )
+    constructor_ids = {r.constructor_id for r in last_race_results}
+    constructors = (
+        (db.execute(select(Constructor).where(Constructor.id.in_(constructor_ids))).scalars().all())
+        if constructor_ids
+        else []
+    )
+    c_map = {c.id: c for c in constructors}
+    result_cid_map = {r.driver_id: r.constructor_id for r in last_race_results}
+
     driver_info: dict = {}
     for s in final_standings[:top]:
         driver = s.driver
-        result = db.execute(
-            select(RaceResult).where(
-                RaceResult.race_id == races[-1].id,
-                RaceResult.driver_id == driver.id,
-            )
-        ).scalar_one_or_none()
-        constructor = db.get(Constructor, result.constructor_id) if result else None
+        cid = result_cid_map.get(driver.id)
+        constructor = c_map.get(cid) if cid else None
         driver_info[driver.id] = {
             "ref": driver.ref,
             "code": driver.code,
@@ -181,7 +212,9 @@ def standings_progression(year: int, top: int = 10, db: Session = Depends(get_db
 
 
 @router.get("/seasons/{year}/standings/constructors/progression")
-def constructor_standings_progression(year: int, top: int = 10, db: Session = Depends(get_db)):
+def constructor_standings_progression(
+    year: int, top: int = Query(10, ge=1, le=30), db: Session = Depends(get_db)
+):
     """Round-by-round constructor championship progression for the season."""
     races = (
         db.execute(select(Race).where(Race.season_year == year).order_by(Race.round))
