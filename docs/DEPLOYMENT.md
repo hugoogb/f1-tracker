@@ -116,7 +116,7 @@ Deploy the full app for **$0/month** using free tiers from three platforms:
 
 1. Create a free account at [neon.tech](https://neon.tech)
 2. Create a new project and copy the connection string (looks like `postgresql://user:pass@ep-xyz.region.aws.neon.tech/neondb?sslmode=require`)
-3. Run migrations from your local machine:
+3. Run migrations from your local machine to create the schema:
 
 ```bash
 cd pipeline
@@ -129,7 +129,7 @@ DATABASE_URL="<your-neon-connection-string>" uv run alembic upgrade head
 gunzip -c docker/backups/latest.sql.gz | psql "<your-neon-connection-string>" --single-transaction
 ```
 
-> **Tip**: The F1 dataset is ~300 MB and fits within Neon's 0.5 GB free tier.
+> **Tip**: The F1 dataset is ~300 MB and fits within Neon's 0.5 GB free tier. Requires `psql` client installed locally (`sudo apt install postgresql-client`).
 
 ### 2. Deploy the backend (Render)
 
