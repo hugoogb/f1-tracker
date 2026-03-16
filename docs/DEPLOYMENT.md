@@ -354,6 +354,39 @@ When using a reverse proxy, set `NEXT_PUBLIC_API_URL` to the proxy URL (e.g., `h
 
 ---
 
+## Security
+
+### Frontend Security Headers
+
+The Next.js app (`apps/web/next.config.ts`) sets security headers on all routes:
+
+| Header | Value | Purpose |
+| ------ | ----- | ------- |
+| `X-Frame-Options` | `DENY` | Prevents clickjacking via iframes |
+| `X-Content-Type-Options` | `nosniff` | Prevents MIME type sniffing |
+| `Referrer-Policy` | `strict-origin-when-cross-origin` | Controls referrer info sent with requests |
+| `Permissions-Policy` | `camera=(), microphone=(), geolocation=()` | Disables unnecessary browser APIs |
+| `X-DNS-Prefetch-Control` | `on` | Enables DNS prefetching for performance |
+
+### Backend Security
+
+- **CORS**: Restricted to `GET` and `OPTIONS` methods only (read-only API). Origins configurable via `CORS_ORIGINS` env var.
+- **Input validation**: All query parameters validated via FastAPI's `Query()` with `ge`/`le` bounds (page sizes, limits, years).
+- **No raw SQL**: All queries use SQLAlchemy ORM with parameterized statements.
+- **Path validation**: Static asset routes (headshots, logos) validate against directory traversal.
+- **API base URL validation**: Frontend API client validates `NEXT_PUBLIC_API_URL` against an allowlist of schemes/hosts.
+
+### Production Security Checklist
+
+- [ ] Set strong PostgreSQL credentials (not the dev defaults)
+- [ ] Set `FASTAPI_DEBUG=False` (disables Swagger UI detailed errors)
+- [ ] Set `CORS_ORIGINS` to your frontend domain(s) only
+- [ ] Configure HTTPS (via reverse proxy or hosting platform)
+- [ ] Restrict database access to backend server IPs only
+- [ ] Review dependency vulnerabilities: `pnpm audit` and `uv run pip-audit`
+
+---
+
 ## CORS Configuration
 
 CORS origins are configurable via the `CORS_ORIGINS` environment variable (comma-separated):
@@ -378,7 +411,7 @@ If using a reverse proxy where both frontend and API share the same domain, CORS
 ./scripts/db-backup.sh
 ```
 
-Saves a gzipped data-only dump to `docker/backups/` with automatic rotation (keeps last 5).
+Saves a gzipped data-only dump to `docker/backups/` with automatic rotation (keeps last 5). The `alembic_version` table is excluded to prevent restore conflicts.
 
 ### Restore from backup
 
@@ -387,7 +420,45 @@ Saves a gzipped data-only dump to `docker/backups/` with automatic rotation (kee
 ./scripts/db-restore.sh docker/backups/file.sql.gz  # specific backup
 ```
 
-The restore script runs Alembic migrations first to ensure the schema is up to date.
+The restore script runs Alembic migrations first to ensure the schema is up to date, then clears the `alembic_version` table before restoring data.
+
+### Scheduled backups
+
+For production, set up a cron job to run backups regularly:
+
+```bash
+# Daily at 3 AM
+0 3 * * * /opt/f1-tracker/scripts/db-backup.sh >> /var/log/f1-backup.log 2>&1
+```
+
+---
+
+## Data Updates
+
+The F1 dataset needs updating after each race weekend to include new results.
+
+### Update with new race data
+
+```bash
+cd pipeline
+
+# Run the full ingestion (fetches only new/updated data)
+uv run python scripts/seed.py --base --results --qualifying --standings --pitstops --sprints
+
+# Create a backup after successful update
+cd .. && ./scripts/db-backup.sh
+```
+
+> **Tip**: The ingestion pipeline uses Fast-F1 which caches data locally in `FASTF1_CACHE_DIR`. Subsequent runs are faster because only new data is fetched. Jolpica-F1 (used internally) has a rate limit of 200 requests/hour.
+
+### Automated data updates
+
+For production, schedule ingestion after race weekends (Sundays ~18:00 UTC):
+
+```bash
+# Every Monday at 2 AM (after race weekends)
+0 2 * * 1 cd /opt/f1-tracker/pipeline && uv run python scripts/seed.py --base --results --qualifying --standings --pitstops --sprints >> /var/log/f1-ingest.log 2>&1
+```
 
 ---
 
@@ -395,13 +466,85 @@ The restore script runs Alembic migrations first to ensure the schema is up to d
 
 The project includes a GitHub Actions workflow at `.github/workflows/ci.yml` that runs on pushes and PRs to `master`:
 
-**Frontend checks**: `pnpm audit` (security), Prettier, ESLint, TypeScript type check, production build.
+**Frontend job**:
+1. `pnpm audit --audit-level=high` — dependency vulnerability scan (non-blocking)
+2. `pnpm format:check` — Prettier formatting
+3. `pnpm lint` — ESLint
+4. `pnpm typecheck` — TypeScript type checking
+5. `pnpm build` — production build
 
-**Backend checks**: Ruff (lint + format), `pip-audit` (security), pytest with PostgreSQL service container.
+**Backend job** (with PostgreSQL 16 service container):
+1. `uv run ruff check .` — linting
+2. `uv run ruff format --check .` — formatting
+3. `uv run pip-audit` — dependency vulnerability scan (non-blocking)
+4. `uv run pytest -v` — 44 tests across 11 test files
 
 Security audits run with `continue-on-error: true` — findings are visible in CI output but don't block PRs.
 
 **Pre-commit hooks** (local): Husky runs Prettier on staged TS/config files via lint-staged, and `ruff check` + `ruff format --check` on staged Python files.
+
+---
+
+## Troubleshooting
+
+### Database connection issues
+
+```bash
+# Check if PostgreSQL is running
+docker compose -f docker/docker-compose.yml ps
+
+# Check container logs
+docker compose -f docker/docker-compose.yml logs db
+
+# Test connection
+docker exec docker-db-1 pg_isready -U f1tracker
+```
+
+### Reset the database
+
+```bash
+# Stop and remove the volume
+docker compose -f docker/docker-compose.yml down -v
+
+# Restart and re-migrate
+docker compose -f docker/docker-compose.yml up -d
+cd pipeline && uv run alembic upgrade head
+
+# Restore from backup
+cd .. && ./scripts/db-restore.sh
+```
+
+### Frontend build fails
+
+```bash
+# Next.js 16 requires NODE_ENV=production during build
+# This is already set in apps/web/package.json build script
+# If it still fails, try:
+NODE_ENV=production pnpm build
+```
+
+### Backend won't start
+
+```bash
+# Check if port 8000 is in use
+lsof -i :8000
+
+# Verify database URL
+cd pipeline && uv run python -c "from src.config import settings; print(settings.database_url)"
+
+# Run with verbose logging
+cd pipeline && uv run uvicorn src.api.main:app --reload --log-level debug
+```
+
+### Tests fail
+
+```bash
+# Tests use SQLite in-memory (no PostgreSQL needed)
+cd pipeline && uv run pytest -v --tb=short
+
+# Run a specific test file
+uv run pytest tests/test_races.py -v
+```
 
 ---
 
@@ -417,3 +560,6 @@ Security audits run with `continue-on-error: true` — findings are visible in C
 - [ ] Seed or restore database data
 - [ ] Verify the health endpoint: `GET /api/health`
 - [ ] Set up database backups on a schedule
+- [ ] Set up data ingestion schedule (weekly, after race weekends)
+- [ ] Review dependency vulnerabilities (`pnpm audit`, `pip-audit`)
+- [ ] Restrict database network access to backend server only
