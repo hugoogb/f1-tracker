@@ -157,10 +157,13 @@ def get_constructor_seasons(ref: str, db: Session = Depends(get_db)):
 
     results = []
     for row in season_stats:
-        # Look up championship position from final standings
+        # Look up championship position from latest standings
         last_race = db.execute(
             select(Race)
-            .where(Race.season_year == row.season_year)
+            .where(
+                Race.season_year == row.season_year,
+                Race.id.in_(select(ConstructorStanding.race_id)),
+            )
             .order_by(Race.round.desc())
             .limit(1)
         ).scalar_one_or_none()

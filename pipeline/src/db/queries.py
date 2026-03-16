@@ -38,7 +38,13 @@ def get_race_results(db: Session, race_id: str) -> list[RaceResult]:
 
 def get_driver_standings_for_season(db: Session, year: int) -> list[DriverStanding]:
     last_race = db.execute(
-        select(Race).where(Race.season_year == year).order_by(Race.round.desc()).limit(1)
+        select(Race)
+        .where(
+            Race.season_year == year,
+            Race.id.in_(select(DriverStanding.race_id)),
+        )
+        .order_by(Race.round.desc())
+        .limit(1)
     ).scalar_one_or_none()
     if not last_race:
         return []
@@ -55,7 +61,13 @@ def get_driver_standings_for_season(db: Session, year: int) -> list[DriverStandi
 
 def get_constructor_standings_for_season(db: Session, year: int) -> list[ConstructorStanding]:
     last_race = db.execute(
-        select(Race).where(Race.season_year == year).order_by(Race.round.desc()).limit(1)
+        select(Race)
+        .where(
+            Race.season_year == year,
+            Race.id.in_(select(ConstructorStanding.race_id)),
+        )
+        .order_by(Race.round.desc())
+        .limit(1)
     ).scalar_one_or_none()
     if not last_race:
         return []

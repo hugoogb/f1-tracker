@@ -234,9 +234,13 @@ def validate():
             sectors_ok = sum(1 for r in past_yr if r.id in races_with_sectors)
             sprints_count = sum(1 for r in past_yr if r.id in races_with_sprints)
 
-            last_completed = max(past_yr, key=lambda r: r.round)
-            has_ds = last_completed.id in ds_races
-            has_cs = last_completed.id in cs_races
+            last_with_results = max(
+                (r for r in past_yr if r.id in races_with_results),
+                key=lambda r: r.round,
+                default=None,
+            )
+            has_ds = last_with_results is not None and last_with_results.id in ds_races
+            has_cs = last_with_results is not None and last_with_results.id in cs_races
 
             print(f"\nCurrent season ({current_year}):")
             print(f"  Progress:    {completed}/{len(all_yr)} races completed ({remaining} remaining)")
@@ -313,18 +317,29 @@ def validate():
             for year in sorted(sprint_counts):
                 print(f"  {year}: {sprint_counts[year]} sprint races")
 
-        # Standings
+        # Standings (include current season — standings should exist for all
+        # seasons that have at least one race with results)
+        all_seasons_for_standings = [
+            s for s in seasons
+            if any(r.id in races_with_results for r in races_by_year.get(s.year, []))
+        ]
+        total_with_results = len(all_seasons_for_standings)
         ds_count = 0
         cs_count = 0
         ds_missing = []
         cs_missing = []
-        for s in completed_seasons:
+        for s in all_seasons_for_standings:
             year_races = races_by_year.get(s.year, [])
-            if not year_races:
+            # Check standings at the last race with results (matches ingestor logic)
+            last_race = max(
+                (r for r in year_races if r.id in races_with_results),
+                key=lambda r: r.round,
+                default=None,
+            )
+            if not last_race:
                 ds_missing.append(s.year)
                 cs_missing.append(s.year)
                 continue
-            last_race = max(year_races, key=lambda r: r.round)
             if last_race.id in ds_races:
                 ds_count += 1
             else:
@@ -335,10 +350,10 @@ def validate():
                 cs_missing.append(s.year)
 
         print("\nStandings:")
-        ds_ok = ds_count == total_completed
-        cs_ok = cs_count == total_completed
-        print(f"  Driver standings:      {ds_count}/{total_completed}  {check_mark(ds_ok)}")
-        print(f"  Constructor standings: {cs_count}/{total_completed}  {check_mark(cs_ok)}")
+        ds_ok = ds_count == total_with_results
+        cs_ok = cs_count == total_with_results
+        print(f"  Driver standings:      {ds_count}/{total_with_results}  {check_mark(ds_ok)}")
+        print(f"  Constructor standings: {cs_count}/{total_with_results}  {check_mark(cs_ok)}")
         if not ds_ok:
             has_gaps = True
             print(f"    Missing driver standings: {', '.join(str(y) for y in ds_missing)}")
