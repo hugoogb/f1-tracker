@@ -32,7 +32,7 @@
 - [x] Add constructor roster endpoint
 - [x] Add nationality/country distinct value endpoints
 - [x] Add circuits router (list, detail, countries)
-- [x] Write API tests (16 tests: health, seasons, drivers, circuits)
+- [x] Write API tests (44 tests: health, seasons, drivers, circuits, constructors, search, records, standings, races, compare, champions)
 
 ## Phase 3: Next.js Frontend - Core Pages
 - [x] Layout: header with nav links, mobile hamburger menu, theme toggle
@@ -64,8 +64,8 @@
 - [x] SEO metadata for all pages (home, compare layout)
 - [x] Accessibility (skip-to-main link, aria-labels on tables + charts, ARIA on driver-select)
 - [x] Type-check script (tsc --noEmit)
-- [x] Backend tests (pytest + SQLite in-memory, 16 tests)
-- [x] CI pipeline (GitHub Actions: lint, typecheck, build, ruff, pytest)
+- [x] Backend tests (pytest + SQLite in-memory, 44 tests)
+- [x] CI pipeline (GitHub Actions: lint, typecheck, build, ruff, pytest, security audits)
 - [x] Ruff formatting + lint fixes across backend
 
 ## Remaining Work (Future)
@@ -88,3 +88,13 @@
 - [x] Add OpenGraph/Twitter metadata and title template
 - [x] Standardize frontend API URL parameter building
 - [x] Accessibility: aria-label on ListFilter select
+
+## Repository Audit
+- [x] Security hardening: SSRF guard on API base URL, path traversal guard on headshot/logo routes, CSP headers, input validation on query params
+- [x] N+1 query elimination: bulk-fetch drivers/constructors in champions, records, standings endpoints
+- [x] SQL window functions: replace Python position calculation with `SUM() OVER` + `RANK() OVER`
+- [x] Extract shared backend helpers: `constants.py`, `serializers.py`, `pagination.py`
+- [x] Extract frontend components: podium-card, fastest-lap-card, head-to-head-card, career-stats-table
+- [x] Expand backend test coverage: 18 → 44 tests (7 new test files, `race_seed_data` fixture)
+- [x] Add pre-commit hooks for Python (ruff check + format on staged .py files)
+- [x] Add CI security scanning (pip-audit for Python, pnpm audit for frontend)
