@@ -26,3 +26,17 @@
 ## Monorepo / Lint-Staged
 
 - **eslint in workspace**: `eslint --fix` in root lint-staged config fails because `eslint` is only installed in `apps/web/`. Either use `pnpm --filter web lint` (but that runs a script, not a file-scoped command), or just run Prettier in pre-commit and leave eslint for CI.
+
+## Pre-commit Hooks
+
+- **Husky paths are repo-root-relative**: `git diff --cached --name-only` returns paths like `pipeline/tests/conftest.py`. If the hook does `cd pipeline` before running ruff, those paths won't resolve. Fix: filter with `-- 'pipeline/**/*.py'` and strip the prefix with `sed 's|^pipeline/||'` before passing to ruff.
+
+## Backend Architecture
+
+- **Shared serializers prevent dict drift**: Inline `{"id": d.id, "ref": d.ref, ...}` dicts across 8+ routers diverge over time. A central `serializers.py` with `driver_summary()`, `driver_detail()`, `constructor_compact()` etc. ensures consistency and makes field changes atomic.
+- **Generic pagination reduces boilerplate**: A `paginate(db, query, count_query, page, page_size, serializer)` helper replaces repetitive offset/limit/count/serialize logic across list endpoints.
+- **Constants file for magic numbers**: `DEFAULT_PAGE_SIZE`, `MAX_PAGE_SIZE`, `SEARCH_MIN_LENGTH`, etc. in `constants.py` prevents silent inconsistencies when the same limit appears in multiple routers.
+
+## SQL Performance
+
+- **Window functions over Python loops**: Replacing Python position calculation (O(drivers x laps) loop) with SQL `SUM() OVER (PARTITION BY driver ORDER BY lap)` + `RANK() OVER (PARTITION BY lap ORDER BY cumulative_time)` moves the work to the database. The query also uses a subquery to find the max consecutive valid lap per driver (stopping at first NULL time) via `COALESCE(MIN(lap).FILTER(time IS NULL) - 1, MAX(lap))`.
