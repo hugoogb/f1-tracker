@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { Crown } from 'lucide-react'
-import { TEAM_COLORS } from '@/lib/constants'
+import { getTeamColor } from '@/lib/utils'
 import type { DriverSeasonSummary } from '@/lib/types'
 import { PositionBadge } from '@/components/ui/position-badge'
 import {
@@ -37,7 +37,7 @@ export function SeasonHistoryTable({ seasons }: SeasonHistoryTableProps) {
       <TableBody>
         {seasons.map((season) => {
           const teamColor = season.constructor
-            ? (TEAM_COLORS[season.constructor.ref] ?? season.constructor.color ?? null)
+            ? getTeamColor(season.constructor.ref, season.constructor.color, null)
             : null
           const isChampion = season.championshipPosition === 1
 

@@ -216,54 +216,109 @@ def get_constructor_career_stats(db: Session, constructor_id: str) -> dict:
 def get_season_champions(db: Session) -> list[dict]:
     import datetime
 
-    seasons = db.execute(select(Season).order_by(Season.year.desc())).scalars().all()
-    champions = []
     today = datetime.date.today()
-    for season in seasons:
-        last_race = db.execute(
-            select(Race).where(Race.season_year == season.year).order_by(Race.round.desc()).limit(1)
-        ).scalar_one_or_none()
-        if not last_race:
-            continue
 
-        # Skip ongoing seasons where the last race hasn't happened yet
-        if last_race.date and last_race.date > today:
-            continue
-
-        driver_champ = db.execute(
-            select(DriverStanding).where(
-                DriverStanding.race_id == last_race.id, DriverStanding.position == 1
+    # Subquery: last race per season
+    last_rounds = (
+        select(
+            Race.season_year,
+            func.max(Race.round).label("max_round"),
+        )
+        .group_by(Race.season_year)
+        .subquery()
+    )
+    last_races = (
+        db.execute(
+            select(Race)
+            .join(
+                last_rounds,
+                (Race.season_year == last_rounds.c.season_year)
+                & (Race.round == last_rounds.c.max_round),
             )
-        ).scalar_one_or_none()
+            .order_by(Race.season_year.desc())
+        )
+        .scalars()
+        .all()
+    )
 
-        constructor_champ = db.execute(
+    # Filter out ongoing seasons
+    completed_races = [r for r in last_races if not r.date or r.date <= today]
+    race_ids = [r.id for r in completed_races]
+    race_year_map = {r.id: r.season_year for r in completed_races}
+
+    if not race_ids:
+        return []
+
+    # Bulk-fetch driver champions (position=1) at last races
+    driver_standings = (
+        db.execute(
+            select(DriverStanding).where(
+                DriverStanding.race_id.in_(race_ids),
+                DriverStanding.position == 1,
+            )
+        )
+        .scalars()
+        .all()
+    )
+    ds_by_race = {ds.race_id: ds for ds in driver_standings}
+
+    # Bulk-fetch constructor champions (position=1) at last races
+    constructor_standings = (
+        db.execute(
             select(ConstructorStanding).where(
-                ConstructorStanding.race_id == last_race.id,
+                ConstructorStanding.race_id.in_(race_ids),
                 ConstructorStanding.position == 1,
             )
-        ).scalar_one_or_none()
+        )
+        .scalars()
+        .all()
+    )
+    cs_by_race = {cs.race_id: cs for cs in constructor_standings}
 
-        if not driver_champ:
+    # Bulk-fetch all referenced drivers and constructors
+    driver_ids = {ds.driver_id for ds in driver_standings}
+    constructor_ids = {cs.constructor_id for cs in constructor_standings}
+
+    driver_map = {}
+    if driver_ids:
+        drivers = db.execute(select(Driver).where(Driver.id.in_(driver_ids))).scalars().all()
+        driver_map = {d.id: d for d in drivers}
+
+    constructor_map = {}
+    if constructor_ids:
+        constructors = (
+            db.execute(select(Constructor).where(Constructor.id.in_(constructor_ids)))
+            .scalars()
+            .all()
+        )
+        constructor_map = {c.id: c for c in constructors}
+
+    # Build results
+    champions = []
+    for race in completed_races:
+        ds = ds_by_race.get(race.id)
+        if not ds:
             continue
 
-        driver = db.get(Driver, driver_champ.driver_id)
-        constructor = (
-            db.get(Constructor, constructor_champ.constructor_id) if constructor_champ else None
-        )
+        driver = driver_map.get(ds.driver_id)
+        cs = cs_by_race.get(race.id)
+        constructor = constructor_map.get(cs.constructor_id) if cs else None
 
         champions.append(
             {
-                "year": season.year,
+                "year": race_year_map[race.id],
                 "driver": {
                     "id": driver.id,
                     "ref": driver.ref,
                     "firstName": driver.first_name,
                     "lastName": driver.last_name,
-                    "headshotUrl": f"/headshots/{driver.ref}.png" if driver.has_headshot else None,
+                    "headshotUrl": (
+                        f"/headshots/{driver.ref}.png" if driver.has_headshot else None
+                    ),
                 }
                 if driver
                 else None,
-                "driverPoints": driver_champ.points,
+                "driverPoints": ds.points,
                 "constructor": {
                     "id": constructor.id,
                     "ref": constructor.ref,
@@ -272,7 +327,7 @@ def get_season_champions(db: Session) -> list[dict]:
                 }
                 if constructor
                 else None,
-                "constructorPoints": constructor_champ.points if constructor_champ else None,
+                "constructorPoints": cs.points if cs else None,
             }
         )
 

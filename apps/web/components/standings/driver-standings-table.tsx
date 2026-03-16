@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { TEAM_COLORS } from '@/lib/constants'
+import { getTeamColor } from '@/lib/utils'
 import type { DriverStanding } from '@/lib/types'
 import { DriverAvatar } from '@/components/ui/driver-avatar'
 import { PositionBadge } from '@/components/ui/position-badge'
@@ -36,7 +36,9 @@ export function DriverStandingsTable({ standings, limit }: DriverStandingsTableP
       </TableHeader>
       <TableBody>
         {rows.map((entry) => {
-          const teamColor = entry.constructor ? (TEAM_COLORS[entry.constructor.ref] ?? null) : null
+          const teamColor = entry.constructor
+            ? getTeamColor(entry.constructor.ref, null, null)
+            : null
 
           return (
             <TableRow key={entry.driver.ref}>

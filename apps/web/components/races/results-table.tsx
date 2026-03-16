@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { ArrowUp, ArrowDown } from 'lucide-react'
-import { TEAM_COLORS } from '@/lib/constants'
+import { getTeamColor } from '@/lib/utils'
 import type { RaceResult } from '@/lib/types'
 import { DriverAvatar } from '@/components/ui/driver-avatar'
 import { PositionBadge } from '@/components/ui/position-badge'
@@ -38,7 +38,7 @@ export function ResultsTable({ results, fastestLapDriverRef }: ResultsTableProps
       </TableHeader>
       <TableBody>
         {results.map((result, idx) => {
-          const teamColor = TEAM_COLORS[result.constructor.ref] ?? result.constructor.color ?? null
+          const teamColor = getTeamColor(result.constructor.ref, result.constructor.color, null)
           const isFinished = result.position != null
           const positionDelta = isFinished ? result.grid - (result.position ?? 0) : null
           const hasFastestLap = fastestLapDriverRef === result.driver.ref

@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { Flag, Trophy, Medal, TrendingUp } from 'lucide-react'
 import { api } from '@/lib/api'
 import type { Constructor, ConstructorSeasonSummary, Driver } from '@/lib/types'
-import { TEAM_COLORS } from '@/lib/constants'
+import { getTeamColor } from '@/lib/utils'
 import { CountryFlag } from '@/components/ui/country-flag'
 import { DriverAvatar } from '@/components/ui/driver-avatar'
 import { Breadcrumbs } from '@/components/layout/breadcrumbs'
@@ -50,7 +50,7 @@ export default async function ConstructorDetailPage({
   const seasons = seasonsResult.status === 'fulfilled' ? seasonsResult.value.seasons : []
   const roster = rosterResult.status === 'fulfilled' ? rosterResult.value : null
 
-  const teamColor = TEAM_COLORS[constructor.ref] ?? constructor.color ?? '#E8002D'
+  const teamColor = getTeamColor(constructor.ref, constructor.color, '#E8002D')!
 
   return (
     <div className="space-y-8">
