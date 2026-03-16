@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Search, User, Building2, MapPin } from 'lucide-react'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { API_BASE_URL } from '@/lib/constants'
+import { API_BASE_URL, SEARCH_DEBOUNCE_MS, SEARCH_MIN_LENGTH } from '@/lib/constants'
 
 interface SearchResults {
   drivers: {
@@ -40,7 +40,7 @@ export function CommandSearch() {
   }, [])
 
   const search = useCallback(async (q: string) => {
-    if (q.length < 2) {
+    if (q.length < SEARCH_MIN_LENGTH) {
       setResults(null)
       return
     }
@@ -55,7 +55,7 @@ export function CommandSearch() {
   }, [])
 
   useEffect(() => {
-    const timer = setTimeout(() => search(query), 200)
+    const timer = setTimeout(() => search(query), SEARCH_DEBOUNCE_MS)
     return () => clearTimeout(timer)
   }, [query, search])
 
@@ -201,11 +201,11 @@ export function CommandSearch() {
             </div>
           )}
 
-          {query.length >= 2 && groups.length === 0 && results && (
+          {query.length >= SEARCH_MIN_LENGTH && groups.length === 0 && results && (
             <div className="text-muted-foreground py-8 text-center text-sm">No results found.</div>
           )}
 
-          {query.length < 2 && (
+          {query.length < SEARCH_MIN_LENGTH && (
             <div className="text-muted-foreground py-8 text-center text-sm">
               Type at least 2 characters to search...
             </div>

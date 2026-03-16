@@ -2,6 +2,8 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from src.api.constants import DEFAULT_RECORD_LIMIT, MAX_RECORD_LIMIT
+from src.api.serializers import constructor_summary, driver_summary
 from src.db.database import get_db
 from src.db.models import (
     Constructor,
@@ -16,30 +18,11 @@ from src.db.models import (
 router = APIRouter()
 
 
-def _driver_dict(driver: Driver) -> dict:
-    return {
-        "ref": driver.ref,
-        "code": driver.code,
-        "firstName": driver.first_name,
-        "lastName": driver.last_name,
-        "nationality": driver.nationality,
-        "countryCode": driver.country_code,
-        "headshotUrl": (f"/headshots/{driver.ref}.png" if driver.has_headshot else None),
-    }
-
-
-def _constructor_dict(constructor: Constructor) -> dict:
-    return {
-        "ref": constructor.ref,
-        "name": constructor.name,
-        "nationality": constructor.nationality,
-        "countryCode": constructor.country_code,
-        "color": constructor.color,
-    }
-
-
 @router.get("/records")
-def get_records(limit: int = Query(10, ge=1, le=50), db: Session = Depends(get_db)):
+def get_records(
+    limit: int = Query(DEFAULT_RECORD_LIMIT, ge=1, le=MAX_RECORD_LIMIT),
+    db: Session = Depends(get_db),
+):
     # --- Driver Records ---
 
     # Most wins
@@ -179,7 +162,7 @@ def get_records(limit: int = Query(10, ge=1, le=50), db: Session = Depends(get_d
 
     def _resolve_driver(rows):
         return [
-            {"driver": _driver_dict(driver_map[row.driver_id]), "count": row.count}
+            {"driver": driver_summary(driver_map[row.driver_id]), "count": row.count}
             for row in rows
             if row.driver_id in driver_map
         ]
@@ -187,7 +170,7 @@ def get_records(limit: int = Query(10, ge=1, le=50), db: Session = Depends(get_d
     def _resolve_fastest_lap_driver(rows):
         return [
             {
-                "driver": _driver_dict(driver_map[row.fastest_lap_driver_id]),
+                "driver": driver_summary(driver_map[row.fastest_lap_driver_id]),
                 "count": row.count,
             }
             for row in rows
@@ -197,7 +180,7 @@ def get_records(limit: int = Query(10, ge=1, le=50), db: Session = Depends(get_d
     def _resolve_constructor(rows):
         return [
             {
-                "constructor": _constructor_dict(constructor_map[row.constructor_id]),
+                "constructor": constructor_summary(constructor_map[row.constructor_id]),
                 "count": row.count,
             }
             for row in rows

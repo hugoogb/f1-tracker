@@ -2,6 +2,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
 
+from src.api.constants import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE
+from src.api.pagination import paginate
+from src.api.serializers import constructor_compact, driver_detail
 from src.db.database import get_db
 from src.db.models import Constructor, Driver, DriverStanding, QualifyingResult, Race, RaceResult
 from src.db.queries import get_driver_by_ref, get_driver_career_stats
@@ -12,12 +15,10 @@ router = APIRouter()
 @router.get("/drivers")
 def list_drivers(
     page: int = Query(1, ge=1),
-    page_size: int = Query(50, ge=1, le=200),
+    page_size: int = Query(DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE),
     nationality: str | None = None,
     db: Session = Depends(get_db),
 ):
-    offset = (page - 1) * page_size
-
     base_query = select(Driver)
     count_query = select(func.count()).select_from(Driver)
 
@@ -25,32 +26,9 @@ def list_drivers(
         base_query = base_query.where(Driver.nationality.ilike(nationality))
         count_query = count_query.where(Driver.nationality.ilike(nationality))
 
-    total = db.execute(count_query).scalar()
-    drivers = (
-        db.execute(base_query.order_by(Driver.last_name).offset(offset).limit(page_size))
-        .scalars()
-        .all()
+    return paginate(
+        db, base_query.order_by(Driver.last_name), count_query, page, page_size, driver_detail
     )
-    return {
-        "data": [
-            {
-                "id": d.id,
-                "ref": d.ref,
-                "code": d.code,
-                "number": d.number,
-                "firstName": d.first_name,
-                "lastName": d.last_name,
-                "nationality": d.nationality,
-                "countryCode": d.country_code,
-                "dateOfBirth": str(d.date_of_birth) if d.date_of_birth else None,
-                "headshotUrl": f"/headshots/{d.ref}.png" if d.has_headshot else None,
-            }
-            for d in drivers
-        ],
-        "total": total,
-        "page": page,
-        "pageSize": page_size,
-    }
 
 
 @router.get("/drivers/nationalities")
@@ -75,19 +53,7 @@ def get_driver(ref: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Driver not found")
 
     stats = get_driver_career_stats(db, driver.id)
-    return {
-        "id": driver.id,
-        "ref": driver.ref,
-        "code": driver.code,
-        "number": driver.number,
-        "firstName": driver.first_name,
-        "lastName": driver.last_name,
-        "nationality": driver.nationality,
-        "countryCode": driver.country_code,
-        "dateOfBirth": str(driver.date_of_birth) if driver.date_of_birth else None,
-        "headshotUrl": f"/headshots/{driver.ref}.png" if driver.has_headshot else None,
-        "stats": stats,
-    }
+    return driver_detail(driver, stats=stats)
 
 
 @router.get("/drivers/{ref}/seasons")
@@ -175,14 +141,7 @@ def get_driver_seasons(ref: str, db: Session = Depends(get_db)):
                 "podiums": row.podiums,
                 "points": float(row.points or 0),
                 "championshipPosition": championship_position,
-                "constructor": {
-                    "id": constructor.id,
-                    "ref": constructor.ref,
-                    "name": constructor.name,
-                    "color": constructor.color,
-                }
-                if constructor
-                else None,
+                "constructor": constructor_compact(constructor) if constructor else None,
             }
         )
 

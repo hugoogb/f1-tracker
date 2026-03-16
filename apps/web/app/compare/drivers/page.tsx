@@ -9,6 +9,8 @@ import { DriverAvatar } from '@/components/ui/driver-avatar'
 import { cn } from '@/lib/utils'
 import { ComparisonChart } from '@/components/charts/comparison-chart'
 import { DriverRadarChart } from '@/components/charts/driver-radar-chart'
+import { HeadToHeadCard } from '@/components/compare/head-to-head-card'
+import { CareerStatsTable } from '@/components/compare/career-stats-table'
 import { FadeIn } from '@/components/ui/motion'
 
 export const dynamic = 'force-dynamic'
@@ -57,72 +59,6 @@ export async function generateMetadata({
   } catch {
     return { title: 'Compare Drivers | F1 Tracker' }
   }
-}
-
-const statLabels = [
-  { key: 'total_races' as const, label: 'Races' },
-  { key: 'wins' as const, label: 'Wins' },
-  { key: 'podiums' as const, label: 'Podiums' },
-  { key: 'poles' as const, label: 'Poles' },
-  { key: 'fastest_laps' as const, label: 'Fastest Laps' },
-  { key: 'total_points' as const, label: 'Points' },
-]
-
-function HeadToHeadCard({
-  title,
-  h2h,
-  driver1LastName,
-  driver2LastName,
-}: {
-  title: string
-  h2h: HeadToHead
-  driver1LastName: string
-  driver2LastName: string
-}) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{title}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="flex items-center gap-4">
-          <div className="flex-1 text-right">
-            <p className="text-primary text-3xl font-bold tabular-nums">{h2h.driver1Wins}</p>
-            <p className="text-muted-foreground text-sm font-medium">{driver1LastName}</p>
-          </div>
-          <div className="flex flex-col items-center">
-            <p className="text-muted-foreground text-sm">from</p>
-            <p className="text-lg font-semibold">{h2h.totalRaces}</p>
-            <p className="text-muted-foreground text-sm">shared races</p>
-          </div>
-          <div className="flex-1">
-            <p className="text-3xl font-bold text-blue-500 tabular-nums">{h2h.driver2Wins}</p>
-            <p className="text-muted-foreground text-sm font-medium">{driver2LastName}</p>
-          </div>
-        </div>
-        {h2h.totalRaces > 0 && (
-          <div className="bg-muted mt-4 flex h-4 overflow-hidden rounded-full">
-            <div
-              className="bg-primary flex items-center justify-center rounded-l-full text-[10px] font-bold text-white transition-all duration-500"
-              style={{
-                width: `${(h2h.driver1Wins / h2h.totalRaces) * 100}%`,
-              }}
-            >
-              {h2h.driver1Wins > 0 && `${Math.round((h2h.driver1Wins / h2h.totalRaces) * 100)}%`}
-            </div>
-            <div
-              className="flex items-center justify-center rounded-r-full bg-blue-500 text-[10px] font-bold text-white transition-all duration-500"
-              style={{
-                width: `${(h2h.driver2Wins / h2h.totalRaces) * 100}%`,
-              }}
-            >
-              {h2h.driver2Wins > 0 && `${Math.round((h2h.driver2Wins / h2h.totalRaces) * 100)}%`}
-            </div>
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  )
 }
 
 export default async function CompareDriversPage({
@@ -264,43 +200,7 @@ export default async function CompareDriversPage({
 
       {/* Stat-by-Stat Comparison */}
       <FadeIn>
-        <Card>
-          <CardHeader>
-            <CardTitle>Career Stats</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-0 divide-y">
-            {statLabels.map(({ key, label }) => {
-              const v1 = driver1.stats[key]
-              const v2 = driver2.stats[key]
-              const d1Higher = v1 > v2
-              const d2Higher = v2 > v1
-
-              return (
-                <div key={key} className="flex items-center py-3">
-                  <span
-                    className={cn(
-                      'font-heading flex-1 text-right text-xl font-bold tabular-nums',
-                      d1Higher ? 'text-primary' : 'text-muted-foreground',
-                    )}
-                  >
-                    {v1.toLocaleString()}
-                  </span>
-                  <span className="text-muted-foreground w-28 text-center text-sm font-medium">
-                    {label}
-                  </span>
-                  <span
-                    className={cn(
-                      'font-heading flex-1 text-xl font-bold tabular-nums',
-                      d2Higher ? 'text-blue-500' : 'text-muted-foreground',
-                    )}
-                  >
-                    {v2.toLocaleString()}
-                  </span>
-                </div>
-              )
-            })}
-          </CardContent>
-        </Card>
+        <CareerStatsTable driver1Stats={driver1.stats} driver2Stats={driver2.stats} />
       </FadeIn>
 
       {/* Radar Chart */}
