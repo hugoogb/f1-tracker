@@ -14,8 +14,8 @@ F1 analytics dashboard covering the complete history of Formula 1 (1950-present)
 
 ## Project Structure
 
-- `apps/web/` - Next.js frontend (15 routes, 30+ components)
-- `pipeline/` - Python data pipeline + FastAPI backend (11 routers, 32 endpoints)
+- `apps/web/` - Next.js frontend (15 routes, 36+ components)
+- `pipeline/` - Python data pipeline + FastAPI backend (11 routers, 38 endpoints)
 - `docker/` - Docker Compose for PostgreSQL
 
 ### Frontend Routes
@@ -43,12 +43,12 @@ F1 analytics dashboard covering the complete history of Formula 1 (1950-present)
 - `components/ui/` - shadcn/ui base components (badge, button, card, table, tabs, sheet, dialog, dropdown-menu, country-flag, driver-avatar, constructor-logo, empty-state, motion, page-header, position-badge, sonner, stat-card, next-race-countdown)
 - `components/layout/` - Header, footer, mobile nav, breadcrumbs, search dialog, theme toggle, nav link
 - `components/charts/` - Recharts visualizations (points bar, constructor points, career line, comparison line, championship progression, season heatmap, quali-vs-race, driver radar)
-- `components/races/` - Race result tables (results with position change indicators, qualifying, sprint, pit stops, lap-times-chart, tyre-strategy-chart, position-chart, pit-stop-analysis)
+- `components/races/` - Race result tables (results with position change indicators, qualifying, sprint, pit stops, lap-times-chart, tyre-strategy-chart, position-chart, pit-stop-analysis, podium-card, fastest-lap-card)
 - `components/standings/` - Driver + constructor standings tables
 - `components/drivers/` - Driver season history table
 - `components/constructors/` - Constructor season history table
 - `components/circuits/` - Track layout, world map, world map wrapper
-- `components/compare/` - Driver select, constructor select
+- `components/compare/` - Driver select, constructor select, head-to-head-card, career-stats-table
 - `components/providers/` - Theme provider
 - Root: pagination, list-filter, error-boundary
 
@@ -99,6 +99,8 @@ F1 analytics dashboard covering the complete history of Formula 1 (1950-present)
 - `uv run alembic upgrade head` - Run database migrations
 - `uv run alembic revision --autogenerate -m "description"` - Generate migration
 - `uv run python scripts/seed.py` - Run data ingestion
+- `uv run pytest -v` - Run backend tests (44 tests)
+- `uv run ruff check . && uv run ruff format --check .` - Lint + format check
 
 ### Database
 - `docker compose -f docker/docker-compose.yml up -d` - Start PostgreSQL
@@ -109,11 +111,14 @@ F1 analytics dashboard covering the complete history of Formula 1 (1950-present)
 - Use conventional commits (feat:, fix:, docs:, refactor:, test:, chore:)
 - Frontend: shadcn/ui components in `components/ui/`, feature components in `components/<feature>/`
 - Backend: FastAPI routers in `src/api/routers/`, SQLAlchemy models in `src/db/models.py`
+- Backend shared helpers: `src/api/constants.py` (magic numbers), `src/api/serializers.py` (driver/constructor dict builders), `src/api/pagination.py` (generic paginator)
 - All API endpoints prefixed with `/api/`
 - Next.js frontend calls FastAPI at `NEXT_PUBLIC_API_URL` (default: http://localhost:8000/api)
 - Dark-mode-first UI with F1 team colors
 - Use `Promise.allSettled` for optional data fetching (graceful degradation)
 - Client components (`'use client'`) only for interactive pieces (charts, filters, tabs, search)
+- Pre-commit: Husky runs lint-staged (prettier) + ruff check/format on staged `.py` files
+- CI: GitHub Actions — frontend (audit, format, lint, typecheck, build) + backend (ruff, pip-audit, pytest)
 
 ## Next Phases
 
