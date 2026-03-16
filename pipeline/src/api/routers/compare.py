@@ -120,33 +120,43 @@ def compare_drivers(d1: str, d2: str, teammate: bool = False, db: Session = Depe
     if teammate:
         tm_r1 = RaceResult.__table__.alias("tm_r1")
         tm_r2 = RaceResult.__table__.alias("tm_r2")
-        teammate_rows = db.execute(
-            select(tm_r1.c.race_id)
-            .join(tm_r2, tm_r1.c.race_id == tm_r2.c.race_id)
-            .where(
-                tm_r1.c.driver_id == driver1.id,
-                tm_r2.c.driver_id == driver2.id,
-                tm_r1.c.constructor_id == tm_r2.c.constructor_id,
+        teammate_rows = (
+            db.execute(
+                select(tm_r1.c.race_id)
+                .join(tm_r2, tm_r1.c.race_id == tm_r2.c.race_id)
+                .where(
+                    tm_r1.c.driver_id == driver1.id,
+                    tm_r2.c.driver_id == driver2.id,
+                    tm_r1.c.constructor_id == tm_r2.c.constructor_id,
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         teammate_race_ids = set(teammate_rows)
 
     # Find teammate seasons regardless of filter
     tm_seasons_r1 = RaceResult.__table__.alias("tms_r1")
     tm_seasons_r2 = RaceResult.__table__.alias("tms_r2")
-    tm_season_rows = db.execute(
-        select(func.distinct(Race.season_year))
-        .select_from(tm_seasons_r1)
-        .join(tm_seasons_r2,
-              (tm_seasons_r1.c.race_id == tm_seasons_r2.c.race_id)
-              & (tm_seasons_r1.c.constructor_id == tm_seasons_r2.c.constructor_id))
-        .join(Race, tm_seasons_r1.c.race_id == Race.id)
-        .where(
-            tm_seasons_r1.c.driver_id == driver1.id,
-            tm_seasons_r2.c.driver_id == driver2.id,
+    tm_season_rows = (
+        db.execute(
+            select(func.distinct(Race.season_year))
+            .select_from(tm_seasons_r1)
+            .join(
+                tm_seasons_r2,
+                (tm_seasons_r1.c.race_id == tm_seasons_r2.c.race_id)
+                & (tm_seasons_r1.c.constructor_id == tm_seasons_r2.c.constructor_id),
+            )
+            .join(Race, tm_seasons_r1.c.race_id == Race.id)
+            .where(
+                tm_seasons_r1.c.driver_id == driver1.id,
+                tm_seasons_r2.c.driver_id == driver2.id,
+            )
+            .order_by(Race.season_year)
         )
-        .order_by(Race.season_year)
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     teammate_seasons = list(tm_season_rows)
 
     # Recompute head-to-head if teammate filter is applied
@@ -262,35 +272,21 @@ def compare_drivers(d1: str, d2: str, teammate: bool = False, db: Session = Depe
 
 
 @router.get("/compare/constructors")
-def compare_constructors(
-    c1: str, c2: str, db: Session = Depends(get_db)
-):
+def compare_constructors(c1: str, c2: str, db: Session = Depends(get_db)):
     con1 = get_constructor_by_ref(db, c1)
     if not con1:
-        raise HTTPException(
-            status_code=404, detail=f"Constructor '{c1}' not found"
-        )
+        raise HTTPException(status_code=404, detail=f"Constructor '{c1}' not found")
 
     con2 = get_constructor_by_ref(db, c2)
     if not con2:
-        raise HTTPException(
-            status_code=404, detail=f"Constructor '{c2}' not found"
-        )
+        raise HTTPException(status_code=404, detail=f"Constructor '{c2}' not found")
 
     stats1 = get_constructor_career_stats(db, con1.id)
     stats2 = get_constructor_career_stats(db, con2.id)
 
     # Head-to-head: races where both constructors had a driver finish
-    c1_races = (
-        select(RaceResult.race_id)
-        .where(RaceResult.constructor_id == con1.id)
-        .subquery()
-    )
-    c2_races = (
-        select(RaceResult.race_id)
-        .where(RaceResult.constructor_id == con2.id)
-        .subquery()
-    )
+    c1_races = select(RaceResult.race_id).where(RaceResult.constructor_id == con1.id).subquery()
+    c2_races = select(RaceResult.race_id).where(RaceResult.constructor_id == con2.id).subquery()
     common_race_ids = (
         select(c1_races.c.race_id)
         .where(c1_races.c.race_id.in_(select(c2_races.c.race_id)))
@@ -361,10 +357,7 @@ def compare_constructors(
             .group_by(Race.season_year)
             .order_by(Race.season_year)
         ).all()
-        return [
-            {"year": r.season_year, "points": float(r.points or 0)}
-            for r in rows
-        ]
+        return [{"year": r.season_year, "points": float(r.points or 0)} for r in rows]
 
     def format_constructor(con: Constructor, stats: dict):
         return {
@@ -374,9 +367,7 @@ def compare_constructors(
             "nationality": con.nationality,
             "countryCode": con.country_code,
             "color": con.color,
-            "logoUrl": (
-                f"/logos/{con.ref}.png" if con.has_logo else None
-            ),
+            "logoUrl": (f"/logos/{con.ref}.png" if con.has_logo else None),
             "stats": stats,
         }
 
@@ -388,10 +379,6 @@ def compare_constructors(
             "constructor2Wins": int(h2h.c2_wins or 0),
             "totalRaces": int(h2h.total or 0),
         },
-        "constructor1Seasons": get_constructor_season_history(
-            con1.id
-        ),
-        "constructor2Seasons": get_constructor_season_history(
-            con2.id
-        ),
+        "constructor1Seasons": get_constructor_season_history(con1.id),
+        "constructor2Seasons": get_constructor_season_history(con2.id),
     }

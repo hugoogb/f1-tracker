@@ -20,9 +20,7 @@ def get_race(year: int, round: int, db: Session = Depends(get_db)):
 
     results = (
         db.execute(
-            select(RaceResult)
-            .where(RaceResult.race_id == race.id)
-            .order_by(RaceResult.position)
+            select(RaceResult).where(RaceResult.race_id == race.id).order_by(RaceResult.position)
         )
         .scalars()
         .all()
@@ -44,7 +42,9 @@ def get_race(year: int, round: int, db: Session = Depends(get_db)):
                 "ref": race.fastest_lap_constructor.ref,
                 "name": race.fastest_lap_constructor.name,
                 "color": race.fastest_lap_constructor.color,
-            } if race.fastest_lap_constructor else None,
+            }
+            if race.fastest_lap_constructor
+            else None,
         }
 
     return {
@@ -78,8 +78,7 @@ def get_race(year: int, round: int, db: Session = Depends(get_db)):
                     "firstName": r.driver.first_name,
                     "lastName": r.driver.last_name,
                     "headshotUrl": (
-                        f"/headshots/{r.driver.ref}.png"
-                        if r.driver.has_headshot else None
+                        f"/headshots/{r.driver.ref}.png" if r.driver.has_headshot else None
                     ),
                 },
                 "constructor": {
@@ -158,7 +157,9 @@ def get_qualifying(year: int, round: int, db: Session = Depends(get_db)):
                         "s2Ms": r.q3_s2_ms,
                         "s3Ms": r.q3_s3_ms,
                     },
-                } if r.q1_s1_ms is not None else None,
+                }
+                if r.q1_s1_ms is not None
+                else None,
                 "driver": {
                     "id": r.driver.id,
                     "ref": r.driver.ref,
@@ -166,8 +167,7 @@ def get_qualifying(year: int, round: int, db: Session = Depends(get_db)):
                     "firstName": r.driver.first_name,
                     "lastName": r.driver.last_name,
                     "headshotUrl": (
-                        f"/headshots/{r.driver.ref}.png"
-                        if r.driver.has_headshot else None
+                        f"/headshots/{r.driver.ref}.png" if r.driver.has_headshot else None
                     ),
                 },
                 "constructor": {
@@ -218,8 +218,7 @@ def get_sprint(year: int, round: int, db: Session = Depends(get_db)):
                     "firstName": r.driver.first_name,
                     "lastName": r.driver.last_name,
                     "headshotUrl": (
-                        f"/headshots/{r.driver.ref}.png"
-                        if r.driver.has_headshot else None
+                        f"/headshots/{r.driver.ref}.png" if r.driver.has_headshot else None
                     ),
                 },
                 "constructor": {
@@ -267,8 +266,7 @@ def get_pitstops(year: int, round: int, db: Session = Depends(get_db)):
                     "firstName": s.driver.first_name,
                     "lastName": s.driver.last_name,
                     "headshotUrl": (
-                        f"/headshots/{s.driver.ref}.png"
-                        if s.driver.has_headshot else None
+                        f"/headshots/{s.driver.ref}.png" if s.driver.has_headshot else None
                     ),
                 },
             }
@@ -298,9 +296,7 @@ def get_laps(year: int, round: int, db: Session = Depends(get_db)):
     # Build constructor lookup from race results (LapTime has no constructor_id)
     results = (
         db.execute(
-            select(RaceResult)
-            .where(RaceResult.race_id == race.id)
-            .order_by(RaceResult.position)
+            select(RaceResult).where(RaceResult.race_id == race.id).order_by(RaceResult.position)
         )
         .scalars()
         .all()
@@ -325,34 +321,36 @@ def get_laps(year: int, round: int, db: Session = Depends(get_db)):
         driver = driver_laps[0].driver
         constructor = driver_constructor.get(driver_id)
 
-        drivers_data.append({
-            "driver": {
-                "id": driver.id,
-                "ref": driver.ref,
-                "code": driver.code,
-                "firstName": driver.first_name,
-                "lastName": driver.last_name,
-                "headshotUrl": f"/headshots/{driver.ref}.png" if driver.has_headshot else None,
-            },
-            "constructor": {
-                "ref": constructor.ref if constructor else None,
-                "name": constructor.name if constructor else None,
-                "color": constructor.color if constructor else None,
-            },
-            "laps": [
-                {
-                    "lapNumber": lap.lap_number,
-                    "timeMs": lap.time_millis,
-                    "sector1Ms": lap.sector1_ms,
-                    "sector2Ms": lap.sector2_ms,
-                    "sector3Ms": lap.sector3_ms,
-                    "compound": lap.compound,
-                    "stint": lap.stint,
-                    "tyreLife": lap.tyre_life,
-                }
-                for lap in driver_laps
-            ],
-        })
+        drivers_data.append(
+            {
+                "driver": {
+                    "id": driver.id,
+                    "ref": driver.ref,
+                    "code": driver.code,
+                    "firstName": driver.first_name,
+                    "lastName": driver.last_name,
+                    "headshotUrl": f"/headshots/{driver.ref}.png" if driver.has_headshot else None,
+                },
+                "constructor": {
+                    "ref": constructor.ref if constructor else None,
+                    "name": constructor.name if constructor else None,
+                    "color": constructor.color if constructor else None,
+                },
+                "laps": [
+                    {
+                        "lapNumber": lap.lap_number,
+                        "timeMs": lap.time_millis,
+                        "sector1Ms": lap.sector1_ms,
+                        "sector2Ms": lap.sector2_ms,
+                        "sector3Ms": lap.sector3_ms,
+                        "compound": lap.compound,
+                        "stint": lap.stint,
+                        "tyreLife": lap.tyre_life,
+                    }
+                    for lap in driver_laps
+                ],
+            }
+        )
 
     return {
         "raceId": race.id,
@@ -382,11 +380,7 @@ def get_positions(year: int, round: int, db: Session = Depends(get_db)):
         return {"raceId": race.id, "totalLaps": 0, "drivers": []}
 
     # Get race results for grid positions and constructor info
-    results = (
-        db.execute(select(RaceResult).where(RaceResult.race_id == race.id))
-        .scalars()
-        .all()
-    )
+    results = db.execute(select(RaceResult).where(RaceResult.race_id == race.id)).scalars().all()
     driver_grid = {r.driver_id: r.grid for r in results}
     driver_constructor = {r.driver_id: r.constructor for r in results}
     driver_final_pos = {r.driver_id: r.position for r in results}
@@ -411,9 +405,7 @@ def get_positions(year: int, round: int, db: Session = Depends(get_db)):
     if not driver_cumulative:
         return {"raceId": race.id, "totalLaps": 0, "drivers": []}
 
-    max_lap = max(
-        max(cum.keys()) for cum in driver_cumulative.values()
-    )
+    max_lap = max(max(cum.keys()) for cum in driver_cumulative.values())
 
     # For each lap, rank drivers by cumulative time
     positions_by_driver: dict[int, dict[int, int]] = defaultdict(dict)
@@ -445,24 +437,25 @@ def get_positions(year: int, round: int, db: Session = Depends(get_db)):
         constructor = driver_constructor.get(driver_id)
         positions = positions_by_driver.get(driver_id, {})
 
-        drivers_data.append({
-            "driver": {
-                "id": driver.id,
-                "ref": driver.ref,
-                "code": driver.code,
-                "firstName": driver.first_name,
-                "lastName": driver.last_name,
-            },
-            "constructor": {
-                "ref": constructor.ref if constructor else None,
-                "name": constructor.name if constructor else None,
-                "color": constructor.color if constructor else None,
-            },
-            "positions": [
-                {"lap": lap_num, "position": pos}
-                for lap_num, pos in sorted(positions.items())
-            ],
-        })
+        drivers_data.append(
+            {
+                "driver": {
+                    "id": driver.id,
+                    "ref": driver.ref,
+                    "code": driver.code,
+                    "firstName": driver.first_name,
+                    "lastName": driver.last_name,
+                },
+                "constructor": {
+                    "ref": constructor.ref if constructor else None,
+                    "name": constructor.name if constructor else None,
+                    "color": constructor.color if constructor else None,
+                },
+                "positions": [
+                    {"lap": lap_num, "position": pos} for lap_num, pos in sorted(positions.items())
+                ],
+            }
+        )
 
     return {
         "raceId": race.id,
@@ -480,11 +473,7 @@ def get_pitstops_analysis(year: int, round: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Race not found")
 
     stops = (
-        db.execute(
-            select(PitStop)
-            .where(PitStop.race_id == race.id)
-            .order_by(PitStop.duration_ms)
-        )
+        db.execute(select(PitStop).where(PitStop.race_id == race.id).order_by(PitStop.duration_ms))
         .scalars()
         .all()
     )
@@ -500,11 +489,7 @@ def get_pitstops_analysis(year: int, round: int, db: Session = Depends(get_db)):
         }
 
     # Build driver -> constructor map from race results
-    results = (
-        db.execute(select(RaceResult).where(RaceResult.race_id == race.id))
-        .scalars()
-        .all()
-    )
+    results = db.execute(select(RaceResult).where(RaceResult.race_id == race.id)).scalars().all()
     driver_constructor = {r.driver_id: r.constructor for r in results}
 
     # Filter stops with valid duration
@@ -588,7 +573,9 @@ def get_pitstops_analysis(year: int, round: int, db: Session = Depends(get_db)):
                 "ref": fastest_constructor.ref,
                 "name": fastest_constructor.name,
                 "color": fastest_constructor.color,
-            } if fastest_constructor else None,
+            }
+            if fastest_constructor
+            else None,
             "lap": fastest.lap,
             "duration": f"{fastest.duration_ms / 1000:.3f}",
             "stopNumber": fastest.stop_number,

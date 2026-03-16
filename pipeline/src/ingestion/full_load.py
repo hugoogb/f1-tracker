@@ -145,11 +145,7 @@ def compute_race_aggregates(db: Session) -> None:
         changed = False
 
         # --- Fastest lap ---
-        results = (
-            db.query(RaceResult)
-            .filter(RaceResult.race_id == race.id)
-            .all()
-        )
+        results = db.query(RaceResult).filter(RaceResult.race_id == race.id).all()
         best_ms = None
         best_result = None
         for r in results:
@@ -169,24 +165,21 @@ def compute_race_aggregates(db: Session) -> None:
             changed = True
 
         # --- Fastest qualifying sectors ---
-        qualis = (
-            db.query(QualifyingResult)
-            .filter(QualifyingResult.race_id == race.id)
-            .all()
-        )
-        for sector_idx, (s1_attr, s2_attr, s3_attr) in enumerate([
-            ("q1_s1_ms", "q2_s1_ms", "q3_s1_ms"),
-            ("q1_s2_ms", "q2_s2_ms", "q3_s2_ms"),
-            ("q1_s3_ms", "q2_s3_ms", "q3_s3_ms"),
-        ], start=1):
+        qualis = db.query(QualifyingResult).filter(QualifyingResult.race_id == race.id).all()
+        for sector_idx, (s1_attr, s2_attr, s3_attr) in enumerate(
+            [
+                ("q1_s1_ms", "q2_s1_ms", "q3_s1_ms"),
+                ("q1_s2_ms", "q2_s2_ms", "q3_s2_ms"),
+                ("q1_s3_ms", "q2_s3_ms", "q3_s3_ms"),
+            ],
+            start=1,
+        ):
             best_sector_ms = None
             best_sector_driver_id = None
             for q in qualis:
                 for attr in (s1_attr, s2_attr, s3_attr):
                     val = getattr(q, attr, None)
-                    if val is not None and (
-                        best_sector_ms is None or val < best_sector_ms
-                    ):
+                    if val is not None and (best_sector_ms is None or val < best_sector_ms):
                         best_sector_ms = val
                         best_sector_driver_id = q.driver_id
 
@@ -207,9 +200,7 @@ def backfill_qualifying(db: Session) -> None:
     logger.info("Backfilling qualifying from race result grid positions...")
 
     # Find race_ids that have results but no qualifying
-    races_with_results = set(
-        db.query(RaceResult.race_id).group_by(RaceResult.race_id).all()
-    )
+    races_with_results = set(db.query(RaceResult.race_id).group_by(RaceResult.race_id).all())
     races_with_quali = set(
         db.query(QualifyingResult.race_id).group_by(QualifyingResult.race_id).all()
     )
@@ -259,7 +250,9 @@ def run_full_load(
     db: Session = SessionLocal()
     start = time.time()
 
-    label = "full data load" if targets is None else f"selective load ({', '.join(sorted(targets))})"
+    label = (
+        "full data load" if targets is None else f"selective load ({', '.join(sorted(targets))})"
+    )
     if year_range:
         label += f" [{year_range[0]}-{year_range[1]}]"
 

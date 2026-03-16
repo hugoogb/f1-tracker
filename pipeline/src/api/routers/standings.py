@@ -53,9 +53,7 @@ def driver_standings(year: int, db: Session = Depends(get_db)):
                     "nationality": s.driver.nationality,
                     "countryCode": s.driver.country_code,
                     "headshotUrl": (
-                        f"/headshots/{s.driver.ref}.png"
-                        if s.driver.has_headshot
-                        else None
+                        f"/headshots/{s.driver.ref}.png" if s.driver.has_headshot else None
                     ),
                 },
                 "constructor": {
@@ -133,32 +131,26 @@ def standings_progression(year: int, top: int = 10, db: Session = Depends(get_db
         }
 
     # Fetch all race + sprint points for top drivers in this season
-    race_points_rows = (
-        db.execute(
-            select(
-                RaceResult.race_id,
-                RaceResult.driver_id,
-                RaceResult.points,
-            ).where(
-                RaceResult.race_id.in_(race_ids),
-                RaceResult.driver_id.in_(top_driver_ids),
-            )
+    race_points_rows = db.execute(
+        select(
+            RaceResult.race_id,
+            RaceResult.driver_id,
+            RaceResult.points,
+        ).where(
+            RaceResult.race_id.in_(race_ids),
+            RaceResult.driver_id.in_(top_driver_ids),
         )
-        .all()
-    )
-    sprint_points_rows = (
-        db.execute(
-            select(
-                SprintResult.race_id,
-                SprintResult.driver_id,
-                SprintResult.points,
-            ).where(
-                SprintResult.race_id.in_(race_ids),
-                SprintResult.driver_id.in_(top_driver_ids),
-            )
+    ).all()
+    sprint_points_rows = db.execute(
+        select(
+            SprintResult.race_id,
+            SprintResult.driver_id,
+            SprintResult.points,
+        ).where(
+            SprintResult.race_id.in_(race_ids),
+            SprintResult.driver_id.in_(top_driver_ids),
         )
-        .all()
-    )
+    ).all()
 
     # Build per-race points map: {race_id: {driver_id: points}}
     race_points: dict[str, dict[str, float]] = {}
@@ -184,16 +176,12 @@ def standings_progression(year: int, top: int = 10, db: Session = Depends(get_db
     return {
         "year": year,
         "rounds": rounds,
-        "drivers": [
-            driver_info[did] for did in top_driver_ids if did in driver_info
-        ],
+        "drivers": [driver_info[did] for did in top_driver_ids if did in driver_info],
     }
 
 
 @router.get("/seasons/{year}/standings/constructors/progression")
-def constructor_standings_progression(
-    year: int, top: int = 10, db: Session = Depends(get_db)
-):
+def constructor_standings_progression(year: int, top: int = 10, db: Session = Depends(get_db)):
     """Round-by-round constructor championship progression for the season."""
     races = (
         db.execute(select(Race).where(Race.season_year == year).order_by(Race.round))
@@ -219,36 +207,30 @@ def constructor_standings_progression(
         }
 
     # Fetch all race + sprint points for top constructors
-    race_points_rows = (
-        db.execute(
-            select(
-                RaceResult.race_id,
-                RaceResult.constructor_id,
-                func.sum(RaceResult.points).label("pts"),
-            )
-            .where(
-                RaceResult.race_id.in_(race_ids),
-                RaceResult.constructor_id.in_(top_constructor_ids),
-            )
-            .group_by(RaceResult.race_id, RaceResult.constructor_id)
+    race_points_rows = db.execute(
+        select(
+            RaceResult.race_id,
+            RaceResult.constructor_id,
+            func.sum(RaceResult.points).label("pts"),
         )
-        .all()
-    )
-    sprint_points_rows = (
-        db.execute(
-            select(
-                SprintResult.race_id,
-                SprintResult.constructor_id,
-                func.sum(SprintResult.points).label("pts"),
-            )
-            .where(
-                SprintResult.race_id.in_(race_ids),
-                SprintResult.constructor_id.in_(top_constructor_ids),
-            )
-            .group_by(SprintResult.race_id, SprintResult.constructor_id)
+        .where(
+            RaceResult.race_id.in_(race_ids),
+            RaceResult.constructor_id.in_(top_constructor_ids),
         )
-        .all()
-    )
+        .group_by(RaceResult.race_id, RaceResult.constructor_id)
+    ).all()
+    sprint_points_rows = db.execute(
+        select(
+            SprintResult.race_id,
+            SprintResult.constructor_id,
+            func.sum(SprintResult.points).label("pts"),
+        )
+        .where(
+            SprintResult.race_id.in_(race_ids),
+            SprintResult.constructor_id.in_(top_constructor_ids),
+        )
+        .group_by(SprintResult.race_id, SprintResult.constructor_id)
+    ).all()
 
     race_points: dict[str, dict[str, float]] = {}
     for race_id, cid, pts in race_points_rows:
@@ -273,8 +255,6 @@ def constructor_standings_progression(
         "year": year,
         "rounds": rounds,
         "constructors": [
-            constructor_info[cid]
-            for cid in top_constructor_ids
-            if cid in constructor_info
+            constructor_info[cid] for cid in top_constructor_ids if cid in constructor_info
         ],
     }
