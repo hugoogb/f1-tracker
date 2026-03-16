@@ -22,3 +22,6 @@ export const TYRE_COLORS: Record<string, string> = {
   UNKNOWN: '#888888',
   TEST_UNKNOWN: '#888888',
 } as const
+
+export const SEARCH_MIN_LENGTH = 2
+export const SEARCH_DEBOUNCE_MS = 200

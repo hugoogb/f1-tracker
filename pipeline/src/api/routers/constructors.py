@@ -2,6 +2,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
 
+from src.api.constants import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE
+from src.api.pagination import paginate
+from src.api.serializers import constructor_detail, driver_summary
 from src.db.database import get_db
 from src.db.models import Constructor, ConstructorStanding, Driver, Race, RaceResult
 from src.db.queries import get_constructor_by_ref, get_constructor_career_stats
@@ -12,12 +15,10 @@ router = APIRouter()
 @router.get("/constructors")
 def list_constructors(
     page: int = Query(1, ge=1),
-    page_size: int = Query(50, ge=1, le=200),
+    page_size: int = Query(DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE),
     nationality: str | None = None,
     db: Session = Depends(get_db),
 ):
-    offset = (page - 1) * page_size
-
     base_query = select(Constructor)
     count_query = select(func.count()).select_from(Constructor)
 
@@ -25,29 +26,9 @@ def list_constructors(
         base_query = base_query.where(Constructor.nationality.ilike(nationality))
         count_query = count_query.where(Constructor.nationality.ilike(nationality))
 
-    total = db.execute(count_query).scalar()
-    constructors = (
-        db.execute(base_query.order_by(Constructor.name).offset(offset).limit(page_size))
-        .scalars()
-        .all()
+    return paginate(
+        db, base_query.order_by(Constructor.name), count_query, page, page_size, constructor_detail
     )
-    return {
-        "data": [
-            {
-                "id": c.id,
-                "ref": c.ref,
-                "name": c.name,
-                "nationality": c.nationality,
-                "countryCode": c.country_code,
-                "color": c.color,
-                "logoUrl": f"/logos/{c.ref}.png" if c.has_logo else None,
-            }
-            for c in constructors
-        ],
-        "total": total,
-        "page": page,
-        "pageSize": page_size,
-    }
 
 
 @router.get("/constructors/nationalities")
@@ -72,16 +53,7 @@ def get_constructor(ref: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Constructor not found")
 
     stats = get_constructor_career_stats(db, constructor.id)
-    return {
-        "id": constructor.id,
-        "ref": constructor.ref,
-        "name": constructor.name,
-        "nationality": constructor.nationality,
-        "countryCode": constructor.country_code,
-        "color": constructor.color,
-        "logoUrl": f"/logos/{constructor.ref}.png" if constructor.has_logo else None,
-        "stats": stats,
-    }
+    return constructor_detail(constructor, stats=stats)
 
 
 @router.get("/constructors/{ref}/roster")
@@ -122,19 +94,7 @@ def get_constructor_roster(ref: str, year: int | None = None, db: Session = Depe
 
     return {
         "year": year,
-        "drivers": [
-            {
-                "id": d.id,
-                "ref": d.ref,
-                "code": d.code,
-                "firstName": d.first_name,
-                "lastName": d.last_name,
-                "nationality": d.nationality,
-                "countryCode": d.country_code,
-                "headshotUrl": f"/headshots/{d.ref}.png" if d.has_headshot else None,
-            }
-            for d in drivers
-        ],
+        "drivers": [driver_summary(d) for d in drivers],
     }
 
 

@@ -2,6 +2,8 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from src.api.constants import DEFAULT_PROGRESSION_TOP, MAX_PROGRESSION_TOP
+from src.api.serializers import constructor_compact, constructor_summary, driver_summary
 from src.db.database import get_db
 from src.db.models import (
     Constructor,
@@ -59,24 +61,8 @@ def driver_standings(year: int, db: Session = Depends(get_db)):
                 "position": s.position,
                 "points": s.points,
                 "wins": s.wins,
-                "driver": {
-                    "id": s.driver.id,
-                    "ref": s.driver.ref,
-                    "code": s.driver.code,
-                    "firstName": s.driver.first_name,
-                    "lastName": s.driver.last_name,
-                    "nationality": s.driver.nationality,
-                    "countryCode": s.driver.country_code,
-                    "headshotUrl": (
-                        f"/headshots/{s.driver.ref}.png" if s.driver.has_headshot else None
-                    ),
-                },
-                "constructor": {
-                    "id": c.id,
-                    "ref": c.ref,
-                    "name": c.name,
-                    "color": c.color,
-                }
+                "driver": driver_summary(s.driver),
+                "constructor": constructor_compact(c)
                 if (c := constructor_map.get(s.driver_id))
                 else None,
             }
@@ -95,14 +81,7 @@ def constructor_standings(year: int, db: Session = Depends(get_db)):
                 "position": s.position,
                 "points": s.points,
                 "wins": s.wins,
-                "constructor": {
-                    "id": s.constructor.id,
-                    "ref": s.constructor.ref,
-                    "name": s.constructor.name,
-                    "nationality": s.constructor.nationality,
-                    "countryCode": s.constructor.country_code,
-                    "color": s.constructor.color,
-                },
+                "constructor": constructor_summary(s.constructor),
             }
             for s in standings
         ],
@@ -111,7 +90,9 @@ def constructor_standings(year: int, db: Session = Depends(get_db)):
 
 @router.get("/seasons/{year}/standings/progression")
 def standings_progression(
-    year: int, top: int = Query(10, ge=1, le=30), db: Session = Depends(get_db)
+    year: int,
+    top: int = Query(DEFAULT_PROGRESSION_TOP, ge=1, le=MAX_PROGRESSION_TOP),
+    db: Session = Depends(get_db),
 ):
     """Round-by-round championship progression for the season."""
     races = (
@@ -213,7 +194,9 @@ def standings_progression(
 
 @router.get("/seasons/{year}/standings/constructors/progression")
 def constructor_standings_progression(
-    year: int, top: int = Query(10, ge=1, le=30), db: Session = Depends(get_db)
+    year: int,
+    top: int = Query(DEFAULT_PROGRESSION_TOP, ge=1, le=MAX_PROGRESSION_TOP),
+    db: Session = Depends(get_db),
 ):
     """Round-by-round constructor championship progression for the season."""
     races = (

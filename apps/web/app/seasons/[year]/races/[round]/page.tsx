@@ -12,12 +12,12 @@ import type {
   PitStopAnalysis,
   PositionsResponse,
 } from '@/lib/types'
-import { getTeamColor } from '@/lib/utils'
 import { CountryFlag } from '@/components/ui/country-flag'
 import { Breadcrumbs } from '@/components/layout/breadcrumbs'
 import { Badge } from '@/components/ui/badge'
-import { Card, CardContent } from '@/components/ui/card'
 import { ResultsTable } from '@/components/races/results-table'
+import { PodiumCard } from '@/components/races/podium-card'
+import { FastestLapCard } from '@/components/races/fastest-lap-card'
 import { QualifyingTable } from '@/components/races/qualifying-table'
 import { SprintTable } from '@/components/races/sprint-table'
 import { PitStopsTable } from '@/components/races/pit-stops-table'
@@ -26,8 +26,7 @@ import { LapTimesChart } from '@/components/races/lap-times-chart'
 import { TyreStrategyChart } from '@/components/races/tyre-strategy-chart'
 import { PositionChart } from '@/components/races/position-chart'
 import { RaceTabs } from './race-tabs'
-import Link from 'next/link'
-import { FadeIn, PodiumReveal } from '@/components/ui/motion'
+import { FadeIn } from '@/components/ui/motion'
 
 export const dynamic = 'force-dynamic'
 
@@ -196,84 +195,9 @@ export default async function RaceDetailPage({
         </div>
       </FadeIn>
 
-      {/* Podium */}
-      {podium.length > 0 && (
-        <PodiumReveal>
-          {podium.map((result) => {
-            const teamColor = getTeamColor(result.constructor.ref, result.constructor.color, null)
-            const podiumColors = [
-              'border-amber-500/40 bg-amber-500/5',
-              'border-zinc-400/40 bg-zinc-400/5',
-              'border-orange-600/40 bg-orange-600/5',
-            ]
-            const podiumLabels = ['1st', '2nd', '3rd']
-            const idx = (result.position ?? 1) - 1
+      <PodiumCard podium={podium} />
 
-            return (
-              <Card key={result.driver.ref} className={`${podiumColors[idx]} border`}>
-                <CardContent className="space-y-1 px-4 py-3">
-                  <p className="text-muted-foreground text-xs font-medium tracking-wider uppercase">
-                    {podiumLabels[idx]}
-                  </p>
-                  <Link
-                    href={`/drivers/${result.driver.ref}`}
-                    className="hover:text-primary text-sm font-semibold transition-colors"
-                  >
-                    {result.driver.firstName} {result.driver.lastName}
-                  </Link>
-                  <div className="flex items-center gap-1.5">
-                    {teamColor && (
-                      <span
-                        className="inline-block h-3 w-1 rounded-full"
-                        style={{ backgroundColor: teamColor }}
-                      />
-                    )}
-                    <Link
-                      href={`/constructors/${result.constructor.ref}`}
-                      className="text-muted-foreground hover:text-foreground text-xs transition-colors"
-                    >
-                      {result.constructor.name}
-                    </Link>
-                  </div>
-                </CardContent>
-              </Card>
-            )
-          })}
-        </PodiumReveal>
-      )}
-
-      {/* Fastest Lap */}
-      {race.fastestLap && (
-        <FadeIn>
-          <Card className="border border-purple-500/30 bg-purple-500/5">
-            <CardContent className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3">
-              <p className="text-xs font-medium tracking-wider text-purple-400 uppercase">
-                Fastest Lap
-              </p>
-              <div className="flex items-center gap-2">
-                {race.fastestLap.constructor?.color && (
-                  <span
-                    className="inline-block h-3 w-1 rounded-full"
-                    style={{ backgroundColor: race.fastestLap.constructor.color }}
-                  />
-                )}
-                <Link
-                  href={`/drivers/${race.fastestLap.driver.ref}`}
-                  className="hover:text-primary text-sm font-semibold transition-colors"
-                >
-                  {race.fastestLap.driver.firstName} {race.fastestLap.driver.lastName}
-                </Link>
-              </div>
-              <span className="font-mono text-sm text-purple-300">{race.fastestLap.time}</span>
-              <span className="text-muted-foreground text-xs">
-                {race.fastestLap.lapNumber && `Lap ${race.fastestLap.lapNumber}`}
-                {race.fastestLap.lapNumber && race.fastestLap.speed && ' · '}
-                {race.fastestLap.speed && `${race.fastestLap.speed} km/h`}
-              </span>
-            </CardContent>
-          </Card>
-        </FadeIn>
-      )}
+      {race.fastestLap && <FastestLapCard fastestLap={race.fastestLap} />}
 
       <RaceTabs
         raceResultsContent={

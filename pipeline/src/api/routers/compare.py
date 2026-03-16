@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
 
+from src.api.serializers import constructor_detail, driver_detail
 from src.db.database import get_db
 from src.db.models import Constructor, QualifyingResult, Race, RaceResult
 from src.db.queries import (
@@ -98,19 +99,7 @@ def compare_drivers(d1: str, d2: str, teammate: bool = False, db: Session = Depe
         return [{"year": row.season_year, "points": float(row.points or 0)} for row in rows]
 
     def format_driver(driver, stats):
-        return {
-            "id": driver.id,
-            "ref": driver.ref,
-            "code": driver.code,
-            "number": driver.number,
-            "firstName": driver.first_name,
-            "lastName": driver.last_name,
-            "nationality": driver.nationality,
-            "countryCode": driver.country_code,
-            "dateOfBirth": str(driver.date_of_birth) if driver.date_of_birth else None,
-            "headshotUrl": f"/headshots/{driver.ref}.png" if driver.has_headshot else None,
-            "stats": stats,
-        }
+        return driver_detail(driver, stats=stats)
 
     # Teammate filtering: find races where both drove for same constructor
     teammate_race_ids = None
@@ -315,16 +304,7 @@ def compare_constructors(c1: str, c2: str, db: Session = Depends(get_db)):
         return [{"year": r.season_year, "points": float(r.points or 0)} for r in rows]
 
     def format_constructor(con: Constructor, stats: dict):
-        return {
-            "id": con.id,
-            "ref": con.ref,
-            "name": con.name,
-            "nationality": con.nationality,
-            "countryCode": con.country_code,
-            "color": con.color,
-            "logoUrl": (f"/logos/{con.ref}.png" if con.has_logo else None),
-            "stats": stats,
-        }
+        return constructor_detail(con, stats=stats)
 
     return {
         "constructor1": format_constructor(con1, stats1),

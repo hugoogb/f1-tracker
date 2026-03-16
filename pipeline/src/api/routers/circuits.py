@@ -2,6 +2,13 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from src.api.constants import (
+    DEFAULT_PAGE_SIZE,
+    DEFAULT_RECORD_LIMIT,
+    MAX_PAGE_SIZE,
+    MAX_RECORD_LIMIT,
+)
+from src.api.pagination import paginate
 from src.db.database import get_db
 from src.db.models import Circuit, CircuitLayout, QualifyingResult, Race, RaceResult
 
@@ -11,12 +18,10 @@ router = APIRouter()
 @router.get("/circuits")
 def list_circuits(
     page: int = Query(1, ge=1),
-    page_size: int = Query(50, ge=1, le=200),
+    page_size: int = Query(DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE),
     country: str | None = None,
     db: Session = Depends(get_db),
 ):
-    offset = (page - 1) * page_size
-
     base_query = select(Circuit)
     count_query = select(func.count()).select_from(Circuit)
 
@@ -24,30 +29,21 @@ def list_circuits(
         base_query = base_query.where(Circuit.country.ilike(country))
         count_query = count_query.where(Circuit.country.ilike(country))
 
-    total = db.execute(count_query).scalar()
-    circuits = (
-        db.execute(base_query.order_by(Circuit.name).offset(offset).limit(page_size))
-        .scalars()
-        .all()
+    def circuit_summary(c):
+        return {
+            "id": c.id,
+            "ref": c.ref,
+            "name": c.name,
+            "location": c.location,
+            "country": c.country,
+            "countryCode": c.country_code,
+            "latitude": c.latitude,
+            "longitude": c.longitude,
+        }
+
+    return paginate(
+        db, base_query.order_by(Circuit.name), count_query, page, page_size, circuit_summary
     )
-    return {
-        "data": [
-            {
-                "id": c.id,
-                "ref": c.ref,
-                "name": c.name,
-                "location": c.location,
-                "country": c.country,
-                "countryCode": c.country_code,
-                "latitude": c.latitude,
-                "longitude": c.longitude,
-            }
-            for c in circuits
-        ],
-        "total": total,
-        "page": page,
-        "pageSize": page_size,
-    }
 
 
 @router.get("/circuits/countries")
@@ -151,7 +147,11 @@ def get_circuit(ref: str, db: Session = Depends(get_db)):
 
 
 @router.get("/circuits/{ref}/stats")
-def get_circuit_stats(ref: str, limit: int = Query(10, ge=1, le=50), db: Session = Depends(get_db)):
+def get_circuit_stats(
+    ref: str,
+    limit: int = Query(DEFAULT_RECORD_LIMIT, ge=1, le=MAX_RECORD_LIMIT),
+    db: Session = Depends(get_db),
+):
     circuit = db.execute(select(Circuit).where(Circuit.ref == ref)).scalar_one_or_none()
     if not circuit:
         raise HTTPException(status_code=404, detail="Circuit not found")

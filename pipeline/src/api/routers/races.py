@@ -1,11 +1,12 @@
 from collections import defaultdict
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from src.api.serializers import constructor_compact, driver_summary
 from src.db.database import get_db
-from src.db.models import LapTime, PitStop, QualifyingResult, Race, RaceResult, SprintResult
+from src.db.models import Driver, LapTime, PitStop, QualifyingResult, Race, RaceResult, SprintResult
 
 router = APIRouter()
 
@@ -71,22 +72,8 @@ def get_race(year: int, round: int, db: Session = Depends(get_db)):
                 "time": r.time_text,
                 "fastestLapTime": r.fastest_lap_time,
                 "status": r.status.description if r.status else None,
-                "driver": {
-                    "id": r.driver.id,
-                    "ref": r.driver.ref,
-                    "code": r.driver.code,
-                    "firstName": r.driver.first_name,
-                    "lastName": r.driver.last_name,
-                    "headshotUrl": (
-                        f"/headshots/{r.driver.ref}.png" if r.driver.has_headshot else None
-                    ),
-                },
-                "constructor": {
-                    "id": r.constructor.id,
-                    "ref": r.constructor.ref,
-                    "name": r.constructor.name,
-                    "color": r.constructor.color,
-                },
+                "driver": driver_summary(r.driver),
+                "constructor": constructor_compact(r.constructor),
             }
             for r in results
         ],
@@ -160,22 +147,8 @@ def get_qualifying(year: int, round: int, db: Session = Depends(get_db)):
                 }
                 if r.q1_s1_ms is not None
                 else None,
-                "driver": {
-                    "id": r.driver.id,
-                    "ref": r.driver.ref,
-                    "code": r.driver.code,
-                    "firstName": r.driver.first_name,
-                    "lastName": r.driver.last_name,
-                    "headshotUrl": (
-                        f"/headshots/{r.driver.ref}.png" if r.driver.has_headshot else None
-                    ),
-                },
-                "constructor": {
-                    "id": r.constructor.id,
-                    "ref": r.constructor.ref,
-                    "name": r.constructor.name,
-                    "color": r.constructor.color,
-                },
+                "driver": driver_summary(r.driver),
+                "constructor": constructor_compact(r.constructor),
             }
             for r in results
         ],
@@ -211,22 +184,8 @@ def get_sprint(year: int, round: int, db: Session = Depends(get_db)):
                 "laps": r.laps,
                 "time": r.time_text,
                 "status": r.status.description if r.status else None,
-                "driver": {
-                    "id": r.driver.id,
-                    "ref": r.driver.ref,
-                    "code": r.driver.code,
-                    "firstName": r.driver.first_name,
-                    "lastName": r.driver.last_name,
-                    "headshotUrl": (
-                        f"/headshots/{r.driver.ref}.png" if r.driver.has_headshot else None
-                    ),
-                },
-                "constructor": {
-                    "id": r.constructor.id,
-                    "ref": r.constructor.ref,
-                    "name": r.constructor.name,
-                    "color": r.constructor.color,
-                },
+                "driver": driver_summary(r.driver),
+                "constructor": constructor_compact(r.constructor),
             }
             for r in results
         ],
@@ -323,19 +282,8 @@ def get_laps(year: int, round: int, db: Session = Depends(get_db)):
 
         drivers_data.append(
             {
-                "driver": {
-                    "id": driver.id,
-                    "ref": driver.ref,
-                    "code": driver.code,
-                    "firstName": driver.first_name,
-                    "lastName": driver.last_name,
-                    "headshotUrl": f"/headshots/{driver.ref}.png" if driver.has_headshot else None,
-                },
-                "constructor": {
-                    "ref": constructor.ref if constructor else None,
-                    "name": constructor.name if constructor else None,
-                    "color": constructor.color if constructor else None,
-                },
+                "driver": driver_summary(driver),
+                "constructor": constructor_compact(constructor) if constructor else {},
                 "laps": [
                     {
                         "lapNumber": lap.lap_number,
@@ -366,91 +314,104 @@ def get_positions(year: int, round: int, db: Session = Depends(get_db)):
     if not race:
         raise HTTPException(status_code=404, detail="Race not found")
 
-    laps = (
-        db.execute(
-            select(LapTime)
-            .where(LapTime.race_id == race.id)
-            .order_by(LapTime.driver_id, LapTime.lap_number)
-        )
-        .scalars()
-        .all()
-    )
-
-    if not laps:
+    # Get race results for grid positions, constructor info, and final position
+    results = db.execute(select(RaceResult).where(RaceResult.race_id == race.id)).scalars().all()
+    if not results:
         return {"raceId": race.id, "totalLaps": 0, "drivers": []}
 
-    # Get race results for grid positions and constructor info
-    results = db.execute(select(RaceResult).where(RaceResult.race_id == race.id)).scalars().all()
     driver_grid = {r.driver_id: r.grid for r in results}
     driver_constructor = {r.driver_id: r.constructor for r in results}
     driver_final_pos = {r.driver_id: r.position for r in results}
 
-    # Group laps by driver and compute cumulative times
-    by_driver: dict[int, list[LapTime]] = defaultdict(list)
-    for lap in laps:
-        by_driver[lap.driver_id].append(lap)
+    # Use SQL window functions for cumulative times and rankings
+    # Step 1: Find the max consecutive lap per driver (stop at first NULL time_millis)
+    lt = LapTime.__table__
+    max_valid_lap = (
+        select(
+            lt.c.driver_id,
+            func.coalesce(
+                func.min(lt.c.lap_number).filter(lt.c.time_millis.is_(None)) - 1,
+                func.max(lt.c.lap_number),
+            ).label("max_valid"),
+        )
+        .where(lt.c.race_id == race.id)
+        .group_by(lt.c.driver_id)
+        .subquery()
+    )
 
-    driver_cumulative: dict[int, dict[int, int]] = {}
-    for driver_id, driver_laps in by_driver.items():
-        cumulative = {}
-        total = 0
-        for lap in sorted(driver_laps, key=lambda lt: lt.lap_number):
-            if lap.time_millis is None:
-                break
-            total += lap.time_millis
-            cumulative[lap.lap_number] = total
-        if cumulative:
-            driver_cumulative[driver_id] = cumulative
+    # Step 2: Cumulative times via window function
+    cumulative_cte = (
+        select(
+            lt.c.driver_id,
+            lt.c.lap_number,
+            func.sum(lt.c.time_millis)
+            .over(partition_by=lt.c.driver_id, order_by=lt.c.lap_number)
+            .label("cumulative_ms"),
+        )
+        .where(
+            lt.c.race_id == race.id,
+            lt.c.time_millis.isnot(None),
+            lt.c.lap_number
+            <= select(max_valid_lap.c.max_valid)
+            .where(max_valid_lap.c.driver_id == lt.c.driver_id)
+            .correlate_except(max_valid_lap)
+            .scalar_subquery(),
+        )
+        .subquery()
+    )
 
-    if not driver_cumulative:
+    # Step 3: Rank drivers per lap by cumulative time
+    ranked_rows = db.execute(
+        select(
+            cumulative_cte.c.driver_id,
+            cumulative_cte.c.lap_number,
+            func.rank()
+            .over(partition_by=cumulative_cte.c.lap_number, order_by=cumulative_cte.c.cumulative_ms)
+            .label("position"),
+        )
+    ).all()
+
+    if not ranked_rows:
         return {"raceId": race.id, "totalLaps": 0, "drivers": []}
 
-    max_lap = max(max(cum.keys()) for cum in driver_cumulative.values())
-
-    # For each lap, rank drivers by cumulative time
-    positions_by_driver: dict[int, dict[int, int]] = defaultdict(dict)
-    for lap_num in range(1, max_lap + 1):
-        drivers_at_lap = []
-        for driver_id, cum in driver_cumulative.items():
-            if lap_num in cum:
-                drivers_at_lap.append((driver_id, cum[lap_num]))
-        drivers_at_lap.sort(key=lambda x: x[1])
-        for pos, (driver_id, _) in enumerate(drivers_at_lap, 1):
-            positions_by_driver[driver_id][lap_num] = pos
+    # Build positions map from SQL results
+    positions_by_driver: dict[str, dict[int, int]] = defaultdict(dict)
+    max_lap = 0
+    driver_ids_seen: set[str] = set()
+    for row in ranked_rows:
+        positions_by_driver[row.driver_id][row.lap_number] = row.position
+        driver_ids_seen.add(row.driver_id)
+        if row.lap_number > max_lap:
+            max_lap = row.lap_number
 
     # Add grid position as lap 0
-    for driver_id in driver_cumulative:
+    for driver_id in driver_ids_seen:
         grid = driver_grid.get(driver_id)
         if grid:
             positions_by_driver[driver_id][0] = grid
 
+    # Fetch driver objects for response
+    drivers = db.execute(select(Driver).where(Driver.id.in_(driver_ids_seen))).scalars().all()
+    driver_map = {d.id: d for d in drivers}
+
     # Build response sorted by finishing position
     sorted_driver_ids = sorted(
-        driver_cumulative.keys(),
+        driver_ids_seen,
         key=lambda d: driver_final_pos.get(d) or 999,
     )
 
     drivers_data = []
     for driver_id in sorted_driver_ids:
-        driver_laps = by_driver[driver_id]
-        driver = driver_laps[0].driver
+        driver = driver_map.get(driver_id)
+        if not driver:
+            continue
         constructor = driver_constructor.get(driver_id)
         positions = positions_by_driver.get(driver_id, {})
 
         drivers_data.append(
             {
-                "driver": {
-                    "id": driver.id,
-                    "ref": driver.ref,
-                    "code": driver.code,
-                    "firstName": driver.first_name,
-                    "lastName": driver.last_name,
-                },
-                "constructor": {
-                    "ref": constructor.ref if constructor else None,
-                    "name": constructor.name if constructor else None,
-                    "color": constructor.color if constructor else None,
-                },
+                "driver": driver_summary(driver),
+                "constructor": constructor_compact(constructor) if constructor else {},
                 "positions": [
                     {"lap": lap_num, "position": pos} for lap_num, pos in sorted(positions.items())
                 ],
