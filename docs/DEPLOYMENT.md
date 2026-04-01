@@ -437,7 +437,41 @@ For production, set up a cron job to run backups regularly:
 
 The F1 dataset needs updating after each race weekend to include new results.
 
-### Update with new race data
+### One-command update (local + Neon)
+
+The `update-neon.sh` script handles the full workflow: ingest new data locally, create a backup, and push to Neon.
+
+**Setup** (one-time): Add your Neon connection string to `.env`:
+
+```bash
+NEON_DATABASE_URL=postgresql://user:pass@ep-xyz.region.aws.neon.tech/f1tracker?sslmode=require
+```
+
+**After a race weekend**:
+
+```bash
+./scripts/update-neon.sh
+```
+
+This runs the full pipeline:
+1. Ensures Docker PostgreSQL is running
+2. Restores from latest backup (avoids re-fetching existing data)
+3. Ingests new race data (current year only)
+4. Creates a new backup
+5. Runs Alembic migrations on Neon
+6. Pushes the backup to Neon
+
+**Custom flags** (passed through to `seed.py`):
+
+```bash
+./scripts/update-neon.sh --results --standings            # Only specific ingestors
+./scripts/update-neon.sh --year-range 2025                # Specific year
+./scripts/update-neon.sh --laptimes --current-year        # Lap times for current year
+```
+
+> **Requires**: `psql` client installed locally (`sudo apt install postgresql-client`).
+
+### Manual update (local only)
 
 ```bash
 cd pipeline

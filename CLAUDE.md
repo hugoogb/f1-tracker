@@ -102,6 +102,11 @@ F1 analytics dashboard covering the complete history of Formula 1 (1950-present)
 - `uv run pytest -v` - Run backend tests (44 tests)
 - `uv run ruff check . && uv run ruff format --check .` - Lint + format check
 
+### Data Updates
+- `./scripts/update-neon.sh` - Ingest new race data locally + push to Neon (one command)
+- `./scripts/update-neon.sh --results --standings` - Custom seed flags
+- Requires `NEON_DATABASE_URL` in `.env`
+
 ### Database
 - `docker compose -f docker/docker-compose.yml up -d` - Start PostgreSQL
 - `docker compose -f docker/docker-compose.yml down` - Stop PostgreSQL
