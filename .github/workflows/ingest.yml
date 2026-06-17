@@ -123,4 +123,4 @@ jobs:
             echo "REVALIDATE_URL not set — skipping cache purge"
             exit 0
           fi
-          curl -fsS -X POST "$REVALIDATE_URL" -H "Authorization: Bearer $REVALIDATE_SECRET"
+          curl -fsS --max-time 30 -X POST "$REVALIDATE_URL" -H "Authorization: Bearer $REVALIDATE_SECRET"

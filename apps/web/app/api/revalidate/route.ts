@@ -15,7 +15,7 @@ function safeEqual(a: string, b: string): boolean {
 export async function POST(request: Request) {
   const secret = process.env.REVALIDATE_SECRET
   const auth = request.headers.get('authorization')
-  const provided = auth && auth.toLowerCase().startsWith('bearer ') ? auth.slice(7) : ''
+  const provided = auth && auth.toLowerCase().startsWith('bearer ') ? auth.slice(7).trim() : ''
 
   if (!secret || !provided || !safeEqual(provided, secret)) {
     return NextResponse.json({ revalidated: false }, { status: 401 })
