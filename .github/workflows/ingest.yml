@@ -111,3 +111,16 @@ jobs:
       - name: Validate data (informational)
         continue-on-error: true
         run: uv run python scripts/validate.py
+
+      - name: Purge frontend cache
+        continue-on-error: true # data is already in Neon; TTL backstops a failed purge
+        working-directory: .
+        env:
+          REVALIDATE_URL: ${{ secrets.REVALIDATE_URL }}
+          REVALIDATE_SECRET: ${{ secrets.REVALIDATE_SECRET }}
+        run: |
+          if [ -z "$REVALIDATE_URL" ]; then
+            echo "REVALIDATE_URL not set — skipping cache purge"
+            exit 0
+          fi
+          curl -fsS -X POST "$REVALIDATE_URL" -H "Authorization: Bearer $REVALIDATE_SECRET"
