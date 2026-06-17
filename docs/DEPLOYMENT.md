@@ -52,6 +52,17 @@ Create a `.env` file at the project root. All variables have development default
 
 ## Local Development Setup
 
+### Quick start (one command)
+
+```bash
+./scripts/bootstrap.sh
+```
+
+This creates `.env` (if missing), starts PostgreSQL, runs migrations, restores the
+bundled data backup, and installs frontend deps. Then start the servers it prints
+(`uv run uvicorn ...` and `pnpm dev`). The manual steps below are the equivalent
+breakdown.
+
 ### 1. Start the database
 
 ```bash
@@ -172,6 +183,7 @@ gunzip -c docker/backups/latest.sql.gz | psql "<your-neon-connection-string>" --
 | Variable              | Value                                               |
 | --------------------- | --------------------------------------------------- |
 | `NEXT_PUBLIC_API_URL` | `https://<your-render-service>.onrender.com/api`    |
+| `REVALIDATE_SECRET`   | Same value as the GitHub `REVALIDATE_SECRET` secret |
 
 4. Deploy. Vercel auto-assigns a `.vercel.app` domain
 
@@ -485,14 +497,49 @@ cd .. && ./scripts/db-backup.sh
 
 > **Tip**: The ingestion pipeline uses Fast-F1 which caches data locally in `FASTF1_CACHE_DIR`. Subsequent runs are faster because only new data is fetched. Jolpica-F1 (used internally) has a rate limit of 200 requests/hour.
 
-### Automated data updates
+### Automated data updates (GitHub Actions → Neon)
 
-For production, schedule ingestion after race weekends (Sundays ~18:00 UTC):
+The repo includes a scheduled workflow at `.github/workflows/ingest.yml` that keeps
+Neon up to date without any local machine involved.
 
-```bash
-# Every Monday at 2 AM (after race weekends)
-0 2 * * 1 cd /opt/f1-tracker/pipeline && uv run python scripts/seed.py --base --results --qualifying --standings --pitstops --sprints >> /var/log/f1-ingest.log 2>&1
-```
+**How it works:**
+
+1. **Schedule** — runs every Monday 06:00 UTC (`cron: '0 6 * * 1'`), after Sunday
+   races and post-race data settling. Also runnable manually via *workflow_dispatch*.
+2. **Calendar gate** — `pipeline/scripts/should_ingest.py` checks the current-year
+   schedule and **skips the run unless a race ran in the last 3 days**, so off-weekend
+   crons don't waste runs or pull partial data. It fails open (ingests anyway) if the
+   schedule can't be fetched.
+3. **Direct-to-Neon incremental** — sets `DATABASE_URL` to the `NEON_DATABASE_URL`
+   secret and runs `alembic upgrade head` + `seed.py ... --current-year --no-restore
+   --no-backup` straight against Neon. The ingestors are idempotent (`db.merge`), so
+   re-runs are safe. No schema drop, no dump/restore.
+4. **Validation** — runs `scripts/validate.py` (informational, non-blocking).
+
+**One-time setup:**
+
+1. Seed Neon with the **full** dataset once from your machine
+   (`./scripts/update-neon.sh`). The cloud job only does *incremental* updates — the
+   skip-if-exists ingestors can't bootstrap an empty database.
+2. Add the repository secret `NEON_DATABASE_URL` (Settings → Secrets and variables →
+   Actions): `postgresql://user:pass@ep-xyz.region.aws.neon.tech/f1tracker?sslmode=require`
+3. Add two more repository secrets so the job can purge the frontend cache after
+   ingest (optional — if unset, the job skips the purge and the 1-day cache TTL
+   refreshes data instead):
+   - `REVALIDATE_SECRET` — a random shared secret (e.g. `openssl rand -hex 32`).
+   - `REVALIDATE_URL` — `https://<your-app>.vercel.app/api/revalidate`
+   Set the **same** `REVALIDATE_SECRET` value as a Vercel environment variable so
+   the route handler accepts the request.
+
+**Manual trigger** (Actions tab → *Scheduled Data Ingest* → *Run workflow*): supports a
+`force` toggle (skip the calendar gate) and a `seed_flags` override (e.g.
+`--laptimes --qualifying-sectors --current-year` for the heavier ingestors).
+
+> **Self-hosted alternative**: if not using GitHub, schedule the same command via cron:
+> ```bash
+> # Every Monday at 2 AM (after race weekends)
+> 0 2 * * 1 cd /opt/f1-tracker/pipeline && uv run python scripts/seed.py --base --results --qualifying --standings --pitstops --sprints --postprocess --current-year >> /var/log/f1-ingest.log 2>&1
+> ```
 
 ---
 
