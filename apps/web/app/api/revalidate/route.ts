@@ -21,6 +21,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ revalidated: false }, { status: 401 })
   }
 
-  revalidateTag(F1_DATA_TAG, 'default')
+  revalidateTag(F1_DATA_TAG, 'max')
   return NextResponse.json({ revalidated: true, tag: F1_DATA_TAG })
 }
