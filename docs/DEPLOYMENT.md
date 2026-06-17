@@ -183,6 +183,7 @@ gunzip -c docker/backups/latest.sql.gz | psql "<your-neon-connection-string>" --
 | Variable              | Value                                               |
 | --------------------- | --------------------------------------------------- |
 | `NEXT_PUBLIC_API_URL` | `https://<your-render-service>.onrender.com/api`    |
+| `REVALIDATE_SECRET`   | Same value as the GitHub `REVALIDATE_SECRET` secret |
 
 4. Deploy. Vercel auto-assigns a `.vercel.app` domain
 
@@ -522,6 +523,13 @@ Neon up to date without any local machine involved.
    skip-if-exists ingestors can't bootstrap an empty database.
 2. Add the repository secret `NEON_DATABASE_URL` (Settings → Secrets and variables →
    Actions): `postgresql://user:pass@ep-xyz.region.aws.neon.tech/f1tracker?sslmode=require`
+3. Add two more repository secrets so the job can purge the frontend cache after
+   ingest (optional — if unset, the job skips the purge and the 1-day cache TTL
+   refreshes data instead):
+   - `REVALIDATE_SECRET` — a random shared secret (e.g. `openssl rand -hex 32`).
+   - `REVALIDATE_URL` — `https://<your-app>.vercel.app/api/revalidate`
+   Set the **same** `REVALIDATE_SECRET` value as a Vercel environment variable so
+   the route handler accepts the request.
 
 **Manual trigger** (Actions tab → *Scheduled Data Ingest* → *Run workflow*): supports a
 `force` toggle (skip the calendar gate) and a `seed_flags` override (e.g.
