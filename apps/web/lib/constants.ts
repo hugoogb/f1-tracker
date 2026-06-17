@@ -1,5 +1,10 @@
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000/api'
 
+// Cache TTL fallback (1 day). Real freshness comes from tag-busting on ingest;
+// this is just a backstop if the revalidate webhook ever fails.
+export const REVALIDATE_SECONDS = 86400
+export const F1_DATA_TAG = 'f1-data'
+
 export const TEAM_COLORS: Record<string, string> = {
   red_bull: '#3671C6',
   mercedes: '#27F4D2',
