@@ -1,8 +1,9 @@
-import { API_BASE_URL } from './constants'
+import { API_BASE_URL, REVALIDATE_SECONDS, F1_DATA_TAG } from './constants'
 
 async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE_URL}${endpoint}`, {
     ...options,
+    next: { revalidate: REVALIDATE_SECONDS, tags: [F1_DATA_TAG], ...options?.next },
     headers: {
       'Content-Type': 'application/json',
       ...options?.headers,

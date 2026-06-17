@@ -1,4 +1,10 @@
+from pathlib import Path
+
 from pydantic_settings import BaseSettings
+
+# Resolve the repo-root .env absolutely so it loads regardless of the current
+# working directory (this file lives at pipeline/src/config.py → repo root is 2 up).
+_ENV_FILE = Path(__file__).resolve().parents[2] / ".env"
 
 
 class Settings(BaseSettings):
@@ -9,7 +15,13 @@ class Settings(BaseSettings):
     fastf1_cache_dir: str = ".fastf1_cache"
     cors_origins: str = "http://localhost:3000"
 
-    model_config = {"env_file": "../../.env", "env_file_encoding": "utf-8"}
+    # The root .env is shared across frontend/backend/scripts, so ignore keys
+    # this settings model doesn't declare (e.g. NEXT_PUBLIC_API_URL, NEON_DATABASE_URL).
+    model_config = {
+        "env_file": str(_ENV_FILE),
+        "env_file_encoding": "utf-8",
+        "extra": "ignore",
+    }
 
 
 settings = Settings()

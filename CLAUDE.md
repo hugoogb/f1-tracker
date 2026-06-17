@@ -89,6 +89,9 @@ F1 analytics dashboard covering the complete history of Formula 1 (1950-present)
 
 ## Commands
 
+### Local setup (from root)
+- `./scripts/bootstrap.sh` - One-command setup: `.env` + DB + migrations + restore backup + frontend deps
+
 ### Frontend (from root)
 - `pnpm dev` - Start Next.js dev server
 - `pnpm build` - Build for production
@@ -103,9 +106,11 @@ F1 analytics dashboard covering the complete history of Formula 1 (1950-present)
 - `uv run ruff check . && uv run ruff format --check .` - Lint + format check
 
 ### Data Updates
-- `./scripts/update-neon.sh` - Ingest new race data locally + push to Neon (one command)
+- `./scripts/update-neon.sh` - Ingest new race data locally + push to Neon (one command, dump/restore)
 - `./scripts/update-neon.sh --results --standings` - Custom seed flags
 - Requires `NEON_DATABASE_URL` in `.env`
+- **Automated**: `.github/workflows/ingest.yml` runs Mondays, calendar-gated, ingests current-year data directly into Neon. Requires `NEON_DATABASE_URL` GitHub secret + Neon pre-seeded (the skip-if-exists ingestors can't bootstrap an empty DB).
+- `uv run python scripts/should_ingest.py --days 3` - Calendar gate (used by the workflow): exits with `should_ingest=true/false`
 
 ### Database
 - `docker compose -f docker/docker-compose.yml up -d` - Start PostgreSQL
