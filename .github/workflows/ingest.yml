@@ -1,0 +1,113 @@
+name: Scheduled Data Ingest
+
+# Incrementally ingests new F1 race data directly into Neon after race weekends.
+#
+# Prerequisites (one-time):
+#   - Neon must already be SEEDED with the full dataset (run scripts/update-neon.sh
+#     locally once). This job is for INCREMENTAL updates only — the ingestors
+#     skip base entities when they already exist, so they cannot bootstrap an
+#     empty database.
+#   - Add the repository secret NEON_DATABASE_URL
+#     (postgresql://user:pass@ep-xyz.region.aws.neon.tech/f1tracker?sslmode=require)
+
+on:
+  schedule:
+    # Mondays 06:00 UTC — after Sunday races and post-race data settling.
+    # The calendar gate below skips the run if no race happened recently.
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+    inputs:
+      seed_flags:
+        description: 'Override seed.py flags (default: race-weekend update)'
+        required: false
+        default: ''
+      force:
+        description: 'Ingest even if no recent race (skip calendar gate)'
+        type: boolean
+        required: false
+        default: false
+
+# Never run two ingests at once (they write to the same Neon DB).
+concurrency:
+  group: ingest
+  cancel-in-progress: false
+
+jobs:
+  gate:
+    name: Calendar gate
+    runs-on: ubuntu-latest
+    outputs:
+      should_ingest: ${{ steps.check.outputs.should_ingest }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          version: '0.10'
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        working-directory: pipeline
+        run: uv sync
+
+      - name: Did a race happen recently?
+        id: check
+        working-directory: pipeline
+        env:
+          FORCE_INGEST: ${{ github.event.inputs.force }}
+        run: uv run python scripts/should_ingest.py --days 3
+
+  ingest:
+    name: Ingest into Neon
+    needs: gate
+    if: needs.gate.outputs.should_ingest == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: pipeline
+    env:
+      DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          version: '0.10'
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Cache Fast-F1 data
+        uses: actions/cache@v4
+        with:
+          path: pipeline/.fastf1_cache
+          key: fastf1-cache-${{ github.run_id }}
+          restore-keys: |
+            fastf1-cache-
+
+      - name: Apply migrations to Neon
+        run: uv run alembic upgrade head
+
+      - name: Ingest current-year data into Neon
+        env:
+          SEED_FLAGS: ${{ github.event.inputs.seed_flags }}
+        run: |
+          FLAGS="$SEED_FLAGS"
+          if [ -z "$FLAGS" ]; then
+            FLAGS="--base --results --qualifying --standings --pitstops --sprints --postprocess --current-year"
+          fi
+          echo "Seed flags: $FLAGS --no-restore --no-backup"
+          # shellcheck disable=SC2086 — intentional word-splitting of flag list
+          uv run python scripts/seed.py $FLAGS --no-restore --no-backup
+
+      - name: Validate data (informational)
+        continue-on-error: true
+        run: uv run python scripts/validate.py
