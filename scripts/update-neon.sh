@@ -72,5 +72,14 @@ psql "$NEON_DATABASE_URL" --set ON_ERROR_STOP=on -q \
 echo "==> Restoring to Neon..."
 gunzip -c "$FULL_DUMP" | psql "$NEON_DATABASE_URL" --set ON_ERROR_STOP=on --single-transaction -q
 
+# --- Step 5: Stamp Alembic version on Neon ---
+# The dump excludes alembic_version, so the restored DB is unversioned. Stamp it
+# to head (the local DB was migrated before the dump) so the schema matches the
+# recorded revision and `alembic upgrade head` (e.g. in the ingest workflow) is a
+# clean no-op instead of trying to recreate existing tables.
+echo "==> Stamping Alembic head on Neon..."
+cd "$PIPELINE_DIR"
+DATABASE_URL="$NEON_DATABASE_URL" uv run alembic stamp head
+
 echo ""
 echo "==> Done! Neon database updated successfully."
