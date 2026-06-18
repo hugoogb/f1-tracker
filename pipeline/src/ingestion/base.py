@@ -1,6 +1,7 @@
 import logging
 import time
 from abc import ABC, abstractmethod
+from pathlib import Path
 
 import fastf1
 import pandas as pd
@@ -155,6 +156,9 @@ def api_call(fn, *args, **kwargs):
 class BaseIngestor(ABC):
     def __init__(self, db: Session):
         self.db = db
+        # Fast-F1's enable_cache requires the directory to exist; create it so a
+        # fresh environment (CI, cron, new clone) doesn't fail before ingesting.
+        Path(settings.fastf1_cache_dir).mkdir(parents=True, exist_ok=True)
         fastf1.Cache.enable_cache(settings.fastf1_cache_dir)
 
     @abstractmethod
