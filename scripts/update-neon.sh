@@ -44,42 +44,75 @@ if ! docker compose -f "$DOCKER_COMPOSE" ps --status running 2>/dev/null | grep 
 fi
 
 echo "    Waiting for PostgreSQL to be ready on localhost:5432..."
-until pg_isready -h localhost -p 5432 -U f1tracker -q 2>/dev/null; do
+# Use docker exec (not host pg_isready) so the script works without a host-side
+# PostgreSQL client install — consistent with bootstrap.sh and the other db scripts.
+until docker exec docker-db-1 pg_isready -U f1tracker -q 2>/dev/null; do
   sleep 1
 done
 echo "    PostgreSQL is running."
 
-# --- Step 2: Run seed locally ---
+# --- Step 2: Ensure local schema is migrated ---
+# update-neon.sh assumes a populated local DB, but a fresh/recreated Docker volume
+# starts empty (no tables) and seed.py does not run migrations itself. Bring the
+# schema to head first; this is a no-op when the local DB is already current.
+echo "==> Applying Alembic migrations to local database..."
+cd "$PIPELINE_DIR"
+# No DATABASE_URL override: Alembic falls back to the local URL in alembic.ini
+# (same as bootstrap.sh). The Neon override is applied later in Step 5 only.
+uv run alembic upgrade head
+
+# --- Step 3: Run seed locally ---
 echo "==> Running data ingestion locally..."
 echo "    Flags: $SEED_ARGS"
 cd "$PIPELINE_DIR"
 # shellcheck disable=SC2086
 uv run python scripts/seed.py $SEED_ARGS
+# Note: seed.py already writes a persistent local backup to docker/backups/
+# (timestamped + latest.sql.gz, rotation handled by db-backup.sh) as its final step,
+# unless --no-backup is passed. No extra backup call is needed here.
 
-# --- Step 3: Dump full schema + data from local Docker ---
+# --- Step 4: Dump full schema + data from local Docker ---
 echo "==> Creating full dump from local database..."
 FULL_DUMP=$(mktemp)
 trap 'rm -f "$FULL_DUMP"' EXIT
 docker exec docker-db-1 pg_dump -U f1tracker --no-owner --no-privileges \
   --exclude-table=alembic_version f1tracker | gzip > "$FULL_DUMP"
 
-# --- Step 4: Drop and restore Neon ---
+# --- Step 5: Drop and restore Neon ---
 echo "==> Dropping Neon database..."
-psql "$NEON_DATABASE_URL" --set ON_ERROR_STOP=on -q \
+# Run psql inside the db container (it ships the client and has outbound network),
+# so no host-side PostgreSQL client install is required.
+docker exec -i docker-db-1 psql "$NEON_DATABASE_URL" --set ON_ERROR_STOP=on -q \
   -c "DROP SCHEMA public CASCADE;" \
   -c "CREATE SCHEMA public;"
 
-echo "==> Restoring to Neon..."
-gunzip -c "$FULL_DUMP" | psql "$NEON_DATABASE_URL" --set ON_ERROR_STOP=on --single-transaction -q
+# Neon roles default to an empty search_path, which breaks Alembic's unqualified
+# `CREATE TABLE alembic_version` (and any unqualified migration DDL). Pin the
+# database default to public. This is a database-level GUC, so it survives the
+# DROP SCHEMA above and only needs setting once, but re-asserting it is idempotent
+# and self-heals a freshly-created Neon branch. (current_database() keeps it generic.)
+echo "==> Ensuring search_path=public on Neon..."
+docker exec -i docker-db-1 psql "$NEON_DATABASE_URL" --set ON_ERROR_STOP=on -q <<'SQL'
+SELECT format('ALTER DATABASE %I SET search_path TO public', current_database()) \gexec
+SQL
 
-# --- Step 5: Stamp Alembic version on Neon ---
+echo "==> Restoring to Neon..."
+gunzip -c "$FULL_DUMP" | docker exec -i docker-db-1 psql "$NEON_DATABASE_URL" --set ON_ERROR_STOP=on --single-transaction -q
+
+# --- Step 6: Stamp Alembic version on Neon ---
 # The dump excludes alembic_version, so the restored DB is unversioned. Stamp it
 # to head (the local DB was migrated before the dump) so the schema matches the
 # recorded revision and `alembic upgrade head` (e.g. in the ingest workflow) is a
 # clean no-op instead of trying to recreate existing tables.
 echo "==> Stamping Alembic head on Neon..."
 cd "$PIPELINE_DIR"
-DATABASE_URL="$NEON_DATABASE_URL" uv run alembic stamp head
+# Use the DIRECT (non-pooler) endpoint: Neon's pooler rejects the search_path
+# startup parameter and doesn't reliably apply the database default search_path,
+# so Alembic's unqualified DDL fails through it. Stripping "-pooler" from the host
+# yields the direct endpoint, which honors the search_path set above. (No-op if the
+# URL is already a direct endpoint.)
+NEON_DIRECT_URL="${NEON_DATABASE_URL/-pooler/}"
+DATABASE_URL="$NEON_DIRECT_URL" uv run alembic stamp head
 
 echo ""
 echo "==> Done! Neon database updated successfully."
