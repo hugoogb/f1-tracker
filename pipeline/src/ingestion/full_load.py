@@ -270,7 +270,7 @@ def run_full_load(
             ConstructorIngestor(db).ingest()
 
             logger.info("\n--- Phase 2: Races ---")
-            RaceIngestor(db).ingest()
+            RaceIngestor(db).ingest(year_range=year_range)
 
         if _should_run(targets, "layouts"):
             logger.info("\n--- Circuit layouts ---")
