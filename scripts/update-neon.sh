@@ -114,5 +114,34 @@ cd "$PIPELINE_DIR"
 NEON_DIRECT_URL="${NEON_DATABASE_URL/-pooler/}"
 DATABASE_URL="$NEON_DIRECT_URL" uv run alembic stamp head
 
+# --- Step 7: Purge frontend cache (Vercel ISR) ---
+# Mirrors the "Purge frontend cache" step in .github/workflows/ingest.yml so a
+# MANUAL update busts the Next.js `f1-data` cache tag too. Without this, the fresh
+# Neon data stays hidden behind the frontend's cached pages until the 1-day TTL
+# (REVALIDATE_SECONDS) lapses. Load the vars from .env if not already exported.
+if [ -f "$PROJECT_DIR/.env" ]; then
+  if [ -z "${REVALIDATE_URL:-}" ]; then
+    REVALIDATE_URL=$(grep '^REVALIDATE_URL=' "$PROJECT_DIR/.env" | cut -d'=' -f2- | tr -d '"'"'" || true)
+  fi
+  if [ -z "${REVALIDATE_SECRET:-}" ]; then
+    REVALIDATE_SECRET=$(grep '^REVALIDATE_SECRET=' "$PROJECT_DIR/.env" | cut -d'=' -f2- | tr -d '"'"'" || true)
+  fi
+fi
+
+echo "==> Purging frontend cache..."
+if [ -z "${REVALIDATE_URL:-}" ]; then
+  echo "    REVALIDATE_URL not set — skipping cache purge."
+  echo "    (Set REVALIDATE_URL in .env to auto-purge the Vercel cache; the 1-day TTL backstops otherwise.)"
+# Non-blocking: data is already in Neon, so a failed purge must not fail the run;
+# the 1-day TTL backstops it. An `if` condition is exempt from `set -e`.
+elif curl -fsS --max-time 30 -X POST "$REVALIDATE_URL" \
+       -H "Authorization: Bearer ${REVALIDATE_SECRET:-}"; then
+  echo ""
+  echo "    Cache purged (f1-data tag)."
+else
+  echo ""
+  echo "    Warning: cache purge failed — data is live in Neon; the 1-day TTL will refresh the frontend."
+fi
+
 echo ""
 echo "==> Done! Neon database updated successfully."
