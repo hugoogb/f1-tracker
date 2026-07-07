@@ -1,5 +1,7 @@
 # F1 Tracker
 
+[![CI](https://github.com/hugoogb/f1-tracker/actions/workflows/ci.yml/badge.svg)](https://github.com/hugoogb/f1-tracker/actions/workflows/ci.yml)
+
 A full-stack Formula 1 analytics dashboard covering the complete history of F1 (1950-present) with interactive visualizations, driver/constructor comparisons, and detailed race analysis.
 
 ## Features
