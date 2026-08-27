@@ -6,25 +6,25 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
-PIPELINE_DIR="$PROJECT_DIR/pipeline"
-DOCKER_COMPOSE="$PROJECT_DIR/docker/docker-compose.yml"
 
-# --- Step 0: Ensure .env exists ---
+# --- Step 0: Ensure .env exists (before sourcing lib/db.sh, which reads it) ---
+PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 if [ ! -f "$PROJECT_DIR/.env" ]; then
   echo "==> Creating .env from .env.example..."
   cp "$PROJECT_DIR/.env.example" "$PROJECT_DIR/.env"
 fi
 
+# shellcheck source=lib/db.sh
+. "$SCRIPT_DIR/lib/db.sh"
+
+PIPELINE_DIR="$PROJECT_DIR/pipeline"
+DOCKER_COMPOSE="$COMPOSE_FILE"
+
 # --- Step 1: Start PostgreSQL ---
 echo "==> Starting Docker PostgreSQL..."
 docker compose -f "$DOCKER_COMPOSE" up -d
 
-echo "    Waiting for PostgreSQL to be ready on localhost:5432..."
-until docker exec docker-db-1 pg_isready -U f1tracker -q 2>/dev/null; do
-  sleep 1
-done
-echo "    PostgreSQL is ready."
+db_wait_ready 60
 
 # --- Step 2: Run migrations ---
 echo "==> Running database migrations..."
@@ -36,7 +36,9 @@ uv run alembic upgrade head
 BACKUP_FILE="$PROJECT_DIR/docker/backups/latest.sql.gz"
 if [ -f "$BACKUP_FILE" ]; then
   echo "==> Restoring data from latest backup..."
-  "$SCRIPT_DIR/db-restore.sh"
+  # Bootstrap already migrated the schema above, and the DB is empty on a fresh
+  # volume, so there is nothing to confirm.
+  FORCE=1 SKIP_MIGRATE=1 "$SCRIPT_DIR/db-restore.sh"
 else
   echo "==> No backup found at docker/backups/latest.sql.gz."
   echo "    Run the full ingestion instead (slow — fetches from Fast-F1/Jolpica):"

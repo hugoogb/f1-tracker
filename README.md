@@ -24,6 +24,7 @@ A full-stack Formula 1 analytics dashboard covering the complete history of F1 (
 | Backend | Python 3.12, FastAPI, SQLAlchemy 2, Alembic |
 | Database | PostgreSQL 16 |
 | Data Source | Fast-F1 (historical F1 data from 1950+, telemetry from 2018+) |
+| Deployment | Frontend on Vercel; API + PostgreSQL in Docker on a self-hosted VPS |
 
 ## Getting Started
 
@@ -40,7 +41,7 @@ A full-stack Formula 1 analytics dashboard covering the complete history of F1 (
 git clone <repo-url> && cd f1-tracker
 cp .env.example .env
 
-# 2. Start PostgreSQL
+# 2. Start PostgreSQL (container: f1-tracker-db)
 docker compose -f docker/docker-compose.yml up -d
 
 # 3. Install dependencies
@@ -72,9 +73,12 @@ Open [http://localhost:3000](http://localhost:3000) to view the app.
 | `pnpm typecheck` | Run TypeScript type checking |
 | `pnpm format` | Format all files with Prettier |
 | `cd pipeline && uv run uvicorn src.api.main:app --reload` | Start FastAPI dev server |
-| `cd pipeline && uv run pytest -v` | Run backend tests (44 tests) |
+| `cd pipeline && uv run pytest -v` | Run backend tests |
 | `cd pipeline && uv run ruff check . && uv run ruff format --check .` | Lint + format check |
 | `docker compose -f docker/docker-compose.yml up -d` | Start PostgreSQL |
+| `./scripts/vps/deploy.sh` | Build + start the backend stack on the VPS |
+| `./scripts/vps/ingest.sh` | Run a data ingest on the VPS (calendar-gated) |
+| `./scripts/vps/backup.sh` | Back up the VPS database |
 
 ### Pre-commit Hooks
 
@@ -91,24 +95,28 @@ f1-tracker/
 │   ├── components/        # UI, charts, races, standings, compare, layout
 │   └── lib/               # API client, types, utils, constants
 ├── pipeline/              # Python data pipeline + FastAPI (38 endpoints)
+│   ├── Dockerfile         # API image (also runs migrations + ingest)
 │   ├── src/api/           # REST API (routers, constants, serializers, pagination)
 │   ├── src/db/            # SQLAlchemy models, queries, migrations
 │   ├── src/ingestion/     # Data pipeline (Fast-F1 → PostgreSQL)
-│   ├── tests/             # pytest test suite (44 tests)
-│   └── scripts/           # Seed, backup, restore scripts
-├── docker/                # Docker Compose (PostgreSQL) + backups
-├── docs/                  # Deployment guide
+│   ├── tests/             # pytest test suite
+│   └── scripts/           # Seed, validate, calendar-gate scripts
+├── docker/                # Compose files (local dev + VPS production) + backups
+├── deploy/                # systemd timers, Caddy/nginx site configs
+├── scripts/               # bootstrap, backup/restore, VPS deploy + ingest
+├── docs/                  # Deployment guide + VPS migration runbook
 └── tasks/                 # Project tracking + lessons learned
 ```
 
 ## Testing & CI
 
-- **Backend**: 44 pytest tests across 11 test files (SQLite in-memory with StaticPool)
+- **Backend**: pytest suite across 11 test files (SQLite in-memory with StaticPool)
 - **Frontend**: TypeScript type checking (`tsc --noEmit`) + ESLint + production build verification
-- **CI**: GitHub Actions runs on push/PR to master — prettier, eslint, typecheck, build, ruff, pytest, security audits (`pnpm audit`, `pip-audit`)
+- **CI**: GitHub Actions runs on push/PR to master — prettier, eslint, typecheck, build, ruff, pytest, security audits (`pnpm audit`, `pip-audit`), and a backend Docker image build + smoke test
 
 ## Documentation
 
 - **API Docs**: Interactive Swagger UI at [http://localhost:8000/docs](http://localhost:8000/docs) when the backend is running
-- **Deployment**: See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for local dev, free tier (Vercel + Render + Neon), and production deployment guides
+- **Deployment**: See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for local dev and the Vercel + VPS production setup
+- **VPS migration**: See [docs/VPS_MIGRATION.md](docs/VPS_MIGRATION.md) for the step-by-step move off Render + Neon
 - **Backend**: See [pipeline/README.md](pipeline/README.md) for API endpoints, testing, and project structure

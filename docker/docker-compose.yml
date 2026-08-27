@@ -1,13 +1,26 @@
+# Local development database.
+#
+#   docker compose -f docker/docker-compose.yml up -d
+#
+# The compose project is named explicitly so the container is `f1-tracker-db`
+# (not the directory-derived `docker-db-1`) — same naming as the VPS stack in
+# compose.prod.yml, which keeps scripts/*.sh working against either one.
+name: ${STACK_NAME:-f1-tracker}
+
 services:
   db:
     image: postgres:16-alpine
+    container_name: ${STACK_NAME:-f1-tracker}-db
     restart: unless-stopped
+    labels:
+      com.f1tracker.stack: ${STACK_NAME:-f1-tracker}
+      com.f1tracker.managed-by: docker-compose
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-f1tracker}
       POSTGRES_USER: ${POSTGRES_USER:-f1tracker}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-f1tracker_dev}
     ports:
-      - "5432:5432"
+      - "${DB_BIND:-127.0.0.1}:${DB_PORT:-5432}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -22,3 +35,4 @@ services:
 
 volumes:
   pgdata:
+    name: ${STACK_NAME:-f1-tracker}_dev_pgdata

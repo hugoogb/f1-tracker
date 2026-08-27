@@ -1,0 +1,15 @@
+# Build context is `pipeline/` — keep the image small and cache-friendly.
+.venv/
+venv/
+.python-version
+.fastf1_cache/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
+tests/
+*.log
+.env
+.env.*
