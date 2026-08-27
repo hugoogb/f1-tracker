@@ -1,56 +1,95 @@
 # Deployment Guide
 
-How to deploy the F1 Tracker application (Next.js frontend + FastAPI backend + PostgreSQL).
+How to run F1 Tracker locally and in production.
+
+Production is **Next.js on Vercel + a self-hosted VPS running the API and
+PostgreSQL in Docker**. Migrating an existing Render/Neon deployment to that
+setup is a separate, step-by-step document: [VPS_MIGRATION.md](VPS_MIGRATION.md).
 
 ## Architecture
 
 ```
-                    ┌─────────────────┐
-                    │  Reverse Proxy  │
-                    │ (nginx / Caddy) │
-                    └───────┬─────────┘
-                            │
-              ┌─────────────┴─────────────┐
-              │                           │
-     ┌────────▼────────┐        ┌─────────▼────────┐
-     │    Frontend      │        │     Backend       │
-     │  Next.js :3000   │───────▶│  FastAPI :8000    │
-     └─────────────────┘        └────────┬──────────┘
-                                         │
-                                ┌────────▼──────────┐
-                                │   PostgreSQL       │
-                                │     :5432          │
-                                └───────────────────┘
+                    ┌──────────────────┐
+   Browser ────────▶│  Vercel (Next.js)│
+                    └────────┬─────────┘
+                             │  https://f1-api.your-domain.com/api
+                             ▼
+                    ┌──────────────────────────────────────────┐
+                    │  VPS                                     │
+                    │  ┌────────────────────────────────────┐  │
+                    │  │ Reverse proxy (Caddy/nginx/Traefik)│  │
+                    │  └────────────┬───────────────────────┘  │
+                    │               │ 127.0.0.1:8000           │
+                    │  ┌────────────▼──────────┐               │
+                    │  │ f1-tracker-api        │  FastAPI      │
+                    │  └────────────┬──────────┘               │
+                    │               │ f1-tracker_internal      │
+                    │  ┌────────────▼──────────┐               │
+                    │  │ f1-tracker-db         │  PostgreSQL   │
+                    │  └───────────────────────┘  (no host port)│
+                    └──────────────────────────────────────────┘
 ```
+
+The frontend is served by Vercel and calls the API cross-origin, so `CORS_ORIGINS`
+on the API must list the Vercel domain.
 
 ## Prerequisites
 
-| Tool       | Version | Purpose            |
-| ---------- | ------- | ------------------ |
-| Docker     | 20+     | PostgreSQL         |
-| Node.js    | 20+     | Next.js frontend   |
-| pnpm       | 10+     | Frontend packages  |
-| Python     | 3.12+   | FastAPI backend    |
-| uv         | latest  | Python packages    |
-| PostgreSQL | 16      | Database (or Docker) |
+### Local development
+
+| Tool    | Version | Purpose             |
+| ------- | ------- | ------------------- |
+| Docker  | 24+     | PostgreSQL          |
+| Node.js | 20+     | Next.js frontend    |
+| pnpm    | 10+     | Frontend packages   |
+| Python  | 3.12+   | FastAPI backend     |
+| uv      | latest  | Python packages     |
+
+### VPS
+
+Docker Engine 24+ with the Compose v2 plugin, a reverse proxy, and a DNS record
+for the API. Nothing else — Python, uv and Node are not needed on the server.
 
 ## Environment Variables
 
-Create a `.env` file at the project root. All variables have development defaults, but **must** be overridden for production.
+Two files, one per environment. Neither is committed.
 
-| Variable             | Default                                                          | Description                              |
-| -------------------- | ---------------------------------------------------------------- | ---------------------------------------- |
-| `DATABASE_URL`       | `postgresql://f1tracker:f1tracker_dev@localhost:5432/f1tracker`   | PostgreSQL connection string             |
-| `FASTAPI_HOST`       | `0.0.0.0`                                                       | Backend listen address                   |
-| `FASTAPI_PORT`       | `8000`                                                           | Backend listen port                      |
-| `FASTAPI_DEBUG`      | `True`                                                           | Set to `False` in production             |
-| `FASTF1_CACHE_DIR`   | `.fastf1_cache`                                                  | Fast-F1 data cache directory             |
-| `CORS_ORIGINS`        | `http://localhost:3000`                                          | Comma-separated list of allowed CORS origins         |
-| `NEXT_PUBLIC_API_URL` | `http://localhost:8000/api`                                     | Backend API URL (used by the frontend at build time) |
+### `.env` (local development — template: `.env.example`)
 
-> **Note**: `NEXT_PUBLIC_API_URL` is baked into the Next.js bundle at build time. You must set it **before** running `pnpm build`.
+| Variable              | Default                                                        | Description                                    |
+| --------------------- | -------------------------------------------------------------- | ---------------------------------------------- |
+| `STACK_NAME`          | `f1-tracker`                                                    | Names the compose project, container and volume |
+| `POSTGRES_DB`/`_USER`/`_PASSWORD` | `f1tracker` / `f1tracker` / `f1tracker_dev`          | Dev database credentials                        |
+| `DB_BIND` / `DB_PORT` | `127.0.0.1` / `5432`                                            | Where the dev database is published             |
+| `DATABASE_URL`        | `postgresql://f1tracker:f1tracker_dev@localhost:5432/f1tracker` | Connection string used by the backend           |
+| `FASTAPI_HOST` / `_PORT` | `0.0.0.0` / `8000`                                           | Backend listen address                          |
+| `FASTAPI_DEBUG`       | `true`                                                          | Also gates `/docs`, `/redoc`, `/openapi.json`   |
+| `CORS_ORIGINS`        | `http://localhost:3000`                                         | Comma-separated allowed origins                 |
+| `FASTF1_CACHE_DIR`    | `.fastf1_cache`                                                 | Fast-F1 cache directory                         |
+| `NEXT_PUBLIC_API_URL` | `http://localhost:8000/api`                                     | Backend URL, baked into the bundle at build time |
+| `REVALIDATE_URL` / `REVALIDATE_SECRET` | —                                              | Frontend cache purge after ingest               |
 
-## Local Development Setup
+### `.env.prod` (VPS — template: `docker/.env.prod.example`)
+
+| Variable                | Required | Description                                                     |
+| ----------------------- | -------- | --------------------------------------------------------------- |
+| `STACK_NAME`            |          | Prefix for containers/volumes/network (default `f1-tracker`)      |
+| `POSTGRES_PASSWORD`     | ✅       | Database password — alphanumerics only (it is interpolated into a URL) |
+| `CORS_ORIGINS`          | ✅       | Your Vercel origin(s), comma-separated, no trailing slash        |
+| `DATABASE_URL`          |          | Only to target a database outside the stack; otherwise derived    |
+| `FASTAPI_DEBUG`         |          | `false` in production — keeps the OpenAPI docs off               |
+| `API_WORKERS`           |          | uvicorn workers (default 2)                                      |
+| `API_BIND` / `API_PORT` |          | Loopback bind for a host reverse proxy (default `127.0.0.1:8000`) |
+| `API_DOMAIN`, `PROXY_NETWORK`, `TRAEFIK_*` |  | Only with the Traefik overlay                    |
+| `DB_MEMORY_LIMIT` / `API_MEMORY_LIMIT` | | Container memory caps (default 1g each)            |
+| `REVALIDATE_URL` / `REVALIDATE_SECRET` | | Cache purge after a successful ingest              |
+
+> `NEXT_PUBLIC_API_URL` is baked into the Next.js bundle at build time — it lives
+> in the Vercel project settings, not on the VPS, and needs a redeploy to change.
+
+---
+
+## Local Development
 
 ### Quick start (one command)
 
@@ -58,511 +97,254 @@ Create a `.env` file at the project root. All variables have development default
 ./scripts/bootstrap.sh
 ```
 
-This creates `.env` (if missing), starts PostgreSQL, runs migrations, restores the
-bundled data backup, and installs frontend deps. Then start the servers it prints
-(`uv run uvicorn ...` and `pnpm dev`). The manual steps below are the equivalent
-breakdown.
+Creates `.env` if missing, starts PostgreSQL (container `f1-tracker-db`), runs
+migrations, restores the bundled data backup, and installs frontend deps. Then
+start the servers it prints.
 
-### 1. Start the database
-
-```bash
-docker compose -f docker/docker-compose.yml up -d
-```
-
-### 2. Run database migrations
+### Manual equivalent
 
 ```bash
-cd pipeline
-uv run alembic upgrade head
+docker compose -f docker/docker-compose.yml up -d   # 1. database
+cd pipeline && uv run alembic upgrade head          # 2. schema
+cd .. && ./scripts/db-restore.sh                    # 3. data (or seed.py for a full ingest)
+cd pipeline && uv run uvicorn src.api.main:app --reload   # 4. API on :8000
+pnpm install && pnpm dev                            # 5. frontend on :3000
 ```
 
-### 3. Seed data (or restore from backup)
+### Running the backend in Docker locally
 
-Restore from the included backup (fastest):
+The production image builds and runs anywhere:
 
 ```bash
-./scripts/db-restore.sh
+cp docker/.env.prod.example .env.prod   # set POSTGRES_PASSWORD + CORS_ORIGINS
+docker compose --env-file .env.prod -f docker/compose.prod.yml up -d --build
+curl http://127.0.0.1:8000/api/health/db
 ```
-
-Or run the full ingestion pipeline:
-
-```bash
-cd pipeline
-uv run python scripts/seed.py --base --results --qualifying --standings --pitstops --sprints
-```
-
-### 4. Start the backend
-
-```bash
-cd pipeline
-uv run uvicorn src.api.main:app --reload
-```
-
-The API will be available at `http://localhost:8000/api`.
-
-### 5. Start the frontend
-
-```bash
-pnpm install
-pnpm dev
-```
-
-The app will be available at `http://localhost:3000`.
 
 ---
 
-## Free Deployment (Vercel + Render + Neon)
+## Production: Vercel + VPS
 
-Deploy the full app for **$0/month** using free tiers from three platforms:
+Full walkthrough — including moving data off Neon — in
+[VPS_MIGRATION.md](VPS_MIGRATION.md). The short version:
 
-| Component  | Platform | Free Tier Limits                                      |
-| ---------- | -------- | ----------------------------------------------------- |
-| Frontend   | Vercel   | 100 GB bandwidth, 1M function invocations/month       |
-| Backend    | Render   | 750 instance hours/month, 100 GB bandwidth            |
-| Database   | Neon     | 0.5 GB storage, 100 compute-hours/month, no expiry    |
-
-> **Limitations**: Render free services spin down after 15 min of inactivity (30-60s cold start on next request). Vercel Hobby plan is for non-commercial use only.
-
-### 1. Set up the database (Neon)
-
-1. Create a free account at [neon.tech](https://neon.tech)
-2. Create a new project and copy the connection string (looks like `postgresql://user:pass@ep-xyz.region.aws.neon.tech/neondb?sslmode=require`)
-3. Run migrations from your local machine to create the schema:
+### 1. Backend on the VPS
 
 ```bash
-cd pipeline
-DATABASE_URL="<your-neon-connection-string>" uv run alembic upgrade head
+git clone https://github.com/hugoogb/f1-tracker.git /opt/f1-tracker
+cd /opt/f1-tracker
+cp docker/.env.prod.example .env.prod && chmod 600 .env.prod && $EDITOR .env.prod
+./scripts/vps/deploy.sh
 ```
 
-4. Restore data from backup:
+`deploy.sh` builds the image, starts the stack, runs migrations through the
+one-shot `migrate` service, and waits for `/api/health/db` before reporting
+success.
+
+### 2. Load the data
 
 ```bash
-gunzip -c docker/backups/latest.sql.gz | psql "<your-neon-connection-string>" --single-transaction
+NEON_DATABASE_URL='postgresql://…' ./scripts/vps/migrate-from-neon.sh
+# …or, from the repo's bundled backup:
+FORCE=1 SKIP_MIGRATE=1 ./scripts/db-restore.sh docker/backups/latest.sql.gz
 ```
 
-> **Tip**: The F1 dataset is ~300 MB and fits within Neon's 0.5 GB free tier. Requires `psql` client installed locally (`sudo apt install postgresql-client`).
+### 3. Reverse proxy
 
-### 2. Deploy the backend (Render)
+Copy a sample from `deploy/caddy/` or `deploy/nginx/`, replace the hostname, and
+reload. For a containerised Traefik, set `API_DOMAIN` and `PROXY_NETWORK` in
+`.env.prod` and deploy with `TRAEFIK=1 ./scripts/vps/deploy.sh`.
 
-1. Push your repo to GitHub
-2. Go to [render.com](https://render.com), create a new **Web Service**, and connect your GitHub repo
-3. Configure the service:
+### 4. Frontend on Vercel
 
-| Setting           | Value                                                          |
-| ----------------- | -------------------------------------------------------------- |
-| **Root Directory** | `pipeline`                                                    |
-| **Runtime**        | `Python`                                                      |
-| **Build Command**  | `pip install uv && uv sync`                                  |
-| **Start Command**  | `uv run uvicorn src.api.main:app --host 0.0.0.0 --port $PORT` |
-| **Instance Type**  | `Free`                                                        |
+| Setting              | Value                                    |
+| -------------------- | ---------------------------------------- |
+| **Root Directory**   | `apps/web`                               |
+| **Framework Preset** | `Next.js` (auto-detected)                |
 
-4. Add environment variables in the Render dashboard:
+| Variable              | Value                                     |
+| --------------------- | ----------------------------------------- |
+| `NEXT_PUBLIC_API_URL` | `https://f1-api.your-domain.com/api`      |
+| `REVALIDATE_SECRET`   | Same value as in `.env.prod`              |
 
-| Variable         | Value                                    |
-| ---------------- | ---------------------------------------- |
-| `DATABASE_URL`   | Your Neon connection string              |
-| `FASTAPI_DEBUG`  | `False`                                  |
-| `CORS_ORIGINS`   | `https://<your-app>.vercel.app`          |
-
-5. Deploy. Note the service URL (e.g., `https://f1-tracker-api.onrender.com`)
-
-### 3. Deploy the frontend (Vercel)
-
-1. Go to [vercel.com](https://vercel.com) and import your GitHub repo
-2. Configure the project:
-
-| Setting              | Value                                              |
-| -------------------- | -------------------------------------------------- |
-| **Root Directory**    | `apps/web`                                        |
-| **Framework Preset**  | `Next.js` (auto-detected)                         |
-| **Build Command**     | `pnpm build` (default)                            |
-| **Install Command**   | `pnpm install` (default)                          |
-
-3. Add the environment variable:
-
-| Variable              | Value                                               |
-| --------------------- | --------------------------------------------------- |
-| `NEXT_PUBLIC_API_URL` | `https://<your-render-service>.onrender.com/api`    |
-| `REVALIDATE_SECRET`   | Same value as the GitHub `REVALIDATE_SECRET` secret |
-
-4. Deploy. Vercel auto-assigns a `.vercel.app` domain
-
-### 4. Update CORS
-
-After Vercel assigns your domain, go back to Render and update the `CORS_ORIGINS` env var to match:
-
-```
-CORS_ORIGINS=https://your-app.vercel.app
-```
-
-For multiple origins (e.g., custom domain + Vercel preview):
-
-```
-CORS_ORIGINS=https://your-app.vercel.app,https://your-custom-domain.com
-```
+Redeploy after changing `NEXT_PUBLIC_API_URL` — it is compiled into the bundle.
 
 ### 5. Verify
 
 ```bash
-# Health check
-curl https://<your-render-service>.onrender.com/api/health
-
-# Open the frontend
-open https://<your-app>.vercel.app
+curl https://f1-api.your-domain.com/api/health      # {"status":"ok"}
+curl https://f1-api.your-domain.com/api/health/db   # {"status":"ok","database":"ok"}
+curl https://f1-api.your-domain.com/api/stats       # row counts
 ```
-
-> **Note**: The first request after inactivity will be slow (~30-60s) while Render spins up the backend. Subsequent requests are fast.
 
 ---
 
-## Production Deployment
+## Sharing the VPS with other projects
 
-### 1. Database
-
-**Option A: Docker** (simple, single-server deployments)
-
-Use the provided Docker Compose file with production credentials:
-
-```bash
-POSTGRES_PASSWORD=<strong-password> docker compose -f docker/docker-compose.yml up -d
-```
-
-**Option B: Managed service** (recommended for production)
-
-Use a managed PostgreSQL service (AWS RDS, Supabase, Neon, etc.) and set `DATABASE_URL` accordingly.
-
-### 2. Run migrations
+Every object the stack creates is prefixed with `STACK_NAME` (default
+`f1-tracker`): the compose project, the containers (`f1-tracker-api`,
+`f1-tracker-db`, `f1-tracker-migrate`, `f1-tracker-ingest`), the volumes
+(`f1-tracker_pgdata`, `f1-tracker_fastf1_cache`), the private network
+(`f1-tracker_internal`), the image (`f1-tracker-api`) and the systemd units. Every
+container, volume and network also carries `com.f1tracker.stack=f1-tracker`:
 
 ```bash
-cd pipeline
-DATABASE_URL="postgresql://user:pass@host:5432/f1tracker" uv run alembic upgrade head
+docker ps --filter label=com.f1tracker.stack=f1-tracker
 ```
 
-### 3. Seed data
+PostgreSQL publishes **no** host port — only this project's containers can reach
+it. The API binds to loopback on `API_PORT`; give each project on the box its own
+port, or use the Traefik overlay, which publishes no host port at all. Container
+logs are capped (10 MB × 3) and both containers have memory limits, so one
+project can't starve the others.
 
-Restore from the latest backup:
-
-```bash
-# If using Docker:
-gunzip -c docker/backups/latest.sql.gz | docker exec -i <container> psql -U f1tracker -d f1tracker --single-transaction
-
-# If using a remote DB:
-gunzip -c docker/backups/latest.sql.gz | psql "$DATABASE_URL" --single-transaction
-```
-
-### 4. Backend
-
-Run uvicorn with production settings:
-
-```bash
-cd pipeline
-DATABASE_URL="postgresql://user:pass@host:5432/f1tracker" \
-FASTAPI_DEBUG=False \
-uv run uvicorn src.api.main:app \
-  --host 0.0.0.0 \
-  --port 8000 \
-  --workers 4
-```
-
-For process management, use a supervisor like **systemd** or **supervisord**:
-
-```ini
-# /etc/systemd/system/f1-api.service
-[Unit]
-Description=F1 Tracker API
-After=network.target postgresql.service
-
-[Service]
-Type=simple
-User=f1tracker
-WorkingDirectory=/opt/f1-tracker/pipeline
-Environment=DATABASE_URL=postgresql://user:pass@localhost:5432/f1tracker
-Environment=FASTAPI_DEBUG=False
-ExecStart=/usr/bin/env uv run uvicorn src.api.main:app --host 0.0.0.0 --port 8000 --workers 4
-Restart=always
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
-```
-
-### 5. Frontend
-
-Build and start the Next.js production server:
-
-```bash
-NEXT_PUBLIC_API_URL="https://your-domain.com/api" pnpm build
-pnpm start
-```
-
-> **Important**: The build requires `NODE_ENV=production` (already set in the build script).
-
-For process management:
-
-```ini
-# /etc/systemd/system/f1-web.service
-[Unit]
-Description=F1 Tracker Frontend
-After=network.target
-
-[Service]
-Type=simple
-User=f1tracker
-WorkingDirectory=/opt/f1-tracker
-ExecStart=/usr/bin/env pnpm start
-Restart=always
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
-```
-
-### 6. Reverse Proxy
-
-A reverse proxy serves both frontend and backend under one domain and handles HTTPS.
-
-**Caddy** (automatic HTTPS):
-
-```
-your-domain.com {
-    handle /api/* {
-        reverse_proxy localhost:8000
-    }
-    handle {
-        reverse_proxy localhost:3000
-    }
-}
-```
-
-**nginx**:
-
-```nginx
-server {
-    listen 443 ssl;
-    server_name your-domain.com;
-
-    ssl_certificate /etc/letsencrypt/live/your-domain.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/your-domain.com/privkey.pem;
-
-    location /api/ {
-        proxy_pass http://localhost:8000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-
-    location / {
-        proxy_pass http://localhost:3000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-}
-```
-
-When using a reverse proxy, set `NEXT_PUBLIC_API_URL` to the proxy URL (e.g., `https://your-domain.com/api`) so the frontend calls the API through the same domain.
+Running a second copy (e.g. staging) is a matter of a second env file with a
+different `STACK_NAME` and `API_PORT`.
 
 ---
 
 ## Security
 
-### Frontend Security Headers
+### Frontend security headers
 
-The Next.js app (`apps/web/next.config.ts`) sets security headers on all routes:
+Set on all routes in `apps/web/next.config.ts`:
 
 | Header | Value | Purpose |
 | ------ | ----- | ------- |
 | `X-Frame-Options` | `DENY` | Prevents clickjacking via iframes |
 | `X-Content-Type-Options` | `nosniff` | Prevents MIME type sniffing |
-| `Referrer-Policy` | `strict-origin-when-cross-origin` | Controls referrer info sent with requests |
-| `Permissions-Policy` | `camera=(), microphone=(), geolocation=()` | Disables unnecessary browser APIs |
-| `X-DNS-Prefetch-Control` | `on` | Enables DNS prefetching for performance |
+| `Referrer-Policy` | `strict-origin-when-cross-origin` | Controls referrer info |
+| `Permissions-Policy` | `camera=(), microphone=(), geolocation=()` | Disables unused browser APIs |
+| `X-DNS-Prefetch-Control` | `on` | Enables DNS prefetching |
 
-### Backend Security
+### Backend security
 
-- **CORS**: Restricted to `GET` and `OPTIONS` methods only (read-only API). Origins configurable via `CORS_ORIGINS` env var.
-- **Input validation**: All query parameters validated via FastAPI's `Query()` with `ge`/`le` bounds (page sizes, limits, years).
-- **No raw SQL**: All queries use SQLAlchemy ORM with parameterized statements.
-- **Path validation**: Static asset routes (headshots, logos) validate against directory traversal.
-- **API base URL validation**: Frontend API client validates `NEXT_PUBLIC_API_URL` against an allowlist of schemes/hosts.
+- **Container runs as a non-root user** (`app`, uid 10001).
+- **PostgreSQL is not exposed** — no published port, `scram-sha-256` auth, and it
+  is reachable only on the project's internal Docker network.
+- **OpenAPI docs are off in production** (`FASTAPI_DEBUG=false` disables `/docs`,
+  `/redoc` and `/openapi.json`).
+- **CORS**: `GET` and `OPTIONS` only (read-only API), origins from `CORS_ORIGINS`.
+- **Input validation**: query parameters bounded via FastAPI's `Query()`.
+- **No raw SQL**: SQLAlchemy ORM with parameterized statements throughout.
+- **Path validation**: static asset routes validate against directory traversal.
+- **TLS terminates at the reverse proxy**; the API runs with `--proxy-headers` so
+  it sees the real client scheme and address.
 
-### Production Security Checklist
+### Production checklist
 
-- [ ] Set strong PostgreSQL credentials (not the dev defaults)
-- [ ] Set `FASTAPI_DEBUG=False` (disables Swagger UI detailed errors)
-- [ ] Set `CORS_ORIGINS` to your frontend domain(s) only
-- [ ] Configure HTTPS (via reverse proxy or hosting platform)
-- [ ] Restrict database access to backend server IPs only
-- [ ] Review dependency vulnerabilities: `pnpm audit` and `uv run pip-audit`
-
----
-
-## CORS Configuration
-
-CORS origins are configurable via the `CORS_ORIGINS` environment variable (comma-separated):
-
-```bash
-# Single origin (default)
-CORS_ORIGINS=http://localhost:3000
-
-# Multiple origins
-CORS_ORIGINS=https://your-app.vercel.app,https://your-custom-domain.com
-```
-
-If using a reverse proxy where both frontend and API share the same domain, CORS may not be needed at all (same-origin requests).
+- [ ] `POSTGRES_PASSWORD` set to a generated value (not the dev default)
+- [ ] `.env.prod` is `chmod 600` and gitignored
+- [ ] `FASTAPI_DEBUG=false`
+- [ ] `CORS_ORIGINS` limited to your frontend domain(s)
+- [ ] `NEXT_PUBLIC_API_URL` set on Vercel and the frontend redeployed
+- [ ] HTTPS configured at the reverse proxy
+- [ ] `f1-tracker-backup.timer` enabled, and a restore rehearsed at least once
+- [ ] `f1-tracker-ingest.timer` enabled
+- [ ] Host firewall allows only 22/80/443
+- [ ] `/api/health/db` monitored by an uptime check
+- [ ] Dependencies reviewed: `pnpm audit`, `uv run pip-audit`
 
 ---
 
 ## Database Backup & Restore
 
-### Create a backup
+Backups are gzipped **data-only** dumps (the schema belongs to Alembic, and
+`alembic_version` is excluded so restores never conflict).
 
 ```bash
-./scripts/db-backup.sh
+./scripts/db-backup.sh                 # local; writes docker/backups/
+./scripts/vps/backup.sh                # VPS; writes /var/backups/f1-tracker/
+./scripts/db-restore.sh                # restore the latest backup (prompts)
+./scripts/db-restore.sh path/to.sql.gz # restore a specific file
 ```
 
-Saves a gzipped data-only dump to `docker/backups/` with automatic rotation (keeps last 5). The `alembic_version` table is excluded to prevent restore conflicts.
+Both scripts resolve the target container from `STACK_NAME`/`DB_CONTAINER`
+(`scripts/lib/db.sh`), so the same scripts work locally and on the VPS. Useful
+overrides: `FORCE=1` (skip the confirmation), `SKIP_MIGRATE=1` (don't shell out to
+`alembic`, which isn't installed on the VPS host), `BACKUP_DIR`, `BACKUP_KEEP_LAST`.
 
-### Restore from backup
-
-```bash
-./scripts/db-restore.sh                          # uses latest backup
-./scripts/db-restore.sh docker/backups/file.sql.gz  # specific backup
-```
-
-The restore script runs Alembic migrations first to ensure the schema is up to date, then clears the `alembic_version` table before restoring data.
+On the VPS, backups must live **outside** the git checkout — `docker/backups/
+latest.sql.gz` is tracked in git, and writing there breaks `git pull`.
+`scripts/vps/backup.sh` defaults to `/var/backups/f1-tracker` for that reason.
 
 ### Scheduled backups
 
-For production, set up a cron job to run backups regularly:
+`deploy/systemd/f1-tracker-backup.timer` runs nightly at 03:30 and keeps 14 dumps:
 
 ```bash
-# Daily at 3 AM
-0 3 * * * /opt/f1-tracker/scripts/db-backup.sh >> /var/log/f1-backup.log 2>&1
+sudo cp deploy/systemd/f1-tracker-*.service deploy/systemd/f1-tracker-*.timer /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now f1-tracker-backup.timer
 ```
 
 ---
 
 ## Data Updates
 
-The F1 dataset needs updating after each race weekend to include new results.
+New race data has to be ingested after each race weekend.
 
-### One-command update (local + Neon)
+### On the VPS (scheduled)
 
-The `update-neon.sh` script handles the full workflow: ingest new data locally, create a backup, and push to Neon.
+`deploy/systemd/f1-tracker-ingest.timer` fires Mondays at 06:00.
+`scripts/vps/ingest.sh` then:
 
-**Setup** (one-time): Add your Neon connection string to `.env`:
+1. **Calendar gate** — `pipeline/scripts/should_ingest.py --exit-code` skips the
+   run unless a race ran in the last 3 days, so off-weekends cost nothing. It
+   fails *open*: if the schedule can't be fetched, it ingests anyway.
+2. **Ingest** — runs the `ingest` compose service (the API image, `seed.py` with
+   `--current-year --no-restore --no-backup`) against the stack's PostgreSQL. The
+   ingestors are idempotent (`db.merge`), so re-runs are safe.
+3. **Validate** — `scripts/validate.py`, informational.
+4. **Purge** — POSTs to `REVALIDATE_URL` so Vercel drops its cached pages.
 
-```bash
-NEON_DATABASE_URL=postgresql://user:pass@ep-xyz.region.aws.neon.tech/f1tracker?sslmode=require
-```
-
-**After a race weekend**:
-
-```bash
-./scripts/update-neon.sh
-```
-
-This runs the full pipeline:
-1. Ensures Docker PostgreSQL is running
-2. Restores from latest backup (avoids re-fetching existing data)
-3. Ingests new race data (current year only)
-4. Creates a new backup
-5. Runs Alembic migrations on Neon
-6. Pushes the backup to Neon
-
-**Custom flags** (passed through to `seed.py`):
+Manual runs:
 
 ```bash
-./scripts/update-neon.sh --results --standings            # Only specific ingestors
-./scripts/update-neon.sh --year-range 2025                # Specific year
-./scripts/update-neon.sh --laptimes --current-year        # Lap times for current year
+./scripts/vps/ingest.sh                              # calendar-gated
+./scripts/vps/ingest.sh --force                      # ignore the gate
+./scripts/vps/ingest.sh --force -- --laptimes --current-year   # custom seed flags
+sudo journalctl -u f1-tracker-ingest.service -n 100
 ```
 
-> **Requires**: `psql` client installed locally (`sudo apt install postgresql-client`).
+> **Images are not part of this.** The `--images`, `--logos` and `--layouts`
+> ingestors write into `apps/web/public/`, which Vercel serves from the git repo.
+> Run those locally and commit the result; see
+> [VPS_MIGRATION.md](VPS_MIGRATION.md#images-are-still-a-local-committed-job).
 
-### Manual update (local only)
+### Locally
 
 ```bash
 cd pipeline
-
-# Run the full ingestion (fetches only new/updated data)
-uv run python scripts/seed.py --base --results --qualifying --standings --pitstops --sprints
-
-# Create a backup after successful update
+uv run python scripts/seed.py --base --results --qualifying --standings --pitstops --sprints --postprocess
 cd .. && ./scripts/db-backup.sh
 ```
 
-> **Tip**: The ingestion pipeline uses Fast-F1 which caches data locally in `FASTF1_CACHE_DIR`. Subsequent runs are faster because only new data is fetched. Jolpica-F1 (used internally) has a rate limit of 200 requests/hour.
-
-### Automated data updates (GitHub Actions → Neon)
-
-The repo includes a scheduled workflow at `.github/workflows/ingest.yml` that keeps
-Neon up to date without any local machine involved.
-
-**How it works:**
-
-1. **Schedule** — runs every Monday 06:00 UTC (`cron: '0 6 * * 1'`), after Sunday
-   races and post-race data settling. Also runnable manually via *workflow_dispatch*.
-2. **Calendar gate** — `pipeline/scripts/should_ingest.py` checks the current-year
-   schedule and **skips the run unless a race ran in the last 3 days**, so off-weekend
-   crons don't waste runs or pull partial data. It fails open (ingests anyway) if the
-   schedule can't be fetched.
-3. **Direct-to-Neon incremental** — sets `DATABASE_URL` to the `NEON_DATABASE_URL`
-   secret and runs `alembic upgrade head` + `seed.py ... --current-year --no-restore
-   --no-backup` straight against Neon. The ingestors are idempotent (`db.merge`), so
-   re-runs are safe. No schema drop, no dump/restore.
-4. **Validation** — runs `scripts/validate.py` (informational, non-blocking).
-
-**One-time setup:**
-
-1. Seed Neon with the **full** dataset once from your machine
-   (`./scripts/update-neon.sh`). The cloud job only does *incremental* updates — the
-   skip-if-exists ingestors can't bootstrap an empty database.
-2. Add the repository secret `NEON_DATABASE_URL` (Settings → Secrets and variables →
-   Actions): `postgresql://user:pass@ep-xyz.region.aws.neon.tech/f1tracker?sslmode=require`
-3. Add two more repository secrets so the job can purge the frontend cache after
-   ingest (optional — if unset, the job skips the purge and the 1-day cache TTL
-   refreshes data instead):
-   - `REVALIDATE_SECRET` — a random shared secret (e.g. `openssl rand -hex 32`).
-   - `REVALIDATE_URL` — `https://<your-app>.vercel.app/api/revalidate`
-   Set the **same** `REVALIDATE_SECRET` value as a Vercel environment variable so
-   the route handler accepts the request.
-
-**Manual trigger** (Actions tab → *Scheduled Data Ingest* → *Run workflow*): supports a
-`force` toggle (skip the calendar gate) and a `seed_flags` override (e.g.
-`--laptimes --qualifying-sectors --current-year` for the heavier ingestors).
-
-> **Self-hosted alternative**: if not using GitHub, schedule the same command via cron:
-> ```bash
-> # Every Monday at 2 AM (after race weekends)
-> 0 2 * * 1 cd /opt/f1-tracker/pipeline && uv run python scripts/seed.py --base --results --qualifying --standings --pitstops --sprints --postprocess --current-year >> /var/log/f1-ingest.log 2>&1
-> ```
+> Fast-F1 caches downloads in `FASTF1_CACHE_DIR`, so repeat runs only fetch what's
+> new. Jolpica-F1 (used internally) is rate-limited to 200 requests/hour.
 
 ---
 
 ## CI/CD
 
-The project includes a GitHub Actions workflow at `.github/workflows/ci.yml` that runs on pushes and PRs to `master`:
+`.github/workflows/ci.yml` runs on pushes and PRs to `master`:
 
-**Frontend job**:
-1. `pnpm audit --audit-level=high` — dependency vulnerability scan (non-blocking)
-2. `pnpm format:check` — Prettier formatting
-3. `pnpm lint` — ESLint
-4. `pnpm typecheck` — TypeScript type checking
-5. `pnpm build` — production build
+**Frontend**: `pnpm audit` (non-blocking) → `format:check` → `lint` → `typecheck` → `build`.
 
-**Backend job** (with PostgreSQL 16 service container):
-1. `uv run ruff check .` — linting
-2. `uv run ruff format --check .` — formatting
-3. `uv run pip-audit` — dependency vulnerability scan (non-blocking)
-4. `uv run pytest -v` — 44 tests across 11 test files
+**Backend** (with a PostgreSQL 16 service container): `ruff check` → `ruff format
+--check` → `pip-audit` (non-blocking) → `pytest`.
 
-Security audits run with `continue-on-error: true` — findings are visible in CI output but don't block PRs.
+**Backend image**: builds `pipeline/Dockerfile` and smoke-tests it, so a broken
+Dockerfile fails in CI instead of on the server.
 
-**Pre-commit hooks** (local): Husky runs Prettier on staged TS/config files via lint-staged, and `ruff check` + `ruff format --check` on staged Python files.
+Deployment itself is a pull on the VPS:
+
+```bash
+cd /opt/f1-tracker && ./scripts/vps/deploy.sh --pull
+```
+
+**Pre-commit hooks**: Husky runs Prettier on staged TS/config files via
+lint-staged, and `ruff check` + `ruff format --check` on staged Python files.
 
 ---
 
@@ -571,76 +353,48 @@ Security audits run with `continue-on-error: true` — findings are visible in C
 ### Database connection issues
 
 ```bash
-# Check if PostgreSQL is running
-docker compose -f docker/docker-compose.yml ps
-
-# Check container logs
+docker compose -f docker/docker-compose.yml ps        # local
 docker compose -f docker/docker-compose.yml logs db
+docker exec f1-tracker-db pg_isready -U f1tracker
 
-# Test connection
-docker exec docker-db-1 pg_isready -U f1tracker
+# VPS
+docker compose --env-file .env.prod -f docker/compose.prod.yml ps
+docker compose --env-file .env.prod -f docker/compose.prod.yml logs db api migrate
 ```
 
-### Reset the database
+### Reset the local database
 
 ```bash
-# Stop and remove the volume
 docker compose -f docker/docker-compose.yml down -v
+./scripts/bootstrap.sh
+```
 
-# Restart and re-migrate
-docker compose -f docker/docker-compose.yml up -d
-cd pipeline && uv run alembic upgrade head
+### API container won't start
 
-# Restore from backup
-cd .. && ./scripts/db-restore.sh
+```bash
+dc logs migrate   # a failed migration blocks the API — it depends on migrate
+dc logs api
+dc config         # check the resolved DATABASE_URL and CORS_ORIGINS
 ```
 
 ### Frontend build fails
 
-```bash
-# Next.js 16 requires NODE_ENV=production during build
-# This is already set in apps/web/package.json build script
-# If it still fails, try:
-NODE_ENV=production pnpm build
-```
+Next.js 16 requires `NODE_ENV=production` during build; that's already set in
+`apps/web/package.json`. If it still fails: `NODE_ENV=production pnpm build`.
 
-### Backend won't start
+### Backend won't start locally
 
 ```bash
-# Check if port 8000 is in use
 lsof -i :8000
-
-# Verify database URL
 cd pipeline && uv run python -c "from src.config import settings; print(settings.database_url)"
-
-# Run with verbose logging
 cd pipeline && uv run uvicorn src.api.main:app --reload --log-level debug
 ```
 
 ### Tests fail
 
 ```bash
-# Tests use SQLite in-memory (no PostgreSQL needed)
 cd pipeline && uv run pytest -v --tb=short
-
-# Run a specific test file
-uv run pytest tests/test_races.py -v
+uv run pytest tests/test_races.py -v      # a single file
 ```
 
----
-
-## Production Checklist
-
-- [ ] Set strong PostgreSQL credentials (not the dev defaults)
-- [ ] Set `FASTAPI_DEBUG=False`
-- [ ] Set `CORS_ORIGINS` to your frontend domain(s)
-- [ ] Set `NEXT_PUBLIC_API_URL` to your production API URL before building
-- [ ] Configure HTTPS (via reverse proxy or hosting platform)
-- [ ] Set up process management (systemd, Docker, or platform-specific)
-- [ ] Run database migrations (`alembic upgrade head`)
-- [ ] Seed or restore database data
-- [ ] Verify the health endpoint: `GET /api/health`
-- [ ] Set up database backups on a schedule
-- [ ] Set up data ingestion schedule (weekly, after race weekends)
-- [ ] Review dependency vulnerabilities (`pnpm audit`, `pip-audit`)
-- [ ] Restrict database network access to backend server only
+Tests use SQLite in-memory — no PostgreSQL needed.

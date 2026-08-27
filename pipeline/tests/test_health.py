@@ -4,6 +4,12 @@ def test_health_check(client):
     assert response.json() == {"status": "ok"}
 
 
+def test_health_db(client):
+    response = client.get("/api/health/db")
+    assert response.status_code == 200
+    assert response.json() == {"status": "ok", "database": "ok"}
+
+
 def test_stats_empty(client):
     response = client.get("/api/stats")
     assert response.status_code == 200

@@ -29,6 +29,7 @@ pipeline/.fastf1_cache/
 .env
 .env.local
 .env.*.local
+.env.prod
 
 # IDE
 .vscode/

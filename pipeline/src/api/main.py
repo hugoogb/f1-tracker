@@ -16,10 +16,17 @@ from src.api.routers import (
 )
 from src.config import settings
 
+# Interactive docs are a development convenience: they advertise the full schema
+# of a public read-only API. Keep them off unless FASTAPI_DEBUG is on.
+_docs_enabled = settings.fastapi_debug
+
 app = FastAPI(
     title="F1 Tracker API",
     description="API for Formula 1 historical data and analytics",
     version="0.1.0",
+    docs_url="/docs" if _docs_enabled else None,
+    redoc_url="/redoc" if _docs_enabled else None,
+    openapi_url="/openapi.json" if _docs_enabled else None,
 )
 
 app.add_middleware(

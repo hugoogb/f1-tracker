@@ -1,0 +1,14 @@
+# Mondays 06:00 local time, after Sunday races and post-race data settling.
+# The script's own calendar gate skips off-weekends, so a missed race weekend is
+# the only thing this cadence has to catch.
+[Unit]
+Description=Weekly F1 Tracker data ingest
+
+[Timer]
+OnCalendar=Mon *-*-* 06:00:00
+Persistent=true
+RandomizedDelaySec=15m
+Unit=f1-tracker-ingest.service
+
+[Install]
+WantedBy=timers.target
