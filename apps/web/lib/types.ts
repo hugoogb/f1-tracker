@@ -52,7 +52,12 @@ export interface Race {
   round: number
   name: string
   circuit: Circuit
+  /** Calendar date of the race, `YYYY-MM-DD`. */
   date: string
+  /** Scheduled start as a UTC time-of-day, `HH:MM:SS`. Null when unknown. */
+  time?: string | null
+  /** Scheduled start as an ISO-8601 UTC instant. Null when the time is unknown. */
+  startTime?: string | null
   url?: string
 }
 

@@ -1,5 +1,6 @@
 """Ingest race schedule from Fast-F1 Ergast API."""
 
+import datetime
 from datetime import date
 
 import pandas as pd
@@ -46,6 +47,10 @@ def _parse_time(val):
     val = clean(val)
     if val is None:
         return None
+    # Ergast session times arrive as bare ``datetime.time`` objects, which have
+    # no ``.time`` attribute — check for them before the datetime fallback.
+    if isinstance(val, datetime.time):
+        return val
     if isinstance(val, str) and val:
         try:
             return pd.to_datetime(val).time()
@@ -57,7 +62,18 @@ def _parse_time(val):
 
 
 class RaceIngestor(BaseIngestor):
-    def ingest(self, year_range: tuple[int, int] | None = None) -> None:
+    def ingest(
+        self,
+        year_range: tuple[int, int] | None = None,
+        refresh_closed: bool = False,
+    ) -> None:
+        """Ingest race schedules.
+
+        ``refresh_closed`` re-fetches seasons that would normally be skipped as
+        closed. Use it to backfill fields added after those seasons were first
+        loaded (race start times, for one) — combine with ``year_range`` to keep
+        the request count bounded.
+        """
         self.log("Fetching race schedules...")
         erg = Ergast()
         today = date.today()
@@ -82,7 +98,7 @@ class RaceIngestor(BaseIngestor):
 
             # Closed, fully-loaded seasons never change — skip them so the full
             # history isn't re-fetched (and rate-limited) on every run.
-            if existing and self._is_closed(season.year, existing, today):
+            if not refresh_closed and existing and self._is_closed(season.year, existing, today):
                 continue
 
             try:

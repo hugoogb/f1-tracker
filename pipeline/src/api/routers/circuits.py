@@ -9,6 +9,7 @@ from src.api.constants import (
     MAX_RECORD_LIMIT,
 )
 from src.api.pagination import paginate
+from src.api.serializers import race_timing
 from src.db.database import get_db
 from src.db.models import Circuit, CircuitLayout, QualifyingResult, Race, RaceResult
 
@@ -139,7 +140,7 @@ def get_circuit(ref: str, db: Session = Depends(get_db)):
                 "seasonYear": r.season_year,
                 "round": r.round,
                 "name": r.name,
-                "date": str(r.date) if r.date else None,
+                **race_timing(r),
             }
             for r in races
         ],

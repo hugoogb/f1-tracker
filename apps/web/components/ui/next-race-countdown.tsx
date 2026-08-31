@@ -1,9 +1,11 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import Link from 'next/link'
 import { Clock, MapPin } from 'lucide-react'
 import { CountryFlag } from '@/components/ui/country-flag'
+import { raceStartDate, getTimeLeft, formatLocalStart } from '@/lib/race-time'
+import { useNowSeconds } from '@/lib/use-now'
 import type { Race } from '@/lib/types'
 
 interface NextRaceCountdownProps {
@@ -11,35 +13,19 @@ interface NextRaceCountdownProps {
   seasonYear: number
 }
 
-function getTimeLeft(targetDate: Date) {
-  const now = new Date()
-  const diff = targetDate.getTime() - now.getTime()
-
-  if (diff <= 0) return null
-
-  const days = Math.floor(diff / (1000 * 60 * 60 * 24))
-  const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
-  const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
-  const seconds = Math.floor((diff % (1000 * 60)) / 1000)
-
-  return { days, hours, minutes, seconds }
-}
-
 export function NextRaceCountdown({ race, seasonYear }: NextRaceCountdownProps) {
-  const raceDate = useMemo(() => new Date(race.date), [race.date])
-  const [timeLeft, setTimeLeft] = useState(() => getTimeLeft(raceDate))
+  const target = useMemo(() => raceStartDate(race), [race])
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const left = getTimeLeft(raceDate)
-      setTimeLeft(left)
-      if (!left) clearInterval(interval)
-    }, 1000)
+  // Null while server-rendering: both the remaining time and the local-time
+  // label depend on the viewer's clock and timezone.
+  const nowSeconds = useNowSeconds()
+  const timeLeft =
+    target && nowSeconds !== null ? getTimeLeft(target, new Date(nowSeconds * 1000)) : null
 
-    return () => clearInterval(interval)
-  }, [raceDate])
+  // Only hide the card once we know client-side that the race has started.
+  if (nowSeconds !== null && !timeLeft) return null
 
-  if (!timeLeft) return null
+  const localStart = nowSeconds !== null && race.startTime ? formatLocalStart(race.startTime) : null
 
   return (
     <Link
@@ -55,7 +41,7 @@ export function NextRaceCountdown({ race, seasonYear }: NextRaceCountdownProps) 
           <h3 className="group-hover:text-primary text-lg font-bold transition-colors">
             {race.name}
           </h3>
-          <div className="text-muted-foreground flex items-center gap-3 text-sm">
+          <div className="text-muted-foreground flex flex-wrap items-center gap-3 text-sm">
             <span className="inline-flex items-center gap-1.5">
               <CountryFlag code={race.circuit.countryCode} />
               {race.circuit.country}
@@ -65,18 +51,21 @@ export function NextRaceCountdown({ race, seasonYear }: NextRaceCountdownProps) 
               {race.circuit.name}
             </span>
           </div>
+          {localStart && (
+            <p className="text-muted-foreground/80 text-xs">Lights out {localStart} your time</p>
+          )}
         </div>
 
         <div className="flex gap-3">
           {[
-            { value: timeLeft.days, label: 'days' },
-            { value: timeLeft.hours, label: 'hrs' },
-            { value: timeLeft.minutes, label: 'min' },
-            { value: timeLeft.seconds, label: 'sec' },
+            { value: timeLeft?.days, label: 'days' },
+            { value: timeLeft?.hours, label: 'hrs' },
+            { value: timeLeft?.minutes, label: 'min' },
+            { value: timeLeft?.seconds, label: 'sec' },
           ].map(({ value, label }) => (
             <div key={label} className="text-center">
               <span className="font-heading text-foreground block text-2xl font-bold tabular-nums sm:text-3xl">
-                {String(value).padStart(2, '0')}
+                {value === undefined ? '--' : String(value).padStart(2, '0')}
               </span>
               <span className="text-muted-foreground text-[10px] tracking-wider uppercase">
                 {label}

@@ -243,9 +243,11 @@ def _should_run(targets: set[str] | None, key: str) -> bool:
 def run_full_load(
     targets: set[str] | None = None,
     year_range: tuple[int, int] | None = None,
+    refresh_schedule: bool = False,
 ) -> None:
     """Run the data load. If targets is None, run everything.
     If year_range is provided, only ingest data for seasons in [start, end].
+    If refresh_schedule is set, re-fetch race schedules for closed seasons too.
     """
     db: Session = SessionLocal()
     start = time.time()
@@ -270,7 +272,7 @@ def run_full_load(
             ConstructorIngestor(db).ingest()
 
             logger.info("\n--- Phase 2: Races ---")
-            RaceIngestor(db).ingest(year_range=year_range)
+            RaceIngestor(db).ingest(year_range=year_range, refresh_closed=refresh_schedule)
 
         if _should_run(targets, "layouts"):
             logger.info("\n--- Circuit layouts ---")

@@ -142,6 +142,7 @@ def race_seed_data(seed_data, db):
         name="Bahrain Grand Prix",
         circuit_id="circuit-1",
         date=datetime.date(2023, 3, 5),
+        time=datetime.time(15, 0),
         fastest_lap_driver_id="driver-1",
         fastest_lap_constructor_id="constructor-1",
         fastest_lap_number=44,

@@ -104,6 +104,14 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Limit ingestion to current year only",
     )
+    parser.add_argument(
+        "--refresh-schedule",
+        action="store_true",
+        help=(
+            "Re-fetch race schedules for closed seasons (normally skipped). "
+            "Use with --base --year-range to backfill schedule fields."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -147,7 +155,7 @@ if __name__ == "__main__":
 
     # 2. Run the load
     try:
-        run_full_load(targets, year_range=year_range)
+        run_full_load(targets, year_range=year_range, refresh_schedule=args.refresh_schedule)
     except (InterruptedError, KeyboardInterrupt):
         logger.warning("Seed interrupted by user")
 

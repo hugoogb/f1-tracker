@@ -1,4 +1,20 @@
-from src.db.models import Constructor, Driver
+from src.db.models import Constructor, Driver, Race
+
+
+def race_timing(race: Race) -> dict:
+    """Date, UTC time-of-day, and the combined ISO-8601 UTC start instant.
+
+    Ergast publishes session times in UTC, so ``startTime`` is safe for the
+    frontend to render in the viewer's local timezone. It is ``None`` for
+    races with no known time (most of the pre-2005 archive).
+    """
+    date = str(race.date) if race.date else None
+    time = str(race.time) if race.time else None
+    return {
+        "date": date,
+        "time": time,
+        "startTime": f"{date}T{time}Z" if date and time else None,
+    }
 
 
 def driver_summary(driver: Driver) -> dict:
