@@ -1,4 +1,6 @@
-from sqlalchemy import func, select
+import re
+
+from sqlalchemy import String, case, func, select
 from sqlalchemy.orm import Session
 
 from src.db.models import (
@@ -139,6 +141,16 @@ def get_driver_career_stats(db: Session, driver_id: str) -> dict:
 
 def search_drivers(db: Session, query: str, limit: int = 10) -> list[Driver]:
     pattern = f"%{query}%"
+    prefix = f"{query}%"
+    # Rank exact and prefix hits first, so "hamilton" leads with Lewis rather
+    # than with whichever Hamilton the planner happened to reach first.
+    relevance = case(
+        (Driver.code.ilike(query), 0),
+        (Driver.last_name.ilike(query), 1),
+        (Driver.last_name.ilike(prefix), 2),
+        (Driver.first_name.ilike(prefix), 3),
+        else_=4,
+    )
     return (
         db.execute(
             select(Driver)
@@ -148,6 +160,7 @@ def search_drivers(db: Session, query: str, limit: int = 10) -> list[Driver]:
                 | (Driver.code.ilike(pattern))
                 | (Driver.ref.ilike(pattern))
             )
+            .order_by(relevance, Driver.last_name, Driver.first_name)
             .limit(limit)
         )
         .scalars()
@@ -157,10 +170,18 @@ def search_drivers(db: Session, query: str, limit: int = 10) -> list[Driver]:
 
 def search_constructors(db: Session, query: str, limit: int = 10) -> list[Constructor]:
     pattern = f"%{query}%"
+    prefix = f"{query}%"
+    # Without this, "ferrari" surfaces Cooper-Ferrari ahead of Ferrari.
+    relevance = case(
+        (Constructor.name.ilike(query), 0),
+        (Constructor.name.ilike(prefix), 1),
+        else_=2,
+    )
     return (
         db.execute(
             select(Constructor)
             .where((Constructor.name.ilike(pattern)) | (Constructor.ref.ilike(pattern)))
+            .order_by(relevance, Constructor.name)
             .limit(limit)
         )
         .scalars()
@@ -178,6 +199,76 @@ def search_circuits(db: Session, query: str, limit: int = 5) -> list[Circuit]:
                 | (Circuit.location.ilike(pattern))
                 | (Circuit.country.ilike(pattern))
             )
+            .order_by(
+                case(
+                    (Circuit.name.ilike(query), 0),
+                    (Circuit.name.ilike(f"{query}%"), 1),
+                    (Circuit.location.ilike(f"{query}%"), 2),
+                    else_=3,
+                ),
+                Circuit.name,
+            )
+            .limit(limit)
+        )
+        .scalars()
+        .all()
+    )
+
+
+YEAR_TOKEN = re.compile(r"\b(19[5-9]\d|20\d\d)\b")
+
+
+def split_year(query: str) -> tuple[int | None, str]:
+    """Split a search query into a standalone 4-digit season and the rest.
+
+    "monaco 2019" and "2019 monaco" both yield (2019, "monaco"); "monaco"
+    yields (None, "monaco") and "2019" yields (2019, "").
+    """
+    match = YEAR_TOKEN.search(query)
+    if not match:
+        return None, query.strip()
+    rest = (query[: match.start()] + " " + query[match.end() :]).strip()
+    return int(match.group(1)), rest
+
+
+def search_races(db: Session, query: str, limit: int = 5) -> list[Race]:
+    """Find races by name, circuit, or "<circuit> <year>".
+
+    A bare year returns nothing here — it matches a whole calendar, which is
+    what the season results are for.
+    """
+    year, text = split_year(query)
+    if not text:
+        return []
+
+    pattern = f"%{text}%"
+    stmt = (
+        select(Race)
+        .join(Circuit, Race.circuit_id == Circuit.id)
+        .where(
+            Race.name.ilike(pattern)
+            | Circuit.name.ilike(pattern)
+            | Circuit.location.ilike(pattern)
+            | Circuit.country.ilike(pattern)
+        )
+    )
+    if year is not None:
+        stmt = stmt.where(Race.season_year == year)
+
+    return db.execute(stmt.order_by(Race.date.desc()).limit(limit)).scalars().all()
+
+
+def search_seasons(db: Session, query: str, limit: int = 5) -> list[Season]:
+    """Find seasons by year prefix, so "201" matches the 2010s."""
+    digits = query.strip()
+    if not digits.isdigit():
+        return []
+
+    return (
+        db.execute(
+            select(Season)
+            .where(func.cast(Season.year, String).like(f"{digits}%"))
+            .order_by(Season.year.desc())
             .limit(limit)
         )
         .scalars()

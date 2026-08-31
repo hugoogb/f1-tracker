@@ -244,10 +244,13 @@ def run_full_load(
     targets: set[str] | None = None,
     year_range: tuple[int, int] | None = None,
     refresh_schedule: bool = False,
+    refresh_drivers: bool = False,
 ) -> None:
     """Run the data load. If targets is None, run everything.
     If year_range is provided, only ingest data for seasons in [start, end].
     If refresh_schedule is set, re-fetch race schedules for closed seasons too.
+    If refresh_drivers is set, re-fetch driver and constructor reference data
+    even though it is already loaded.
     """
     db: Session = SessionLocal()
     start = time.time()
@@ -268,8 +271,8 @@ def run_full_load(
             SeasonIngestor(db).ingest()
             CircuitIngestor(db).ingest()
             StatusIngestor(db).ingest()
-            DriverIngestor(db).ingest()
-            ConstructorIngestor(db).ingest()
+            DriverIngestor(db).ingest(refresh=refresh_drivers)
+            ConstructorIngestor(db).ingest(refresh=refresh_drivers)
 
             logger.info("\n--- Phase 2: Races ---")
             RaceIngestor(db).ingest(year_range=year_range, refresh_closed=refresh_schedule)

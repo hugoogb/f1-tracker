@@ -9,10 +9,23 @@ from src.db.models import Constructor, Driver, Status
 from src.ingestion.base import BaseIngestor, clean, fetch_all_pages
 
 
+def _driver_code(val) -> str | None:
+    """Normalize an Ergast three-letter driver code (VER, HAM) to upper case."""
+    val = clean(val)
+    if not isinstance(val, str):
+        return None
+    return val.strip().upper() or None
+
+
 class DriverIngestor(BaseIngestor):
-    def ingest(self) -> None:
+    def ingest(self, refresh: bool = False) -> None:
+        """Ingest driver reference data.
+
+        ``refresh`` re-fetches even when drivers are already loaded, so fields
+        added after the first seed can be backfilled.
+        """
         count = self.db.scalar(select(func.count()).select_from(Driver))
-        if count and count > 0:
+        if count and count > 0 and not refresh:
             self.log(f"Skipping — {count} drivers already loaded")
             return
 
@@ -33,8 +46,7 @@ class DriverIngestor(BaseIngestor):
             driver = Driver(
                 id=row["driverId"],
                 ref=row["driverId"],
-                number=None,
-                code=None,
+                code=_driver_code(row.get("driverCode")),
                 first_name=row["givenName"],
                 last_name=row["familyName"],
                 date_of_birth=dob,
@@ -50,9 +62,9 @@ class DriverIngestor(BaseIngestor):
 
 
 class ConstructorIngestor(BaseIngestor):
-    def ingest(self) -> None:
+    def ingest(self, refresh: bool = False) -> None:
         count = self.db.scalar(select(func.count()).select_from(Constructor))
-        if count and count > 0:
+        if count and count > 0 and not refresh:
             self.log(f"Skipping — {count} constructors already loaded")
             return
 
@@ -69,7 +81,6 @@ class ConstructorIngestor(BaseIngestor):
                 name=row["constructorName"],
                 nationality=nationality,
                 country_code=country_code(nationality),
-                color=None,
                 url=clean(row.get("constructorUrl")),
             )
             self.db.merge(constructor)

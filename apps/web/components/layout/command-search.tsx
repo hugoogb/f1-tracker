@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Search, User, Building2, MapPin } from 'lucide-react'
+import { Search, User, Building2, MapPin, Flag, CalendarDays } from 'lucide-react'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { API_BASE_URL, SEARCH_DEBOUNCE_MS, SEARCH_MIN_LENGTH } from '@/lib/constants'
@@ -17,6 +17,15 @@ interface SearchResults {
   }[]
   constructors: { ref: string; name: string; nationality: string | null }[]
   circuits: { ref: string; name: string; location: string | null; country: string | null }[]
+  races: {
+    id: string
+    seasonYear: number
+    round: number
+    name: string
+    date: string | null
+    circuit: { ref: string; name: string; country: string | null }
+  }[]
+  seasons: { year: number }[]
 }
 
 export function CommandSearch() {
@@ -86,6 +95,21 @@ export function CommandSearch() {
         href: `/circuits/${c.ref}`,
       }),
     )
+    results.races?.forEach((r) =>
+      items.push({
+        type: 'race',
+        label: `${r.seasonYear} ${r.name}`,
+        sublabel: r.circuit.name,
+        href: `/seasons/${r.seasonYear}/races/${r.round}`,
+      }),
+    )
+    results.seasons?.forEach((s) =>
+      items.push({
+        type: 'season',
+        label: `${s.year} Season`,
+        href: `/seasons/${s.year}`,
+      }),
+    )
     return items
   }
 
@@ -114,6 +138,8 @@ export function CommandSearch() {
     driver: User,
     constructor: Building2,
     circuit: MapPin,
+    race: Flag,
+    season: CalendarDays,
   }
 
   const allItems = getAllItems()
@@ -127,6 +153,8 @@ export function CommandSearch() {
       items: allItems.filter((i) => i.type === 'constructor'),
     },
     { type: 'circuit', label: 'Circuits', items: allItems.filter((i) => i.type === 'circuit') },
+    { type: 'race', label: 'Races', items: allItems.filter((i) => i.type === 'race') },
+    { type: 'season', label: 'Seasons', items: allItems.filter((i) => i.type === 'season') },
   ].filter((g) => g.items.length > 0)
 
   return (
@@ -159,7 +187,7 @@ export function CommandSearch() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Search drivers, constructors, circuits..."
+              placeholder="Search drivers, teams, circuits, races..."
               className="placeholder:text-muted-foreground h-12 w-full bg-transparent px-3 text-sm outline-none"
               autoFocus
             />

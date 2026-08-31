@@ -105,6 +105,14 @@ def parse_args() -> argparse.Namespace:
         help="Limit ingestion to current year only",
     )
     parser.add_argument(
+        "--refresh-drivers",
+        action="store_true",
+        help=(
+            "Re-fetch driver and constructor reference data even when already "
+            "loaded. Use with --base to backfill fields such as driver codes."
+        ),
+    )
+    parser.add_argument(
         "--refresh-schedule",
         action="store_true",
         help=(
@@ -155,7 +163,12 @@ if __name__ == "__main__":
 
     # 2. Run the load
     try:
-        run_full_load(targets, year_range=year_range, refresh_schedule=args.refresh_schedule)
+        run_full_load(
+            targets,
+            year_range=year_range,
+            refresh_schedule=args.refresh_schedule,
+            refresh_drivers=args.refresh_drivers,
+        )
     except (InterruptedError, KeyboardInterrupt):
         logger.warning("Seed interrupted by user")
 
