@@ -9,6 +9,7 @@ import type {
   StandingsProgressionResponse,
   ConstructorProgressionResponse,
   SeasonHeatmapResponse,
+  TitleRaceResponse,
 } from '@/lib/types'
 import { CountryFlag } from '@/components/ui/country-flag'
 import { Breadcrumbs } from '@/components/layout/breadcrumbs'
@@ -27,6 +28,7 @@ import { PointsBarChart } from '@/components/charts/points-bar-chart'
 import { ConstructorPointsChart } from '@/components/charts/constructor-points-chart'
 import { ChampionshipProgressionChart } from '@/components/charts/championship-progression-chart'
 import { SeasonHeatmap } from '@/components/charts/season-heatmap'
+import { TitleRaceCard } from '@/components/standings/title-race-card'
 import { SeasonTabs } from './season-tabs'
 import { FadeIn } from '@/components/ui/motion'
 
@@ -68,6 +70,7 @@ export default async function SeasonDetailPage({ params }: { params: Promise<{ y
     progressionResult,
     constructorProgressionResult,
     heatmapResult,
+    titleRaceResult,
   ] = await Promise.allSettled([
     api.seasons.get(year) as Promise<SeasonDetailResponse>,
     api.seasons.driverStandings(year) as Promise<DriverStandingsResponse>,
@@ -75,6 +78,7 @@ export default async function SeasonDetailPage({ params }: { params: Promise<{ y
     api.seasons.standingsProgression(year) as Promise<StandingsProgressionResponse>,
     api.seasons.constructorProgression(year) as Promise<ConstructorProgressionResponse>,
     api.seasons.heatmap(year) as Promise<SeasonHeatmapResponse>,
+    api.seasons.titleRace(year) as Promise<TitleRaceResponse>,
   ])
 
   if (season.status === 'rejected') notFound()
@@ -90,6 +94,11 @@ export default async function SeasonDetailPage({ params }: { params: Promise<{ y
   const constructorProgression =
     constructorProgressionResult.status === 'fulfilled' ? constructorProgressionResult.value : null
   const heatmap = heatmapResult.status === 'fulfilled' ? heatmapResult.value : null
+  // Only meaningful mid-season: with no rounds left the standings are the answer.
+  const titleRace =
+    titleRaceResult.status === 'fulfilled' && titleRaceResult.value.roundsRemaining > 0
+      ? titleRaceResult.value
+      : null
 
   return (
     <div className="space-y-6">
@@ -129,6 +138,12 @@ export default async function SeasonDetailPage({ params }: { params: Promise<{ y
           <div className="accent-line" />
         </div>
       </FadeIn>
+
+      {titleRace && (
+        <FadeIn>
+          <TitleRaceCard data={titleRace} />
+        </FadeIn>
+      )}
 
       <SeasonTabs
         racesContent={<RacesTable races={seasonData.races} year={year} />}

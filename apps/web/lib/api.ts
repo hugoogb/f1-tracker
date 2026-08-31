@@ -24,6 +24,7 @@ export const api = {
     driverStandings: (year: number) => fetchApi(`/seasons/${year}/standings/drivers`),
     constructorStandings: (year: number) => fetchApi(`/seasons/${year}/standings/constructors`),
     heatmap: (year: number) => fetchApi(`/seasons/${year}/heatmap`),
+    titleRace: (year: number) => fetchApi(`/seasons/${year}/title-race`),
     standingsProgression: (year: number, top = 10) => {
       const params = new URLSearchParams({ top: String(top) })
       return fetchApi(`/seasons/${year}/standings/progression?${params}`)

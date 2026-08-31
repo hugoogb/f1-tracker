@@ -16,12 +16,15 @@ const constructor = {
   color: '#3671C6',
 } as DriverStints['constructor']
 
-function entry(overrides: Partial<DriverStints> = {}): DriverStints {
+// Takes stints explicitly rather than a Partial<DriverStints>: TypeScript
+// resolves a property literally named `constructor` against Object.prototype
+// in a partial, which does not typecheck.
+function entry(stints?: DriverStints['stints']): DriverStints {
   return {
     driver,
     constructor,
     position: 1,
-    stints: [
+    stints: stints ?? [
       {
         stint: 1,
         compound: 'SOFT',
@@ -43,7 +46,6 @@ function entry(overrides: Partial<DriverStints> = {}): DriverStints {
         degradationMsPerLap: null,
       },
     ],
-    ...overrides,
   }
 }
 
@@ -66,9 +68,7 @@ describe('StintPaceTable', () => {
   })
 
   it('formats a sub-minute time as bare seconds', () => {
-    const quick = entry({
-      stints: [{ ...entry().stints[0], medianMs: 59_999, bestMs: 58_500 }],
-    })
+    const quick = entry([{ ...entry().stints[0], medianMs: 59_999, bestMs: 58_500 }])
     render(<StintPaceTable drivers={[quick]} />)
     expect(screen.getByText('59.999')).toBeInTheDocument()
   })

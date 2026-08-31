@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from src.api.championship import Competitor, RoundMath, round_math, title_scenarios
 from src.api.constants import DEFAULT_PROGRESSION_TOP, MAX_PROGRESSION_TOP
 from src.api.serializers import constructor_compact, constructor_summary, driver_summary
 from src.db.database import get_db
@@ -19,40 +20,42 @@ from src.db.queries import (
 router = APIRouter()
 
 
+def _driver_constructor_map(db: Session, standings) -> dict[str, Constructor | None]:
+    """Map each driver to the constructor they drove for at the latest round."""
+    constructor_map: dict[str, Constructor | None] = {}
+    if not standings:
+        return constructor_map
+
+    last_race_id = standings[0].race_id
+    driver_ids = [s.driver_id for s in standings]
+    results = (
+        db.execute(
+            select(RaceResult).where(
+                RaceResult.race_id == last_race_id,
+                RaceResult.driver_id.in_(driver_ids),
+            )
+        )
+        .scalars()
+        .all()
+    )
+    constructor_ids = {r.constructor_id for r in results}
+    constructors = (
+        (db.execute(select(Constructor).where(Constructor.id.in_(constructor_ids))).scalars().all())
+        if constructor_ids
+        else []
+    )
+    c_map = {c.id: c for c in constructors}
+    result_map = {r.driver_id: r.constructor_id for r in results}
+    for did in driver_ids:
+        cid = result_map.get(did)
+        constructor_map[did] = c_map.get(cid) if cid else None
+    return constructor_map
+
+
 @router.get("/seasons/{year}/standings/drivers")
 def driver_standings(year: int, db: Session = Depends(get_db)):
     standings = get_driver_standings_for_season(db, year)
-
-    # Build a map of driver_id -> constructor for the last race of the season
-    constructor_map: dict[str, Constructor | None] = {}
-    if standings:
-        last_race_id = standings[0].race_id
-        driver_ids = [s.driver_id for s in standings]
-        results = (
-            db.execute(
-                select(RaceResult).where(
-                    RaceResult.race_id == last_race_id,
-                    RaceResult.driver_id.in_(driver_ids),
-                )
-            )
-            .scalars()
-            .all()
-        )
-        constructor_ids = {r.constructor_id for r in results}
-        constructors = (
-            (
-                db.execute(select(Constructor).where(Constructor.id.in_(constructor_ids)))
-                .scalars()
-                .all()
-            )
-            if constructor_ids
-            else []
-        )
-        c_map = {c.id: c for c in constructors}
-        result_map = {r.driver_id: r.constructor_id for r in results}
-        for did in driver_ids:
-            cid = result_map.get(did)
-            constructor_map[did] = c_map.get(cid) if cid else None
+    constructor_map = _driver_constructor_map(db, standings)
 
     return {
         "year": year,
@@ -273,4 +276,102 @@ def constructor_standings_progression(
         "constructors": [
             constructor_info[cid] for cid in top_constructor_ids if cid in constructor_info
         ],
+    }
+
+
+def _season_round_math(db: Session, year: int) -> tuple[RoundMath, int, int]:
+    """Round accounting for a season: what is left, and what it is worth.
+
+    A round counts as run once it has race results. Rounds still on the calendar
+    with none are the ones left to play for.
+    """
+    total_rounds = (
+        db.scalar(select(func.count()).select_from(Race).where(Race.season_year == year)) or 0
+    )
+    completed_rounds = (
+        db.scalar(
+            select(func.count(func.distinct(RaceResult.race_id)))
+            .select_from(RaceResult)
+            .join(Race, Race.id == RaceResult.race_id)
+            .where(Race.season_year == year)
+        )
+        or 0
+    )
+
+    best_race_score = db.scalar(
+        select(func.max(RaceResult.points))
+        .select_from(RaceResult)
+        .join(Race, Race.id == RaceResult.race_id)
+        .where(Race.season_year == year)
+    )
+    best_sprint_score = db.scalar(
+        select(func.max(SprintResult.points))
+        .select_from(SprintResult)
+        .join(Race, Race.id == SprintResult.race_id)
+        .where(Race.season_year == year)
+    )
+
+    math = round_math(
+        year=year,
+        rounds_remaining=total_rounds - completed_rounds,
+        best_race_score=best_race_score,
+        best_sprint_score=best_sprint_score,
+    )
+    return math, total_rounds, completed_rounds
+
+
+@router.get("/seasons/{year}/title-race")
+def title_race(year: int, db: Session = Depends(get_db)):
+    """Who can still mathematically win the drivers' and constructors' titles."""
+    math, total_rounds, completed_rounds = _season_round_math(db, year)
+
+    driver_standings_rows = get_driver_standings_for_season(db, year)
+    constructor_standings_rows = get_constructor_standings_for_season(db, year)
+
+    drivers = title_scenarios(
+        [
+            Competitor(key=s.driver_id, position=s.position, points=s.points)
+            for s in driver_standings_rows
+        ],
+        math,
+    )
+    constructors = title_scenarios(
+        [
+            Competitor(key=s.constructor_id, position=s.position, points=s.points)
+            for s in constructor_standings_rows
+        ],
+        math,
+    )
+
+    driver_by_id = {s.driver_id: s.driver for s in driver_standings_rows}
+    constructor_by_id = {s.constructor_id: s.constructor for s in constructor_standings_rows}
+    driver_constructors = _driver_constructor_map(db, driver_standings_rows)
+
+    def expand(scenarios: dict, lookup: dict, serializer, field: str, teams=None) -> dict:
+        contenders = []
+        for entry in scenarios["contenders"]:
+            if entry["key"] not in lookup:
+                continue
+            row = {k: v for k, v in entry.items() if k != "key"}
+            row[field] = serializer(lookup[entry["key"]])
+            if teams is not None:
+                team = teams.get(entry["key"])
+                row["constructor"] = constructor_compact(team) if team else None
+            contenders.append(row)
+        return {"decided": scenarios["decided"], "contenders": contenders}
+
+    return {
+        "year": year,
+        "totalRounds": total_rounds,
+        "roundsCompleted": completed_rounds,
+        "roundsRemaining": math.rounds_remaining,
+        "pointsForWin": math.points_for_win,
+        "sprintPointsForWin": math.sprint_points_for_win,
+        "fastestLapBonus": math.fastest_lap_bonus,
+        "maxPointsPerRound": math.max_points_per_round,
+        "maxPointsRemaining": math.max_points_remaining,
+        "drivers": expand(
+            drivers, driver_by_id, driver_summary, "driver", teams=driver_constructors
+        ),
+        "constructors": expand(constructors, constructor_by_id, constructor_summary, "constructor"),
     }

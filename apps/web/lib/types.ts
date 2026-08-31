@@ -304,6 +304,43 @@ export interface GapsResponse {
   drivers: DriverGaps[]
 }
 
+// Championship permutations
+
+export interface TitleContender {
+  position: number | null
+  points: number
+  /** Points reachable if they win everything left. */
+  maxAttainable: number
+  gapToLeader: number
+  canWin: boolean
+  isLeader: boolean
+  /** How far short they fall even at maximum. Zero when still in contention. */
+  pointsNeeded: number
+}
+
+export interface DriverTitleContender extends TitleContender {
+  driver: Driver
+  constructor: Constructor | null
+}
+
+export interface ConstructorTitleContender extends TitleContender {
+  constructor: Constructor
+}
+
+export interface TitleRaceResponse {
+  year: number
+  totalRounds: number
+  roundsCompleted: number
+  roundsRemaining: number
+  pointsForWin: number
+  sprintPointsForWin: number
+  fastestLapBonus: number
+  maxPointsPerRound: number
+  maxPointsRemaining: number
+  drivers: { decided: boolean; contenders: DriverTitleContender[] }
+  constructors: { decided: boolean; contenders: ConstructorTitleContender[] }
+}
+
 export interface PaginatedResponse<T> {
   data: T[]
   total: number
