@@ -304,6 +304,63 @@ export interface GapsResponse {
   drivers: DriverGaps[]
 }
 
+// Weather and race control (2018+)
+
+export interface WeatherSample {
+  sessionTimeMs: number
+  airTemp: number | null
+  trackTemp: number | null
+  humidity: number | null
+  pressure: number | null
+  windSpeed: number | null
+  windDirection: number | null
+  rainfall: boolean
+}
+
+export interface WeatherSummary {
+  airTempMin: number | null
+  airTempMax: number | null
+  trackTempMin: number | null
+  trackTempMax: number | null
+  humidityAvg: number | null
+  windSpeedMax: number | null
+  rainfall: boolean
+  /** Share of samples that recorded rain, 0-1. */
+  wetShare: number
+  samples: number
+}
+
+export interface WeatherResponse {
+  raceId: string
+  summary: WeatherSummary | null
+  samples: WeatherSample[]
+}
+
+export type RaceControlPeriodKind = 'SAFETY_CAR' | 'VIRTUAL_SAFETY_CAR' | 'RED_FLAG'
+
+export interface RaceControlPeriod {
+  kind: RaceControlPeriodKind
+  startLap: number
+  endLap: number
+}
+
+export interface RaceControlMessage {
+  lap: number | null
+  category: string | null
+  message: string
+  flag: string | null
+  scope: string | null
+  driverNumber: string | null
+  utc: string | null
+}
+
+export interface RaceControlResponse {
+  raceId: string
+  totalLaps: number
+  periods: RaceControlPeriod[]
+  messages: RaceControlMessage[]
+}
+
 // Championship permutations
 
 export interface TitleContender {

@@ -4,6 +4,7 @@ from sqlalchemy import (
     BigInteger,
     Boolean,
     Date,
+    DateTime,
     Float,
     ForeignKey,
     Integer,
@@ -289,3 +290,44 @@ class SprintResult(Base):
     driver: Mapped["Driver"] = relationship()
     constructor: Mapped["Constructor"] = relationship()
     status: Mapped["Status | None"] = relationship()
+
+
+class RaceWeather(Base):
+    """One weather sample from a race session. Fast-F1 emits one per minute."""
+
+    __tablename__ = "race_weather"
+    __table_args__ = (UniqueConstraint("race_id", "session_time_ms"),)
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=new_uuid)
+    race_id: Mapped[str] = mapped_column(ForeignKey("races.id"), index=True)
+    # Offset from the start of the session, which is what the lap charts key on.
+    session_time_ms: Mapped[int] = mapped_column(BigInteger)
+    air_temp: Mapped[float | None] = mapped_column(Float)
+    track_temp: Mapped[float | None] = mapped_column(Float)
+    humidity: Mapped[float | None] = mapped_column(Float)
+    pressure: Mapped[float | None] = mapped_column(Float)
+    wind_speed: Mapped[float | None] = mapped_column(Float)
+    wind_direction: Mapped[int | None] = mapped_column(Integer)
+    rainfall: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    race: Mapped["Race"] = relationship()
+
+
+class RaceControlMessage(Base):
+    """A race control notification: flags, safety cars, DRS status, penalties."""
+
+    __tablename__ = "race_control_messages"
+    __table_args__ = (UniqueConstraint("race_id", "utc", "message"),)
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=new_uuid)
+    race_id: Mapped[str] = mapped_column(ForeignKey("races.id"), index=True)
+    utc: Mapped[str | None] = mapped_column(DateTime)
+    lap: Mapped[int | None] = mapped_column(Integer, index=True)
+    category: Mapped[str | None] = mapped_column(String)
+    message: Mapped[str] = mapped_column(String)
+    flag: Mapped[str | None] = mapped_column(String)
+    scope: Mapped[str | None] = mapped_column(String)
+    sector: Mapped[int | None] = mapped_column(Integer)
+    driver_number: Mapped[str | None] = mapped_column(String)
+
+    race: Mapped["Race"] = relationship()

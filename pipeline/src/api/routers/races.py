@@ -12,9 +12,20 @@ from src.api.lap_analysis import (
     gaps_to_leader,
     stint_summary,
 )
+from src.api.race_control import ControlMessage, safety_car_periods, weather_summary
 from src.api.serializers import constructor_compact, driver_summary, race_timing
 from src.db.database import get_db
-from src.db.models import Driver, LapTime, PitStop, QualifyingResult, Race, RaceResult, SprintResult
+from src.db.models import (
+    Driver,
+    LapTime,
+    PitStop,
+    QualifyingResult,
+    Race,
+    RaceControlMessage,
+    RaceResult,
+    RaceWeather,
+    SprintResult,
+)
 
 router = APIRouter()
 
@@ -657,3 +668,90 @@ def get_gaps(year: int, round: int, db: Session = Depends(get_db)):
     entries.sort(key=lambda entry: entry["position"] or 999)
 
     return {"raceId": race.id, "totalLaps": total_laps, "drivers": entries}
+
+
+@router.get("/seasons/{year}/races/{round}/weather")
+def get_weather(year: int, round: int, db: Session = Depends(get_db)):
+    """Per-minute weather samples for a race, plus headline conditions (2018+)."""
+    race = _race_or_404(db, year, round)
+
+    rows = (
+        db.execute(
+            select(RaceWeather)
+            .where(RaceWeather.race_id == race.id)
+            .order_by(RaceWeather.session_time_ms)
+        )
+        .scalars()
+        .all()
+    )
+
+    samples = [
+        {
+            "sessionTimeMs": row.session_time_ms,
+            "airTemp": row.air_temp,
+            "trackTemp": row.track_temp,
+            "humidity": row.humidity,
+            "pressure": row.pressure,
+            "windSpeed": row.wind_speed,
+            "windDirection": row.wind_direction,
+            "rainfall": row.rainfall,
+        }
+        for row in rows
+    ]
+
+    return {
+        "raceId": race.id,
+        "summary": weather_summary(samples),
+        "samples": samples,
+    }
+
+
+@router.get("/seasons/{year}/races/{round}/race-control")
+def get_race_control(year: int, round: int, db: Session = Depends(get_db)):
+    """Race control messages and the safety car periods derived from them (2018+)."""
+    race = _race_or_404(db, year, round)
+
+    rows = (
+        db.execute(
+            select(RaceControlMessage)
+            .where(RaceControlMessage.race_id == race.id)
+            .order_by(RaceControlMessage.utc, RaceControlMessage.id)
+        )
+        .scalars()
+        .all()
+    )
+
+    total_laps = (
+        db.scalar(select(func.max(LapTime.lap_number)).where(LapTime.race_id == race.id)) or 0
+    )
+    periods = safety_car_periods(
+        [
+            ControlMessage(
+                lap=row.lap,
+                category=row.category,
+                message=row.message,
+                flag=row.flag,
+                scope=row.scope,
+            )
+            for row in rows
+        ],
+        total_laps=total_laps,
+    )
+
+    return {
+        "raceId": race.id,
+        "totalLaps": total_laps,
+        "periods": periods,
+        "messages": [
+            {
+                "lap": row.lap,
+                "category": row.category,
+                "message": row.message,
+                "flag": row.flag,
+                "scope": row.scope,
+                "driverNumber": row.driver_number,
+                "utc": row.utc.isoformat() if row.utc else None,
+            }
+            for row in rows
+        ],
+    }

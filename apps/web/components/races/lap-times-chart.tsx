@@ -11,9 +11,11 @@ import {
   YAxis,
 } from 'recharts'
 import { getTeamColor } from '@/lib/utils'
-import type { DriverLaps } from '@/lib/types'
+import { RaceControlLegend, safetyCarAreas } from '@/components/races/race-control-overlay'
+import type { DriverLaps, RaceControlPeriod } from '@/lib/types'
 
 interface LapTimesChartProps {
+  periods?: RaceControlPeriod[]
   drivers: DriverLaps[]
 }
 
@@ -72,7 +74,7 @@ function CustomTooltip({
   )
 }
 
-export function LapTimesChart({ drivers }: LapTimesChartProps) {
+export function LapTimesChart({ drivers, periods }: LapTimesChartProps) {
   const [enabledDrivers, setEnabledDrivers] = useState<Set<string>>(() => {
     return new Set(drivers.slice(0, 5).map((d) => d.driver.ref))
   })
@@ -182,6 +184,7 @@ export function LapTimesChart({ drivers }: LapTimesChartProps) {
                   fill: 'oklch(0.5 0 0)',
                 }}
               />
+              {safetyCarAreas(periods)}
               <Tooltip content={<CustomTooltip />} cursor={{ stroke: 'oklch(1 0 0 / 15%)' }} />
               {activeDrivers.map((d) => (
                 <Line
@@ -199,6 +202,8 @@ export function LapTimesChart({ drivers }: LapTimesChartProps) {
           </ResponsiveContainer>
         </div>
       )}
+
+      <RaceControlLegend periods={periods} />
     </div>
   )
 }

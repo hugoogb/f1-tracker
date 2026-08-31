@@ -14,6 +14,8 @@ import type {
   TyreDegradationResponse,
   StintsResponse,
   GapsResponse,
+  WeatherResponse,
+  RaceControlResponse,
 } from '@/lib/types'
 import { CountryFlag } from '@/components/ui/country-flag'
 import { Breadcrumbs } from '@/components/layout/breadcrumbs'
@@ -29,6 +31,7 @@ import { LapTimesChart } from '@/components/races/lap-times-chart'
 import { TyreDegradationChart } from '@/components/races/tyre-degradation-chart'
 import { GapChart } from '@/components/races/gap-chart'
 import { StintPaceTable } from '@/components/races/stint-pace-table'
+import { WeatherCard } from '@/components/races/weather-card'
 import { TyreStrategyChart } from '@/components/races/tyre-strategy-chart'
 import { PositionChart } from '@/components/races/position-chart'
 import { RaceTabs } from './race-tabs'
@@ -100,6 +103,8 @@ export default async function RaceDetailPage({
   let tyreDegradation: TyreDegradationResponse | null = null
   let stints: StintsResponse | null = null
   let gaps: GapsResponse | null = null
+  let weather: WeatherResponse | null = null
+  let raceControl: RaceControlResponse | null = null
 
   try {
     const [
@@ -113,6 +118,8 @@ export default async function RaceDetailPage({
       tyreDegradationResult,
       stintsResult,
       gapsResult,
+      weatherResult,
+      raceControlResult,
     ] = await Promise.allSettled([
       api.races.get(year, round) as Promise<RaceDetailResponse>,
       api.races.qualifying(year, round) as Promise<QualifyingResponse>,
@@ -139,6 +146,12 @@ export default async function RaceDetailPage({
         : Promise.reject('not applicable'),
       year >= 2018
         ? (api.races.gaps(year, round) as Promise<GapsResponse>)
+        : Promise.reject('not applicable'),
+      year >= 2018
+        ? (api.races.weather(year, round) as Promise<WeatherResponse>)
+        : Promise.reject('not applicable'),
+      year >= 2018
+        ? (api.races.raceControl(year, round) as Promise<RaceControlResponse>)
         : Promise.reject('not applicable'),
     ])
 
@@ -177,6 +190,12 @@ export default async function RaceDetailPage({
     }
     if (gapsResult.status === 'fulfilled' && gapsResult.value.drivers?.length > 0) {
       gaps = gapsResult.value
+    }
+    if (weatherResult.status === 'fulfilled' && weatherResult.value.summary) {
+      weather = weatherResult.value
+    }
+    if (raceControlResult.status === 'fulfilled' && raceControlResult.value.messages?.length > 0) {
+      raceControl = raceControlResult.value
     }
   } catch {
     notFound()
@@ -232,6 +251,8 @@ export default async function RaceDetailPage({
 
       {race.fastestLap && <FastestLapCard fastestLap={race.fastestLap} />}
 
+      {weather?.summary && <WeatherCard summary={weather.summary} />}
+
       <RaceTabs
         raceResultsContent={
           <ResultsTable results={race.results} fastestLapDriverRef={race.fastestLap?.driver.ref} />
@@ -276,12 +297,16 @@ export default async function RaceDetailPage({
               {positions && (
                 <div>
                   <h3 className="mb-3 text-sm font-medium">Race Positions</h3>
-                  <PositionChart drivers={positions.drivers} totalLaps={positions.totalLaps} />
+                  <PositionChart
+                    drivers={positions.drivers}
+                    totalLaps={positions.totalLaps}
+                    periods={raceControl?.periods}
+                  />
                 </div>
               )}
               <div>
                 <h3 className="mb-3 text-sm font-medium">Lap Times</h3>
-                <LapTimesChart drivers={laps.drivers} />
+                <LapTimesChart drivers={laps.drivers} periods={raceControl?.periods} />
               </div>
               <div>
                 <h3 className="mb-3 text-sm font-medium">Tyre Strategy</h3>
@@ -306,7 +331,11 @@ export default async function RaceDetailPage({
               {gaps && (
                 <div>
                   <h3 className="mb-3 text-sm font-medium">Gap to Leader</h3>
-                  <GapChart drivers={gaps.drivers} totalLaps={gaps.totalLaps} />
+                  <GapChart
+                    drivers={gaps.drivers}
+                    totalLaps={gaps.totalLaps}
+                    periods={raceControl?.periods}
+                  />
                 </div>
               )}
               {stints && (

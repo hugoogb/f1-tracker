@@ -81,6 +81,7 @@ INGESTOR_FLAGS = [
     "standings",
     "pitstops",
     "laptimes",
+    "weather",
     "qualifying-sectors",
     "backfill-qualifying",
     "postprocess",

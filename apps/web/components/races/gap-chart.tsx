@@ -11,9 +11,11 @@ import {
   YAxis,
 } from 'recharts'
 import { getTeamColor } from '@/lib/utils'
-import type { DriverGaps } from '@/lib/types'
+import { RaceControlLegend, safetyCarAreas } from '@/components/races/race-control-overlay'
+import type { DriverGaps, RaceControlPeriod } from '@/lib/types'
 
 interface GapChartProps {
+  periods?: RaceControlPeriod[]
   drivers: DriverGaps[]
   totalLaps: number
 }
@@ -78,7 +80,7 @@ function CustomTooltip({
   )
 }
 
-export function GapChart({ drivers, totalLaps }: GapChartProps) {
+export function GapChart({ drivers, totalLaps, periods }: GapChartProps) {
   const [enabled, setEnabled] = useState<Set<string>>(
     () => new Set(drivers.slice(0, DEFAULT_VISIBLE).map((d) => d.driver.ref)),
   )
@@ -173,6 +175,7 @@ export function GapChart({ drivers, totalLaps }: GapChartProps) {
                 fill: 'oklch(0.5 0 0)',
               }}
             />
+            {safetyCarAreas(periods)}
             <Tooltip content={<CustomTooltip />} cursor={{ stroke: 'oklch(1 0 0 / 15%)' }} />
             {active.map((d) => (
               <Line
@@ -189,6 +192,8 @@ export function GapChart({ drivers, totalLaps }: GapChartProps) {
           </LineChart>
         </ResponsiveContainer>
       </div>
+
+      <RaceControlLegend periods={periods} />
 
       <p className="text-muted-foreground text-xs">
         Cumulative time behind whoever leads on that lap. Every line drops when that driver pits and

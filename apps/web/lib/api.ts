@@ -86,6 +86,9 @@ export const api = {
       fetchApi(`/seasons/${year}/races/${round}/tyre-degradation`),
     stints: (year: number, round: number) => fetchApi(`/seasons/${year}/races/${round}/stints`),
     gaps: (year: number, round: number) => fetchApi(`/seasons/${year}/races/${round}/gaps`),
+    weather: (year: number, round: number) => fetchApi(`/seasons/${year}/races/${round}/weather`),
+    raceControl: (year: number, round: number) =>
+      fetchApi(`/seasons/${year}/races/${round}/race-control`),
   },
   champions: () => fetchApi('/champions'),
   search: (query: string) => {

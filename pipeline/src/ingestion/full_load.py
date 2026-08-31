@@ -24,6 +24,7 @@ from src.ingestion.races import RaceIngestor
 from src.ingestion.results import QualifyingIngestor, RaceResultIngestor, SprintResultIngestor
 from src.ingestion.seasons import CircuitIngestor, SeasonIngestor
 from src.ingestion.standings import StandingsIngestor
+from src.ingestion.weather import WeatherIngestor
 
 logger = logging.getLogger(__name__)
 
@@ -315,6 +316,10 @@ def run_full_load(
         if _should_run(targets, "laptimes"):
             logger.info("\n--- Lap times ---")
             LapTimeIngestor(db).ingest(year_range=year_range)
+
+        if _should_run(targets, "weather"):
+            logger.info("\n--- Weather + race control ---")
+            WeatherIngestor(db).ingest(year_range=year_range)
 
         if _should_run(targets, "qualifying-sectors"):
             logger.info("\n--- Qualifying sectors ---")
