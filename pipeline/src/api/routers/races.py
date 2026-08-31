@@ -13,7 +13,12 @@ from src.api.lap_analysis import (
     stint_summary,
 )
 from src.api.race_control import ControlMessage, safety_car_periods, weather_summary
-from src.api.serializers import constructor_compact, driver_summary, race_timing
+from src.api.serializers import (
+    constructor_compact,
+    driver_summary,
+    race_timing,
+    weekend_sessions,
+)
 from src.db.database import get_db
 from src.db.models import (
     Driver,
@@ -23,6 +28,7 @@ from src.db.models import (
     Race,
     RaceControlMessage,
     RaceResult,
+    RaceSession,
     RaceWeather,
     SprintResult,
 )
@@ -67,11 +73,14 @@ def get_race(year: int, round: int, db: Session = Depends(get_db)):
             else None,
         }
 
+    sessions = db.execute(select(RaceSession).where(RaceSession.race_id == race.id)).scalars().all()
+
     return {
         "id": race.id,
         "round": race.round,
         "name": race.name,
         **race_timing(race),
+        "sessions": weekend_sessions(race, sessions),
         "circuit": {
             "id": race.circuit.id,
             "ref": race.circuit.ref,

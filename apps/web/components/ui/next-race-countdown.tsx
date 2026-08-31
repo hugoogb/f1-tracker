@@ -6,26 +6,39 @@ import { Clock, MapPin } from 'lucide-react'
 import { CountryFlag } from '@/components/ui/country-flag'
 import { raceStartDate, getTimeLeft, formatLocalStart } from '@/lib/race-time'
 import { useNowSeconds } from '@/lib/use-now'
-import type { Race } from '@/lib/types'
+import type { Race, WeekendSession } from '@/lib/types'
 
 interface NextRaceCountdownProps {
   race: Race
   seasonYear: number
+  /** Weekend sessions, so the countdown can target the next one on track. */
+  sessions?: WeekendSession[]
 }
 
-export function NextRaceCountdown({ race, seasonYear }: NextRaceCountdownProps) {
-  const target = useMemo(() => raceStartDate(race), [race])
+export function NextRaceCountdown({ race, seasonYear, sessions }: NextRaceCountdownProps) {
+  const nowSeconds = useNowSeconds()
+
+  // Once a weekend is under way, counting down to Sunday is the wrong answer:
+  // the next thing that happens is practice or qualifying.
+  const nextSession = useMemo(() => {
+    if (nowSeconds === null || !sessions?.length) return null
+    const now = nowSeconds * 1000
+    return sessions.find((s) => s.startTime && new Date(s.startTime).getTime() > now) ?? null
+  }, [sessions, nowSeconds])
+
+  const raceTarget = useMemo(() => raceStartDate(race), [race])
+  const target = nextSession?.startTime ? new Date(nextSession.startTime) : raceTarget
 
   // Null while server-rendering: both the remaining time and the local-time
   // label depend on the viewer's clock and timezone.
-  const nowSeconds = useNowSeconds()
   const timeLeft =
     target && nowSeconds !== null ? getTimeLeft(target, new Date(nowSeconds * 1000)) : null
 
   // Only hide the card once we know client-side that the race has started.
   if (nowSeconds !== null && !timeLeft) return null
 
-  const localStart = nowSeconds !== null && race.startTime ? formatLocalStart(race.startTime) : null
+  const startTime = nextSession?.startTime ?? race.startTime
+  const localStart = nowSeconds !== null && startTime ? formatLocalStart(startTime) : null
 
   return (
     <Link
@@ -36,7 +49,9 @@ export function NextRaceCountdown({ race, seasonYear }: NextRaceCountdownProps) 
         <div className="space-y-1.5">
           <p className="text-muted-foreground flex items-center gap-1.5 text-xs font-medium tracking-widest uppercase">
             <Clock className="h-3.5 w-3.5" />
-            Next Race — Round {race.round}
+            {nextSession && nextSession.kind !== 'RACE'
+              ? `Next Up — ${nextSession.label}`
+              : `Next Race — Round ${race.round}`}
           </p>
           <h3 className="group-hover:text-primary text-lg font-bold transition-colors">
             {race.name}
@@ -52,7 +67,10 @@ export function NextRaceCountdown({ race, seasonYear }: NextRaceCountdownProps) 
             </span>
           </div>
           {localStart && (
-            <p className="text-muted-foreground/80 text-xs">Lights out {localStart} your time</p>
+            <p className="text-muted-foreground/80 text-xs">
+              {nextSession && nextSession.kind !== 'RACE' ? 'Starts' : 'Lights out'} {localStart}{' '}
+              your time
+            </p>
           )}
         </div>
 

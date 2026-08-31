@@ -15,13 +15,26 @@ from src.db.models import (
     QualifyingResult,
     Race,
     RaceResult,
+    RaceSession,
     Season,
     SprintResult,
 )
 from src.ingestion.base import BaseIngestor, api_call, clean, is_interrupted
 
+# The Ergast schedule already carries every session of the weekend; these are
+# the (kind, date column, time column) triples it exposes. Sprint weekends
+# simply leave the sessions they replace empty.
+_SESSION_COLUMNS = (
+    ("FP1", "fp1Date", "fp1Time"),
+    ("FP2", "fp2Date", "fp2Time"),
+    ("FP3", "fp3Date", "fp3Time"),
+    ("SPRINT", "sprintDate", "sprintTime"),
+    ("QUALIFYING", "qualifyingDate", "qualifyingTime"),
+)
+
 # Child tables keyed by race_id, in FK-safe delete order (children before races).
 _RACE_CHILD_TABLES = (
+    RaceSession,
     LapTime,
     PitStop,
     SprintResult,
@@ -59,6 +72,25 @@ def _parse_time(val):
     if hasattr(val, "time"):
         return val.time()
     return None
+
+
+def _parse_sessions(race_id: str, row) -> list[dict]:
+    """Weekend sessions from a schedule row, skipping those the weekend lacks."""
+    sessions = []
+    for kind, date_column, time_column in _SESSION_COLUMNS:
+        session_date = _parse_date(row.get(date_column))
+        if session_date is None:
+            continue
+        sessions.append(
+            {
+                "id": f"{race_id}_S_{kind}",
+                "race_id": race_id,
+                "kind": kind,
+                "date": session_date,
+                "time": _parse_time(row.get(time_column)),
+            }
+        )
+    return sessions
 
 
 class RaceIngestor(BaseIngestor):
@@ -152,6 +184,7 @@ class RaceIngestor(BaseIngestor):
                     "date": _parse_date(row.get("raceDate")),
                     "time": _parse_time(row.get("raceTime")),
                     "url": clean(row.get("raceUrl")),
+                    "sessions": _parse_sessions(f"{year}_{rnd:02d}", row),
                 }
             )
         return races
@@ -189,7 +222,10 @@ class RaceIngestor(BaseIngestor):
         self.db.execute(delete(Race).where(Race.season_year == year))
 
     def _upsert(self, canonical: list[dict]) -> int:
-        """Insert/update each canonical race by its (year, round) id."""
+        """Insert/update each canonical race, and its weekend sessions, by id."""
         for c in canonical:
-            self.db.merge(Race(**c))
+            race = {k: v for k, v in c.items() if k != "sessions"}
+            self.db.merge(Race(**race))
+            for session in c.get("sessions", ()):
+                self.db.merge(RaceSession(**session))
         return len(canonical)

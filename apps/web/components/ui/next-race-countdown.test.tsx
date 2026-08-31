@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { NextRaceCountdown } from './next-race-countdown'
-import type { Race } from '@/lib/types'
+import type { Race, WeekendSession } from '@/lib/types'
 
 const circuit = {
   id: 'albert_park',
@@ -63,6 +63,61 @@ describe('NextRaceCountdown', () => {
     vi.setSystemTime(new Date('2026-03-08T06:00:00Z'))
     const { container } = render(<NextRaceCountdown race={makeRace()} seasonYear={2026} />)
     expect(container).toBeEmptyDOMElement()
+  })
+
+  describe('with a weekend schedule', () => {
+    const sessions: WeekendSession[] = [
+      {
+        kind: 'FP1',
+        label: 'Practice 1',
+        date: '2026-03-06',
+        time: '09:30:00',
+        startTime: '2026-03-06T09:30:00Z',
+      },
+      {
+        kind: 'QUALIFYING',
+        label: 'Qualifying',
+        date: '2026-03-07',
+        time: '12:00:00',
+        startTime: '2026-03-07T12:00:00Z',
+      },
+      {
+        kind: 'RACE',
+        label: 'Race',
+        date: '2026-03-08',
+        time: '05:00:00',
+        startTime: '2026-03-08T05:00:00Z',
+      },
+    ]
+
+    it('counts down to the next session, not to Sunday', () => {
+      render(<NextRaceCountdown race={makeRace()} seasonYear={2026} sessions={sessions} />)
+
+      // 1 March -> Practice 1 on 6 March is 5 days out; the race is 7.
+      expect(screen.getByText('05')).toBeInTheDocument()
+      expect(screen.getByText(/practice 1/i)).toBeInTheDocument()
+    })
+
+    it('moves to qualifying once practice has run', () => {
+      vi.setSystemTime(new Date('2026-03-06T11:00:00Z'))
+      render(<NextRaceCountdown race={makeRace()} seasonYear={2026} sessions={sessions} />)
+
+      expect(screen.getByText(/qualifying/i)).toBeInTheDocument()
+    })
+
+    it('falls back to the race once every other session has run', () => {
+      vi.setSystemTime(new Date('2026-03-07T14:00:00Z'))
+      render(<NextRaceCountdown race={makeRace()} seasonYear={2026} sessions={sessions} />)
+
+      expect(screen.getByText(/next race — round 1/i)).toBeInTheDocument()
+    })
+
+    it('counts down to the race when no schedule is available', () => {
+      render(<NextRaceCountdown race={makeRace()} seasonYear={2026} sessions={[]} />)
+
+      expect(screen.getByText(/next race — round 1/i)).toBeInTheDocument()
+      expect(screen.getByText('07')).toBeInTheDocument()
+    })
   })
 
   it('links to the race detail page', () => {

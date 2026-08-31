@@ -3,14 +3,17 @@ import { render, screen } from '@testing-library/react'
 import { TeammateBattles } from './teammate-battles'
 import type { TeammateTeam } from '@/lib/types'
 
-function team(overrides: Partial<TeammateTeam> = {}): TeammateTeam {
+// Takes pairings explicitly rather than a Partial<TeammateTeam>: TypeScript
+// resolves a property named `constructor` against Object.prototype in a
+// partial, which does not typecheck.
+function team(pairings?: TeammateTeam['pairings']): TeammateTeam {
   return {
     constructor: {
       ref: 'red_bull',
       name: 'Red Bull',
       color: '#4781D7',
     } as TeammateTeam['constructor'],
-    pairings: [
+    pairings: pairings ?? [
       {
         sharedRaces: 24,
         race: { a: 19, b: 0, compared: 19 },
@@ -23,7 +26,6 @@ function team(overrides: Partial<TeammateTeam> = {}): TeammateTeam {
         b: { driver: { ref: 'perez', lastName: 'Pérez' } as never, points: 138, bestFinish: 2 },
       },
     ],
-    ...overrides,
   }
 }
 
@@ -65,15 +67,13 @@ describe('TeammateBattles', () => {
   })
 
   it('hides one-off stand-in pairings', () => {
-    const standIn = team({
-      pairings: [
-        {
-          ...team().pairings[0],
-          sharedRaces: 1,
-          a: { driver: { ref: 'bearman', lastName: 'Bearman' } as never, points: 6, bestFinish: 7 },
-        },
-      ],
-    })
+    const standIn = team([
+      {
+        ...team().pairings[0],
+        sharedRaces: 1,
+        a: { driver: { ref: 'bearman', lastName: 'Bearman' } as never, points: 6, bestFinish: 7 },
+      },
+    ])
     render(<TeammateBattles teams={[standIn]} />)
     expect(screen.queryByText('Bearman')).not.toBeInTheDocument()
     expect(screen.getByText(/no teammate pairings/i)).toBeInTheDocument()

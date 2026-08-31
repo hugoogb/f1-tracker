@@ -331,3 +331,23 @@ class RaceControlMessage(Base):
     driver_number: Mapped[str | None] = mapped_column(String)
 
     race: Mapped["Race"] = relationship()
+
+
+class RaceSession(Base):
+    """A non-race session of a Grand Prix weekend: practice, qualifying, sprint.
+
+    The race itself is not stored here — it already lives on `Race` — so this
+    table holds only the sessions that lead up to it.
+    """
+
+    __tablename__ = "race_sessions"
+    __table_args__ = (UniqueConstraint("race_id", "kind"),)
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=new_uuid)
+    race_id: Mapped[str] = mapped_column(ForeignKey("races.id"), index=True)
+    # FP1, FP2, FP3, QUALIFYING, SPRINT
+    kind: Mapped[str] = mapped_column(String)
+    date: Mapped[str | None] = mapped_column(Date)
+    time: Mapped[str | None] = mapped_column(Time)
+
+    race: Mapped["Race"] = relationship()

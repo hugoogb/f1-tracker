@@ -1,7 +1,13 @@
 import Link from 'next/link'
 import { Calendar, Users, Building2, MapPin, Flag, Trophy } from 'lucide-react'
 import { api } from '@/lib/api'
-import type { DriverStanding, ConstructorStanding, Race, SeasonChampion } from '@/lib/types'
+import type {
+  DriverStanding,
+  ConstructorStanding,
+  Race,
+  SeasonChampion,
+  WeekendSession,
+} from '@/lib/types'
 import { CountryFlag } from '@/components/ui/country-flag'
 import { DriverAvatar } from '@/components/ui/driver-avatar'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -73,6 +79,19 @@ export default async function Home() {
   const now = new Date()
   const nextRace = races.find((r) => new Date(r.date) > now) ?? null
 
+  // The weekend's session times live on the race detail, so fetch it for the
+  // upcoming round: the countdown should target the next session on track, not
+  // Sunday, once practice has begun.
+  let nextRaceSessions: WeekendSession[] = []
+  if (nextRace) {
+    const detail = await Promise.allSettled([
+      api.races.get(latestYear, nextRace.round) as Promise<{ sessions?: WeekendSession[] }>,
+    ])
+    if (detail[0].status === 'fulfilled') {
+      nextRaceSessions = detail[0].value.sessions ?? []
+    }
+  }
+
   return (
     <div className="space-y-10">
       {/* Hero Section */}
@@ -105,7 +124,7 @@ export default async function Home() {
       {/* Next Race Countdown */}
       {nextRace && (
         <FadeIn>
-          <NextRaceCountdown race={nextRace} seasonYear={latestYear} />
+          <NextRaceCountdown race={nextRace} seasonYear={latestYear} sessions={nextRaceSessions} />
         </FadeIn>
       )}
 

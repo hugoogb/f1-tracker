@@ -16,6 +16,7 @@ import type {
   GapsResponse,
   WeatherResponse,
   RaceControlResponse,
+  WeekendSession,
 } from '@/lib/types'
 import { CountryFlag } from '@/components/ui/country-flag'
 import { Breadcrumbs } from '@/components/layout/breadcrumbs'
@@ -32,6 +33,7 @@ import { TyreDegradationChart } from '@/components/races/tyre-degradation-chart'
 import { GapChart } from '@/components/races/gap-chart'
 import { StintPaceTable } from '@/components/races/stint-pace-table'
 import { WeatherCard } from '@/components/races/weather-card'
+import { WeekendSchedule } from '@/components/races/weekend-schedule'
 import { TyreStrategyChart } from '@/components/races/tyre-strategy-chart'
 import { PositionChart } from '@/components/races/position-chart'
 import { RaceTabs } from './race-tabs'
@@ -42,6 +44,7 @@ export const dynamic = 'force-dynamic'
 interface RaceDetailResponse extends Race {
   fastestLap: FastestLap | null
   results: RaceResult[]
+  sessions?: WeekendSession[]
 }
 
 interface QualifyingResponse {
@@ -252,6 +255,8 @@ export default async function RaceDetailPage({
       </FadeIn>
 
       <PodiumCard podium={podium} />
+
+      {race.sessions && race.sessions.length > 1 && <WeekendSchedule sessions={race.sessions} />}
 
       {race.fastestLap && <FastestLapCard fastestLap={race.fastestLap} />}
 

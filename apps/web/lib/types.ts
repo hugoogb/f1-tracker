@@ -61,6 +61,14 @@ export interface Race {
   url?: string
 }
 
+export interface WeekendSession {
+  kind: string
+  label: string
+  date: string | null
+  time: string | null
+  startTime: string | null
+}
+
 export interface RaceResult {
   id: string
   raceId: string
