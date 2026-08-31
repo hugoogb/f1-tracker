@@ -8,6 +8,7 @@ interface SeasonTabsProps {
   heatmapContent?: ReactNode
   driverStandingsContent: ReactNode
   constructorStandingsContent: ReactNode
+  teammatesContent?: ReactNode
 }
 
 export function SeasonTabs({
@@ -15,6 +16,7 @@ export function SeasonTabs({
   heatmapContent,
   driverStandingsContent,
   constructorStandingsContent,
+  teammatesContent,
 }: SeasonTabsProps) {
   return (
     <Tabs defaultValue={0}>
@@ -23,11 +25,13 @@ export function SeasonTabs({
         {heatmapContent !== undefined && <TabsTrigger value={1}>Heatmap</TabsTrigger>}
         <TabsTrigger value={2}>Driver Standings</TabsTrigger>
         <TabsTrigger value={3}>Constructor Standings</TabsTrigger>
+        {teammatesContent !== undefined && <TabsTrigger value={4}>Teammates</TabsTrigger>}
       </TabsList>
       <TabsContent value={0}>{racesContent}</TabsContent>
       {heatmapContent !== undefined && <TabsContent value={1}>{heatmapContent}</TabsContent>}
       <TabsContent value={2}>{driverStandingsContent}</TabsContent>
       <TabsContent value={3}>{constructorStandingsContent}</TabsContent>
+      {teammatesContent !== undefined && <TabsContent value={4}>{teammatesContent}</TabsContent>}
     </Tabs>
   )
 }

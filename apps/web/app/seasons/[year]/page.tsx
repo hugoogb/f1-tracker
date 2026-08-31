@@ -10,6 +10,7 @@ import type {
   ConstructorProgressionResponse,
   SeasonHeatmapResponse,
   TitleRaceResponse,
+  TeammatesResponse,
 } from '@/lib/types'
 import { CountryFlag } from '@/components/ui/country-flag'
 import { Breadcrumbs } from '@/components/layout/breadcrumbs'
@@ -29,6 +30,7 @@ import { ConstructorPointsChart } from '@/components/charts/constructor-points-c
 import { ChampionshipProgressionChart } from '@/components/charts/championship-progression-chart'
 import { SeasonHeatmap } from '@/components/charts/season-heatmap'
 import { TitleRaceCard } from '@/components/standings/title-race-card'
+import { TeammateBattles } from '@/components/standings/teammate-battles'
 import { SeasonTabs } from './season-tabs'
 import { FadeIn } from '@/components/ui/motion'
 
@@ -71,6 +73,7 @@ export default async function SeasonDetailPage({ params }: { params: Promise<{ y
     constructorProgressionResult,
     heatmapResult,
     titleRaceResult,
+    teammatesResult,
   ] = await Promise.allSettled([
     api.seasons.get(year) as Promise<SeasonDetailResponse>,
     api.seasons.driverStandings(year) as Promise<DriverStandingsResponse>,
@@ -79,6 +82,7 @@ export default async function SeasonDetailPage({ params }: { params: Promise<{ y
     api.seasons.constructorProgression(year) as Promise<ConstructorProgressionResponse>,
     api.seasons.heatmap(year) as Promise<SeasonHeatmapResponse>,
     api.seasons.titleRace(year) as Promise<TitleRaceResponse>,
+    api.seasons.teammates(year) as Promise<TeammatesResponse>,
   ])
 
   if (season.status === 'rejected') notFound()
@@ -98,6 +102,10 @@ export default async function SeasonDetailPage({ params }: { params: Promise<{ y
   const titleRace =
     titleRaceResult.status === 'fulfilled' && titleRaceResult.value.roundsRemaining > 0
       ? titleRaceResult.value
+      : null
+  const teammates =
+    teammatesResult.status === 'fulfilled' && teammatesResult.value.teams.length > 0
+      ? teammatesResult.value
       : null
 
   return (
@@ -174,6 +182,7 @@ export default async function SeasonDetailPage({ params }: { params: Promise<{ y
             <ConstructorStandingsTable standings={constructorStandingsData.standings} />
           </>
         }
+        teammatesContent={teammates ? <TeammateBattles teams={teammates.teams} /> : undefined}
       />
     </div>
   )

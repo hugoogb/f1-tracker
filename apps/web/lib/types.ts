@@ -304,6 +304,39 @@ export interface GapsResponse {
   drivers: DriverGaps[]
 }
 
+// Teammate head-to-head
+
+export interface HeadToHeadTally {
+  a: number
+  b: number
+  /** Rounds where both were comparable; retirements are excluded. */
+  compared: number
+}
+
+export interface TeammateSide {
+  driver: Driver
+  points: number
+  bestFinish: number | null
+}
+
+export interface TeammatePairing {
+  sharedRaces: number
+  race: HeadToHeadTally
+  qualifying: HeadToHeadTally
+  a: TeammateSide
+  b: TeammateSide
+}
+
+export interface TeammateTeam {
+  constructor: Constructor
+  pairings: TeammatePairing[]
+}
+
+export interface TeammatesResponse {
+  year: number
+  teams: TeammateTeam[]
+}
+
 // Weather and race control (2018+)
 
 export interface WeatherSample {
