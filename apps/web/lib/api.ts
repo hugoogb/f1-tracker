@@ -81,6 +81,10 @@ export const api = {
     positions: (year: number, round: number) =>
       fetchApi(`/seasons/${year}/races/${round}/positions`),
     laps: (year: number, round: number) => fetchApi(`/seasons/${year}/races/${round}/laps`),
+    tyreDegradation: (year: number, round: number) =>
+      fetchApi(`/seasons/${year}/races/${round}/tyre-degradation`),
+    stints: (year: number, round: number) => fetchApi(`/seasons/${year}/races/${round}/stints`),
+    gaps: (year: number, round: number) => fetchApi(`/seasons/${year}/races/${round}/gaps`),
   },
   champions: () => fetchApi('/champions'),
   search: (query: string) => {

@@ -234,6 +234,76 @@ export interface LapsResponse {
   drivers: DriverLaps[]
 }
 
+// Race pace analysis (derived from lap times, 2018+)
+
+export interface DegradationPoint {
+  tyreLife: number
+  /** Median lap time as driven. */
+  medianMs: number
+  /** Median lap time normalized to an end-of-race fuel load. */
+  fuelCorrectedMedianMs: number
+  samples: number
+}
+
+export interface CompoundDegradation {
+  compound: string
+  points: DegradationPoint[]
+  /** Fitted degradation on fuel-corrected times. Null when the sample is too thin. */
+  degradationMsPerLap: number | null
+  /** Fitted trend on times as driven, which fuel burn-off flatters. */
+  rawTrendMsPerLap: number | null
+  samples: number
+  fastestMs: number
+}
+
+export interface TyreDegradationResponse {
+  raceId: string
+  cleanLapThreshold: number
+  fuelEffectMsPerLap: number
+  compounds: CompoundDegradation[]
+}
+
+export interface Stint {
+  stint: number
+  compound: string | null
+  startLap: number
+  endLap: number
+  laps: number
+  medianMs: number | null
+  bestMs: number | null
+  degradationMsPerLap: number | null
+}
+
+export interface DriverStints {
+  driver: Driver
+  constructor: Constructor
+  position: number | null
+  stints: Stint[]
+}
+
+export interface StintsResponse {
+  raceId: string
+  drivers: DriverStints[]
+}
+
+export interface LapGap {
+  lap: number
+  gapMs: number
+}
+
+export interface DriverGaps {
+  driver: Driver
+  constructor: Constructor
+  position: number | null
+  gaps: LapGap[]
+}
+
+export interface GapsResponse {
+  raceId: string
+  totalLaps: number
+  drivers: DriverGaps[]
+}
+
 export interface PaginatedResponse<T> {
   data: T[]
   total: number

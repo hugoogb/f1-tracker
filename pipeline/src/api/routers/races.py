@@ -4,6 +4,14 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from src.api.lap_analysis import (
+    CLEAN_LAP_THRESHOLD,
+    FUEL_EFFECT_MS_PER_LAP,
+    LapSample,
+    degradation_by_compound,
+    gaps_to_leader,
+    stint_summary,
+)
 from src.api.serializers import constructor_compact, driver_summary, race_timing
 from src.db.database import get_db
 from src.db.models import Driver, LapTime, PitStop, QualifyingResult, Race, RaceResult, SprintResult
@@ -544,3 +552,108 @@ def get_pitstops_analysis(year: int, round: int, db: Session = Depends(get_db)):
         "teamAverages": team_averages,
         "distribution": distribution,
     }
+
+
+def _race_or_404(db: Session, year: int, round: int) -> Race:
+    race = db.execute(
+        select(Race).where(Race.season_year == year, Race.round == round)
+    ).scalar_one_or_none()
+    if not race:
+        raise HTTPException(status_code=404, detail="Race not found")
+    return race
+
+
+def _lap_samples(db: Session, race_id: str) -> list[LapSample]:
+    laps = (
+        db.execute(select(LapTime).where(LapTime.race_id == race_id).order_by(LapTime.lap_number))
+        .scalars()
+        .all()
+    )
+    return [
+        LapSample(
+            driver_id=lap.driver_id,
+            lap_number=lap.lap_number,
+            time_ms=lap.time_millis,
+            compound=lap.compound,
+            stint=lap.stint,
+            tyre_life=lap.tyre_life,
+        )
+        for lap in laps
+    ]
+
+
+def _driver_entries(db: Session, race_id: str) -> tuple[dict, dict, dict]:
+    """Driver, constructor and finishing-position lookups keyed by driver id."""
+    results = (
+        db.execute(
+            select(RaceResult).where(RaceResult.race_id == race_id).order_by(RaceResult.position)
+        )
+        .scalars()
+        .all()
+    )
+    drivers = {r.driver_id: r.driver for r in results}
+    constructors = {r.driver_id: r.constructor for r in results}
+    positions = {r.driver_id: r.position for r in results}
+    return drivers, constructors, positions
+
+
+@router.get("/seasons/{year}/races/{round}/tyre-degradation")
+def get_tyre_degradation(year: int, round: int, db: Session = Depends(get_db)):
+    """Lap time against tyre age per compound (2018+, where lap data exists)."""
+    race = _race_or_404(db, year, round)
+    compounds = degradation_by_compound(_lap_samples(db, race.id))
+
+    return {
+        "raceId": race.id,
+        "cleanLapThreshold": CLEAN_LAP_THRESHOLD,
+        "fuelEffectMsPerLap": FUEL_EFFECT_MS_PER_LAP,
+        "compounds": compounds,
+    }
+
+
+@router.get("/seasons/{year}/races/{round}/stints")
+def get_stints(year: int, round: int, db: Session = Depends(get_db)):
+    """Per-driver stint breakdown: compound, lap range, pace and degradation."""
+    race = _race_or_404(db, year, round)
+    summary = stint_summary(_lap_samples(db, race.id))
+    drivers, constructors, positions = _driver_entries(db, race.id)
+
+    entries = [
+        {
+            "driver": driver_summary(drivers[driver_id]),
+            "constructor": constructor_compact(constructors[driver_id])
+            if constructors.get(driver_id)
+            else {},
+            "position": positions.get(driver_id),
+            "stints": stints,
+        }
+        for driver_id, stints in summary.items()
+        if driver_id in drivers
+    ]
+    entries.sort(key=lambda entry: entry["position"] or 999)
+
+    return {"raceId": race.id, "drivers": entries}
+
+
+@router.get("/seasons/{year}/races/{round}/gaps")
+def get_gaps(year: int, round: int, db: Session = Depends(get_db)):
+    """Cumulative gap to the race leader, lap by lap."""
+    race = _race_or_404(db, year, round)
+    gaps, total_laps = gaps_to_leader(_lap_samples(db, race.id))
+    drivers, constructors, positions = _driver_entries(db, race.id)
+
+    entries = [
+        {
+            "driver": driver_summary(drivers[driver_id]),
+            "constructor": constructor_compact(constructors[driver_id])
+            if constructors.get(driver_id)
+            else {},
+            "position": positions.get(driver_id),
+            "gaps": series,
+        }
+        for driver_id, series in gaps.items()
+        if driver_id in drivers
+    ]
+    entries.sort(key=lambda entry: entry["position"] or 999)
+
+    return {"raceId": race.id, "totalLaps": total_laps, "drivers": entries}

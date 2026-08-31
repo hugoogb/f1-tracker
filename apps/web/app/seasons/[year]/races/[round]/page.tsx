@@ -11,6 +11,9 @@ import type {
   FastestSectors,
   PitStopAnalysis,
   PositionsResponse,
+  TyreDegradationResponse,
+  StintsResponse,
+  GapsResponse,
 } from '@/lib/types'
 import { CountryFlag } from '@/components/ui/country-flag'
 import { Breadcrumbs } from '@/components/layout/breadcrumbs'
@@ -23,6 +26,9 @@ import { SprintTable } from '@/components/races/sprint-table'
 import { PitStopsTable } from '@/components/races/pit-stops-table'
 import { PitStopAnalysisView } from '@/components/races/pit-stop-analysis'
 import { LapTimesChart } from '@/components/races/lap-times-chart'
+import { TyreDegradationChart } from '@/components/races/tyre-degradation-chart'
+import { GapChart } from '@/components/races/gap-chart'
+import { StintPaceTable } from '@/components/races/stint-pace-table'
 import { TyreStrategyChart } from '@/components/races/tyre-strategy-chart'
 import { PositionChart } from '@/components/races/position-chart'
 import { RaceTabs } from './race-tabs'
@@ -91,6 +97,9 @@ export default async function RaceDetailPage({
   let pitStopAnalysis: PitStopAnalysis | null = null
   let positions: PositionsResponse | null = null
   let laps: LapsResponse | null = null
+  let tyreDegradation: TyreDegradationResponse | null = null
+  let stints: StintsResponse | null = null
+  let gaps: GapsResponse | null = null
 
   try {
     const [
@@ -101,6 +110,9 @@ export default async function RaceDetailPage({
       pitStopAnalysisResult,
       positionsResult,
       lapsResult,
+      tyreDegradationResult,
+      stintsResult,
+      gapsResult,
     ] = await Promise.allSettled([
       api.races.get(year, round) as Promise<RaceDetailResponse>,
       api.races.qualifying(year, round) as Promise<QualifyingResponse>,
@@ -118,6 +130,15 @@ export default async function RaceDetailPage({
         : Promise.reject('not applicable'),
       year >= 2018
         ? (api.races.laps(year, round) as Promise<LapsResponse>)
+        : Promise.reject('not applicable'),
+      year >= 2018
+        ? (api.races.tyreDegradation(year, round) as Promise<TyreDegradationResponse>)
+        : Promise.reject('not applicable'),
+      year >= 2018
+        ? (api.races.stints(year, round) as Promise<StintsResponse>)
+        : Promise.reject('not applicable'),
+      year >= 2018
+        ? (api.races.gaps(year, round) as Promise<GapsResponse>)
         : Promise.reject('not applicable'),
     ])
 
@@ -144,6 +165,18 @@ export default async function RaceDetailPage({
     }
     if (lapsResult.status === 'fulfilled' && lapsResult.value.drivers?.length > 0) {
       laps = lapsResult.value
+    }
+    if (
+      tyreDegradationResult.status === 'fulfilled' &&
+      tyreDegradationResult.value.compounds?.length > 0
+    ) {
+      tyreDegradation = tyreDegradationResult.value
+    }
+    if (stintsResult.status === 'fulfilled' && stintsResult.value.drivers?.length > 0) {
+      stints = stintsResult.value
+    }
+    if (gapsResult.status === 'fulfilled' && gapsResult.value.drivers?.length > 0) {
+      gaps = gapsResult.value
     }
   } catch {
     notFound()
@@ -259,6 +292,32 @@ export default async function RaceDetailPage({
             <p className="text-muted-foreground text-sm">
               No lap time data available for this race.
             </p>
+          ) : undefined
+        }
+        paceContent={
+          tyreDegradation || stints || gaps ? (
+            <div className="space-y-8">
+              {tyreDegradation && (
+                <div>
+                  <h3 className="mb-3 text-sm font-medium">Tyre Degradation</h3>
+                  <TyreDegradationChart data={tyreDegradation} />
+                </div>
+              )}
+              {gaps && (
+                <div>
+                  <h3 className="mb-3 text-sm font-medium">Gap to Leader</h3>
+                  <GapChart drivers={gaps.drivers} totalLaps={gaps.totalLaps} />
+                </div>
+              )}
+              {stints && (
+                <div>
+                  <h3 className="mb-3 text-sm font-medium">Stint Pace</h3>
+                  <StintPaceTable drivers={stints.drivers} />
+                </div>
+              )}
+            </div>
+          ) : year >= 2018 ? (
+            <p className="text-muted-foreground text-sm">No pace data available for this race.</p>
           ) : undefined
         }
       />
