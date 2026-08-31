@@ -11,7 +11,7 @@ import { FadeIn, StaggerList, StaggerItem } from '@/components/ui/motion'
 export const dynamic = 'force-dynamic'
 
 export const metadata = {
-  title: 'Champions | F1 Tracker',
+  title: 'Champions',
   description: 'Formula 1 World Champions throughout history',
 }
 

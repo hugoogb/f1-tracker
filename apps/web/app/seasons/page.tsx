@@ -8,7 +8,7 @@ import { FadeIn, StaggerList, StaggerItem, MotionCard } from '@/components/ui/mo
 export const dynamic = 'force-dynamic'
 
 export const metadata = {
-  title: 'Seasons | F1 Tracker',
+  title: 'Seasons',
   description: 'Browse every Formula 1 season from 1950 to today.',
 }
 

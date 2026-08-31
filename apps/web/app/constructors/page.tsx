@@ -19,7 +19,7 @@ import { FadeIn } from '@/components/ui/motion'
 export const dynamic = 'force-dynamic'
 
 export const metadata = {
-  title: 'Constructors | F1 Tracker',
+  title: 'Constructors',
   description: 'Browse all Formula 1 constructors throughout history',
 }
 

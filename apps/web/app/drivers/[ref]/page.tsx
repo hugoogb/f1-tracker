@@ -30,9 +30,13 @@ interface DriverDetail extends Driver {
 export async function generateMetadata({ params }: { params: Promise<{ ref: string }> }) {
   const { ref } = await params
   const driver = (await api.drivers.get(ref)) as DriverDetail
+  const title = `${driver.firstName} ${driver.lastName}`
+  const description = `Career stats for ${driver.firstName} ${driver.lastName}`
   return {
-    title: `${driver.firstName} ${driver.lastName} | F1 Tracker`,
-    description: `Career stats for ${driver.firstName} ${driver.lastName}`,
+    title,
+    description,
+    openGraph: { title, description },
+    twitter: { title, description },
   }
 }
 

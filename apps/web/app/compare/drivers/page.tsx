@@ -48,16 +48,16 @@ export async function generateMetadata({
   searchParams: Promise<{ d1?: string; d2?: string }>
 }) {
   const params = await searchParams
-  if (!params.d1 || !params.d2) return { title: 'Compare Drivers | F1 Tracker' }
+  if (!params.d1 || !params.d2) return { title: 'Compare Drivers' }
 
   try {
     const data = (await api.compare.drivers(params.d1, params.d2)) as CompareResponse
     return {
-      title: `${data.driver1.lastName} vs ${data.driver2.lastName} | F1 Tracker`,
+      title: `${data.driver1.lastName} vs ${data.driver2.lastName}`,
       description: `Head-to-head comparison of ${data.driver1.firstName} ${data.driver1.lastName} and ${data.driver2.firstName} ${data.driver2.lastName}`,
     }
   } catch {
-    return { title: 'Compare Drivers | F1 Tracker' }
+    return { title: 'Compare Drivers' }
   }
 }
 

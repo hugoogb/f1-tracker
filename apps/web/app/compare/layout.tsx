@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'Compare Drivers | F1 Tracker',
+  title: 'Compare Drivers',
   description: 'Compare two Formula 1 drivers head-to-head with career stats and season history',
 }
 

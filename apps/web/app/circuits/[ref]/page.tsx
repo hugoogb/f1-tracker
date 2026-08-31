@@ -40,7 +40,7 @@ export async function generateMetadata({ params }: { params: Promise<{ ref: stri
   const { ref } = await params
   const circuit = (await api.circuits.get(ref)) as CircuitDetail
   return {
-    title: `${circuit.name} | F1 Tracker`,
+    title: `${circuit.name}`,
     description: `Race history at ${circuit.name}, ${circuit.location}, ${circuit.country}`,
   }
 }

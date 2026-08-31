@@ -69,16 +69,20 @@ export async function generateMetadata({
   const yearNum = parseInt(year, 10)
   const roundNum = parseInt(round, 10)
 
-  if (isNaN(yearNum) || isNaN(roundNum)) return { title: 'Race | F1 Tracker' }
+  if (isNaN(yearNum) || isNaN(roundNum)) return { title: 'Race' }
 
   try {
     const race = (await api.races.get(yearNum, roundNum)) as RaceDetailResponse
+    const title = `${race.name} ${year}`
+    const description = `Results and qualifying for the ${year} ${race.name} at ${race.circuit.name}.`
     return {
-      title: `${race.name} ${year} | F1 Tracker`,
-      description: `Results and qualifying for the ${year} ${race.name} at ${race.circuit.name}.`,
+      title,
+      description,
+      openGraph: { title, description },
+      twitter: { title, description },
     }
   } catch {
-    return { title: 'Race | F1 Tracker' }
+    return { title: 'Race' }
   }
 }
 

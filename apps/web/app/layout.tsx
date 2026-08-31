@@ -19,7 +19,12 @@ const jetbrainsMono = JetBrains_Mono({
   subsets: ['latin'],
 })
 
+// OpenGraph and generated share-card URLs must be absolute. Without a base,
+// Next.js emits relative paths that crawlers cannot resolve.
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'
+
 export const metadata: Metadata = {
+  metadataBase: new URL(siteUrl),
   title: {
     default: 'F1 Tracker',
     template: '%s | F1 Tracker',

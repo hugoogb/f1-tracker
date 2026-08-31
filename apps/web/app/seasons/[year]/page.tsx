@@ -52,7 +52,7 @@ interface ConstructorStandingsResponse {
 export async function generateMetadata({ params }: { params: Promise<{ year: string }> }) {
   const { year } = await params
   return {
-    title: `${year} Season | F1 Tracker`,
+    title: `${year} Season`,
     description: `Races, driver standings, and constructor standings for the ${year} Formula 1 season.`,
   }
 }

@@ -36,7 +36,7 @@ export async function generateMetadata({
   searchParams: Promise<{ c1?: string; c2?: string }>
 }) {
   const params = await searchParams
-  if (!params.c1 || !params.c2) return { title: 'Compare Constructors | F1 Tracker' }
+  if (!params.c1 || !params.c2) return { title: 'Compare Constructors' }
 
   try {
     const data = (await api.compare.constructors(
@@ -44,11 +44,11 @@ export async function generateMetadata({
       params.c2,
     )) as CompareConstructorsResponse
     return {
-      title: `${data.constructor1.name} vs ${data.constructor2.name} | F1 Tracker`,
+      title: `${data.constructor1.name} vs ${data.constructor2.name}`,
       description: `Head-to-head comparison of ${data.constructor1.name} and ${data.constructor2.name}`,
     }
   } catch {
-    return { title: 'Compare Constructors | F1 Tracker' }
+    return { title: 'Compare Constructors' }
   }
 }
 

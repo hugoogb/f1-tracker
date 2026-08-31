@@ -21,7 +21,7 @@ import { RecordsTabs } from './records-tabs'
 export const dynamic = 'force-dynamic'
 
 export const metadata = {
-  title: 'Records | F1 Tracker',
+  title: 'Records',
   description: 'All-time Formula 1 records — most wins, poles, podiums, championships, and more.',
 }
 

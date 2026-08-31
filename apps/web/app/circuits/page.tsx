@@ -20,7 +20,7 @@ import { FadeIn } from '@/components/ui/motion'
 export const dynamic = 'force-dynamic'
 
 export const metadata = {
-  title: 'Circuits | F1 Tracker',
+  title: 'Circuits',
   description: 'Browse all Formula 1 circuits throughout history',
 }
 

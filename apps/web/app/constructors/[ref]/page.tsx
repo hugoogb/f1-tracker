@@ -26,9 +26,13 @@ interface ConstructorDetail extends Constructor {
 export async function generateMetadata({ params }: { params: Promise<{ ref: string }> }) {
   const { ref } = await params
   const constructor = (await api.constructors.get(ref)) as ConstructorDetail
+  const title = constructor.name
+  const description = `Career stats for ${constructor.name}`
   return {
-    title: `${constructor.name} | F1 Tracker`,
-    description: `Career stats for ${constructor.name}`,
+    title,
+    description,
+    openGraph: { title, description },
+    twitter: { title, description },
   }
 }
 
