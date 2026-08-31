@@ -98,3 +98,31 @@
 - [x] Expand backend test coverage: 18 → 44 tests (7 new test files, `race_seed_data` fixture)
 - [x] Add pre-commit hooks for Python (ruff check + format on staged .py files)
 - [x] Add CI security scanning (pip-audit for Python, pnpm audit for frontend)
+
+## Roadmap Pass (post-audit)
+
+### Tier 0 fixes
+- [x] Race start times: ingestor dropped every `raceTime` (bare `datetime.time` fell through `_parse_time`); serialize `time` + ISO `startTime`; countdown targets lights-out, not midnight
+- [x] `--refresh-schedule` so closed seasons can backfill schedule fields
+- [x] Search extended to races and seasons ("Monaco 2019"), with relevance ranking
+- [x] Driver three-letter codes: hardcoded to None in the ingestor; added `--refresh-drivers`
+
+### Features
+- [x] Tyre degradation, gap-to-leader and stint pace, derived from existing lap data (fuel-corrected)
+- [x] Championship permutation calculator (drivers + constructors)
+- [x] Weather + race control events, with safety car / VSC shading on the lap-axis charts
+- [x] Dynamic OpenGraph share cards for driver, constructor and race pages
+- [x] Per-season teammate head-to-head
+- [x] Race weekend schedule (practice/qualifying/sprint) + session-aware countdown
+
+### Engineering health
+- [x] Frontend test setup (vitest + testing-library) — the project had none
+- [x] `pnpm test` wired into CI
+- [x] Pre-commit hook fixed: ruff needs `--force-exclude` or every generated migration fails it
+- [x] Doubled page titles ("X | F1 Tracker | F1 Tracker") across 13 pages
+- [x] `metadataBase` + per-page OpenGraph titles
+- [x] Hydration mismatch in the countdown, replaced with `useSyncExternalStore`
+
+### Not done
+- [ ] Weather/race-control and weekend-session rows are not populated: Fast-F1's hosts were blocked in the environment this was built in. Run `seed.py --weather` and `seed.py --base --refresh-schedule` with network access
+- [ ] Admin panel — deferred; see Phase 4 in CLAUDE.md for the asset-storage blocker

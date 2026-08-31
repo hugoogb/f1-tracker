@@ -43,8 +43,8 @@ F1 analytics dashboard covering the complete history of Formula 1 (1950-present)
 - `components/ui/` - shadcn/ui base components (badge, button, card, table, tabs, sheet, dialog, dropdown-menu, country-flag, driver-avatar, constructor-logo, empty-state, motion, page-header, position-badge, sonner, stat-card, next-race-countdown)
 - `components/layout/` - Header, footer, mobile nav, breadcrumbs, search dialog, theme toggle, nav link
 - `components/charts/` - Recharts visualizations (points bar, constructor points, career line, comparison line, championship progression, season heatmap, quali-vs-race, driver radar)
-- `components/races/` - Race result tables (results with position change indicators, qualifying, sprint, pit stops, lap-times-chart, tyre-strategy-chart, position-chart, pit-stop-analysis, podium-card, fastest-lap-card)
-- `components/standings/` - Driver + constructor standings tables
+- `components/races/` - Race result tables (results with position change indicators, qualifying, sprint, pit stops, lap-times-chart, tyre-strategy-chart, position-chart, pit-stop-analysis, podium-card, fastest-lap-card, tyre-degradation-chart, gap-chart, stint-pace-table, weather-card, race-control-overlay, weekend-schedule)
+- `components/standings/` - Driver + constructor standings tables, title-race-card, teammate-battles
 - `components/drivers/` - Driver season history table
 - `components/constructors/` - Constructor season history table
 - `components/circuits/` - Track layout, world map, world map wrapper
@@ -65,6 +65,11 @@ F1 analytics dashboard covering the complete history of Formula 1 (1950-present)
 - `GET /api/seasons/{year}/races/{round}/pitstops/analysis` - Pit stop analysis (2012+)
 - `GET /api/seasons/{year}/races/{round}/positions` - Lap-by-lap positions (2018+)
 - `GET /api/seasons/{year}/races/{round}/laps` - Lap times + tyre strategy (2018+)
+- `GET /api/seasons/{year}/races/{round}/tyre-degradation` - Lap time vs tyre age per compound, fuel-corrected (2018+)
+- `GET /api/seasons/{year}/races/{round}/stints` - Per-driver stint pace and degradation (2018+)
+- `GET /api/seasons/{year}/races/{round}/gaps` - Cumulative gap to leader per lap (2018+)
+- `GET /api/seasons/{year}/races/{round}/weather` - Weather samples + summary (2018+)
+- `GET /api/seasons/{year}/races/{round}/race-control` - Messages + derived safety car periods (2018+)
 - `GET /api/drivers` - Drivers (pagination + nationality filter)
 - `GET /api/drivers/nationalities` - Distinct nationalities
 - `GET /api/drivers/{ref}` - Driver detail with career stats
@@ -80,12 +85,14 @@ F1 analytics dashboard covering the complete history of Formula 1 (1950-present)
 - `GET /api/circuits/{ref}` - Circuit detail with race history
 - `GET /api/circuits/{ref}/stats` - Circuit performance stats (most wins, poles, history)
 - `GET /api/champions` - All championship winners
-- `GET /api/search?q={query}` - Search drivers, constructors, circuits
+- `GET /api/search?q={query}` - Search drivers, constructors, circuits, races, seasons
 - `GET /api/compare/drivers?d1={ref}&d2={ref}&teammate=bool` - Driver comparison with H2H, quali H2H, radar stats
 - `GET /api/compare/constructors?c1={ref}&c2={ref}` - Constructor comparison with head-to-head
 - `GET /api/records` - All-time records (most wins, poles, podiums, championships, etc.)
 - `GET /api/seasons/{year}/standings/progression` - Round-by-round championship progression
 - `GET /api/seasons/{year}/heatmap` - Season results heatmap (driver × round grid)
+- `GET /api/seasons/{year}/title-race` - Who can still mathematically win the title
+- `GET /api/seasons/{year}/teammates` - Per-constructor intra-team head-to-head
 
 ## Commands
 
@@ -96,13 +103,17 @@ F1 analytics dashboard covering the complete history of Formula 1 (1950-present)
 - `pnpm dev` - Start Next.js dev server
 - `pnpm build` - Build for production
 - `pnpm lint` - Run ESLint
+- `pnpm test` - Run frontend unit tests (vitest)
 
 ### Backend (from `pipeline/`)
 - `uv run uvicorn src.api.main:app --reload` - Start FastAPI dev server
 - `uv run alembic upgrade head` - Run database migrations
 - `uv run alembic revision --autogenerate -m "description"` - Generate migration
 - `uv run python scripts/seed.py` - Run data ingestion
-- `uv run pytest -v` - Run backend tests (44 tests)
+- `uv run python scripts/seed.py --base --refresh-schedule --year-range 2005-2026` - Backfill schedule fields (race start times, weekend sessions) on closed seasons, which are otherwise skipped
+- `uv run python scripts/seed.py --base --refresh-drivers` - Backfill driver reference fields such as three-letter codes
+- `uv run python scripts/seed.py --weather` - Ingest weather + race control (2018+)
+- `uv run pytest -v` - Run backend tests
 - `uv run ruff check . && uv run ruff format --check .` - Lint + format check
 
 ### Data Updates
@@ -128,18 +139,37 @@ F1 analytics dashboard covering the complete history of Formula 1 (1950-present)
 - Use `Promise.allSettled` for optional data fetching (graceful degradation)
 - Client components (`'use client'`) only for interactive pieces (charts, filters, tabs, search)
 - Pre-commit: Husky runs lint-staged (prettier) + ruff check/format on staged `.py` files
-- CI: GitHub Actions — frontend (audit, format, lint, typecheck, build) + backend (ruff, pip-audit, pytest)
+- CI: GitHub Actions — frontend (audit, format, lint, typecheck, test, build) + backend (ruff, pip-audit, pytest)
+- Analysis logic lives in pure modules (`src/api/lap_analysis.py`, `championship.py`, `race_control.py`, `teammates.py`) taking plain dataclasses, so it is testable without a database
+- Frontend tests: vitest + testing-library, colocated as `*.test.ts(x)`
 
 ## Next Phases
 
 ### Phase 3 — Advanced Features
-- **Weather data** (2018+): Air/track temp, humidity, wind, rainfall from Fast-F1 — new `RaceWeather` model
-- **Race control events** (2018+): Safety cars, flags, penalties — timeline overlay on lap times chart
-- **Tyre degradation analysis**: Lap time vs tyre age per compound, derived from existing lap data
-- **Gap analysis chart**: Time gaps between drivers throughout a race, computed from lap times
+- [x] **Weather data** (2018+): Air/track temp, humidity, wind, rainfall — `RaceWeather` model
+- [x] **Race control events** (2018+): Safety cars, flags — shaded periods on the lap-axis charts
+- [x] **Tyre degradation analysis**: Lap time vs tyre age per compound, fuel-corrected
+- [x] **Gap analysis chart**: Cumulative gap to leader through a race
+- [x] **Race weekend schedule**: Practice/qualifying/sprint session times, `RaceSession` model
+- [x] **Championship permutations**: Who can still mathematically win the title
+- [x] **Teammate head-to-head**: Per-season intra-team race and qualifying battles
+- [x] **Dynamic OpenGraph cards**: Generated share images for driver, constructor and race pages
 - **Telemetry visualization** (2018+): Speed/throttle/brake traces — on-demand from Fast-F1 cache (not stored in DB)
 - **OpenF1 live data** (2023+): Real-time positions, intervals, team radio — WebSocket/SSE architecture
+
+### Phase 4 — Content management (admin panel)
+Driver headshots, constructor logos and team colours are sparsely populated
+(roughly 11%, 25% and 36% of rows respectively) and cannot be improved by more
+scraping — the upstream sources have been exhausted. Filling them needs a human
+in the loop, which means an admin panel. Note the blocker: images currently live
+as files under `apps/web/public/`, written by the ingestor and committed to the
+repo. Both Vercel and Render have read-only runtime filesystems, so an admin
+panel that writes there works locally and silently does nothing in production.
+The asset store has to move into the database or object storage first.
 
 ## Known Issues
 
 - Next.js 16 build requires `NODE_ENV=production` to avoid `_global-error` prerender bug
+- `race_results.status_id` is NULL for recent seasons, so finishing statuses are unavailable there. `position_text` still distinguishes a finish (a number) from a retirement ("R"), a withdrawal ("W") or a disqualification ("D") — use it, not `position`, to tell them apart, since retirements still carry a numeric position
+- Ingestors skip work that already exists, so a newly added field stays NULL on rows loaded before it. `--refresh-schedule` and `--refresh-drivers` exist to backfill; new fields generally need a comparable escape hatch
+- `docker/backups/latest.sql.gz` carries a `\restrict` header from pg_dump 16.14. Restoring with an older psql fails on the COPY terminators; strip those lines or use a matching client
