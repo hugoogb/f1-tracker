@@ -1,0 +1,33 @@
+# F1 Tracker API — Caddy site block for a VPS hosting several projects.
+#
+# Install (host Caddy):
+#   sudo cp deploy/caddy/f1-tracker.Caddyfile /etc/caddy/sites/f1-tracker.caddy
+#   # ensure /etc/caddy/Caddyfile ends with:  import sites/*.caddy
+#   sudo systemctl reload caddy
+#
+# One file per project keeps the projects separable; Caddy handles TLS certs
+# automatically. Replace the hostname with your own.
+#
+# The frontend stays on Vercel, so this only fronts the API. Because the browser
+# calls it cross-origin, CORS_ORIGINS in .env.prod must list the Vercel domain.
+
+f1-api.example.com {
+	encode zstd gzip
+
+	# Must match API_BIND/API_PORT in .env.prod.
+	reverse_proxy 127.0.0.1:8000
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+
+	log {
+		output file /var/log/caddy/f1-tracker-api.log {
+			roll_size 10mb
+			roll_keep 5
+		}
+	}
+}
