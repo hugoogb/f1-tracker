@@ -25,6 +25,23 @@ pagination helper in `src/ingestion/base.py` all become dead code for the core
 entities, and `src/api/country_codes.py` (106 hand-maintained lines) is replaced
 by f1db's own `countries` entity, which carries `alpha2Code` and `demonym`.
 
+## What jolpica-f1 is still doing
+
+Everything structural and historical. Of the 13 ingestion modules, six call the
+Ergast/jolpica API — `seasons`, `races`, `drivers`, `results`, `pit_stops` and
+the pagination/retry plumbing in `base` — and they populate seasons, circuits,
+drivers, constructors, races, race results, qualifying, sprint results and pit
+stops. That is the backbone of every page on the site.
+
+Two things it is *not* doing, which is why the migration is smaller than it
+looks:
+
+- **Standings are computed locally**, not fetched. `StandingsIngestor` derives
+  driver and constructor standings (points *and* wins) from `race_results` +
+  `sprint_results`.
+- **Circuit layouts are not fetched from it either** — those come from
+  f1-circuits-svg.
+
 ## What f1db does *not* have
 
 Fast-F1 stays for these; it is MIT and imposes no data-licence obligation:
@@ -55,8 +72,8 @@ Verified against f1db `src/data` at commit `e296528`.
 | `QualifyingResult` | `.../qualifying-results.yml` | `position`, `q1`, `q2`, `q3`. Sector times **not** present — Fast-F1 keeps supplying those. |
 | `SprintResult` | `.../sprint-race-results.yml` | Same shape as race results. `sprint-qualifying-results.yml` also available. |
 | `PitStop` | `.../pit-stops.yml` | `stop`, `lap`, `time`. |
-| `DriverStanding` | `.../driver-standings.yml` | `position`, `driverId`, `points`. **No `wins`** — see gaps. |
-| `ConstructorStanding` | `.../constructor-standings.yml` | `position`, `constructorId`, `points`. **No `wins`**. |
+| `DriverStanding` | *not needed* | Already computed locally by `StandingsIngestor` from `race_results` + `sprint_results`, including `wins`. f1db's standings files can serve as a cross-check but are not required. |
+| `ConstructorStanding` | *not needed* | Same — computed locally. |
 | `LapTime` | — | Fast-F1 only. Unchanged. |
 
 ### Nationality and country codes
@@ -67,12 +84,7 @@ and the constructor equivalents. Delete `src/api/country_codes.py`.
 
 ## Gaps and how to close them
 
-1. **`wins` on standings.** f1db standings carry points and position only.
-   Derive per race: count `race_results` rows with `position = 1` for that
-   driver/constructor up to and including that round. One SQL statement in the
-   existing post-process step; cheaper than the current per-round API calls.
-
-2. **`Status` table.** We store a normalised `statuses` table with a
+1. **`Status` table.** We store a normalised `statuses` table with a
    `status_id` FK on `RaceResult`. f1db has free-text `reasonRetired`
    (nullable, `null` = classified finisher). Either
    (a) build the `statuses` table from the distinct `reasonRetired` values at
@@ -80,15 +92,15 @@ and the constructor equivalents. Delete `src/api/country_codes.py`.
    `race_results.reason_retired` text column and drop the table. **(a) is the
    smaller diff** — it keeps the API shape identical.
 
-3. **`Race.url` / `Driver.url`.** Ergast supplied Wikipedia URLs; f1db does not
+2. **`Race.url` / `Driver.url`.** Ergast supplied Wikipedia URLs; f1db does not
    carry them in the same field. Drop the columns, or leave them null. Check
    whether the frontend renders them before deciding.
 
-4. **Fastest laps.** f1db has a dedicated `fastest-laps.yml` per race, which is
+3. **Fastest laps.** f1db has a dedicated `fastest-laps.yml` per race, which is
    *better* than today's derivation. Map onto the precomputed
    `races.fastest_lap_*` columns.
 
-5. **Refs change.** Drivers become `lewis-hamilton` rather than `hamilton`,
+4. **Refs change.** Drivers become `lewis-hamilton` rather than `hamilton`,
    constructors `red-bull` rather than `red_bull`. Per the decision on record,
    **f1db slugs are adopted with no redirects**: existing `/drivers/hamilton`
    links will 404. Circuit refs mostly coincide already.
@@ -103,8 +115,7 @@ Each step ends green, so it can be paused between steps.
 2. **Staging load.** Load f1db into its own schema/tables untouched. No mapping
    yet — this makes the raw data queryable for verifying step 3.
 3. **Transform.** Write `f1db → our models` mapping per the table above, behind
-   a `--source=f1db` seed flag, so the Ergast path still runs. Close gaps 1, 2
-   and 4 here.
+   a `--source=f1db` seed flag, so the Ergast path still runs. Close the gaps above here.
 4. **Reconcile.** Load both into separate databases and diff row counts and spot
    records (champions per season, career win totals, a sampled race result set).
    `scripts/validate.py` already does shape checks; extend it to diff the two.
@@ -113,8 +124,14 @@ Each step ends green, so it can be paused between steps.
    rate-limit machinery and `country_codes.py`. Re-seed local, dump, restore to
    Neon.
 6. **Circuit SVGs.** Switch `public/tracks/` to f1db's `src/assets/circuits/`
-   (`white` variant, same layout IDs). Removes f1-circuits-svg as a source and
-   folds its attribution into f1db's single CC BY 4.0 credit.
+   (`white` variant, same layout IDs). Verified: **159 of our 160 files are
+   byte-identical** to f1db's; only `madring-1.svg` differs, and f1db's copy is
+   newer (4,495 vs 1,640 bytes). f1db credits Jules Roy for these assets in its
+   README, so this is the *same artwork* under the same CC BY 4.0 terms — it
+   folds a separate source row into f1db's single credit rather than changing
+   who is credited. **Do this step only as part of the migration**: swapping the
+   files while jolpica is still the data source would trade one CC BY 4.0 source
+   for another and reduce nothing.
 7. **Relicense.** Data becomes CC BY 4.0: rewrite `LICENSE-DATA.md`, drop the
    NonCommercial and ShareAlike language from `ATTRIBUTIONS.md`, the footer, the
    `/attributions` page and the README.
