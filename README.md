@@ -4,7 +4,7 @@
 
 A full-stack Formula 1 analytics dashboard covering the complete history of F1 (1950-present) with interactive visualizations, driver/constructor comparisons, and detailed race analysis.
 
-> **Unofficial, non-commercial fan project.** F1 Tracker is not associated in any way with the
+> **Unofficial fan project.** F1 Tracker is not associated in any way with the
 > Formula 1 companies. F1, FORMULA ONE, FORMULA 1, FIA FORMULA ONE WORLD CHAMPIONSHIP, GRAND PRIX
 > and related marks are trade marks of Formula One Licensing B.V. See
 > [ATTRIBUTIONS.md](ATTRIBUTIONS.md).
@@ -28,7 +28,7 @@ A full-stack Formula 1 analytics dashboard covering the complete history of F1 (
 | Frontend | Next.js 16, TypeScript, Tailwind CSS 4, shadcn/ui, Recharts |
 | Backend | Python 3.12, FastAPI, SQLAlchemy 2, Alembic |
 | Database | PostgreSQL 16 |
-| Data Source | Fast-F1 / jolpica-f1 (historical F1 data from 1950+, telemetry from 2018+) — [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/) |
+| Data Source | [f1db](https://github.com/f1db/f1db) (1950-present, [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)) + Fast-F1 (session timing 2018+) |
 | Map | Natural Earth geometry (public domain), rendered with Leaflet |
 
 ## Getting Started
@@ -99,7 +99,7 @@ f1-tracker/
 ├── pipeline/              # Python data pipeline + FastAPI (38 endpoints)
 │   ├── src/api/           # REST API (routers, constants, serializers, pagination)
 │   ├── src/db/            # SQLAlchemy models, queries, migrations
-│   ├── src/ingestion/     # Data pipeline (Fast-F1 → PostgreSQL)
+│   ├── src/ingestion/     # Data pipeline (f1db + Fast-F1 → PostgreSQL)
 │   ├── tests/             # pytest test suite (44 tests)
 │   └── scripts/           # Seed, backup, restore scripts
 ├── docker/                # Docker Compose (PostgreSQL) + backups
@@ -124,15 +124,13 @@ f1-tracker/
 | What | Licence |
 |------|---------|
 | Source code | [MIT](LICENSE) |
-| F1 dataset (incl. `docker/backups/latest.sql.gz`) | [CC BY-NC-SA 4.0](LICENSE-DATA.md) — inherited from jolpica-f1 via ShareAlike |
-| Circuit layout SVGs | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) — julesr0y/f1-circuits-svg |
+| F1 dataset (incl. `docker/backups/latest.sql.gz`) | [CC BY 4.0](LICENSE-DATA.md) — from f1db |
+| Circuit layout SVGs | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) — ship with f1db |
 | World map geometry | Public domain — Natural Earth |
 
-**This project must stay non-commercial** while jolpica-f1 supplies the dataset: CC BY-NC-SA 4.0
-forbids commercial use, and it is the source of essentially every record in the database. Every
-other source is already commercially clean. Migrating to [f1db](https://github.com/f1db/f1db)
-(CC BY 4.0) would lift the restriction entirely — see
-[docs/F1DB-MIGRATION.md](docs/F1DB-MIGRATION.md).
+**Every obligation is attribution.** No source restricts commercial use or imposes share-alike:
+f1db is CC BY 4.0, Fast-F1 is MIT, Natural Earth is public domain. Keeping the credits intact is
+the whole requirement.
 
 Driver photographs and team badges are deliberately **not** used. Every available source (OpenF1,
 TheSportsDB, Wikimedia Commons) carried its own licence, trademark or per-image attribution

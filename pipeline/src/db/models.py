@@ -23,7 +23,6 @@ class Season(Base):
     __tablename__ = "seasons"
 
     year: Mapped[int] = mapped_column(Integer, primary_key=True)
-    url: Mapped[str | None] = mapped_column(String)
 
     races: Mapped[list["Race"]] = relationship(back_populates="season")
 
@@ -40,7 +39,6 @@ class Circuit(Base):
     latitude: Mapped[float | None] = mapped_column(Float)
     longitude: Mapped[float | None] = mapped_column(Float)
     altitude: Mapped[int | None] = mapped_column(Integer)
-    url: Mapped[str | None] = mapped_column(String)
 
     races: Mapped[list["Race"]] = relationship(back_populates="circuit")
     layouts: Mapped[list["CircuitLayout"]] = relationship(
@@ -72,7 +70,6 @@ class Driver(Base):
     date_of_birth: Mapped[str | None] = mapped_column(Date)
     nationality: Mapped[str | None] = mapped_column(String)
     country_code: Mapped[str | None] = mapped_column(String(2))
-    url: Mapped[str | None] = mapped_column(String)
 
 
 class Constructor(Base):
@@ -84,7 +81,6 @@ class Constructor(Base):
     nationality: Mapped[str | None] = mapped_column(String)
     country_code: Mapped[str | None] = mapped_column(String(2))
     color: Mapped[str | None] = mapped_column(String(7))
-    url: Mapped[str | None] = mapped_column(String)
 
 
 class Status(Base):
@@ -104,7 +100,6 @@ class Race(Base):
     circuit_id: Mapped[str] = mapped_column(ForeignKey("circuits.id"), index=True)
     date: Mapped[str | None] = mapped_column(Date)
     time: Mapped[str | None] = mapped_column(Time)
-    url: Mapped[str | None] = mapped_column(String)
 
     # Precomputed: race fastest lap
     fastest_lap_driver_id: Mapped[str | None] = mapped_column(ForeignKey("drivers.id"))
@@ -238,7 +233,6 @@ class PitStop(Base):
     driver_id: Mapped[str] = mapped_column(ForeignKey("drivers.id"), index=True)
     stop_number: Mapped[int] = mapped_column(Integer)
     lap: Mapped[int] = mapped_column(Integer)
-    time_of_day: Mapped[str | None] = mapped_column(String)
     duration_ms: Mapped[int | None] = mapped_column(BigInteger)
 
     race: Mapped["Race"] = relationship(back_populates="pit_stops")

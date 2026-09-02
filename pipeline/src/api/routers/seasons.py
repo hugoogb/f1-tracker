@@ -14,7 +14,7 @@ router = APIRouter()
 @router.get("/seasons")
 def list_seasons(db: Session = Depends(get_db)):
     seasons = get_all_seasons(db)
-    return {"data": [{"year": s.year, "url": s.url} for s in seasons]}
+    return {"data": [{"year": s.year} for s in seasons]}
 
 
 @router.get("/seasons/{year}")

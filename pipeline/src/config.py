@@ -15,6 +15,11 @@ class Settings(BaseSettings):
     fastf1_cache_dir: str = ".fastf1_cache"
     cors_origins: str = "http://localhost:3000"
 
+    # f1db release to ingest. "latest" tracks the newest published release;
+    # pin an exact tag (e.g. "v2026.5.0") for reproducible seeds.
+    f1db_version: str = "latest"
+    f1db_cache_dir: str = ".f1db_cache"
+
     # The root .env is shared across frontend/backend/scripts, so ignore keys
     # this settings model doesn't declare (e.g. NEXT_PUBLIC_API_URL, NEON_DATABASE_URL).
     model_config = {

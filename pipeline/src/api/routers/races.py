@@ -216,7 +216,6 @@ def get_pitstops(year: int, round: int, db: Session = Depends(get_db)):
             {
                 "stopNumber": s.stop_number,
                 "lap": s.lap,
-                "timeOfDay": s.time_of_day,
                 "duration": f"{s.duration_ms / 1000:.3f}" if s.duration_ms is not None else None,
                 "driver": {
                     "id": s.driver.id,

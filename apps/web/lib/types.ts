@@ -182,7 +182,6 @@ export interface PitStop {
   driver: Driver
   stopNumber: number
   lap: number
-  timeOfDay: string | null
   duration: string | null
 }
 

@@ -25,6 +25,9 @@ pipeline/.python-version
 # Fast-F1 cache
 pipeline/.fastf1_cache/
 
+# f1db release archives
+pipeline/.f1db_cache/
+
 # Environment
 .env
 .env.local

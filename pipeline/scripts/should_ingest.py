@@ -6,7 +6,7 @@ weekly cron doesn't waste runs (or pull partial data) on off-weekends.
 Exit code 0 always. Writes ``should_ingest=true|false`` to $GITHUB_OUTPUT when
 running in GitHub Actions, and also prints the decision.
 
-Fails OPEN: on any error fetching the schedule it returns ``true`` so a real
+Fails OPEN: on any error loading the f1db release it returns ``true`` so a real
 race weekend is never silently skipped.
 
 Usage:
@@ -24,7 +24,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-import pandas as pd  # noqa: E402
+from src.ingestion import f1db  # noqa: E402
 
 
 def _emit(should: bool, reason: str) -> None:
@@ -52,21 +52,23 @@ def main() -> int:
     today = date.today()
 
     try:
-        from fastf1.ergast import Ergast
-
-        erg = Ergast()
-        schedule = erg.get_race_schedule(season=today.year, limit=50)
+        data = f1db.load()
     except Exception as e:  # noqa: BLE001 — fail open on any fetch error
-        _emit(True, f"could not fetch schedule ({e}); failing open")
+        _emit(True, f"could not load f1db ({e}); failing open")
         return 0
 
-    # Find the most recent race date that is on or before today.
+    # Find the most recent race date this season that is on or before today.
     past_dates = []
-    for raw in schedule.get("raceDate", []):
-        d = pd.to_datetime(raw, errors="coerce")
-        if pd.isna(d):
+    for race in data.races:
+        if int(race.get("year", 0)) != today.year:
             continue
-        d = d.date()
+        raw = race.get("date")
+        if not raw:
+            continue
+        try:
+            d = date.fromisoformat(str(raw))
+        except ValueError:
+            continue
         if d <= today:
             past_dates.append(d)
 

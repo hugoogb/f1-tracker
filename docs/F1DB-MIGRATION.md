@@ -1,7 +1,31 @@
 # Migration plan: jolpica-f1 → f1db
 
-**Status:** investigated, not implemented. This is the plan; nothing in the
-pipeline has been changed.
+**Status: DONE.** The pipeline now loads f1db; jolpica-f1 and f1-circuits-svg
+are gone. This document is kept as the record of what was checked and why.
+
+Verified on a full dry run of the real release into SQLite:
+
+| | |
+|---|---|
+| Seasons / races | 77 (1950-2026) / 1,172 |
+| Drivers / constructors / circuits | 917 / 187 / 78 |
+| Race results / qualifying / sprint / pit stops | 27,460 / 26,975 / 590 / 22,472 |
+| Circuit layouts | 160, seasons derived from the schedule |
+| Qualifying coverage | **1950-2026** (was 1994+) |
+| Pit stop coverage | **1994-2026** (was 2012+) |
+| Drivers missing nationality | 0 |
+| Circuits missing country code | 0 |
+
+Spot checks: Hamilton 106 wins, Schumacher 91 wins; 2024 Bahrain resolves to
+Verstappen, 26 pts, 57 laps, fastest lap 39 at **210.384 km/h** (derived);
+Monza's seven layouts reproduce the hand-maintained season ranges exactly
+(`monza-1: 1950-1954`, `monza-2: 1955-1956,1960-1961`, …).
+
+**One bug was fixed on the way.** Championship standings were summed from raw
+race points, which crowns the wrong driver in the pre-1991 "best N results
+count" seasons — 1988 came out as Prost rather than Senna. f1db carries the
+official standings, so those now decide points and position while wins stay
+locally counted. All 77 champions verify.
 
 ## Why
 

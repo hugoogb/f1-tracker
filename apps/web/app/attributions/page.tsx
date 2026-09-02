@@ -18,25 +18,18 @@ interface SourceEntry {
 
 const DATA_SOURCES: SourceEntry[] = [
   {
-    name: 'jolpica-f1 (Ergast successor)',
-    href: 'https://github.com/jolpica/jolpica-f1',
-    used: 'Seasons, races, circuits, drivers, constructors, results, qualifying, sprint, pit stops and standings',
-    licence: 'CC BY-NC-SA 4.0',
-    licenceHref: 'https://creativecommons.org/licenses/by-nc-sa/4.0/',
+    name: 'f1db',
+    href: 'https://github.com/f1db/f1db',
+    used: 'Seasons, races, circuits and layouts, drivers, constructors, results, qualifying, sprint, pit stops and official standings \u2014 1950 to present. Also supplies the circuit layout drawings.',
+    licence: 'CC BY 4.0',
+    licenceHref: 'https://creativecommons.org/licenses/by/4.0/',
   },
   {
     name: 'Fast-F1',
     href: 'https://github.com/theOehrly/Fast-F1',
-    used: 'API client, plus lap times, tyre stints and qualifying sector times (2018+)',
+    used: 'Lap-by-lap lap times, tyre stints and qualifying sector times (2018+)',
     licence: 'MIT',
     licenceHref: 'https://github.com/theOehrly/Fast-F1/blob/master/LICENSE',
-  },
-  {
-    name: 'f1-circuits-svg by julesr0y',
-    href: 'https://github.com/julesr0y/f1-circuits-svg',
-    used: 'Circuit layout drawings',
-    licence: 'CC BY 4.0',
-    licenceHref: 'https://creativecommons.org/licenses/by/4.0/',
   },
   {
     name: 'Natural Earth',
@@ -120,33 +113,30 @@ export default function AttributionsPage() {
           <Card>
             <CardContent className="text-muted-foreground space-y-3 pt-6 text-sm leading-relaxed">
               <p>
-                Formula 1 results data comes from the{' '}
+                Formula 1 data comes from{' '}
                 <a
-                  href="https://github.com/jolpica/jolpica-f1"
+                  href="https://github.com/f1db/f1db"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-foreground hover:underline"
                 >
-                  jolpica-f1 API
-                </a>{' '}
-                (successor to the Ergast Developer API), licensed{' '}
+                  f1db
+                </a>
+                , licensed{' '}
                 <a
-                  href="https://creativecommons.org/licenses/by-nc-sa/4.0/"
+                  href="https://creativecommons.org/licenses/by/4.0/"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-foreground hover:underline"
                 >
-                  CC BY-NC-SA 4.0
+                  CC BY 4.0
                 </a>
                 . It has been modified: reshaped into a relational schema and augmented with derived
                 statistics.
               </p>
               <p>
-                Under ShareAlike, the dataset published by this project is offered under the same CC
-                BY-NC-SA 4.0 licence. That licence is{' '}
-                <strong className="text-foreground">non-commercial</strong>: this site carries no
-                advertising, no paid tier and no sponsorship, and any reuse of its data must stay
-                non-commercial too.
+                Every obligation on this page is attribution. No source used here restricts
+                commercial use or requires derived work to carry the same licence.
               </p>
               <p>
                 The project&apos;s own source code is MIT licensed. Driver photographs and team
