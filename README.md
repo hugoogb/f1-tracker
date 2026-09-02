@@ -29,6 +29,7 @@ A full-stack Formula 1 analytics dashboard covering the complete history of F1 (
 | Backend | Python 3.12, FastAPI, SQLAlchemy 2, Alembic |
 | Database | PostgreSQL 16 |
 | Data Source | Fast-F1 / jolpica-f1 (historical F1 data from 1950+, telemetry from 2018+) — [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/) |
+| Map | Natural Earth geometry (public domain), rendered with Leaflet |
 
 ## Getting Started
 
@@ -124,13 +125,18 @@ f1-tracker/
 |------|---------|
 | Source code | [MIT](LICENSE) |
 | F1 dataset (incl. `docker/backups/latest.sql.gz`) | [CC BY-NC-SA 4.0](LICENSE-DATA.md) — inherited from jolpica-f1 via ShareAlike |
-| Bundled images (`apps/web/public/`) | Per file — see [ATTRIBUTIONS.md](ATTRIBUTIONS.md) |
+| Circuit layout SVGs | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) — julesr0y/f1-circuits-svg |
+| World map geometry | Public domain — Natural Earth |
 
-**This project must stay non-commercial.** Its primary data source (jolpica-f1, CC BY-NC-SA 4.0),
-its headshot source (OpenF1) and its map tiles (CARTO free tier) all forbid commercial use.
-Adding ads, a paid tier or sponsorship would breach all three at once —
-[ATTRIBUTIONS.md](ATTRIBUTIONS.md#commercial-use--what-would-break) spells out what would need to
-change first.
+**This project must stay non-commercial** while jolpica-f1 supplies the dataset: CC BY-NC-SA 4.0
+forbids commercial use, and it is the source of essentially every record in the database. Every
+other source is already commercially clean. Migrating to [f1db](https://github.com/f1db/f1db)
+(CC BY 4.0) would lift the restriction entirely — see
+[docs/F1DB-MIGRATION.md](docs/F1DB-MIGRATION.md).
+
+Driver photographs and team badges are deliberately **not** used. Every available source (OpenF1,
+TheSportsDB, Wikimedia Commons) carried its own licence, trademark or per-image attribution
+obligation, so drivers and teams are rendered as initials on the team colour instead.
 
 Users see the trademark notice and data credits in the site footer, with the complete breakdown at
 `/attributions`.

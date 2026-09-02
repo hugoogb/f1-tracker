@@ -269,5 +269,4 @@ def _driver_summary(driver):
         "firstName": driver.first_name,
         "lastName": driver.last_name,
         "countryCode": driver.country_code,
-        "headshotUrl": f"/headshots/{driver.ref}.png" if driver.has_headshot else None,
     }

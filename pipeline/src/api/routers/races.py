@@ -224,9 +224,6 @@ def get_pitstops(year: int, round: int, db: Session = Depends(get_db)):
                     "code": s.driver.code,
                     "firstName": s.driver.first_name,
                     "lastName": s.driver.last_name,
-                    "headshotUrl": (
-                        f"/headshots/{s.driver.ref}.png" if s.driver.has_headshot else None
-                    ),
                 },
             }
             for s in stops

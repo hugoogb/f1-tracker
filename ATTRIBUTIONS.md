@@ -4,9 +4,9 @@ F1 Tracker is an **unofficial, non-commercial fan project**. This document is th
 authoritative record of every third-party source it uses, the licence or terms
 each one imposes, and how this project satisfies them.
 
-> **Rule of thumb:** this project must stay free and non-commercial. Three of the
-> sources below (jolpica-f1, OpenF1, CARTO) forbid commercial use outright. See
-> [Commercial use](#commercial-use--what-would-break) before monetising anything.
+The source list is deliberately short. Sources are only added when nothing
+already in the project can supply the data, because every additional source is a
+standing obligation someone has to keep honouring.
 
 ---
 
@@ -16,15 +16,15 @@ each one imposes, and how this project satisfies them.
 > companies. F1, FORMULA ONE, FORMULA 1, FIA FORMULA ONE WORLD CHAMPIONSHIP,
 > GRAND PRIX and related marks are trade marks of Formula One Licensing B.V.
 >
-> Constructor names and team logos are trade marks of their respective owners.
-> They are reproduced here for identification and editorial purposes only.
+> Constructor and driver names are used for identification and editorial
+> purposes only.
 
 This notice is shown to end users in the site footer and on the `/attributions`
 page, and must not be removed.
 
 ---
 
-## Data sources
+## Sources
 
 ### jolpica-f1 (Ergast successor) — primary dataset
 
@@ -48,7 +48,11 @@ page, and must not be removed.
   seconds between uncached calls (~200 req/hr) plus exponential backoff on HTTP
   429, and caches aggressively so repeat ingests do not re-hit the API.
 
-> Commercial licensing enquiries go to `admin@jolpi.ca`.
+> **This is the project's one remaining encumbered source**, and the reason the
+> whole project must stay non-commercial. Replacing it with
+> [f1db](https://github.com/f1db/f1db) (CC BY 4.0) would remove both the
+> NonCommercial and ShareAlike terms outright — see
+> [docs/F1DB-MIGRATION.md](docs/F1DB-MIGRATION.md).
 
 ### Fast-F1 — client library and timing data
 
@@ -66,65 +70,11 @@ session loads, ~500 calls/hr) and cached on disk via `fastf1.Cache`.
 > we reproduce above. Timing data originates from Formula 1's own systems; it is
 > used here for non-commercial, editorial/analytical purposes only.
 
-### OpenF1 — driver headshots
-
-| | |
-|---|---|
-| **Used for** | Current-era (2023+) driver headshot images |
-| **Endpoint** | `https://api.openf1.org/v1` |
-| **Terms** | <https://openf1.org/> — intended for educational, personal, research and non-commercial fan use; other uses require contacting them for licensing |
-
-**How we comply:** credited on `/attributions` and in the README; the project is
-non-commercial; requests are limited to three session lookups per full ingest and
-are skipped entirely once headshots exist.
-
-### TheSportsDB — current constructor logos
-
-| | |
-|---|---|
-| **Used for** | Team badges for the current grid (`apps/web/public/logos/`) |
-| **Endpoint** | `https://www.thesportsdb.com/api/v1/json/3` (free tier) |
-| **Terms** | <https://www.thesportsdb.com/docs_terms_of_use.php> |
-| **Obligations** | Do not pass their artwork off as your own; link back to their site; use trademarked sports logos **"as is"**, unmodified |
-
-**How we comply:**
-- Credited with a **link back to thesportsdb.com** on `/attributions`.
-- Badges are downloaded byte-for-byte via `_download_file()` and are **not**
-  cropped, recoloured or otherwise altered (`ConstructorLogoIngestor` in
-  `pipeline/src/ingestion/images.py`). The square-crop path
-  (`_download_and_resize`) is used for driver headshots only, never for logos.
-- Non-commercial use only.
-
-> **Known limitation:** the free/shared tier key is used. If this project ever
-> grows past hobby traffic, register a dedicated key at thesportsdb.com.
-
-### Wikidata / Wikimedia Commons — historic driver photos and team logos
-
-| | |
-|---|---|
-| **Used for** | Headshots for historic drivers, logos for defunct constructors |
-| **Endpoints** | `https://query.wikidata.org/sparql`, `https://commons.wikimedia.org/w/api.php` |
-| **Licence** | **Per file.** Wikidata statements are CC0, but each Commons *image* has its own licence — commonly CC BY-SA, CC BY, or public domain |
-| **Obligations** | Per-file author + licence attribution; a descriptive User-Agent with contact details ([Wikimedia UA policy](https://foundation.wikimedia.org/wiki/Policy:Wikimedia_Foundation_User-Agent_Policy)) |
-
-**How we comply:**
-- The ingestor records each file's author, licence name, licence URL and Commons
-  source page, and writes them to
-  `apps/web/public/credits/wikimedia-credits.json`, which is rendered
-  per-image on the `/attributions` page.
-- A compliant User-Agent identifying the project and linking the repository is
-  sent on every Wikimedia request.
-- Requests are rate-limited (`time.sleep`) and skipped once assets exist.
-
-> Photos are downscaled and centre-cropped to a square for use as avatars. This
-> is a modification; CC BY-SA files therefore remain under CC BY-SA and are
-> credited as adapted. Files whose licence is unknown or non-free are not used.
-
 ### f1-circuits-svg — circuit layout drawings
 
 | | |
 |---|---|
-| **Used for** | The 160 track layout SVGs in `apps/web/public/tracks/` |
+| **Used for** | The circuit layout SVGs in `apps/web/public/tracks/` |
 | **Source** | <https://github.com/julesr0y/f1-circuits-svg> |
 | **Licence** | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) |
 | **Obligations** | Credit the author, link the licence, indicate changes |
@@ -134,34 +84,59 @@ CC BY 4.0 deed on `/attributions`, and in
 `apps/web/public/tracks/ATTRIBUTION.txt` alongside the files themselves. The
 "white" style variant is used unmodified.
 
-### CARTO + OpenStreetMap — circuit world map basemap
+### Natural Earth — world map geometry
 
 | | |
 |---|---|
-| **Used for** | Dark basemap tiles behind the circuit world map |
-| **Tiles** | `https://{s}.basemaps.cartocdn.com/dark_all/...` |
-| **Obligations** | Credit **both** CARTO and OpenStreetMap contributors, visibly, on every map. OSM data is [ODbL](https://www.openstreetmap.org/copyright). CARTO's free basemap tier is non-commercial and capped at 75,000 mapviews/month |
+| **Used for** | Country outlines behind the circuit world map (`apps/web/public/geo/world.geo.json`) |
+| **Source** | <https://www.naturalearthdata.com/> |
+| **Licence** | **Public domain** — no attribution required, no commercial restriction |
 
-**How we comply:** the Leaflet `TileLayer` renders the required
-`© OpenStreetMap contributors © CARTO` attribution control with links to both.
+Properties are stripped to `name` and coordinates rounded to 2 decimal places to
+reduce transfer size. Documented in `apps/web/public/geo/README.txt` as a
+courtesy, not an obligation.
 
 ---
 
-## Commercial use — what would break
+## Deliberately not used
 
-If F1 Tracker ever takes ads, donations-with-perks, sponsorship or a paid tier,
-the following stop being lawful **immediately**:
+These were removed to shrink the compliance surface. Do not reintroduce them
+without re-reading their terms and adding a row above.
 
-| Source | Why it breaks | Replacement path |
-|--------|---------------|------------------|
-| jolpica-f1 dataset | CC BY-NC-SA 4.0 forbids commercial use, and it is the source of essentially every record in the database | Contact `admin@jolpi.ca`, or license data from an official provider |
-| OpenF1 headshots | Non-commercial terms | Contact OpenF1 for licensing, or drop headshots |
-| CARTO basemap | Free tier is non-commercial | Paid CARTO plan, or self-host OSM tiles |
-| TheSportsDB logos | Free tier plus trademark exposure on team badges | Paid tier, and clear the trademarks |
-| F1 word marks | Formula One Licensing B.V. tolerates unofficial non-commercial fan use far more readily than commercial use | Licensing agreement |
+| Source | Was used for | Why it was dropped |
+|--------|--------------|--------------------|
+| **OpenF1** | Current-era driver headshots | Non-commercial terms, and the images are Formula 1 press media — the highest-risk asset in the project |
+| **TheSportsDB** | Current constructor logos | Shared free-tier key, linkback obligation, and team badges are registered trademarks |
+| **Wikimedia Commons / Wikidata** | Historic driver photos, defunct team logos | Every file is individually licensed (mostly CC BY-SA), requiring per-image author and licence credit forever |
+| **CARTO basemap tiles** | World map background | Mandatory visible CARTO **and** OpenStreetMap attribution; free tier is non-commercial and capped at 75,000 mapviews/month |
 
-Nothing in this project may be monetised without resolving all of the above
-first.
+Driver and constructor identity is now rendered as initials on the team colour
+(`components/ui/driver-avatar.tsx`, `components/ui/constructor-logo.tsx`). The
+colour palette in `pipeline/src/ingestion/colors.py` is curated in-repo; colour
+values are facts, not creative expression, and carry no licence of their own.
+
+**If you want driver photos or team badges back**, the honest options are to
+licence them, or to reinstate Wikimedia Commons and rebuild the per-image credit
+pipeline that `/attributions` used to render. There is no permissively licensed
+source for current F1 driver portraits.
+
+---
+
+## Commercial use
+
+The project is **non-commercial**, and must stay that way while jolpica-f1
+supplies the dataset: CC BY-NC-SA 4.0 forbids commercial use, and it is the
+source of essentially every record in the database. Ads, a paid tier,
+donations-with-perks or sponsorship would all breach it.
+
+Everything else in the project is already commercially clean — Fast-F1 (MIT),
+f1-circuits-svg (CC BY 4.0) and Natural Earth (public domain) impose no such
+restriction. So the single blocker is the dataset, and
+[docs/F1DB-MIGRATION.md](docs/F1DB-MIGRATION.md) sets out how to remove it.
+
+Separately, Formula One Licensing B.V. tolerates unofficial non-commercial fan
+use far more readily than commercial use; a commercial version would want its
+own trademark review.
 
 ---
 

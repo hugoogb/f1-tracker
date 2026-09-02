@@ -1,7 +1,9 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { MapContainer, TileLayer, CircleMarker, Tooltip } from 'react-leaflet'
+import { MapContainer, GeoJSON, CircleMarker, Tooltip } from 'react-leaflet'
+import type { FeatureCollection } from 'geojson'
 import 'leaflet/dist/leaflet.css'
 
 interface CircuitPin {
@@ -16,8 +18,36 @@ interface WorldMapProps {
   circuits: CircuitPin[]
 }
 
+// Landmass is drawn from bundled Natural Earth geometry (public domain) rather
+// than raster basemap tiles, so the map carries no attribution requirement and
+// no non-commercial restriction. See apps/web/public/geo/README.txt.
+const WORLD_GEOJSON_URL = '/geo/world.geo.json'
+
+const landStyle = {
+  fillColor: '#1c1c1f',
+  fillOpacity: 1,
+  color: '#2e2e33',
+  weight: 0.5,
+}
+
 export function WorldMap({ circuits }: WorldMapProps) {
   const router = useRouter()
+  const [world, setWorld] = useState<FeatureCollection | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    fetch(WORLD_GEOJSON_URL)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: FeatureCollection | null) => {
+        if (!cancelled) setWorld(data)
+      })
+      .catch(() => {
+        // Circuit markers still render without the landmass underneath.
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   return (
     <MapContainer
@@ -26,15 +56,11 @@ export function WorldMap({ circuits }: WorldMapProps) {
       minZoom={2}
       maxZoom={10}
       scrollWheelZoom={false}
+      attributionControl={false}
       className="h-full w-full"
       style={{ background: '#0a0a0a' }}
     >
-      {/* CARTO's basemap terms require crediting both OpenStreetMap (ODbL) and
-          CARTO visibly on every map. See ATTRIBUTIONS.md. */}
-      <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-        url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-      />
+      {world && <GeoJSON data={world} style={() => landStyle} interactive={false} />}
       {circuits.map((circuit) => (
         <CircleMarker
           key={circuit.ref}

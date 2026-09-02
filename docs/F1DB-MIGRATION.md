@@ -1,0 +1,149 @@
+# Migration plan: jolpica-f1 → f1db
+
+**Status:** investigated, not implemented. This is the plan; nothing in the
+pipeline has been changed.
+
+## Why
+
+jolpica-f1 supplies essentially every record in the database and licenses its
+data **CC BY-NC-SA 4.0**. That single dependency is what makes the whole project
+non-commercial and share-alike. [f1db](https://github.com/f1db/f1db) publishes
+equivalent — in places richer — data under **CC BY 4.0**: attribution only.
+
+| | jolpica-f1 (today) | f1db (proposed) |
+|---|---|---|
+| Licence | CC BY-NC-SA 4.0 | **CC BY 4.0** |
+| Commercial use | Forbidden | **Allowed** |
+| ShareAlike on our dump | Required | **Not required** |
+| Access | HTTP API, ~200 req/hr | Versioned release artifacts (PostgreSQL dump, JSON, CSV, SQLite) |
+| Full ingest time | Hours (18s between calls) | Minutes (one download) |
+| Circuit layout SVGs | Separate source | **Included**, same layout IDs we already use |
+| Update cadence | Live | New release after every race |
+
+Secondary wins: `API_DELAY`, `THROTTLE_DELAY`, the retry/backoff logic and the
+pagination helper in `src/ingestion/base.py` all become dead code for the core
+entities, and `src/api/country_codes.py` (106 hand-maintained lines) is replaced
+by f1db's own `countries` entity, which carries `alpha2Code` and `demonym`.
+
+## What f1db does *not* have
+
+Fast-F1 stays for these; it is MIT and imposes no data-licence obligation:
+
+- **Lap-by-lap lap times** (`lap_times`) — powers the lap time, tyre strategy and
+  position charts (2018+).
+- **Qualifying sector times** (`qualifying_results.s1/s2/s3_ms`) and the
+  precomputed `best_quali_s*` columns on `races`.
+
+So the end state is **two upstreams instead of three**: f1db for everything
+historical and structural, Fast-F1 for 2018+ timing detail.
+
+## Field mapping
+
+Verified against f1db `src/data` at commit `e296528`.
+
+### Entities
+
+| Our model | f1db source | Notes |
+|---|---|---|
+| `Season.year` | `seasons/<year>/` | Direct. |
+| `Circuit` | `circuits/<id>.yml` | `id`, `name`, `fullName`, `placeName`, `countryId`, `latitude`, `longitude`. Circuit refs largely match today's (`monza`, `bahrain`). |
+| `CircuitLayout` | `circuits/<id>.yml` → `layouts[]` | `id` (e.g. `monza-1`), `length`, `turns`. **Replaces the hand-maintained 330-line `circuit_layouts.py`**, including its `SVG_TO_ERGAST` mapping table and `LAYOUT_DATA` seasons strings. |
+| `Driver` | `drivers/<id>.yml` | `firstName`, `lastName`, `abbreviation`→`code`, `permanentNumber`→`number`, `dateOfBirth`, `nationalityCountryId`. |
+| `Constructor` | `constructors/<id>.yml` | `id`, `name`, `fullName`, `countryId`. |
+| `Race` | `seasons/<y>/races/<nn>-<gp>/race.yml` | `round`, `date`, `time`, `circuitId`, `circuitLayoutId`, `officialName`, `laps`, `distance`, `courseLength`, `turns`. Race `name` comes from `grands-prix/<id>.yml` → `fullName`. |
+| `RaceResult` | `.../race-results.yml` | `position`, `driverId`, `constructorId`, `laps`, `time`, `gap`, `points`, `gridPosition`, `reasonRetired`. |
+| `QualifyingResult` | `.../qualifying-results.yml` | `position`, `q1`, `q2`, `q3`. Sector times **not** present — Fast-F1 keeps supplying those. |
+| `SprintResult` | `.../sprint-race-results.yml` | Same shape as race results. `sprint-qualifying-results.yml` also available. |
+| `PitStop` | `.../pit-stops.yml` | `stop`, `lap`, `time`. |
+| `DriverStanding` | `.../driver-standings.yml` | `position`, `driverId`, `points`. **No `wins`** — see gaps. |
+| `ConstructorStanding` | `.../constructor-standings.yml` | `position`, `constructorId`, `points`. **No `wins`**. |
+| `LapTime` | — | Fast-F1 only. Unchanged. |
+
+### Nationality and country codes
+
+f1db `countries/<id>.yml` provides `alpha2Code` (`GB`) and `demonym`
+(`British`), mapping directly onto `Driver.country_code` / `Driver.nationality`
+and the constructor equivalents. Delete `src/api/country_codes.py`.
+
+## Gaps and how to close them
+
+1. **`wins` on standings.** f1db standings carry points and position only.
+   Derive per race: count `race_results` rows with `position = 1` for that
+   driver/constructor up to and including that round. One SQL statement in the
+   existing post-process step; cheaper than the current per-round API calls.
+
+2. **`Status` table.** We store a normalised `statuses` table with a
+   `status_id` FK on `RaceResult`. f1db has free-text `reasonRetired`
+   (nullable, `null` = classified finisher). Either
+   (a) build the `statuses` table from the distinct `reasonRetired` values at
+   ingest and keep the FK, or (b) collapse to a nullable
+   `race_results.reason_retired` text column and drop the table. **(a) is the
+   smaller diff** — it keeps the API shape identical.
+
+3. **`Race.url` / `Driver.url`.** Ergast supplied Wikipedia URLs; f1db does not
+   carry them in the same field. Drop the columns, or leave them null. Check
+   whether the frontend renders them before deciding.
+
+4. **Fastest laps.** f1db has a dedicated `fastest-laps.yml` per race, which is
+   *better* than today's derivation. Map onto the precomputed
+   `races.fastest_lap_*` columns.
+
+5. **Refs change.** Drivers become `lewis-hamilton` rather than `hamilton`,
+   constructors `red-bull` rather than `red_bull`. Per the decision on record,
+   **f1db slugs are adopted with no redirects**: existing `/drivers/hamilton`
+   links will 404. Circuit refs mostly coincide already.
+
+## Sequencing
+
+Each step ends green, so it can be paused between steps.
+
+1. **Loader.** Add `src/ingestion/f1db.py` that downloads a pinned f1db release
+   (PostgreSQL dump or the JSON artifacts), verifies its version, and caches it.
+   Pin the version in config so ingests are reproducible.
+2. **Staging load.** Load f1db into its own schema/tables untouched. No mapping
+   yet — this makes the raw data queryable for verifying step 3.
+3. **Transform.** Write `f1db → our models` mapping per the table above, behind
+   a `--source=f1db` seed flag, so the Ergast path still runs. Close gaps 1, 2
+   and 4 here.
+4. **Reconcile.** Load both into separate databases and diff row counts and spot
+   records (champions per season, career win totals, a sampled race result set).
+   `scripts/validate.py` already does shape checks; extend it to diff the two.
+   **Do not proceed on mismatches you cannot explain.**
+5. **Cut over.** Make f1db the default, drop the Ergast ingestors, `base.py`
+   rate-limit machinery and `country_codes.py`. Re-seed local, dump, restore to
+   Neon.
+6. **Circuit SVGs.** Switch `public/tracks/` to f1db's `src/assets/circuits/`
+   (`white` variant, same layout IDs). Removes f1-circuits-svg as a source and
+   folds its attribution into f1db's single CC BY 4.0 credit.
+7. **Relicense.** Data becomes CC BY 4.0: rewrite `LICENSE-DATA.md`, drop the
+   NonCommercial and ShareAlike language from `ATTRIBUTIONS.md`, the footer, the
+   `/attributions` page and the README.
+8. **Update the scheduled ingest.** `.github/workflows/ingest.yml` changes from
+   a calendar-gated API crawl to "check for a new f1db release, load it if the
+   version moved". Simpler and far cheaper.
+
+## Effort and risk
+
+- **Effort:** the bulk is steps 3–4. Roughly 2,350 lines of Ergast-coupled
+  ingestion are replaced by a loader plus a transform; expect the transform to be
+  smaller than what it replaces, and the reconciliation to take longer than the
+  code.
+- **Risk:** low and reversible. The Ergast path stays until step 5, and step 4
+  is a hard gate. The irreversible parts are the URL change (step 5) and the
+  Neon re-seed — take a backup first (`scripts/db-backup.sh`).
+- **Blast radius:** every `/drivers/*` and `/constructors/*` URL changes. Do
+  this before the project has meaningful inbound links, not after.
+
+## After
+
+Sources drop from four to three, and the only remaining licence terms are
+attribution:
+
+| Source | Licence | Obligation |
+|---|---|---|
+| f1db | CC BY 4.0 | Credit + link |
+| Fast-F1 | MIT | Credit (courtesy) |
+| Natural Earth | Public domain | None |
+
+The project would then be free to become commercial without a licensing
+migration — only a trademark review.

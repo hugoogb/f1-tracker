@@ -73,8 +73,7 @@ def _handle_signal(signum, frame):
 INGESTOR_FLAGS = [
     "base",
     "layouts",
-    "images",
-    "logos",
+    "colors",
     "results",
     "qualifying",
     "sprints",
