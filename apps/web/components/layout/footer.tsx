@@ -38,14 +38,23 @@ export function Footer() {
           <p>
             Formula 1 data from{' '}
             <a
-              href="https://github.com/jolpica/jolpica-f1"
+              href="https://github.com/f1db/f1db"
               target="_blank"
               rel="noopener noreferrer"
               className="hover:text-foreground underline underline-offset-2"
             >
-              Jolpica-F1
+              f1db
             </a>{' '}
-            (Ergast) via{' '}
+            (
+            <a
+              href="https://creativecommons.org/licenses/by/4.0/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-foreground underline underline-offset-2"
+            >
+              CC BY 4.0
+            </a>
+            , modified); session timing from{' '}
             <a
               href="https://github.com/theOehrly/Fast-F1"
               target="_blank"
@@ -54,17 +63,7 @@ export function Footer() {
             >
               Fast-F1
             </a>
-            , licensed{' '}
-            <a
-              href="https://creativecommons.org/licenses/by-nc-sa/4.0/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hover:text-foreground underline underline-offset-2"
-            >
-              CC BY-NC-SA 4.0
-            </a>{' '}
-            and modified. Circuit layouts by julesr0y (CC BY 4.0); map geometry from Natural Earth
-            (public domain). Full credits on the{' '}
+            . Full credits on the{' '}
             <Link
               href="/attributions"
               className="hover:text-foreground underline underline-offset-2"

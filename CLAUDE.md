@@ -9,7 +9,7 @@ F1 analytics dashboard covering the complete history of Formula 1 (1950-present)
 - **Frontend**: Next.js 16 (App Router), TypeScript, Tailwind CSS 4, shadcn/ui, Recharts
 - **Backend**: Python 3.12, FastAPI, SQLAlchemy 2, Alembic
 - **Database**: PostgreSQL 16 (via Docker Compose)
-- **Data Source**: Fast-F1 Python library (historical F1 data)
+- **Data Source**: f1db release artifacts (1950-present) + Fast-F1 (session timing, 2018+)
 - **Package Managers**: pnpm (frontend), uv (Python)
 
 ## Project Structure
@@ -110,8 +110,9 @@ F1 analytics dashboard covering the complete history of Formula 1 (1950-present)
 - `./scripts/update-neon.sh` - Ingest new race data locally + push to Neon (one command, dump/restore)
 - `./scripts/update-neon.sh --results --standings` - Custom seed flags
 - Requires `NEON_DATABASE_URL` in `.env`
-- **Automated**: `.github/workflows/ingest.yml` runs Mondays, calendar-gated, ingests current-year data directly into Neon. Requires `NEON_DATABASE_URL` GitHub secret + Neon pre-seeded (the skip-if-exists ingestors can't bootstrap an empty DB).
+- **Automated**: `.github/workflows/ingest.yml` runs Mondays, calendar-gated, ingests current-year data directly into Neon. Requires the `NEON_DATABASE_URL` GitHub secret. The f1db ingestors upsert from one release download, so they can bootstrap an empty DB too.
 - `uv run python scripts/should_ingest.py --days 3` - Calendar gate (used by the workflow): exits with `should_ingest=true/false`
+- `F1DB_VERSION` (env) - f1db release to ingest; `latest` by default, pin a tag for reproducible seeds
 
 ### Database
 - `docker compose -f docker/docker-compose.yml up -d` - Start PostgreSQL
@@ -133,10 +134,10 @@ F1 analytics dashboard covering the complete history of Formula 1 (1950-present)
 
 ## Licensing & API Compliance
 
-**This project must remain non-commercial** while jolpica-f1 (CC BY-NC-SA 4.0) supplies the
-dataset. Every other source is already commercially clean. See `ATTRIBUTIONS.md` for the source
-inventory, `LICENSE-DATA.md` for the dataset licence, and `docs/F1DB-MIGRATION.md` for the planned
-move to f1db (CC BY 4.0), which would lift the restriction.
+**Three sources, every obligation is attribution.** f1db (CC BY 4.0) supplies the dataset and the
+circuit SVGs; Fast-F1 (MIT) supplies session timing from 2018; Natural Earth (public domain)
+supplies the map. Nothing restricts commercial use or imposes share-alike. See `ATTRIBUTIONS.md`
+for the inventory and `LICENSE-DATA.md` for the dataset licence.
 
 Rules to preserve when changing code:
 
@@ -148,8 +149,10 @@ Rules to preserve when changing code:
 - **Map** uses bundled Natural Earth geometry (`public/geo/world.geo.json`, public domain), not
   raster basemap tiles. Do not add a `TileLayer` back: CARTO/OSM tiles require visible attribution
   and are non-commercial on the free tier.
-- **Rate limits**: keep `API_DELAY` (18s, jolpica ~200 req/hr) and `THROTTLE_DELAY` (45s, Fast-F1
-  ~500 calls/hr) in `src/ingestion/base.py`.
+- **Rate limits**: keep `THROTTLE_DELAY` (45s, Fast-F1 ~500 calls/hr) in `src/ingestion/base.py`.
+  f1db is a single release download, so it needs no throttling.
+- **Standings** must keep using f1db's official points (`StandingsIngestor._apply_official`).
+  Summing raw race points crowns the wrong champion in the pre-1991 "best N results" seasons.
 - New data sources need a row in `ATTRIBUTIONS.md` and an entry in `DATA_SOURCES` on the
   attributions page before they ship.
 

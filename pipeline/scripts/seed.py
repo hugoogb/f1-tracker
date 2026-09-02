@@ -81,7 +81,6 @@ INGESTOR_FLAGS = [
     "pitstops",
     "laptimes",
     "qualifying-sectors",
-    "backfill-qualifying",
     "postprocess",
 ]
 

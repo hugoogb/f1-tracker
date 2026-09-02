@@ -27,11 +27,10 @@ NOTE: This MIT licence covers the SOURCE CODE of this repository only.
 It does NOT cover:
 
   - The Formula 1 dataset ingested by this project, including the database
-    dump at `docker/backups/latest.sql.gz`. That data derives from the
-    jolpica-f1 API and is licensed CC BY-NC-SA 4.0. See LICENSE-DATA.md.
-  - Bundled images under `apps/web/public/` (driver headshots, constructor
-    logos, circuit layout SVGs). Each has its own licence and rights holder.
-    See ATTRIBUTIONS.md.
+    dump at `docker/backups/latest.sql.gz`. That data derives from f1db and is
+    licensed CC BY 4.0. See LICENSE-DATA.md.
+  - Bundled assets under `apps/web/public/` (circuit layout SVGs, world map
+    geometry). See ATTRIBUTIONS.md.
 
-Formula 1 word marks and team logos are trademarks of their respective
-owners and are not licensed by this project. See ATTRIBUTIONS.md.
+Formula 1 word marks are trademarks of Formula One Licensing B.V. and are not
+licensed by this project. See ATTRIBUTIONS.md.

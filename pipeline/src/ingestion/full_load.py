@@ -1,4 +1,8 @@
-"""Orchestrates a complete data load from Fast-F1 into PostgreSQL."""
+"""Orchestrates a complete data load into PostgreSQL.
+
+Structural and historical data comes from an f1db release download; lap
+times and qualifying sector times come from Fast-F1 session data (2018+).
+"""
 
 import logging
 import time
@@ -8,7 +12,6 @@ from sqlalchemy.orm import Session
 
 from src.db.database import SessionLocal
 from src.db.models import Driver, QualifyingResult, Race, RaceResult
-from src.ingestion.circuit_layouts import CircuitLayoutIngestor
 from src.ingestion.colors import ConstructorColorIngestor
 from src.ingestion.drivers import ConstructorIngestor, DriverIngestor, StatusIngestor
 from src.ingestion.lap_times import LapTimeIngestor
@@ -16,30 +19,33 @@ from src.ingestion.pit_stops import PitStopIngestor
 from src.ingestion.qualifying_sectors import QualifyingSectorIngestor
 from src.ingestion.races import RaceIngestor
 from src.ingestion.results import QualifyingIngestor, RaceResultIngestor, SprintResultIngestor
-from src.ingestion.seasons import CircuitIngestor, SeasonIngestor
+from src.ingestion.seasons import CircuitIngestor, CircuitLayoutIngestor, SeasonIngestor
 from src.ingestion.standings import StandingsIngestor
 
 logger = logging.getLogger(__name__)
 
 
-def backfill_driver_codes(db: Session) -> None:
-    """Backfill driver number and code from their most recent race result."""
-    logger.info("Backfilling driver numbers and codes from race results...")
+def backfill_driver_numbers(db: Session) -> None:
+    """Fill in car numbers for drivers who never held a permanent one.
 
-    # Get the most recent race result for each driver to extract number/code
+    f1db supplies `permanentNumber`, which only exists for the modern era. For
+    everyone else, fall back to the number they carried in their most recent
+    race so driver pages still show one. Existing permanent numbers are kept.
+    """
+    logger.info("Backfilling driver numbers from race results...")
+
     results = db.query(RaceResult).order_by(RaceResult.race_id.desc()).all()
 
     seen = set()
     updated = 0
     for result in results:
-        if result.driver_id in seen:
+        if result.driver_id in seen or result.number is None:
             continue
         seen.add(result.driver_id)
 
         driver = db.get(Driver, result.driver_id)
-        if driver and result.number is not None:
+        if driver and driver.number is None:
             driver.number = result.number
-            # Try to get code from the driverId pattern or leave as-is
             updated += 1
 
     db.commit()
@@ -189,47 +195,6 @@ def compute_race_aggregates(db: Session) -> None:
     logger.info(f"Updated aggregates for {updated} races")
 
 
-def backfill_qualifying(db: Session) -> None:
-    """Generate qualifying_results from race_results.grid for races missing qualifying."""
-    logger.info("Backfilling qualifying from race result grid positions...")
-
-    # Find race_ids that have results but no qualifying
-    races_with_results = set(db.query(RaceResult.race_id).group_by(RaceResult.race_id).all())
-    races_with_quali = set(
-        db.query(QualifyingResult.race_id).group_by(QualifyingResult.race_id).all()
-    )
-    # SQLAlchemy returns tuples from .all(), extract the values
-    races_with_results = {r[0] for r in races_with_results}
-    races_with_quali = {r[0] for r in races_with_quali}
-
-    missing = races_with_results - races_with_quali
-    if not missing:
-        logger.info("No qualifying gaps to backfill")
-        return
-
-    total = 0
-    for race_id in sorted(missing):
-        results = (
-            db.query(RaceResult)
-            .filter(RaceResult.race_id == race_id, RaceResult.grid.isnot(None), RaceResult.grid > 0)
-            .all()
-        )
-        for r in results:
-            quali = QualifyingResult(
-                id=f"{race_id}_Q_{r.driver_id}",
-                race_id=race_id,
-                driver_id=r.driver_id,
-                constructor_id=r.constructor_id,
-                number=r.number,
-                position=r.grid,
-            )
-            db.merge(quali)
-            total += 1
-        db.commit()
-
-    logger.info(f"Backfilled {total} qualifying results for {len(missing)} races")
-
-
 def _should_run(targets: set[str] | None, key: str) -> bool:
     return targets is None or key in targets
 
@@ -302,13 +267,9 @@ def run_full_load(
             logger.info("\n--- Qualifying sectors ---")
             QualifyingSectorIngestor(db).ingest(year_range=year_range)
 
-        if _should_run(targets, "backfill-qualifying"):
-            logger.info("\n--- Backfill qualifying ---")
-            backfill_qualifying(db)
-
         if _should_run(targets, "postprocess"):
             logger.info("\n--- Post-processing ---")
-            backfill_driver_codes(db)
+            backfill_driver_numbers(db)
             compute_race_aggregates(db)
             refresh_materialized_views(db)
 
