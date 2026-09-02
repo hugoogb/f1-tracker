@@ -4,6 +4,11 @@
 
 A full-stack Formula 1 analytics dashboard covering the complete history of F1 (1950-present) with interactive visualizations, driver/constructor comparisons, and detailed race analysis.
 
+> **Unofficial, non-commercial fan project.** F1 Tracker is not associated in any way with the
+> Formula 1 companies. F1, FORMULA ONE, FORMULA 1, FIA FORMULA ONE WORLD CHAMPIONSHIP, GRAND PRIX
+> and related marks are trade marks of Formula One Licensing B.V. See
+> [ATTRIBUTIONS.md](ATTRIBUTIONS.md).
+
 ## Features
 
 - **Season Overview**: World Champions (driver + constructor) for every season since 1950, championship progression charts
@@ -23,7 +28,7 @@ A full-stack Formula 1 analytics dashboard covering the complete history of F1 (
 | Frontend | Next.js 16, TypeScript, Tailwind CSS 4, shadcn/ui, Recharts |
 | Backend | Python 3.12, FastAPI, SQLAlchemy 2, Alembic |
 | Database | PostgreSQL 16 |
-| Data Source | Fast-F1 (historical F1 data from 1950+, telemetry from 2018+) |
+| Data Source | Fast-F1 / jolpica-f1 (historical F1 data from 1950+, telemetry from 2018+) — [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/) |
 
 ## Getting Started
 
@@ -112,3 +117,22 @@ f1-tracker/
 - **API Docs**: Interactive Swagger UI at [http://localhost:8000/docs](http://localhost:8000/docs) when the backend is running
 - **Deployment**: See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for local dev, free tier (Vercel + Render + Neon), and production deployment guides
 - **Backend**: See [pipeline/README.md](pipeline/README.md) for API endpoints, testing, and project structure
+
+## Licence & Attribution
+
+| What | Licence |
+|------|---------|
+| Source code | [MIT](LICENSE) |
+| F1 dataset (incl. `docker/backups/latest.sql.gz`) | [CC BY-NC-SA 4.0](LICENSE-DATA.md) — inherited from jolpica-f1 via ShareAlike |
+| Bundled images (`apps/web/public/`) | Per file — see [ATTRIBUTIONS.md](ATTRIBUTIONS.md) |
+
+**This project must stay non-commercial.** Its primary data source (jolpica-f1, CC BY-NC-SA 4.0),
+its headshot source (OpenF1) and its map tiles (CARTO free tier) all forbid commercial use.
+Adding ads, a paid tier or sponsorship would breach all three at once —
+[ATTRIBUTIONS.md](ATTRIBUTIONS.md#commercial-use--what-would-break) spells out what would need to
+change first.
+
+Users see the trademark notice and data credits in the site footer, with the complete breakdown at
+`/attributions`.
+
+Rights holders: open an issue and anything used improperly will be removed promptly.
