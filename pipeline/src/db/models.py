@@ -2,7 +2,6 @@ import uuid
 
 from sqlalchemy import (
     BigInteger,
-    Boolean,
     Date,
     Float,
     ForeignKey,
@@ -73,7 +72,6 @@ class Driver(Base):
     date_of_birth: Mapped[str | None] = mapped_column(Date)
     nationality: Mapped[str | None] = mapped_column(String)
     country_code: Mapped[str | None] = mapped_column(String(2))
-    has_headshot: Mapped[bool] = mapped_column(Boolean, default=False)
     url: Mapped[str | None] = mapped_column(String)
 
 
@@ -86,7 +84,6 @@ class Constructor(Base):
     nationality: Mapped[str | None] = mapped_column(String)
     country_code: Mapped[str | None] = mapped_column(String(2))
     color: Mapped[str | None] = mapped_column(String(7))
-    has_logo: Mapped[bool] = mapped_column(Boolean, default=False)
     url: Mapped[str | None] = mapped_column(String)
 
 

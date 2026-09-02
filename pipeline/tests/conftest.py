@@ -73,7 +73,6 @@ def seed_data(db):
         number=1,
         nationality="Dutch",
         country_code="NL",
-        has_headshot=True,
     )
     constructor = Constructor(
         id="constructor-1",
@@ -124,7 +123,6 @@ def race_seed_data(seed_data, db):
         number=11,
         nationality="Mexican",
         country_code="MX",
-        has_headshot=False,
     )
     constructor2 = Constructor(
         id="constructor-2",

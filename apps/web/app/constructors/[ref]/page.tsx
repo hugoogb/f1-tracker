@@ -135,7 +135,6 @@ export default async function ConstructorDetailPage({
                           <DriverAvatar
                             firstName={d.firstName}
                             lastName={d.lastName}
-                            headshotUrl={d.headshotUrl}
                             size="md"
                             teamColor={teamColor}
                           />

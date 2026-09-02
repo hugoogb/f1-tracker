@@ -9,14 +9,8 @@ from sqlalchemy.orm import Session
 from src.db.database import SessionLocal
 from src.db.models import Driver, QualifyingResult, Race, RaceResult
 from src.ingestion.circuit_layouts import CircuitLayoutIngestor
+from src.ingestion.colors import ConstructorColorIngestor
 from src.ingestion.drivers import ConstructorIngestor, DriverIngestor, StatusIngestor
-from src.ingestion.images import (
-    ConstructorColorIngestor,
-    ConstructorLogoIngestor,
-    DriverHeadshotIngestor,
-    WikidataHeadshotIngestor,
-    WikimediaLogoIngestor,
-)
 from src.ingestion.lap_times import LapTimeIngestor
 from src.ingestion.pit_stops import PitStopIngestor
 from src.ingestion.qualifying_sectors import QualifyingSectorIngestor
@@ -276,16 +270,9 @@ def run_full_load(
             logger.info("\n--- Circuit layouts ---")
             CircuitLayoutIngestor(db).ingest()
 
-        if _should_run(targets, "images"):
-            logger.info("\n--- Images (headshots + colors) ---")
-            DriverHeadshotIngestor(db).ingest()
-            WikidataHeadshotIngestor(db).ingest()
+        if _should_run(targets, "colors"):
+            logger.info("\n--- Constructor colors ---")
             ConstructorColorIngestor(db).ingest()
-
-        if _should_run(targets, "logos"):
-            logger.info("\n--- Constructor logos ---")
-            ConstructorLogoIngestor(db).ingest()
-            WikimediaLogoIngestor(db).ingest()
 
         if _should_run(targets, "results"):
             logger.info("\n--- Race results ---")

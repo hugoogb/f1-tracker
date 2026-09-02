@@ -114,23 +114,13 @@ export default async function CompareDriversPage({
                   {d1Name}
                 </Link>
               </h1>
-              <DriverAvatar
-                firstName={driver1.firstName}
-                lastName={driver1.lastName}
-                headshotUrl={driver1.headshotUrl}
-                size="lg"
-              />
+              <DriverAvatar firstName={driver1.firstName} lastName={driver1.lastName} size="lg" />
             </div>
             <span className="text-muted-foreground font-heading shrink-0 text-xl font-bold">
               vs
             </span>
             <div className="flex flex-1 items-center gap-3">
-              <DriverAvatar
-                firstName={driver2.firstName}
-                lastName={driver2.lastName}
-                headshotUrl={driver2.headshotUrl}
-                size="lg"
-              />
+              <DriverAvatar firstName={driver2.firstName} lastName={driver2.lastName} size="lg" />
               <h1>
                 <Link
                   href={`/drivers/${driver2.ref}`}

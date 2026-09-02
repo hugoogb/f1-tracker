@@ -81,7 +81,6 @@ def validate():
                     print(f"    {ref}: {name}")
 
         # --- Country codes ---
-        total_drivers = counts["Drivers"] or 0
         total_constructors = counts["Constructors"] or 0
         total_circuits = counts["Circuits"] or 0
 
@@ -158,16 +157,6 @@ def validate():
                 )
                 print(f"    Missing circuit mappings: {', '.join(missing)}")
 
-        # --- Driver headshots ---
-        drivers_with_headshots = db.scalar(
-            select(func.count()).select_from(Driver).where(Driver.has_headshot.is_(True))
-        )
-        headshots_ok = drivers_with_headshots > 0
-        print("\nDriver headshots:")
-        print(
-            f"  Drivers with headshots: {drivers_with_headshots}/{total_drivers}  {check_mark(headshots_ok)}"
-        )
-
         # --- Constructor colors ---
         constructors_with_colors = db.scalar(
             select(func.count()).select_from(Constructor).where(Constructor.color.isnot(None))
@@ -176,16 +165,6 @@ def validate():
         print("\nConstructor colors:")
         print(
             f"  Constructors with colors: {constructors_with_colors}/{total_constructors}  {check_mark(colors_ok)}"
-        )
-
-        # --- Constructor logos ---
-        constructors_with_logos = db.scalar(
-            select(func.count()).select_from(Constructor).where(Constructor.has_logo.is_(True))
-        )
-        logos_ok = constructors_with_logos > 0
-        print("\nConstructor logos:")
-        print(
-            f"  Constructors with logos: {constructors_with_logos}/{total_constructors}  {check_mark(logos_ok)}"
         )
 
         # --- Build race maps ---

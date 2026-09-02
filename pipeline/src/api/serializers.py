@@ -10,7 +10,6 @@ def driver_summary(driver: Driver) -> dict:
         "lastName": driver.last_name,
         "nationality": driver.nationality,
         "countryCode": driver.country_code,
-        "headshotUrl": f"/headshots/{driver.ref}.png" if driver.has_headshot else None,
     }
 
 
@@ -35,7 +34,6 @@ def constructor_summary(constructor: Constructor) -> dict:
 
 def constructor_detail(constructor: Constructor, **extra) -> dict:
     d = constructor_summary(constructor)
-    d["logoUrl"] = f"/logos/{constructor.ref}.png" if constructor.has_logo else None
     d.update(extra)
     return d
 

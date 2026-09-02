@@ -109,7 +109,6 @@ export function QualifyingTable({ results, fastestSectors }: QualifyingTableProp
                     <DriverAvatar
                       firstName={result.driver.firstName}
                       lastName={result.driver.lastName}
-                      headshotUrl={result.driver.headshotUrl}
                       teamColor={teamColor ?? undefined}
                     />
                     {teamColor && (

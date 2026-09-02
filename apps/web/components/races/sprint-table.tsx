@@ -45,7 +45,6 @@ export function SprintTable({ results }: SprintTableProps) {
                   <DriverAvatar
                     firstName={result.driver.firstName}
                     lastName={result.driver.lastName}
-                    headshotUrl={result.driver.headshotUrl}
                     teamColor={teamColor ?? undefined}
                   />
                   {teamColor && (

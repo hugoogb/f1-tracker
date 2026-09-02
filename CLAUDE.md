@@ -112,7 +112,6 @@ F1 analytics dashboard covering the complete history of Formula 1 (1950-present)
 - Requires `NEON_DATABASE_URL` in `.env`
 - **Automated**: `.github/workflows/ingest.yml` runs Mondays, calendar-gated, ingests current-year data directly into Neon. Requires `NEON_DATABASE_URL` GitHub secret + Neon pre-seeded (the skip-if-exists ingestors can't bootstrap an empty DB).
 - `uv run python scripts/should_ingest.py --days 3` - Calendar gate (used by the workflow): exits with `should_ingest=true/false`
-- `uv run python scripts/build_credits.py` - Rebuild `apps/web/public/credits/wikimedia-credits.json` (per-image Commons author/licence used by `/attributions`). Run after adding Wikimedia images.
 
 ### Database
 - `docker compose -f docker/docker-compose.yml up -d` - Start PostgreSQL
@@ -134,24 +133,21 @@ F1 analytics dashboard covering the complete history of Formula 1 (1950-present)
 
 ## Licensing & API Compliance
 
-**This project must remain non-commercial.** jolpica-f1 (CC BY-NC-SA 4.0), OpenF1 and the CARTO
-free basemap tier all forbid commercial use. See `ATTRIBUTIONS.md` for the full source inventory
-and `LICENSE-DATA.md` for the dataset licence.
+**This project must remain non-commercial** while jolpica-f1 (CC BY-NC-SA 4.0) supplies the
+dataset. Every other source is already commercially clean. See `ATTRIBUTIONS.md` for the source
+inventory, `LICENSE-DATA.md` for the dataset licence, and `docs/F1DB-MIGRATION.md` for the planned
+move to f1db (CC BY 4.0), which would lift the restriction.
 
 Rules to preserve when changing code:
 
 - **Never remove** the trademark disclaimer or data credits from `components/layout/footer.tsx` or
   the `/attributions` page.
-- **Map tiles** must keep the `© OpenStreetMap contributors © CARTO` attribution on the Leaflet
-  `TileLayer` — both are required, not just CARTO.
-- **Constructor logos** are trademarks: download them byte-for-byte with `_download_file()`. Never
-  route a logo through `_download_and_resize()` (crop/recolour) — TheSportsDB's terms require
-  logos be used "as is".
-- **Wikimedia Commons images** are individually licensed. Always resolve them via
-  `_wikimedia_file_info()` so author/licence/source are captured into
-  `apps/web/public/credits/wikimedia-credits.json`, which `/attributions` renders per image.
-- **Outbound requests** must send `USER_AGENT` (identifies the project + repo URL) per Wikimedia's
-  User-Agent policy.
+- **No driver photos or team logos.** OpenF1, TheSportsDB and Wikimedia Commons were all removed;
+  `DriverAvatar` and `ConstructorLogo` render initials on the team colour. Do not reintroduce an
+  image source without adding a row to `ATTRIBUTIONS.md` — see its "Deliberately not used" table.
+- **Map** uses bundled Natural Earth geometry (`public/geo/world.geo.json`, public domain), not
+  raster basemap tiles. Do not add a `TileLayer` back: CARTO/OSM tiles require visible attribution
+  and are non-commercial on the free tier.
 - **Rate limits**: keep `API_DELAY` (18s, jolpica ~200 req/hr) and `THROTTLE_DELAY` (45s, Fast-F1
   ~500 calls/hr) in `src/ingestion/base.py`.
 - New data sources need a row in `ATTRIBUTIONS.md` and an entry in `DATA_SOURCES` on the

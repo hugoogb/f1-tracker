@@ -50,7 +50,6 @@ export function DriverStandingsTable({ standings, limit }: DriverStandingsTableP
                   <DriverAvatar
                     firstName={entry.driver.firstName}
                     lastName={entry.driver.lastName}
-                    headshotUrl={entry.driver.headshotUrl}
                     teamColor={teamColor ?? undefined}
                   />
                   {teamColor && (

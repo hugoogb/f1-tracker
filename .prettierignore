@@ -8,3 +8,6 @@ uv.lock
 *.md
 pipeline/
 docker/
+
+# Generated geodata — minified on purpose
+apps/web/public/geo/*.json

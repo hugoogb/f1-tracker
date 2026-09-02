@@ -67,7 +67,6 @@ function DriverRecordTable({
                     <DriverAvatar
                       firstName={entry.driver.firstName}
                       lastName={entry.driver.lastName}
-                      headshotUrl={entry.driver.headshotUrl}
                     />
                     <span className="hover:text-primary font-medium transition-colors">
                       {entry.driver.firstName} {entry.driver.lastName}

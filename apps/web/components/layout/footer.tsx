@@ -63,8 +63,8 @@ export function Footer() {
             >
               CC BY-NC-SA 4.0
             </a>{' '}
-            and modified. Images from OpenF1, TheSportsDB and Wikimedia Commons; circuit layouts by
-            julesr0y (CC BY 4.0). Full credits on the{' '}
+            and modified. Circuit layouts by julesr0y (CC BY 4.0); map geometry from Natural Earth
+            (public domain). Full credits on the{' '}
             <Link
               href="/attributions"
               className="hover:text-foreground underline underline-offset-2"

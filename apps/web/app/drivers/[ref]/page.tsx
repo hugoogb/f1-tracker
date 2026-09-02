@@ -70,7 +70,6 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ r
           <DriverAvatar
             firstName={driverData.firstName}
             lastName={driverData.lastName}
-            headshotUrl={driverData.headshotUrl}
             size="lg"
             teamColor={teamColor}
             className="rounded-2xl"

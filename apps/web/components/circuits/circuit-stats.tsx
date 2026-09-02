@@ -90,7 +90,6 @@ export function CircuitStatsView({ stats }: CircuitStatsViewProps) {
                   <DriverAvatar
                     firstName={entry.driver.firstName}
                     lastName={entry.driver.lastName}
-                    headshotUrl={entry.driver.headshotUrl}
                     size="sm"
                   />
                   <div className="flex-1">
@@ -125,7 +124,6 @@ export function CircuitStatsView({ stats }: CircuitStatsViewProps) {
                   <DriverAvatar
                     firstName={entry.driver.firstName}
                     lastName={entry.driver.lastName}
-                    headshotUrl={entry.driver.headshotUrl}
                     size="sm"
                   />
                   <div className="flex-1">
