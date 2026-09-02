@@ -82,6 +82,52 @@ f1db `countries/<id>.yml` provides `alpha2Code` (`GB`) and `demonym`
 (`British`), mapping directly onto `Driver.country_code` / `Driver.nationality`
 and the constructor equivalents. Delete `src/api/country_codes.py`.
 
+## Verified data delta
+
+Checked against the `f1db-json-single` release artifact (84.5 MB JSON, 6.7 MB
+zipped, 1,172 races) and the published schema, not from documentation.
+
+### Losses — three, one of them real
+
+| Field | Status | Verdict |
+|---|---|---|
+| `race_results.fastest_lap_speed` | f1db has **no speed data** in any of its 45 schema definitions | **Derive it.** Ergast's average speed is lap distance ÷ lap time. f1db supplies `courseLength` and the fastest lap's `timeMillis`: 5.412 km / 92,608 ms → **210.384 km/h** for 2024 Bahrain. Same definition, same value. No net loss. |
+| Wikipedia `url` on seasons, races, drivers, constructors, circuits | Absent from f1db | Consumed only by `/api/seasons`; never rendered by the frontend. Drop the columns. |
+| `pit_stops.time_of_day` | f1db carries stop duration (`time`, `timeMillis`) but not wall-clock time | Exposed as `timeOfDay` in the API and `types.ts` but **never rendered**. Drop it. |
+
+Everything else on every model maps directly. Spot-checked on 2024 Bahrain:
+`positionNumber`, `positionText`, `driverNumber`, `gridPositionNumber`,
+`points`, `laps`, `time`, `timeMillis`, `reasonRetired`, `q1`/`q2`/`q3` plus
+`q1Millis`/`q2Millis`/`q3Millis`, and fastest lap `lap`/`time`/`timeMillis` are
+all populated.
+
+### Gains
+
+| | Today (jolpica) | After (f1db) |
+|---|---|---|
+| Pit stops | 2012+ (`pit_stops.py` gates on 2012) | **1994+** |
+| Qualifying | Ergast's qualifying dataset begins 1994 | **All 1,172 races from 1950** |
+| Qualifying times | Strings only | Strings **plus** integer milliseconds |
+| Circuit layout `seasons_active` | Hand-maintained 330-line `LAYOUT_DATA` table | **Derived** — every one of the 1,172 races carries `circuitLayoutId` |
+
+Also newly available, unused for now: starting grid positions with penalties,
+driver of the day, grand slams, positions gained, engine and tyre manufacturers,
+chassis, and free practice results.
+
+### Changes that are not losses
+
+- **Refs** become f1db slugs (`lewis-hamilton`, `red-bull`). Old URLs 404 by
+  decision.
+- **`statuses`** is rebuilt from f1db's 197 distinct `reasonRetired` values
+  (`Engine`, `Accident`, `Collision`, `Gearbox`, …) — the same vocabulary style
+  as Ergast's, so the API's `status` string keeps its shape.
+- **Standings** stay locally computed; unchanged.
+
+### Dependency cleanup this unlocks
+
+`pillow` (only ever used to resize headshots) and `httpx` (no direct import)
+both become unused and can leave `pyproject.toml`.
+
 ## Gaps and how to close them
 
 1. **`Status` table.** We store a normalised `statuses` table with a
