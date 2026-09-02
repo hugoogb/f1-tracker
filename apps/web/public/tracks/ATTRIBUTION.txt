@@ -1,0 +1,12 @@
+Circuit layout SVGs in this directory
+=====================================
+
+Source:  f1-circuits-svg -- https://github.com/julesr0y/f1-circuits-svg
+Author:  julesr0y
+Licence: Creative Commons Attribution 4.0 International (CC BY 4.0)
+         https://creativecommons.org/licenses/by/4.0/
+
+Changes: none. The "white" style variant is used as published.
+
+These files are NOT covered by the MIT licence of this repository's source
+code. If you redistribute them, you must keep this attribution.

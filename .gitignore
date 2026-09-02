@@ -47,6 +47,7 @@ docker/pgdata/
 # DB backups — only keep latest in git
 docker/backups/*
 !docker/backups/latest.sql.gz
+!docker/backups/README.md
 
 # Testing
 coverage/

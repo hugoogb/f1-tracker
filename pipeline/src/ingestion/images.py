@@ -1,8 +1,10 @@
 """Ingest driver headshots, constructor logos, and constructor colors."""
 
+import html
 import io
 import json
 import pathlib
+import re
 import time
 import urllib.error
 import urllib.parse
@@ -18,6 +20,16 @@ from src.ingestion.base import BaseIngestor
 PUBLIC_DIR = pathlib.Path(__file__).resolve().parents[3] / "apps" / "web" / "public"
 HEADSHOTS_DIR = PUBLIC_DIR / "headshots"
 LOGOS_DIR = PUBLIC_DIR / "logos"
+CREDITS_DIR = PUBLIC_DIR / "credits"
+# Per-file attribution for Wikimedia Commons images, rendered on /attributions.
+WIKIMEDIA_CREDITS_PATH = CREDITS_DIR / "wikimedia-credits.json"
+
+# --- Identification ---
+# Wikimedia's User-Agent policy requires a descriptive agent with contact details.
+# We send the same identifying agent to every upstream so operators can reach us.
+# https://foundation.wikimedia.org/wiki/Policy:Wikimedia_Foundation_User-Agent_Policy
+PROJECT_URL = "https://github.com/hugoogb/f1-tracker"
+USER_AGENT = f"F1TrackerBot/1.0 ({PROJECT_URL})"
 
 # --- OpenF1 ---
 OPENF1_BASE = "https://api.openf1.org/v1"
@@ -154,14 +166,14 @@ CONSTRUCTOR_COLORS: dict[str, str] = {
 def _fetch_json(url: str, timeout: int = 30) -> list | dict | None:
     """Fetch JSON from a URL, returning None on failure."""
     try:
-        req = urllib.request.Request(url, headers={"User-Agent": "F1Tracker/1.0"})
+        req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             return json.loads(resp.read())
     except Exception:
         return None
 
 
-def _download_file(url: str, dest: pathlib.Path, ua: str = "F1Tracker/1.0") -> bool:
+def _download_file(url: str, dest: pathlib.Path, ua: str = USER_AGENT) -> bool:
     """Download a file, returning True on success."""
     try:
         req = urllib.request.Request(url, headers={"User-Agent": ua})
@@ -173,14 +185,26 @@ def _download_file(url: str, dest: pathlib.Path, ua: str = "F1Tracker/1.0") -> b
 
 
 COMMONS_API = "https://commons.wikimedia.org/w/api.php"
-WIKIMEDIA_UA = "F1TrackerBot/1.0 (https://github.com/hugoogb/f1-tracker)"
+WIKIMEDIA_UA = USER_AGENT
 
 
-def _wikimedia_thumb_url(file_path_url_or_filename: str, width: int = 200) -> str | None:
-    """Get a thumbnail URL via the Commons API.
+def _strip_html(value: str) -> str:
+    """Flatten the HTML snippets Commons returns for author/credit fields."""
+    text = re.sub(r"<[^>]+>", "", value)
+    return html.unescape(text).strip()
 
-    Accepts either a Special:FilePath URL or a plain Commons filename.
-    Returns None if the file is not found.
+
+def _wikimedia_file_info(
+    file_path_url_or_filename: str, width: int = 200
+) -> tuple[str, dict] | None:
+    """Resolve a Commons file to a thumbnail URL plus its attribution metadata.
+
+    Accepts either a Special:FilePath URL or a plain Commons filename. Returns
+    ``(thumb_url, credit)`` where ``credit`` carries the author, licence and
+    source page needed to attribute the file, or None if it is not found.
+
+    Commons files are individually licensed (CC BY-SA, CC BY, public domain,
+    ...), so the licence must be captured per file rather than assumed.
     """
     if "Special:FilePath" in file_path_url_or_filename:
         encoded = file_path_url_or_filename.rsplit("/", 1)[-1]
@@ -193,7 +217,7 @@ def _wikimedia_thumb_url(file_path_url_or_filename: str, width: int = 200) -> st
             "action": "query",
             "titles": f"File:{filename}",
             "prop": "imageinfo",
-            "iiprop": "url",
+            "iiprop": "url|extmetadata",
             "iiurlwidth": str(width),
             "format": "json",
         }
@@ -206,26 +230,54 @@ def _wikimedia_thumb_url(file_path_url_or_filename: str, width: int = 200) -> st
             data = json.loads(resp.read())
         pages = data.get("query", {}).get("pages", {})
         for page in pages.values():
-            thumb = page.get("imageinfo", [{}])[0].get("thumburl")
-            if thumb:
-                return thumb
+            info = (page.get("imageinfo") or [{}])[0]
+            thumb = info.get("thumburl")
+            if not thumb:
+                continue
+            meta = info.get("extmetadata") or {}
+
+            def field(key: str) -> str:
+                return _strip_html(str(meta.get(key, {}).get("value", "")))
+
+            credit = {
+                "file": filename,
+                "source_page": info.get("descriptionurl")
+                or f"https://commons.wikimedia.org/wiki/File:{urllib.parse.quote(filename)}",
+                "author": field("Artist") or "Unknown",
+                "license": field("LicenseShortName") or "Unknown",
+                "license_url": meta.get("LicenseUrl", {}).get("value", ""),
+                "attribution": field("Attribution"),
+            }
+            return thumb, credit
     except Exception:
         pass
     return None
 
 
+def _load_credits() -> dict[str, dict]:
+    """Load the Wikimedia credit manifest, keyed by public asset path."""
+    try:
+        return json.loads(WIKIMEDIA_CREDITS_PATH.read_text())
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+
+def _save_credits(credits: dict[str, dict]) -> None:
+    """Persist the Wikimedia credit manifest for the frontend to render."""
+    CREDITS_DIR.mkdir(parents=True, exist_ok=True)
+    WIKIMEDIA_CREDITS_PATH.write_text(
+        json.dumps(dict(sorted(credits.items())), indent=2, ensure_ascii=False) + "\n"
+    )
+
+
 def _download_and_resize(url: str, dest: pathlib.Path, size: tuple[int, int]) -> str | None:
     """Download an image, resize/crop to a square, and save as PNG.
 
+    Expects an already-resolved direct image URL. Commons files must be resolved
+    through _wikimedia_file_info first, so their licence is captured alongside.
+
     Returns None on success, or an error message on failure.
     """
-    # Use Commons API to get a proper thumbnail URL (avoids 429 rate limits)
-    if "Special:FilePath" in url:
-        thumb = _wikimedia_thumb_url(url, width=max(size) * 3)
-        if not thumb:
-            return "Could not resolve thumbnail URL via Commons API"
-        url = thumb
-
     try:
         req = urllib.request.Request(url, headers={"User-Agent": WIKIMEDIA_UA})
         with urllib.request.urlopen(req, timeout=30) as resp:
@@ -457,6 +509,7 @@ class WikidataHeadshotIngestor(BaseIngestor):
         updated = 0
         failed = 0
         not_found = 0
+        credits = _load_credits()
 
         for ref in refs_to_fetch:
             wikidata_name = self.NOTABLE_DRIVERS[ref]
@@ -469,11 +522,22 @@ class WikidataHeadshotIngestor(BaseIngestor):
 
             driver = self.db.execute(select(Driver).where(Driver.ref == ref)).scalar_one()
 
+            # Resolve through Commons so the per-file licence is captured with it.
+            info = _wikimedia_file_info(image_url, width=max(HEADSHOT_SIZE) * 3)
+            if not info:
+                failed += 1
+                self.log(f"  {ref}: failed — could not resolve file via Commons API")
+                time.sleep(1)
+                continue
+            thumb_url, credit = info
+
             local_path = HEADSHOTS_DIR / f"{ref}.png"
-            err = _download_and_resize(image_url, local_path, HEADSHOT_SIZE)
+            err = _download_and_resize(thumb_url, local_path, HEADSHOT_SIZE)
             if err is None:
                 driver.has_headshot = True
                 updated += 1
+                # Cropped to a square avatar, so record it as an adaptation.
+                credits[f"headshots/{ref}.png"] = {**credit, "modified": "Cropped and resized"}
                 self.log(f"  {ref}: downloaded")
             else:
                 failed += 1
@@ -482,6 +546,7 @@ class WikidataHeadshotIngestor(BaseIngestor):
             # Delay to avoid Wikimedia 429 rate limiting
             time.sleep(1)
 
+        _save_credits(credits)
         self.db.commit()
         self.log(
             f"Downloaded {updated} headshots from Wikidata "
@@ -633,18 +698,22 @@ class WikimediaLogoIngestor(BaseIngestor):
 
         updated = 0
         failed = 0
+        credits = _load_credits()
 
         for ref in refs_to_fetch:
             filename = COMMONS_LOGOS[ref]
-            thumb_url = _wikimedia_thumb_url(filename, width=200)
+            info = _wikimedia_file_info(filename, width=200)
 
-            if not thumb_url:
+            if not info:
                 self.log(f"  {ref}: not found on Commons ({filename})")
                 failed += 1
                 continue
+            thumb_url, credit = info
 
             local_path = LOGOS_DIR / f"{ref}.png"
             if _download_file(thumb_url, local_path, ua=WIKIMEDIA_UA):
+                # Logos are scaled only — never cropped or recoloured.
+                credits[f"logos/{ref}.png"] = {**credit, "modified": "Scaled to width 200px"}
                 constructor = self.db.execute(
                     select(Constructor).where(Constructor.ref == ref)
                 ).scalar_one()
@@ -657,6 +726,7 @@ class WikimediaLogoIngestor(BaseIngestor):
 
             time.sleep(0.5)
 
+        _save_credits(credits)
         self.db.commit()
         self.log(
             f"Downloaded {updated} logos from Wikimedia Commons"
