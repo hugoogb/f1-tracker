@@ -42,8 +42,8 @@ pipeline/
 │   │   ├── models.py          # SQLAlchemy 2 models (12 tables)
 │   │   ├── queries.py         # Reusable query helpers
 │   │   └── database.py        # Engine, session, Base
-│   └── ingestion/             # Fast-F1 data pipeline scripts
-├── tests/                     # pytest suite (44 tests, 11 files)
+│   └── ingestion/             # f1db + Fast-F1 data pipeline
+├── tests/                     # pytest suite (82 tests)
 ├── scripts/                   # seed.py, backup/restore
 ├── alembic/                   # Database migrations
 └── pyproject.toml             # Dependencies + ruff/pytest config
@@ -51,8 +51,14 @@ pipeline/
 
 ## Data Sources
 
-- **Fast-F1**: Primary data source. Covers race results from 1950+, telemetry from 2018+
-- **Jolpica-F1**: Ergast API replacement, accessed internally via Fast-F1
+- **f1db** ([CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)): the dataset — seasons,
+  races, circuits and layouts, drivers, constructors, results, qualifying, sprint, pit stops and
+  official standings, 1950 to present. Ingested from one versioned release download per run
+  (`src/ingestion/f1db.py`); pin `F1DB_VERSION` for reproducible seeds.
+- **Fast-F1** (MIT): lap-by-lap times, sector times and tyre compound/stint data (2018+) — the only
+  source for lap-level detail, which f1db does not carry.
+
+See [../ATTRIBUTIONS.md](../ATTRIBUTIONS.md).
 
 ## API Endpoints
 
@@ -75,8 +81,8 @@ pipeline/
 | `GET /api/seasons/{year}/races/{round}` | Race results with fastest lap |
 | `GET /api/seasons/{year}/races/{round}/qualifying` | Qualifying results with sector times |
 | `GET /api/seasons/{year}/races/{round}/sprint` | Sprint results (2021+) |
-| `GET /api/seasons/{year}/races/{round}/pitstops` | Pit stop data (2012+) |
-| `GET /api/seasons/{year}/races/{round}/pitstops/analysis` | Pit stop analysis (2012+) |
+| `GET /api/seasons/{year}/races/{round}/pitstops` | Pit stop data (1994+) |
+| `GET /api/seasons/{year}/races/{round}/pitstops/analysis` | Pit stop analysis (1994+) |
 | `GET /api/seasons/{year}/races/{round}/positions` | Lap-by-lap positions (2018+) |
 | `GET /api/seasons/{year}/races/{round}/laps` | Lap times + tyre strategy (2018+) |
 
@@ -127,7 +133,7 @@ uv run pytest -v
 uv run pytest tests/test_races.py -v
 ```
 
-44 tests across 11 files covering all routers. Tests use SQLite in-memory with `StaticPool` and two fixtures:
+82 tests covering the routers plus the f1db transform helpers. Tests use SQLite in-memory with `StaticPool` and two fixtures:
 - `seed_data` — minimal: 1 season, 1 driver, 1 constructor, 1 circuit
 - `race_seed_data` — extended: adds race, results, qualifying, standings, pit stop, 2nd driver/constructor
 

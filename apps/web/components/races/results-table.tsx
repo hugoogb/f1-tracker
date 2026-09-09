@@ -59,7 +59,6 @@ export function ResultsTable({ results, fastestLapDriverRef }: ResultsTableProps
                   <DriverAvatar
                     firstName={result.driver.firstName}
                     lastName={result.driver.lastName}
-                    headshotUrl={result.driver.headshotUrl}
                     teamColor={teamColor ?? undefined}
                   />
                   {teamColor && (

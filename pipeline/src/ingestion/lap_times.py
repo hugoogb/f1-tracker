@@ -6,7 +6,7 @@ from datetime import date
 import fastf1
 from sqlalchemy import select
 
-from src.db.models import Driver, LapTime, Race, Season
+from src.db.models import LapTime, Race, Season
 from src.ingestion.base import (
     THROTTLE_DELAY,
     BaseIngestor,
@@ -20,9 +20,10 @@ from src.ingestion.base import (
 class LapTimeIngestor(BaseIngestor):
     """Ingest lap-by-lap data from Fast-F1 live timing (2018+ only).
 
-    Uses Fast-F1's session.laps DataFrame which provides lap times,
-    sector times, tyre compound, stint, and tyre life data from the
-    OpenF1 live timing feed.
+    Uses Fast-F1's session.laps DataFrame, which provides lap times, sector
+    times, tyre compound, stint and tyre life from Formula 1's own live timing
+    archive. This is the only source for lap-level and tyre-compound data —
+    f1db's finest granularity is one row per driver per session.
     """
 
     def ingest(self, year_range: tuple[int, int] | None = None) -> None:
@@ -32,10 +33,6 @@ class LapTimeIngestor(BaseIngestor):
         existing = set(
             self.db.execute(select(LapTime.race_id).group_by(LapTime.race_id)).scalars().all()
         )
-
-        # Build driver ref -> driver_id lookup (ref matches Fast-F1's DriverId)
-        drivers = self.db.execute(select(Driver)).scalars().all()
-        ref_to_id: dict[str, str] = {d.ref: d.id for d in drivers}
 
         today = date.today()
         min_year = max(2018, year_range[0]) if year_range else 2018
@@ -85,7 +82,11 @@ class LapTimeIngestor(BaseIngestor):
                         continue
 
                     # Build abbreviation -> driver_id map from session results
-                    abbr_to_id = self.build_abbr_to_driver_id(session.results, ref_to_id)
+                    # Codes are unique per session but reused across eras, so scope
+                    # the lookup to this race's entrants.
+                    abbr_to_id = self.build_abbr_to_driver_id(
+                        session.results, self.race_entrant_codes(race.id)
+                    )
 
                     if not abbr_to_id:
                         self.log(f"{season.year} R{race.round}: no driver mapping available")
