@@ -44,7 +44,9 @@ Create a `.env` file at the project root. All variables have development default
 | `FASTAPI_HOST`       | `0.0.0.0`                                                       | Backend listen address                   |
 | `FASTAPI_PORT`       | `8000`                                                           | Backend listen port                      |
 | `FASTAPI_DEBUG`      | `True`                                                           | Set to `False` in production             |
-| `FASTF1_CACHE_DIR`   | `.fastf1_cache`                                                  | Fast-F1 data cache directory             |
+| `F1DB_VERSION`       | `latest`                                                         | f1db release to ingest; pin a tag for reproducible seeds |
+| `F1DB_CACHE_DIR`     | `.f1db_cache`                                                    | f1db release archive cache directory     |
+| `FASTF1_CACHE_DIR`   | `.fastf1_cache`                                                  | Fast-F1 session cache directory          |
 | `CORS_ORIGINS`        | `http://localhost:3000`                                          | Comma-separated list of allowed CORS origins         |
 | `NEXT_PUBLIC_API_URL` | `http://localhost:8000/api`                                     | Backend API URL (used by the frontend at build time) |
 
@@ -495,7 +497,7 @@ uv run python scripts/seed.py --base --results --qualifying --standings --pitsto
 cd .. && ./scripts/db-backup.sh
 ```
 
-> **Tip**: The ingestion pipeline uses Fast-F1 which caches data locally in `FASTF1_CACHE_DIR`. Subsequent runs are faster because only new data is fetched. Jolpica-F1 (used internally) has a rate limit of 200 requests/hour.
+> **Tip**: The dataset is one f1db release download per run, cached in `F1DB_CACHE_DIR` — no rate limit. Set `F1DB_VERSION` to a release tag for a reproducible seed, or leave it as `latest`. Fast-F1 (lap times and tyre data, 2018+) caches sessions in `FASTF1_CACHE_DIR` and is throttled to stay within its ~500 calls/hour window.
 
 ### Automated data updates (GitHub Actions → Neon)
 
@@ -558,7 +560,7 @@ The project includes a GitHub Actions workflow at `.github/workflows/ci.yml` tha
 1. `uv run ruff check .` — linting
 2. `uv run ruff format --check .` — formatting
 3. `uv run pip-audit` — dependency vulnerability scan (non-blocking)
-4. `uv run pytest -v` — 44 tests across 11 test files
+4. `uv run pytest -v` — 82 tests
 
 Security audits run with `continue-on-error: true` — findings are visible in CI output but don't block PRs.
 

@@ -210,11 +210,7 @@ export default async function Home() {
                         <Trophy className="h-4 w-4 text-amber-500/60" />
                       </div>
                       <div className="flex items-center gap-2">
-                        <DriverAvatar
-                          firstName={c.driver.firstName}
-                          lastName={c.driver.lastName}
-                          headshotUrl={c.driver.headshotUrl}
-                        />
+                        <DriverAvatar firstName={c.driver.firstName} lastName={c.driver.lastName} />
                         <Link
                           href={`/drivers/${c.driver.ref}`}
                           className="hover:text-primary text-sm font-medium transition-colors"

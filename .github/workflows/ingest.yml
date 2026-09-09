@@ -3,10 +3,9 @@ name: Scheduled Data Ingest
 # Incrementally ingests new F1 race data directly into Neon after race weekends.
 #
 # Prerequisites (one-time):
-#   - Neon must already be SEEDED with the full dataset (run scripts/update-neon.sh
-#     locally once). This job is for INCREMENTAL updates only — the ingestors
-#     skip base entities when they already exist, so they cannot bootstrap an
-#     empty database.
+#   - Neon must have the schema applied (alembic upgrade head), which this job
+#     does. The f1db ingestors upsert the whole dataset from a single release
+#     download, so they can bootstrap an empty database as well as update one.
 #   - Add the repository secret NEON_DATABASE_URL
 #     (postgresql://user:pass@ep-xyz.region.aws.neon.tech/f1tracker?sslmode=require)
 

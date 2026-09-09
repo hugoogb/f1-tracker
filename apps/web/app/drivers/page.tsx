@@ -76,11 +76,7 @@ export default async function DriversPage({
                     href={`/drivers/${driver.ref}`}
                     className="hover:text-primary inline-flex items-center gap-2.5 font-medium transition-colors"
                   >
-                    <DriverAvatar
-                      firstName={driver.firstName}
-                      lastName={driver.lastName}
-                      headshotUrl={driver.headshotUrl}
-                    />
+                    <DriverAvatar firstName={driver.firstName} lastName={driver.lastName} />
                     {driver.firstName} {driver.lastName}
                   </Link>
                 </TableCell>
