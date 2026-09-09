@@ -13,12 +13,12 @@ from src.ingestion.base import BaseIngestor
 # Historical and current constructor colors (constructor ref → hex color)
 # Compiled from published team liveries and historical reference material.
 CONSTRUCTOR_COLORS: dict[str, str] = {
-    # === 2025 grid (from OpenF1) ===
+    # === 2025 grid ===
     "mclaren": "#F47600",
-    "red_bull": "#4781D7",
+    "red-bull": "#4781D7",
     "ferrari": "#ED1131",
     "mercedes": "#00D7B6",
-    "aston_martin": "#229971",
+    "aston-martin": "#229971",
     "alpine": "#00A1E8",
     "williams": "#1868DB",
     "haas": "#9C9FA2",
@@ -26,22 +26,22 @@ CONSTRUCTOR_COLORS: dict[str, str] = {
     "sauber": "#F50537",
     # === Recent teams (2010s-2020s) ===
     "alphatauri": "#4E7C9B",
-    "toro_rosso": "#1E5BC6",
-    "racing_point": "#F596C8",
-    "force_india": "#F596C8",
+    "toro-rosso": "#1E5BC6",
+    "racing-point": "#F596C8",
+    "force-india": "#F596C8",
     "renault": "#FFF500",
     "caterham": "#005030",
     "marussia": "#ED1131",
     "manor": "#ED1131",
-    "lotus_f1": "#FFB800",
+    "lotus-f1": "#FFB800",
     "hrt": "#A08250",
     "virgin": "#C82E37",
     # === 2000s ===
     "brawn": "#B5F500",
     "toyota": "#CC0000",
-    "bmw_sauber": "#0066B1",
+    "bmw-sauber": "#0066B1",
     "honda": "#CC0000",
-    "super_aguri": "#CC0000",
+    "super-aguri": "#CC0000",
     "spyker": "#F57E20",
     "midland": "#CC0000",
     "jordan": "#FDD000",
@@ -72,7 +72,7 @@ CONSTRUCTOR_COLORS: dict[str, str] = {
     "eurobrun": "#003399",
     "onyx": "#1A1A1A",
     "dallara": "#CC0000",
-    "leyton_house": "#00CED1",
+    "leyton-house": "#00CED1",
     "march": "#007BA7",
     # === 1970s ===
     "matra": "#003399",
@@ -93,10 +93,8 @@ CONSTRUCTOR_COLORS: dict[str, str] = {
     "cooper": "#006633",
     "vanwall": "#006633",
     "eagle": "#003399",
-    "honda_f1": "#CC0000",
     # === Classic ===
-    "alfa": "#8B0000",
-    "alfa_romeo": "#8B0000",
+    "alfa-romeo": "#8B0000",
     "porsche": "#8B8B8B",
     "maserati": "#CC0000",
     "gordini": "#003399",
@@ -133,5 +131,11 @@ class ConstructorColorIngestor(BaseIngestor):
         self.db.commit()
 
         if missing:
-            self.log(f"Note: {len(missing)} refs not in DB: {missing[:10]}...")
+            # Loud on purpose: a ref that stops matching (e.g. an Ergast-style
+            # "red_bull" against f1db's "red-bull") silently drops a team back to
+            # the default colour, which is easy to miss in the UI.
+            self.log(
+                f"WARNING: {len(missing)} color refs are not constructor ids "
+                f"and were skipped: {sorted(missing)[:10]}"
+            )
         self.log(f"Updated colors for {updated} constructors")

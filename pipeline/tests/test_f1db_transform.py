@@ -117,3 +117,52 @@ class TestReleaseUrl:
     def test_pinned_version_normalises_the_v_prefix(self):
         assert "/download/v2026.5.0/" in _release_url("2026.5.0")
         assert "/download/v2026.5.0/" in _release_url("v2026.5.0")
+
+
+class TestConstructorColors:
+    """The palette is keyed by constructor ref, which must match f1db's ids.
+
+    Regression guard: the palette was originally keyed by Ergast refs
+    ("red_bull"), which silently stopped matching f1db's ids ("red-bull") and
+    dropped twelve teams — Red Bull and Aston Martin among them — back to the
+    default colour.
+    """
+
+    def test_keys_use_f1db_id_style(self):
+        from src.ingestion.colors import CONSTRUCTOR_COLORS
+
+        offenders = [ref for ref in CONSTRUCTOR_COLORS if "_" in ref]
+        assert offenders == [], f"f1db ids use hyphens, not underscores: {offenders}"
+
+    def test_keys_are_lowercase_slugs(self):
+        import re
+
+        from src.ingestion.colors import CONSTRUCTOR_COLORS
+
+        bad = [r for r in CONSTRUCTOR_COLORS if not re.fullmatch(r"[a-z0-9]+(-[a-z0-9]+)*", r)]
+        assert bad == [], f"not valid f1db id slugs: {bad}"
+
+    def test_values_are_hex_colours(self):
+        import re
+
+        from src.ingestion.colors import CONSTRUCTOR_COLORS
+
+        bad = [c for c in CONSTRUCTOR_COLORS.values() if not re.fullmatch(r"#[0-9A-Fa-f]{6}", c)]
+        assert bad == [], f"not 6-digit hex colours: {bad}"
+
+    def test_current_grid_is_covered(self):
+        """The teams most visible in the UI must all have a colour."""
+        from src.ingestion.colors import CONSTRUCTOR_COLORS
+
+        for ref in (
+            "red-bull",
+            "ferrari",
+            "mercedes",
+            "mclaren",
+            "aston-martin",
+            "alpine",
+            "williams",
+            "haas",
+            "sauber",
+        ):
+            assert ref in CONSTRUCTOR_COLORS, f"missing colour for {ref}"

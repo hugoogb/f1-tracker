@@ -20,9 +20,10 @@ from src.ingestion.base import (
 class LapTimeIngestor(BaseIngestor):
     """Ingest lap-by-lap data from Fast-F1 live timing (2018+ only).
 
-    Uses Fast-F1's session.laps DataFrame which provides lap times,
-    sector times, tyre compound, stint, and tyre life data from the
-    OpenF1 live timing feed.
+    Uses Fast-F1's session.laps DataFrame, which provides lap times, sector
+    times, tyre compound, stint and tyre life from Formula 1's own live timing
+    archive. This is the only source for lap-level and tyre-compound data —
+    f1db's finest granularity is one row per driver per session.
     """
 
     def ingest(self, year_range: tuple[int, int] | None = None) -> None:
