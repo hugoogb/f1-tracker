@@ -6,6 +6,7 @@ const footerLinks = [
   { label: 'Constructors', href: '/constructors' },
   { label: 'Circuits', href: '/circuits' },
   { label: 'Champions', href: '/champions' },
+  { label: 'Attributions', href: '/attributions' },
 ]
 
 export function Footer() {
@@ -33,8 +34,50 @@ export function Footer() {
           </nav>
         </div>
         <div className="accent-line mt-6" />
-        <div className="text-muted-foreground pt-6 text-xs">
-          Data from Jolpica-F1 (Ergast) via Fast-F1
+        <div className="text-muted-foreground space-y-3 pt-6 text-xs leading-relaxed">
+          <p>
+            Formula 1 data from{' '}
+            <a
+              href="https://github.com/f1db/f1db"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-foreground underline underline-offset-2"
+            >
+              f1db
+            </a>{' '}
+            (
+            <a
+              href="https://creativecommons.org/licenses/by/4.0/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-foreground underline underline-offset-2"
+            >
+              CC BY 4.0
+            </a>
+            , modified); session timing from{' '}
+            <a
+              href="https://github.com/theOehrly/Fast-F1"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-foreground underline underline-offset-2"
+            >
+              Fast-F1
+            </a>
+            . Full credits on the{' '}
+            <Link
+              href="/attributions"
+              className="hover:text-foreground underline underline-offset-2"
+            >
+              attributions page
+            </Link>
+            .
+          </p>
+          <p>
+            F1 Tracker is unofficial and is not associated in any way with the Formula 1 companies.
+            F1, FORMULA ONE, FORMULA 1, FIA FORMULA ONE WORLD CHAMPIONSHIP, GRAND PRIX and related
+            marks are trade marks of Formula One Licensing B.V. This is a free, non-commercial fan
+            project.
+          </p>
         </div>
       </div>
     </footer>

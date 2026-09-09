@@ -1,382 +1,193 @@
-"""Ingest race results, qualifying results, and sprint results from Fast-F1 Ergast API."""
+"""Ingest race, qualifying, and sprint results from the f1db dataset."""
 
-from datetime import date
-
-import pandas as pd
-from fastf1.ergast import Ergast
 from sqlalchemy import select
 
 from src.db.models import (
+    Constructor,
+    Driver,
     QualifyingResult,
     Race,
     RaceResult,
-    Season,
     SprintResult,
+    Status,
 )
-from src.ingestion.base import (
-    BaseIngestor,
-    api_call,
-    clean,
-    is_interrupted,
-    is_rate_limit_error,
-    safe_float,
-    safe_int,
-    safe_str,
-)
+from src.ingestion import f1db
+from src.ingestion.base import BaseIngestor
+from src.ingestion.races import race_id
 
 
-def _timedelta_to_str(val) -> str | None:
-    val = clean(val)
-    if val is None:
+def average_speed_kph(course_length_km: float | None, lap_millis: int | None) -> str | None:
+    """Average speed over one lap, as Ergast reported it: distance / time.
+
+    f1db carries no speed field, but it does carry the circuit's course length
+    and the lap time, which is exactly how the figure is defined.
+    """
+    if not course_length_km or not lap_millis:
         return None
-    if isinstance(val, pd.Timedelta):
-        total_seconds = val.total_seconds()
-        minutes = int(total_seconds // 60)
-        seconds = total_seconds % 60
-        return f"{minutes}:{seconds:06.3f}"
-    return str(val) if val else None
+    hours = lap_millis / 3_600_000
+    if hours <= 0:
+        return None
+    return f"{course_length_km / hours:.3f}"
 
 
-class RaceResultIngestor(BaseIngestor):
-    def ingest(self, year_range: tuple[int, int] | None = None) -> None:
-        self.log("Fetching race results...")
-        erg = Ergast()
+class _ResultIngestorBase(BaseIngestor):
+    """Shared entity lookups and per-race iteration for the result ingestors."""
 
-        # Find races that already have results — skip them
-        existing = set(
-            self.db.execute(select(RaceResult.race_id).group_by(RaceResult.race_id)).scalars().all()
+    def _context(self, year_range: tuple[int, int] | None):
+        data = f1db.load()
+        known_races = {r.id for r in self.db.execute(select(Race)).scalars()}
+        known_drivers = {d.ref for d in self.db.execute(select(Driver)).scalars()}
+        known_constructors = {c.ref for c in self.db.execute(select(Constructor)).scalars()}
+        return data, data.races_for(year_range), known_races, known_drivers, known_constructors
+
+    @staticmethod
+    def _entities_present(row, known_drivers, known_constructors) -> bool:
+        return row.get("driverId") in known_drivers and (
+            row.get("constructorId") in known_constructors
         )
 
-        today = date.today()
-        query = select(Season).order_by(Season.year)
-        if year_range:
-            query = query.where(Season.year >= year_range[0], Season.year <= year_range[1])
-        seasons = self.db.execute(query).scalars().all()
 
-        total_fetched = 0
-        total_skipped = 0
-        total_records = 0
-        for season in seasons:
-            races = (
-                self.db.execute(
-                    select(Race).where(Race.season_year == season.year).order_by(Race.round)
-                )
-                .scalars()
-                .all()
-            )
+class RaceResultIngestor(_ResultIngestorBase):
+    def ingest(self, year_range: tuple[int, int] | None = None) -> None:
+        data, races, known_races, known_drivers, known_constructors = self._context(year_range)
 
-            # Skip entire season if all races already loaded
-            race_ids = {r.id for r in races}
-            if race_ids and race_ids.issubset(existing):
-                total_skipped += len(races)
+        status_ids = {s.description: s.id for s in self.db.execute(select(Status)).scalars()}
+        finished_id = status_ids.get("Finished")
+
+        total = 0
+        for race in races:
+            rid = race_id(int(race["year"]), int(race["round"]))
+            if rid not in known_races:
                 continue
 
-            season_fetched = 0
-            for race in races:
-                if is_interrupted():
-                    break
-                if race.id in existing:
-                    total_skipped += 1
-                    continue
-                if race.date and race.date > today:
+            course_length = race.get("courseLength")
+            # Fastest lap details live in their own collection, keyed by driver.
+            fastest = {
+                fl["driverId"]: fl for fl in (race.get("fastestLaps") or []) if fl.get("driverId")
+            }
+
+            for row in race.get("raceResults") or []:
+                if not self._entities_present(row, known_drivers, known_constructors):
                     continue
 
-                try:
-                    self.log(f"{season.year} R{race.round}: fetching race results...")
-                    response = api_call(
-                        erg.get_race_results,
-                        season=season.year,
-                        round=race.round,
+                reason = (row.get("reasonRetired") or "").strip()
+                lap = fastest.get(row["driverId"])
+
+                self.db.merge(
+                    RaceResult(
+                        id=f"{rid}_R_{row['driverId']}",
+                        race_id=rid,
+                        driver_id=row["driverId"],
+                        constructor_id=row["constructorId"],
+                        number=_as_int(row.get("driverNumber")),
+                        grid=row.get("gridPositionNumber"),
+                        position=row.get("positionNumber"),
+                        position_text=row.get("positionText"),
+                        points=float(row.get("points") or 0),
+                        laps=row.get("laps"),
+                        time_text=row.get("time"),
+                        time_millis=row.get("timeMillis"),
+                        fastest_lap=lap.get("lap") if lap else None,
+                        fastest_lap_time=lap.get("time") if lap else None,
+                        fastest_lap_speed=average_speed_kph(
+                            course_length, lap.get("timeMillis") if lap else None
+                        ),
+                        status_id=status_ids.get(reason, finished_id) if reason else finished_id,
                     )
-                    if not response.content:
-                        continue
-
-                    df = response.content[0]
-                    for _, row in df.iterrows():
-                        result_id = f"{race.id}_R_{row['driverId']}"
-                        result = RaceResult(
-                            id=result_id,
-                            race_id=race.id,
-                            driver_id=row["driverId"],
-                            constructor_id=row["constructorId"],
-                            number=safe_int(row.get("number")),
-                            grid=safe_int(row.get("grid")),
-                            position=safe_int(row.get("position")),
-                            position_text=safe_str(row.get("positionText")),
-                            points=safe_float(row.get("points")),
-                            laps=safe_int(row.get("laps")),
-                            time_text=_timedelta_to_str(row.get("totalRaceTime")),
-                            time_millis=safe_int(row.get("totalRaceTimeMillis")),
-                            fastest_lap=safe_int(row.get("fastestLapNumber")),
-                            fastest_lap_time=_timedelta_to_str(row.get("fastestLapTime")),
-                            fastest_lap_speed=safe_str(row.get("fastestLapAvgSpeed")),
-                            status_id=safe_int(row.get("statusId")),
-                        )
-                        self.db.merge(result)
-                        total_records += 1
-
-                    self.db.commit()
-                    season_fetched += 1
-                    total_fetched += 1
-                except InterruptedError:
-                    raise
-                except KeyboardInterrupt:
-                    raise InterruptedError("Seed interrupted by user")
-                except Exception as e:
-                    self.db.rollback()
-                    if is_rate_limit_error(e):
-                        self.log(
-                            f"{season.year} R{race.round}: rate limited, "
-                            f"stopping. Re-run later to continue."
-                        )
-                        self.log(
-                            f"Ingested {total_records} race results from {total_fetched} races "
-                            f"({total_skipped} skipped) before rate limit"
-                        )
-                        return
-                    self.log(f"Race results {season.year} R{race.round}: ERROR - {e}")
-                    continue
-
-            if is_interrupted():
-                break
-            if season_fetched > 0:
-                self.log(f"Season {season.year}: {season_fetched} races ingested")
-
-        self.log(
-            f"Ingested {total_records} race results from {total_fetched} races ({total_skipped} skipped)"
-        )
-
-
-class QualifyingIngestor(BaseIngestor):
-    """Ingest qualifying results (1994+ only)."""
-
-    def ingest(self, year_range: tuple[int, int] | None = None) -> None:
-        self.log("Fetching qualifying results...")
-        erg = Ergast()
-
-        existing = set(
-            self.db.execute(select(QualifyingResult.race_id).group_by(QualifyingResult.race_id))
-            .scalars()
-            .all()
-        )
-
-        today = date.today()
-        min_year = max(1994, year_range[0]) if year_range else 1994
-        query = select(Season).where(Season.year >= min_year).order_by(Season.year)
-        if year_range:
-            query = query.where(Season.year <= year_range[1])
-        seasons = self.db.execute(query).scalars().all()
-
-        total_fetched = 0
-        total_skipped = 0
-        total_records = 0
-        for season in seasons:
-            races = (
-                self.db.execute(
-                    select(Race).where(Race.season_year == season.year).order_by(Race.round)
                 )
-                .scalars()
-                .all()
-            )
+                total += 1
 
-            # Skip entire season if all races already loaded
-            race_ids = {r.id for r in races}
-            if race_ids and race_ids.issubset(existing):
-                total_skipped += len(races)
+            self.db.commit()
+
+        self.log(f"Ingested {total} race results")
+
+
+class QualifyingIngestor(_ResultIngestorBase):
+    def ingest(self, year_range: tuple[int, int] | None = None) -> None:
+        _, races, known_races, known_drivers, known_constructors = self._context(year_range)
+
+        total = 0
+        for race in races:
+            rid = race_id(int(race["year"]), int(race["round"]))
+            if rid not in known_races:
                 continue
 
-            season_fetched = 0
-            for race in races:
-                if is_interrupted():
-                    break
-                if race.id in existing:
-                    total_skipped += 1
-                    continue
-                if race.date and race.date > today:
+            for row in race.get("qualifyingResults") or []:
+                if not self._entities_present(row, known_drivers, known_constructors):
                     continue
 
-                try:
-                    self.log(f"{season.year} R{race.round}: fetching qualifying...")
-                    response = api_call(
-                        erg.get_qualifying_results,
-                        season=season.year,
-                        round=race.round,
+                # Pre-knockout eras have a single time rather than Q1/Q2/Q3.
+                q1 = row.get("q1") or (row.get("time") if not row.get("q3") else None)
+
+                self.db.merge(
+                    QualifyingResult(
+                        id=f"{rid}_Q_{row['driverId']}",
+                        race_id=rid,
+                        driver_id=row["driverId"],
+                        constructor_id=row["constructorId"],
+                        number=_as_int(row.get("driverNumber")),
+                        position=row.get("positionNumber"),
+                        q1=q1,
+                        q2=row.get("q2"),
+                        q3=row.get("q3"),
                     )
-                    if not response.content:
-                        continue
+                )
+                total += 1
 
-                    df = response.content[0]
-                    if df.empty:
-                        continue
+            self.db.commit()
 
-                    for _, row in df.iterrows():
-                        result_id = f"{race.id}_Q_{row['driverId']}"
-                        result = QualifyingResult(
-                            id=result_id,
-                            race_id=race.id,
-                            driver_id=row["driverId"],
-                            constructor_id=row["constructorId"],
-                            number=safe_int(row.get("number")),
-                            position=safe_int(row.get("position")),
-                            q1=_timedelta_to_str(row.get("Q1")),
-                            q2=_timedelta_to_str(row.get("Q2")),
-                            q3=_timedelta_to_str(row.get("Q3")),
-                        )
-                        self.db.merge(result)
-                        total_records += 1
-
-                    self.db.commit()
-                    season_fetched += 1
-                    total_fetched += 1
-                except InterruptedError:
-                    raise
-                except KeyboardInterrupt:
-                    raise InterruptedError("Seed interrupted by user")
-                except Exception as e:
-                    self.db.rollback()
-                    if is_rate_limit_error(e):
-                        self.log(
-                            f"{season.year} R{race.round}: rate limited, "
-                            f"stopping. Re-run later to continue."
-                        )
-                        self.log(
-                            f"Ingested {total_records} qualifying results from {total_fetched} races "
-                            f"({total_skipped} skipped) before rate limit"
-                        )
-                        return
-                    self.log(f"Qualifying {season.year} R{race.round}: ERROR - {e}")
-                    continue
-
-            if is_interrupted():
-                break
-            if season_fetched > 0:
-                self.log(f"Season {season.year}: {season_fetched} qualifying ingested")
-
-        self.log(
-            f"Ingested {total_records} qualifying results from {total_fetched} races ({total_skipped} skipped)"
-        )
+        self.log(f"Ingested {total} qualifying results")
 
 
-class SprintResultIngestor(BaseIngestor):
-    """Ingest sprint results (2021+ only)."""
-
+class SprintResultIngestor(_ResultIngestorBase):
     def ingest(self, year_range: tuple[int, int] | None = None) -> None:
-        self.log("Fetching sprint results (2021+)...")
-        erg = Ergast()
+        _, races, known_races, known_drivers, known_constructors = self._context(year_range)
 
-        existing = set(
-            self.db.execute(select(SprintResult.race_id).group_by(SprintResult.race_id))
-            .scalars()
-            .all()
-        )
+        status_ids = {s.description: s.id for s in self.db.execute(select(Status)).scalars()}
+        finished_id = status_ids.get("Finished")
 
-        today = date.today()
-
-        # Past seasons with sprint data are fully processed — skip them entirely.
-        # (Most races don't have sprints, so they'll never be in `existing`;
-        # this avoids re-checking ~16 non-sprint races per season every run.)
-        past_sprint_seasons = set(
-            self.db.execute(
-                select(Race.season_year)
-                .join(SprintResult, SprintResult.race_id == Race.id)
-                .where(Race.season_year < today.year)
-                .group_by(Race.season_year)
-            )
-            .scalars()
-            .all()
-        )
-
-        min_year = max(2021, year_range[0]) if year_range else 2021
-        query = select(Season).where(Season.year >= min_year).order_by(Season.year)
-        if year_range:
-            query = query.where(Season.year <= year_range[1])
-        seasons = self.db.execute(query).scalars().all()
-
-        total_fetched = 0
-        total_skipped = 0
-        total_records = 0
-        for season in seasons:
-            if season.year in past_sprint_seasons:
+        total = 0
+        for race in races:
+            rid = race_id(int(race["year"]), int(race["round"]))
+            if rid not in known_races:
                 continue
 
-            races = (
-                self.db.execute(
-                    select(Race).where(Race.season_year == season.year).order_by(Race.round)
-                )
-                .scalars()
-                .all()
-            )
+            rows = race.get("sprintRaceResults") or []
+            if not rows:
+                continue
 
-            season_fetched = 0
-            for race in races:
-                if is_interrupted():
-                    break
-                if race.id in existing:
-                    total_skipped += 1
-                    continue
-                if race.date and race.date > today:
+            for row in rows:
+                if not self._entities_present(row, known_drivers, known_constructors):
                     continue
 
-                try:
-                    self.log(f"{season.year} R{race.round}: fetching sprint...")
-                    response = api_call(
-                        erg.get_sprint_results,
-                        season=season.year,
-                        round=race.round,
+                reason = (row.get("reasonRetired") or "").strip()
+
+                self.db.merge(
+                    SprintResult(
+                        id=f"{rid}_S_{row['driverId']}",
+                        race_id=rid,
+                        driver_id=row["driverId"],
+                        constructor_id=row["constructorId"],
+                        number=_as_int(row.get("driverNumber")),
+                        grid=row.get("gridPositionNumber"),
+                        position=row.get("positionNumber"),
+                        position_text=row.get("positionText"),
+                        points=float(row.get("points") or 0),
+                        laps=row.get("laps"),
+                        time_text=row.get("time"),
+                        status_id=status_ids.get(reason, finished_id) if reason else finished_id,
                     )
-                    if not response.content:
-                        continue
+                )
+                total += 1
 
-                    df = response.content[0]
-                    if df.empty:
-                        continue
+            self.db.commit()
 
-                    for _, row in df.iterrows():
-                        result_id = f"{race.id}_S_{row['driverId']}"
-                        result = SprintResult(
-                            id=result_id,
-                            race_id=race.id,
-                            driver_id=row["driverId"],
-                            constructor_id=row["constructorId"],
-                            number=safe_int(row.get("number")),
-                            grid=safe_int(row.get("grid")),
-                            position=safe_int(row.get("position")),
-                            position_text=safe_str(row.get("positionText")),
-                            points=safe_float(row.get("points")),
-                            laps=safe_int(row.get("laps")),
-                            time_text=_timedelta_to_str(row.get("totalRaceTime")),
-                            status_id=safe_int(row.get("statusId")),
-                        )
-                        self.db.merge(result)
-                        total_records += 1
+        self.log(f"Ingested {total} sprint results")
 
-                    self.db.commit()
-                    season_fetched += 1
-                    total_fetched += 1
-                except InterruptedError:
-                    raise
-                except KeyboardInterrupt:
-                    raise InterruptedError("Seed interrupted by user")
-                except Exception as e:
-                    self.db.rollback()
-                    if is_rate_limit_error(e):
-                        self.log(
-                            f"{season.year} R{race.round}: rate limited, "
-                            f"stopping. Re-run later to continue."
-                        )
-                        self.log(
-                            f"Ingested {total_records} sprint results from {total_fetched} races "
-                            f"({total_skipped} skipped) before rate limit"
-                        )
-                        return
-                    self.log(f"Sprint {season.year} R{race.round}: ERROR - {e}")
-                    continue
 
-            if is_interrupted():
-                break
-            if season_fetched > 0:
-                self.log(f"Season {season.year}: {season_fetched} sprints ingested")
-
-        self.log(
-            f"Ingested {total_records} sprint results from {total_fetched} races ({total_skipped} skipped)"
-        )
+def _as_int(value) -> int | None:
+    """f1db serialises car numbers as strings ('1', '44')."""
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None

@@ -63,7 +63,7 @@ def client(db):
 
 @pytest.fixture()
 def seed_data(db):
-    season = Season(year=2023, url="https://example.com")
+    season = Season(year=2023)
     driver = Driver(
         id="driver-1",
         ref="max_verstappen",
@@ -73,7 +73,6 @@ def seed_data(db):
         number=1,
         nationality="Dutch",
         country_code="NL",
-        has_headshot=True,
     )
     constructor = Constructor(
         id="constructor-1",
@@ -124,7 +123,6 @@ def race_seed_data(seed_data, db):
         number=11,
         nationality="Mexican",
         country_code="MX",
-        has_headshot=False,
     )
     constructor2 = Constructor(
         id="constructor-2",
@@ -228,7 +226,6 @@ def race_seed_data(seed_data, db):
         driver_id="driver-1",
         stop_number=1,
         lap=20,
-        time_of_day="15:30:00",
         duration_ms=2500,
     )
     db.add_all(

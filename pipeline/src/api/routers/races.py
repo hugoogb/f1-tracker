@@ -216,7 +216,6 @@ def get_pitstops(year: int, round: int, db: Session = Depends(get_db)):
             {
                 "stopNumber": s.stop_number,
                 "lap": s.lap,
-                "timeOfDay": s.time_of_day,
                 "duration": f"{s.duration_ms / 1000:.3f}" if s.duration_ms is not None else None,
                 "driver": {
                     "id": s.driver.id,
@@ -224,9 +223,6 @@ def get_pitstops(year: int, round: int, db: Session = Depends(get_db)):
                     "code": s.driver.code,
                     "firstName": s.driver.first_name,
                     "lastName": s.driver.last_name,
-                    "headshotUrl": (
-                        f"/headshots/{s.driver.ref}.png" if s.driver.has_headshot else None
-                    ),
                 },
             }
             for s in stops

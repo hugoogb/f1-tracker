@@ -1,103 +1,93 @@
-"""Ingest drivers, constructors, and statuses from Fast-F1 Ergast API."""
+"""Ingest drivers, constructors, and retirement statuses from the f1db dataset."""
 
-import pandas as pd
-from fastf1.ergast import Ergast
-from sqlalchemy import func, select
+from datetime import date
 
-from src.api.country_codes import country_code
 from src.db.models import Constructor, Driver, Status
-from src.ingestion.base import BaseIngestor, clean, fetch_all_pages
+from src.ingestion import f1db
+from src.ingestion.base import BaseIngestor
+
+
+def _parse_date(value) -> date | None:
+    if not value:
+        return None
+    if isinstance(value, date):
+        return value
+    try:
+        return date.fromisoformat(str(value))
+    except ValueError:
+        return None
 
 
 class DriverIngestor(BaseIngestor):
     def ingest(self) -> None:
-        count = self.db.scalar(select(func.count()).select_from(Driver))
-        if count and count > 0:
-            self.log(f"Skipping — {count} drivers already loaded")
-            return
+        data = f1db.load()
+        self.log(f"Ingesting {len(data.drivers)} drivers...")
 
-        self.log("Fetching drivers...")
-        erg = Ergast()
-        df = fetch_all_pages(erg.get_driver_info)
-
-        count = 0
-        for _, row in df.iterrows():
-            dob = clean(row.get("dateOfBirth"))
-            if dob is not None:
-                if isinstance(dob, str):
-                    dob = pd.to_datetime(dob).date()
-                elif hasattr(dob, "date"):
-                    dob = dob.date()
-
-            nationality = clean(row.get("driverNationality"))
-            driver = Driver(
-                id=row["driverId"],
-                ref=row["driverId"],
-                number=None,
-                code=None,
-                first_name=row["givenName"],
-                last_name=row["familyName"],
-                date_of_birth=dob,
-                nationality=nationality,
-                country_code=country_code(nationality),
-                url=clean(row.get("driverUrl")),
+        for driver in data.drivers:
+            nationality_id = driver.get("nationalityCountryId")
+            self.db.merge(
+                Driver(
+                    id=driver["id"],
+                    ref=driver["id"],
+                    number=driver.get("permanentNumber"),
+                    code=driver.get("abbreviation"),
+                    first_name=driver.get("firstName") or "",
+                    last_name=driver.get("lastName") or "",
+                    date_of_birth=_parse_date(driver.get("dateOfBirth")),
+                    nationality=data.nationality(nationality_id),
+                    country_code=data.alpha2(nationality_id),
+                )
             )
-            self.db.merge(driver)
-            count += 1
 
         self.db.commit()
-        self.log(f"Ingested {count} drivers")
+        self.log(f"Ingested {len(data.drivers)} drivers")
 
 
 class ConstructorIngestor(BaseIngestor):
     def ingest(self) -> None:
-        count = self.db.scalar(select(func.count()).select_from(Constructor))
-        if count and count > 0:
-            self.log(f"Skipping — {count} constructors already loaded")
-            return
+        data = f1db.load()
+        self.log(f"Ingesting {len(data.constructors)} constructors...")
 
-        self.log("Fetching constructors...")
-        erg = Ergast()
-        df = fetch_all_pages(erg.get_constructor_info)
-
-        count = 0
-        for _, row in df.iterrows():
-            nationality = clean(row.get("constructorNationality"))
-            constructor = Constructor(
-                id=row["constructorId"],
-                ref=row["constructorId"],
-                name=row["constructorName"],
-                nationality=nationality,
-                country_code=country_code(nationality),
-                color=None,
-                url=clean(row.get("constructorUrl")),
+        for constructor in data.constructors:
+            country_id = constructor.get("countryId")
+            self.db.merge(
+                Constructor(
+                    id=constructor["id"],
+                    ref=constructor["id"],
+                    name=constructor.get("name") or constructor["id"],
+                    nationality=data.nationality(country_id),
+                    country_code=data.alpha2(country_id),
+                )
             )
-            self.db.merge(constructor)
-            count += 1
 
         self.db.commit()
-        self.log(f"Ingested {count} constructors")
+        self.log(f"Ingested {len(data.constructors)} constructors")
 
 
 class StatusIngestor(BaseIngestor):
+    """Build the statuses table from f1db's `reasonRetired` vocabulary.
+
+    f1db records retirements as free text on each result rather than as a
+    normalised table. We collect the distinct values so `race_results.status_id`
+    keeps its foreign key and the API keeps returning a status string.
+    """
+
+    FINISHED = "Finished"
+
     def ingest(self) -> None:
-        count = self.db.scalar(select(func.count()).select_from(Status))
-        if count and count > 0:
-            self.log(f"Skipping — {count} statuses already loaded")
-            return
+        data = f1db.load()
 
-        self.log("Fetching statuses...")
-        erg = Ergast()
-        df = fetch_all_pages(erg.get_finishing_status)
+        reasons: set[str] = set()
+        for race in data.races:
+            for result in race.get("raceResults") or []:
+                reason = result.get("reasonRetired")
+                if reason:
+                    reasons.add(reason.strip())
 
-        count = 0
-        for _, row in df.iterrows():
-            status = Status(
-                id=int(row["statusId"]),
-                description=row["status"],
-            )
-            self.db.merge(status)
-            count += 1
+        # id 1 is reserved for a classified finish (f1db leaves reasonRetired null).
+        ordered = [self.FINISHED, *sorted(reasons)]
+        for status_id, description in enumerate(ordered, start=1):
+            self.db.merge(Status(id=status_id, description=description))
 
         self.db.commit()
-        self.log(f"Ingested {count} statuses")
+        self.log(f"Ingested {len(ordered)} statuses ({len(reasons)} retirement reasons)")

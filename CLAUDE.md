@@ -11,7 +11,7 @@ Deployment: frontend on Vercel; API + PostgreSQL run as Docker containers on a s
 - **Frontend**: Next.js 16 (App Router), TypeScript, Tailwind CSS 4, shadcn/ui, Recharts
 - **Backend**: Python 3.12, FastAPI, SQLAlchemy 2, Alembic
 - **Database**: PostgreSQL 16 (via Docker Compose, local and production)
-- **Data Source**: Fast-F1 Python library (historical F1 data)
+- **Data Source**: f1db release artifacts (1950-present) + Fast-F1 (session timing, 2018+)
 - **Package Managers**: pnpm (frontend), uv (Python)
 
 ## Project Structure
@@ -41,6 +41,7 @@ Deployment: frontend on Vercel; API + PostgreSQL run as Docker containers on a s
 | `/compare` | Driver and constructor comparison selector |
 | `/compare/drivers` | Side-by-side driver comparison |
 | `/compare/constructors` | Side-by-side constructor comparison |
+| `/attributions` | Data sources, licences, trademark notice (compliance) |
 
 ### Frontend Components
 
@@ -66,8 +67,8 @@ Deployment: frontend on Vercel; API + PostgreSQL run as Docker containers on a s
 - `GET /api/seasons/{year}/races/{round}` - Race results
 - `GET /api/seasons/{year}/races/{round}/qualifying` - Qualifying
 - `GET /api/seasons/{year}/races/{round}/sprint` - Sprint results (2021+)
-- `GET /api/seasons/{year}/races/{round}/pitstops` - Pit stops (2012+)
-- `GET /api/seasons/{year}/races/{round}/pitstops/analysis` - Pit stop analysis (2012+)
+- `GET /api/seasons/{year}/races/{round}/pitstops` - Pit stops (1994+)
+- `GET /api/seasons/{year}/races/{round}/pitstops/analysis` - Pit stop analysis (1994+)
 - `GET /api/seasons/{year}/races/{round}/positions` - Lap-by-lap positions (2018+)
 - `GET /api/seasons/{year}/races/{round}/laps` - Lap times + tyre strategy (2018+)
 - `GET /api/drivers` - Drivers (pagination + nationality filter)
@@ -107,7 +108,7 @@ Deployment: frontend on Vercel; API + PostgreSQL run as Docker containers on a s
 - `uv run alembic upgrade head` - Run database migrations
 - `uv run alembic revision --autogenerate -m "description"` - Generate migration
 - `uv run python scripts/seed.py` - Run data ingestion
-- `uv run pytest -v` - Run backend tests (44 tests)
+- `uv run pytest -v` - Run backend tests (83 tests)
 - `uv run ruff check . && uv run ruff format --check .` - Lint + format check
 
 ### VPS (production backend)
@@ -120,9 +121,9 @@ Deployment: frontend on Vercel; API + PostgreSQL run as Docker containers on a s
 - Scheduling: `deploy/systemd/f1-tracker-{ingest,backup}.{service,timer}`
 
 ### Data Updates
-- **Automated**: `f1-tracker-ingest.timer` on the VPS runs Mondays 06:00, calendar-gated, straight into the stack's PostgreSQL, then purges the Vercel cache.
+- **Automated**: `f1-tracker-ingest.timer` on the VPS runs Mondays 06:00, calendar-gated, straight into the stack's PostgreSQL, then purges the Vercel cache. The f1db ingestors upsert from one release download, so they can bootstrap an empty DB as well as update one.
 - `uv run python scripts/should_ingest.py --days 3 [--exit-code]` - Calendar gate; `--exit-code` makes the decision the exit status for shell callers
-- Image/logo/track-layout ingestors write to `apps/web/public/` (served by Vercel from git) — run those locally and commit; the VPS ingest deliberately skips them.
+- `F1DB_VERSION` (env) - f1db release to ingest; `latest` by default, pin a tag for reproducible seeds
 
 ### Database
 - `docker compose -f docker/docker-compose.yml up -d` - Start PostgreSQL (container `f1-tracker-db`)
@@ -145,6 +146,30 @@ Deployment: frontend on Vercel; API + PostgreSQL run as Docker containers on a s
 - Docker naming: every container/volume/network/image is prefixed with `STACK_NAME` (default `f1-tracker`) and labelled `com.f1tracker.stack`, so the project stays distinguishable on a VPS running several stacks
 - Shell scripts resolve the DB container via `scripts/lib/db.sh` (`STACK_NAME`/`DB_CONTAINER`) — never hardcode a container name
 
+## Licensing & API Compliance
+
+**Three sources, every obligation is attribution.** f1db (CC BY 4.0) supplies the dataset and the
+circuit SVGs; Fast-F1 (MIT) supplies session timing from 2018; Natural Earth (public domain)
+supplies the map. Nothing restricts commercial use or imposes share-alike. See `ATTRIBUTIONS.md`
+for the inventory and `LICENSE-DATA.md` for the dataset licence.
+
+Rules to preserve when changing code:
+
+- **Never remove** the trademark disclaimer or data credits from `components/layout/footer.tsx` or
+  the `/attributions` page.
+- **No driver photos or team logos.** OpenF1, TheSportsDB and Wikimedia Commons were all removed;
+  `DriverAvatar` and `ConstructorLogo` render initials on the team colour. Do not reintroduce an
+  image source without adding a row to `ATTRIBUTIONS.md` — see its "Deliberately not used" table.
+- **Map** uses bundled Natural Earth geometry (`public/geo/world.geo.json`, public domain), not
+  raster basemap tiles. Do not add a `TileLayer` back: CARTO/OSM tiles require visible attribution
+  and are non-commercial on the free tier.
+- **Rate limits**: keep `THROTTLE_DELAY` (45s, Fast-F1 ~500 calls/hr) in `src/ingestion/base.py`.
+  f1db is a single release download, so it needs no throttling.
+- **Standings** must keep using f1db's official points (`StandingsIngestor._apply_official`).
+  Summing raw race points crowns the wrong champion in the pre-1991 "best N results" seasons.
+- New data sources need a row in `ATTRIBUTIONS.md` and an entry in `DATA_SOURCES` on the
+  attributions page before they ship.
+
 ## Next Phases
 
 ### Phase 3 — Advanced Features
@@ -159,3 +184,4 @@ Deployment: frontend on Vercel; API + PostgreSQL run as Docker containers on a s
 
 - Next.js 16 build requires `NODE_ENV=production` to avoid `_global-error` prerender bug
 - Renaming the local dev DB container (`docker-db-1` → `f1-tracker-db`) orphans the old `docker_pgdata` volume; re-run `./scripts/bootstrap.sh`, then `docker volume rm docker_pgdata`
+- `docker/backups/latest.sql.gz` predates the f1db migrations (it still carries `url`, `time_of_day`, `has_headshot`, `has_logo` and Ergast-style refs), so `db-restore.sh` — and `bootstrap.sh`, which calls it — fails against the current schema. Seed instead: `cd pipeline && uv run python scripts/seed.py --no-restore`, then refresh the dump with `./scripts/db-backup.sh`
