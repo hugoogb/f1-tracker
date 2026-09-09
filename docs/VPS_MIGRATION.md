@@ -27,7 +27,7 @@ Everything the VPS side needs lives in this repo:
 | `scripts/vps/deploy.sh` | Build, start, migrate, verify |
 | `scripts/vps/ingest.sh` | Calendar-gated data ingest (+ Vercel cache purge) |
 | `scripts/vps/backup.sh` | Nightly database dump |
-| `scripts/vps/migrate-from-neon.sh` | One-time data copy out of Neon |
+| `docker/backups/latest.sql.gz` | Committed dump — the VPS's starting data |
 | `deploy/systemd/` | Timers for ingest and backups |
 | `deploy/caddy/`, `deploy/nginx/` | Reverse-proxy site configs |
 
@@ -70,7 +70,6 @@ Two more things keep projects from stepping on each other:
 - A DNS `A`/`AAAA` record for the API, e.g. `f1-api.your-domain.com`.
 - A reverse proxy on the VPS (Caddy, nginx, or Traefik) — samples in `deploy/`.
 - A non-root deploy user in the `docker` group (the systemd units assume `deploy`).
-- Your current `NEON_DATABASE_URL`, for the one-time data copy.
 
 ---
 
@@ -98,7 +97,6 @@ Fill in at minimum:
 | `CORS_ORIGINS` | Your Vercel origin, e.g. `https://f1-tracker-web.vercel.app` (comma-separate extras, no trailing slash) |
 | `API_PORT` | A loopback port no other project on this VPS uses |
 | `REVALIDATE_URL` / `REVALIDATE_SECRET` | Same secret as the Vercel env var, so ingest can purge the frontend cache |
-| `NEON_DATABASE_URL` | Temporarily, for step 4. Delete it afterwards. |
 
 `.env.prod` is gitignored — it never leaves the server.
 
@@ -114,11 +112,27 @@ answers. The database is empty at this point — `/api/stats` returns zeros.
 
 ## 4. Load the data
 
-### Seed from f1db (recommended)
+Nothing is copied off Neon: the repo already carries the data, and the ingestors
+can rebuild it from scratch. Pick whichever you prefer.
 
-Since the pipeline moved to f1db, the ingestors upsert the whole dataset from one
-release download, so they can populate an empty database directly — no dump to
-carry over:
+### Restore the committed dump (fastest)
+
+```bash
+FORCE=1 SKIP_MIGRATE=1 ./scripts/db-restore.sh docker/backups/latest.sql.gz
+```
+
+`SKIP_MIGRATE=1` because step 3 already brought the schema to head. The dump is
+only as fresh as the last commit that refreshed it — the first scheduled ingest
+closes the gap.
+
+> The dump currently committed on `master` predates the f1db migrations, so it
+> will not restore against the current schema until it is regenerated. Until
+> then, use the seed below.
+
+### Or seed from f1db
+
+The ingestors upsert the whole dataset from one release download, so they
+populate an empty database directly:
 
 ```bash
 ./scripts/vps/ingest.sh --force -- --base --layouts --colors --results \
@@ -130,26 +144,11 @@ Fast-F1 and are throttled to ~500 calls/hour — add `--laptimes` and
 `--qualifying-sectors` (optionally with `--year-range 2018-2026`) in a separate,
 much longer run, or let the weekly timer accumulate them.
 
-### Or copy what Neon already has
+Either way, check the result before moving on:
 
 ```bash
-./scripts/vps/migrate-from-neon.sh
+curl -fsS http://127.0.0.1:${API_PORT:-8000}/api/stats
 ```
-
-It dumps Neon's data (schema excluded — Alembic owns that), restores it into
-`f1-tracker-db`, stamps the Alembic revision, and prints `/api/stats` so you can
-compare against Neon. Already have a dump? Pass it instead:
-
-```bash
-./scripts/vps/migrate-from-neon.sh /var/backups/f1-tracker/dump.sql.gz
-```
-
-> **Check what Neon holds first.** The f1db move renamed every driver,
-> constructor and circuit ref (`hamilton` → `lewis-hamilton`) and dropped the
-> `url` / `time_of_day` columns, so a dump taken before that cutover will not
-> restore against the current schema. Copying from Neon is only worth it for
-> Fast-F1-derived lap data that a fresh seed would have to re-fetch slowly; for
-> everything else, seed from f1db.
 
 ## 5. Put the API behind the reverse proxy
 
@@ -177,7 +176,7 @@ Verify from your laptop:
 ```bash
 curl https://f1-api.your-domain.com/api/health      # {"status":"ok"}
 curl https://f1-api.your-domain.com/api/health/db   # {"status":"ok","database":"ok"}
-curl https://f1-api.your-domain.com/api/stats       # row counts — compare with Neon
+curl https://f1-api.your-domain.com/api/stats       # row counts — compare with the live site
 ```
 
 ## 6. Point Vercel at the VPS
@@ -220,10 +219,10 @@ sudo journalctl -u f1-tracker-ingest.service -n 100
 Once the site has been served from the VPS for a race weekend or two:
 
 1. Delete the Render web service.
-2. Take a final Neon dump (`./scripts/vps/migrate-from-neon.sh` with `KEEP_DUMP=1`),
-   then delete the Neon project.
-3. Remove `NEON_DATABASE_URL` from `.env.prod`.
-4. Delete the now-unused GitHub secrets `NEON_DATABASE_URL`, `REVALIDATE_URL`,
+2. Delete the Neon project. Nothing is carried over from it — the VPS database is
+   built from the committed dump or a fresh f1db seed — so take a final Neon dump
+   first only if you want one for the archive.
+3. Delete the now-unused GitHub secrets `NEON_DATABASE_URL`, `REVALIDATE_URL`,
    `REVALIDATE_SECRET` (the workflow that used them is gone; the VPS timer does
    the purge now).
 

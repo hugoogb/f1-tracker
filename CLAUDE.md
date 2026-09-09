@@ -20,7 +20,7 @@ Deployment: frontend on Vercel; API + PostgreSQL run as Docker containers on a s
 - `pipeline/` - Python data pipeline + FastAPI backend (11 routers, 38 endpoints); `Dockerfile` builds the API/migrate/ingest image
 - `docker/` - Compose files: `docker-compose.yml` (local dev DB), `compose.prod.yml` (VPS stack), `compose.traefik.yml` (proxy overlay), `.env.prod.example`, backups
 - `deploy/` - systemd timers (ingest, backup) + Caddy/nginx site configs
-- `scripts/` - `bootstrap.sh`, `db-backup.sh`, `db-restore.sh`, `lib/db.sh` (shared container resolution), `vps/` (deploy, ingest, backup, migrate-from-neon)
+- `scripts/` - `bootstrap.sh`, `db-backup.sh`, `db-restore.sh`, `lib/db.sh` (shared container resolution), `vps/` (deploy, ingest, backup)
 
 ### Frontend Routes
 
@@ -116,7 +116,6 @@ Deployment: frontend on Vercel; API + PostgreSQL run as Docker containers on a s
 - `TRAEFIK=1 ./scripts/vps/deploy.sh` - Same, published through a containerised Traefik
 - `./scripts/vps/ingest.sh [--force] [-- <seed flags>]` - Calendar-gated ingest + Vercel cache purge
 - `./scripts/vps/backup.sh` - Dump the production DB to `/var/backups/f1-tracker`
-- `./scripts/vps/migrate-from-neon.sh` - One-time data copy out of Neon
 - Env file: `.env.prod` at the repo root (template: `docker/.env.prod.example`), gitignored
 - Scheduling: `deploy/systemd/f1-tracker-{ingest,backup}.{service,timer}`
 

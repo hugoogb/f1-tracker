@@ -127,7 +127,7 @@ curl http://127.0.0.1:8000/api/health/db
 
 ## Production: Vercel + VPS
 
-Full walkthrough — including moving data off Neon — in
+Full walkthrough — including retiring the Render and Neon services — in
 [VPS_MIGRATION.md](VPS_MIGRATION.md). The short version:
 
 ### 1. Backend on the VPS
@@ -145,11 +145,19 @@ success.
 
 ### 2. Load the data
 
+The database starts empty. Either restore the dump committed at
+`docker/backups/latest.sql.gz`, or run one ingest — the f1db ingestors upsert
+the whole dataset from a single release download, so they populate an empty
+database directly:
+
 ```bash
-NEON_DATABASE_URL='postgresql://…' ./scripts/vps/migrate-from-neon.sh
-# …or, from the repo's bundled backup:
 FORCE=1 SKIP_MIGRATE=1 ./scripts/db-restore.sh docker/backups/latest.sql.gz
+# …or seed from f1db instead:
+./scripts/vps/ingest.sh --force -- --base --layouts --colors --results \
+  --qualifying --sprints --standings --pitstops --postprocess
 ```
+
+After that the weekly timer keeps it current.
 
 ### 3. Reverse proxy
 
