@@ -78,7 +78,7 @@ Open [http://localhost:3000](http://localhost:3000) to view the app.
 | `pnpm typecheck` | Run TypeScript type checking |
 | `pnpm format` | Format all files with Prettier |
 | `cd pipeline && uv run uvicorn src.api.main:app --reload` | Start FastAPI dev server |
-| `cd pipeline && uv run pytest -v` | Run backend tests (44 tests) |
+| `cd pipeline && uv run pytest -v` | Run backend tests (82 tests) |
 | `cd pipeline && uv run ruff check . && uv run ruff format --check .` | Lint + format check |
 | `docker compose -f docker/docker-compose.yml up -d` | Start PostgreSQL |
 
@@ -100,7 +100,7 @@ f1-tracker/
 │   ├── src/api/           # REST API (routers, constants, serializers, pagination)
 │   ├── src/db/            # SQLAlchemy models, queries, migrations
 │   ├── src/ingestion/     # Data pipeline (f1db + Fast-F1 → PostgreSQL)
-│   ├── tests/             # pytest test suite (44 tests)
+│   ├── tests/             # pytest test suite (82 tests)
 │   └── scripts/           # Seed, backup, restore scripts
 ├── docker/                # Docker Compose (PostgreSQL) + backups
 ├── docs/                  # Deployment guide
@@ -109,7 +109,7 @@ f1-tracker/
 
 ## Testing & CI
 
-- **Backend**: 44 pytest tests across 11 test files (SQLite in-memory with StaticPool)
+- **Backend**: 82 pytest tests (SQLite in-memory with StaticPool)
 - **Frontend**: TypeScript type checking (`tsc --noEmit`) + ESLint + production build verification
 - **CI**: GitHub Actions runs on push/PR to master — prettier, eslint, typecheck, build, ruff, pytest, security audits (`pnpm audit`, `pip-audit`)
 

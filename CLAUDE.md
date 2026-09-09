@@ -62,8 +62,8 @@ F1 analytics dashboard covering the complete history of Formula 1 (1950-present)
 - `GET /api/seasons/{year}/races/{round}` - Race results
 - `GET /api/seasons/{year}/races/{round}/qualifying` - Qualifying
 - `GET /api/seasons/{year}/races/{round}/sprint` - Sprint results (2021+)
-- `GET /api/seasons/{year}/races/{round}/pitstops` - Pit stops (2012+)
-- `GET /api/seasons/{year}/races/{round}/pitstops/analysis` - Pit stop analysis (2012+)
+- `GET /api/seasons/{year}/races/{round}/pitstops` - Pit stops (1994+)
+- `GET /api/seasons/{year}/races/{round}/pitstops/analysis` - Pit stop analysis (1994+)
 - `GET /api/seasons/{year}/races/{round}/positions` - Lap-by-lap positions (2018+)
 - `GET /api/seasons/{year}/races/{round}/laps` - Lap times + tyre strategy (2018+)
 - `GET /api/drivers` - Drivers (pagination + nationality filter)
@@ -103,7 +103,7 @@ F1 analytics dashboard covering the complete history of Formula 1 (1950-present)
 - `uv run alembic upgrade head` - Run database migrations
 - `uv run alembic revision --autogenerate -m "description"` - Generate migration
 - `uv run python scripts/seed.py` - Run data ingestion
-- `uv run pytest -v` - Run backend tests (44 tests)
+- `uv run pytest -v` - Run backend tests (82 tests)
 - `uv run ruff check . && uv run ruff format --check .` - Lint + format check
 
 ### Data Updates
