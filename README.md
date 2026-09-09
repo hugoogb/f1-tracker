@@ -4,6 +4,11 @@
 
 A full-stack Formula 1 analytics dashboard covering the complete history of F1 (1950-present) with interactive visualizations, driver/constructor comparisons, and detailed race analysis.
 
+> **Unofficial fan project.** F1 Tracker is not associated in any way with the
+> Formula 1 companies. F1, FORMULA ONE, FORMULA 1, FIA FORMULA ONE WORLD CHAMPIONSHIP, GRAND PRIX
+> and related marks are trade marks of Formula One Licensing B.V. See
+> [ATTRIBUTIONS.md](ATTRIBUTIONS.md).
+
 ## Features
 
 - **Season Overview**: World Champions (driver + constructor) for every season since 1950, championship progression charts
@@ -23,7 +28,8 @@ A full-stack Formula 1 analytics dashboard covering the complete history of F1 (
 | Frontend | Next.js 16, TypeScript, Tailwind CSS 4, shadcn/ui, Recharts |
 | Backend | Python 3.12, FastAPI, SQLAlchemy 2, Alembic |
 | Database | PostgreSQL 16 |
-| Data Source | Fast-F1 (historical F1 data from 1950+, telemetry from 2018+) |
+| Data Source | [f1db](https://github.com/f1db/f1db) (1950-present, [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)) + Fast-F1 (session timing 2018+) |
+| Map | Natural Earth geometry (public domain), rendered with Leaflet |
 | Deployment | Frontend on Vercel; API + PostgreSQL in Docker on a self-hosted VPS |
 
 ## Getting Started
@@ -98,7 +104,7 @@ f1-tracker/
 │   ├── Dockerfile         # API image (also runs migrations + ingest)
 │   ├── src/api/           # REST API (routers, constants, serializers, pagination)
 │   ├── src/db/            # SQLAlchemy models, queries, migrations
-│   ├── src/ingestion/     # Data pipeline (Fast-F1 → PostgreSQL)
+│   ├── src/ingestion/     # Data pipeline (f1db + Fast-F1 → PostgreSQL)
 │   ├── tests/             # pytest test suite
 │   └── scripts/           # Seed, validate, calendar-gate scripts
 ├── docker/                # Compose files (local dev + VPS production) + backups
@@ -110,7 +116,7 @@ f1-tracker/
 
 ## Testing & CI
 
-- **Backend**: pytest suite across 11 test files (SQLite in-memory with StaticPool)
+- **Backend**: pytest suite across 14 test files (SQLite in-memory with StaticPool)
 - **Frontend**: TypeScript type checking (`tsc --noEmit`) + ESLint + production build verification
 - **CI**: GitHub Actions runs on push/PR to master — prettier, eslint, typecheck, build, ruff, pytest, security audits (`pnpm audit`, `pip-audit`), and a backend Docker image build + smoke test
 
@@ -120,3 +126,25 @@ f1-tracker/
 - **Deployment**: See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for local dev and the Vercel + VPS production setup
 - **VPS migration**: See [docs/VPS_MIGRATION.md](docs/VPS_MIGRATION.md) for the step-by-step move off Render + Neon
 - **Backend**: See [pipeline/README.md](pipeline/README.md) for API endpoints, testing, and project structure
+
+## Licence & Attribution
+
+| What | Licence |
+|------|---------|
+| Source code | [MIT](LICENSE) |
+| F1 dataset (incl. `docker/backups/latest.sql.gz`) | [CC BY 4.0](LICENSE-DATA.md) — from f1db |
+| Circuit layout SVGs | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) — ship with f1db |
+| World map geometry | Public domain — Natural Earth |
+
+**Every obligation is attribution.** No source restricts commercial use or imposes share-alike:
+f1db is CC BY 4.0, Fast-F1 is MIT, Natural Earth is public domain. Keeping the credits intact is
+the whole requirement.
+
+Driver photographs and team badges are deliberately **not** used. Every available source (OpenF1,
+TheSportsDB, Wikimedia Commons) carried its own licence, trademark or per-image attribution
+obligation, so drivers and teams are rendered as initials on the team colour instead.
+
+Users see the trademark notice and data credits in the site footer, with the complete breakdown at
+`/attributions`.
+
+Rights holders: open an issue and anything used improperly will be removed promptly.

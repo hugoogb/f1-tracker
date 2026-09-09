@@ -1,4 +1,13 @@
-"""Compute end-of-season driver and constructor standings from race results."""
+"""Build end-of-season driver and constructor standings.
+
+Points and finishing positions come from f1db's official standings, which apply
+the championship rules of each era — notably the "best N results count" rule
+used until 1990, under which Senna took the 1988 title with fewer total points
+than Prost. Summing raw race points gets those seasons wrong.
+
+Wins are counted locally from race_results, since f1db's standings omit them.
+Seasons f1db has no standings for fall back to the local computation.
+"""
 
 from sqlalchemy import delete, func, select
 
@@ -10,14 +19,18 @@ from src.db.models import (
     Season,
     SprintResult,
 )
+from src.ingestion import f1db
 from src.ingestion.base import BaseIngestor
 
 
 class StandingsIngestor(BaseIngestor):
-    """Compute end-of-season standings from race_results + sprint_results."""
+    """Build end-of-season standings from f1db, with locally counted wins."""
 
     def ingest(self, year_range: tuple[int, int] | None = None) -> None:
-        self.log("Computing standings from race results...")
+        self.log("Building standings...")
+        data = f1db.load()
+        official = {int(s["year"]): s for s in data.seasons}
+        applied = 0
 
         query = select(Season).order_by(Season.year)
         if year_range:
@@ -54,9 +67,46 @@ class StandingsIngestor(BaseIngestor):
             driver_total += self._compute_driver_standings(season.year, last_race.id)
             constructor_total += self._compute_constructor_standings(season.year, last_race.id)
 
+            if self._apply_official(official.get(season.year), last_race.id):
+                applied += 1
+
         self.log(
-            f"Computed {driver_total} driver standings, {constructor_total} constructor standings"
+            f"Built {driver_total} driver standings, {constructor_total} constructor standings "
+            f"({applied} seasons using f1db official points)"
         )
+
+    def _apply_official(self, season: dict | None, last_race_id: str) -> bool:
+        """Overlay f1db's official points and positions onto the computed rows.
+
+        Locally counted wins are preserved. Returns False when f1db carries no
+        standings for the season, leaving the computed values in place.
+        """
+        if not season:
+            return False
+
+        driver_rows = season.get("driverStandings") or []
+        constructor_rows = season.get("constructorStandings") or []
+        if not driver_rows and not constructor_rows:
+            return False
+
+        for rows, model, key, prefix in (
+            (driver_rows, DriverStanding, "driverId", "DS"),
+            (constructor_rows, ConstructorStanding, "constructorId", "CS"),
+        ):
+            for row in rows:
+                entity_id = row.get(key)
+                position = row.get("positionNumber")
+                if not entity_id or position is None:
+                    continue
+
+                standing = self.db.get(model, f"{last_race_id}_{prefix}_{entity_id}")
+                if standing is None:
+                    continue
+                standing.points = float(row.get("points") or 0)
+                standing.position = int(position)
+
+        self.db.commit()
+        return True
 
     def _compute_driver_standings(self, year: int, last_race_id: str) -> int:
         """Sum points + count wins from race_results and sprint_results for a season."""

@@ -65,7 +65,9 @@ Two files, one per environment. Neither is committed.
 | `FASTAPI_HOST` / `_PORT` | `0.0.0.0` / `8000`                                           | Backend listen address                          |
 | `FASTAPI_DEBUG`       | `true`                                                          | Also gates `/docs`, `/redoc`, `/openapi.json`   |
 | `CORS_ORIGINS`        | `http://localhost:3000`                                         | Comma-separated allowed origins                 |
-| `FASTF1_CACHE_DIR`    | `.fastf1_cache`                                                 | Fast-F1 cache directory                         |
+| `F1DB_VERSION`        | `latest`                                                        | f1db release to ingest; pin a tag for reproducible seeds |
+| `F1DB_CACHE_DIR`      | `.f1db_cache`                                                   | f1db release archive cache directory            |
+| `FASTF1_CACHE_DIR`    | `.fastf1_cache`                                                 | Fast-F1 session cache directory                 |
 | `NEXT_PUBLIC_API_URL` | `http://localhost:8000/api`                                     | Backend URL, baked into the bundle at build time |
 | `REVALIDATE_URL` / `REVALIDATE_SECRET` | —                                              | Frontend cache purge after ingest               |
 
@@ -307,21 +309,23 @@ Manual runs:
 sudo journalctl -u f1-tracker-ingest.service -n 100
 ```
 
-> **Images are not part of this.** The `--images`, `--logos` and `--layouts`
-> ingestors write into `apps/web/public/`, which Vercel serves from the git repo.
-> Run those locally and commit the result; see
-> [VPS_MIGRATION.md](VPS_MIGRATION.md#images-are-still-a-local-committed-job).
+> Every ingestor writes to PostgreSQL only, so the scheduled run needs nothing
+> committed back to the repo. The f1db archive and Fast-F1 sessions are cached on
+> the stack's `${STACK_NAME}_f1db_cache` / `${STACK_NAME}_fastf1_cache` volumes.
 
 ### Locally
 
 ```bash
 cd pipeline
-uv run python scripts/seed.py --base --results --qualifying --standings --pitstops --sprints --postprocess
+uv run python scripts/seed.py --base --layouts --colors --results --qualifying --sprints --standings --pitstops --postprocess
 cd .. && ./scripts/db-backup.sh
 ```
 
-> Fast-F1 caches downloads in `FASTF1_CACHE_DIR`, so repeat runs only fetch what's
-> new. Jolpica-F1 (used internally) is rate-limited to 200 requests/hour.
+> The dataset is one f1db release download per run, cached in `F1DB_CACHE_DIR`
+> — no rate limit. Set `F1DB_VERSION` to a release tag for a reproducible seed,
+> or leave it at `latest`. Fast-F1 (lap times and tyre data, 2018+) caches
+> sessions in `FASTF1_CACHE_DIR` and is throttled to stay within its ~500
+> calls/hour window.
 
 ---
 

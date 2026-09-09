@@ -10,7 +10,7 @@ shell caller can gate on it:
 
     python scripts/should_ingest.py --days 3 --exit-code && ./run-ingest
 
-Fails OPEN: on any error fetching the schedule it returns ``true`` so a real
+Fails OPEN: on any error loading the f1db release it returns ``true`` so a real
 race weekend is never silently skipped.
 
 Usage:
@@ -28,7 +28,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-import pandas as pd  # noqa: E402
+from src.ingestion import f1db  # noqa: E402
 
 # Set by main() from --exit-code; when true the decision becomes the exit status.
 _EXIT_CODE_MODE = False
@@ -69,20 +69,22 @@ def main() -> int:
     today = date.today()
 
     try:
-        from fastf1.ergast import Ergast
-
-        erg = Ergast()
-        schedule = erg.get_race_schedule(season=today.year, limit=50)
+        data = f1db.load()
     except Exception as e:  # noqa: BLE001 — fail open on any fetch error
-        return _emit(True, f"could not fetch schedule ({e}); failing open")
+        return _emit(True, f"could not load f1db ({e}); failing open")
 
-    # Find the most recent race date that is on or before today.
+    # Find the most recent race date this season that is on or before today.
     past_dates = []
-    for raw in schedule.get("raceDate", []):
-        d = pd.to_datetime(raw, errors="coerce")
-        if pd.isna(d):
+    for race in data.races:
+        if int(race.get("year", 0)) != today.year:
             continue
-        d = d.date()
+        raw = race.get("date")
+        if not raw:
+            continue
+        try:
+            d = date.fromisoformat(str(raw))
+        except ValueError:
+            continue
         if d <= today:
             past_dates.append(d)
 

@@ -19,7 +19,8 @@ User=deploy
 Group=docker
 WorkingDirectory=/opt/f1-tracker
 ExecStart=/opt/f1-tracker/scripts/vps/ingest.sh
-# Ingesting a race weekend pulls a lot from Fast-F1/Jolpica; give it room.
+# Ingesting a race weekend downloads the f1db release and Fast-F1 sessions;
+# give it room.
 TimeoutStartSec=5400
 Nice=10
 StandardOutput=journal

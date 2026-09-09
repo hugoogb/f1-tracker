@@ -13,7 +13,6 @@ export interface Driver {
   dateOfBirth: string | null
   nationality: string | null
   countryCode: string | null
-  headshotUrl: string | null
   url?: string
 }
 
@@ -24,7 +23,6 @@ export interface Constructor {
   nationality: string | null
   countryCode: string | null
   color: string | null
-  logoUrl: string | null
   url?: string
 }
 
@@ -184,7 +182,6 @@ export interface PitStop {
   driver: Driver
   stopNumber: number
   lap: number
-  timeOfDay: string | null
   duration: string | null
 }
 
@@ -244,7 +241,6 @@ export interface DriverRecordEntry {
     lastName: string
     nationality: string | null
     countryCode: string | null
-    headshotUrl: string | null
   }
   count: number
 }
@@ -343,7 +339,6 @@ export interface CircuitStats {
       firstName: string
       lastName: string
       countryCode: string | null
-      headshotUrl: string | null
     }
     count: number
   }>
@@ -354,7 +349,6 @@ export interface CircuitStats {
       firstName: string
       lastName: string
       countryCode: string | null
-      headshotUrl: string | null
     }
     count: number
   }>

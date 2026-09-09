@@ -42,7 +42,7 @@ if [ -f "$BACKUP_FILE" ]; then
 else
   echo "==> No backup found at docker/backups/latest.sql.gz."
   echo "    Run the full ingestion instead (slow — fetches from Fast-F1/Jolpica):"
-  echo "      cd pipeline && uv run python scripts/seed.py --base --results --qualifying --standings --pitstops --sprints --postprocess"
+  echo "      cd pipeline && uv run python scripts/seed.py --base --layouts --colors --results --qualifying --sprints --standings --pitstops --postprocess"
 fi
 
 # --- Step 4: Install frontend deps ---

@@ -12,9 +12,9 @@
 #
 # Scheduled by deploy/systemd/f1-tracker-ingest.timer.
 #
-# Note: the image/logo/track-layout ingestors are deliberately NOT run here. They
-# write into apps/web/public/, which Vercel serves from the git repo — run those
-# locally and commit the result.
+# The ingestors upsert from one f1db release download plus Fast-F1 session data,
+# and write only to PostgreSQL, so this both bootstraps an empty database and
+# updates a populated one.
 set -euo pipefail
 
 # shellcheck source=_common.sh

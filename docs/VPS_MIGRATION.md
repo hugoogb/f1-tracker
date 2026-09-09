@@ -112,7 +112,25 @@ This builds the image, starts PostgreSQL, runs `alembic upgrade head` via the
 one-shot `migrate` service, starts the API, and blocks until `/api/health/db`
 answers. The database is empty at this point — `/api/stats` returns zeros.
 
-## 4. Copy the data out of Neon
+## 4. Load the data
+
+### Seed from f1db (recommended)
+
+Since the pipeline moved to f1db, the ingestors upsert the whole dataset from one
+release download, so they can populate an empty database directly — no dump to
+carry over:
+
+```bash
+./scripts/vps/ingest.sh --force -- --base --layouts --colors --results \
+  --qualifying --sprints --standings --pitstops --postprocess
+```
+
+That covers everything except lap times and qualifying sectors, which come from
+Fast-F1 and are throttled to ~500 calls/hour — add `--laptimes` and
+`--qualifying-sectors` (optionally with `--year-range 2018-2026`) in a separate,
+much longer run, or let the weekly timer accumulate them.
+
+### Or copy what Neon already has
 
 ```bash
 ./scripts/vps/migrate-from-neon.sh
@@ -120,16 +138,18 @@ answers. The database is empty at this point — `/api/stats` returns zeros.
 
 It dumps Neon's data (schema excluded — Alembic owns that), restores it into
 `f1-tracker-db`, stamps the Alembic revision, and prints `/api/stats` so you can
-compare against Neon.
-
-Already have a dump? Pass it instead:
+compare against Neon. Already have a dump? Pass it instead:
 
 ```bash
 ./scripts/vps/migrate-from-neon.sh /var/backups/f1-tracker/dump.sql.gz
 ```
 
-The repo's bundled `docker/backups/latest.sql.gz` works too, but it is only as
-fresh as the last commit — prefer dumping Neon directly.
+> **Check what Neon holds first.** The f1db move renamed every driver,
+> constructor and circuit ref (`hamilton` → `lewis-hamilton`) and dropped the
+> `url` / `time_of_day` columns, so a dump taken before that cutover will not
+> restore against the current schema. Copying from Neon is only worth it for
+> Fast-F1-derived lap data that a fresh seed would have to re-fetch slowly; for
+> everything else, seed from f1db.
 
 ## 5. Put the API behind the reverse proxy
 
@@ -229,19 +249,17 @@ Once the site has been served from the VPS for a race weekend or two:
   it from `STACK_NAME`/`DB_CONTAINER`, so `db-backup.sh` and `db-restore.sh` work
   locally and on the VPS.
 
-## Images are still a local, committed job
+## The ingest writes only to PostgreSQL
 
-The `--images`, `--logos` and `--layouts` ingestors write PNG/SVG assets into
-`apps/web/public/`, which **Vercel serves from the git repo** — a container on the
-VPS writing there would have nowhere to put them. The scheduled VPS ingest
-deliberately runs only the data ingestors. When new drivers or teams appear:
+Every ingestor writes to the database and nothing else — there are no asset
+downloads to sync back into the frontend. Structural and historical data comes
+from a single f1db release archive (cached in the `${STACK_NAME}_f1db_cache`
+volume), and lap times and qualifying sectors come from Fast-F1 sessions
+(`${STACK_NAME}_fastf1_cache`). Both caches live on volumes, so a container
+rebuild doesn't re-download them.
 
-```bash
-cd pipeline && uv run python scripts/seed.py --images --logos --layouts
-cd .. && git add apps/web/public && git commit -m "chore: refresh driver/team assets"
-```
-
-Pushing that commit redeploys Vercel with the new assets.
+Pin the dataset by setting `F1DB_VERSION` to a release tag in `.env.prod`;
+`latest` (the default) picks up the newest release on every run.
 
 ---
 

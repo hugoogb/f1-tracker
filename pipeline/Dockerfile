@@ -37,7 +37,9 @@ LABEL org.opencontainers.image.title="f1-tracker-api" \
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PATH="/app/.venv/bin:$PATH" \
-    # Fast-F1 writes a lot; keep it on a volume rather than the container layer.
+    # Dataset caches: both are written at ingest time and belong on volumes
+    # rather than the container layer.
+    F1DB_CACHE_DIR=/app/.f1db_cache \
     FASTF1_CACHE_DIR=/app/.fastf1_cache \
     # uvicorn worker count — 2 suits a small VPS shared with other projects.
     API_WORKERS=2
@@ -61,7 +63,7 @@ COPY --chown=app:app alembic ./alembic
 COPY --chown=app:app src ./src
 COPY --chown=app:app scripts ./scripts
 
-RUN install -d -o app -g app /app/.fastf1_cache
+RUN install -d -o app -g app /app/.f1db_cache /app/.fastf1_cache
 
 USER app
 

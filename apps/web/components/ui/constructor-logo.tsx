@@ -1,28 +1,25 @@
-import Image from 'next/image'
 import { cn } from '@/lib/utils'
 
 interface ConstructorLogoProps {
   name: string
-  logoUrl?: string | null
   size?: 'sm' | 'md' | 'lg'
   color?: string | null
   className?: string
 }
 
 const sizeMap = {
-  sm: { container: 'h-7 w-7 text-[10px]', image: 28, sizes: '28px' },
-  md: { container: 'h-10 w-10 text-sm', image: 40, sizes: '40px' },
-  lg: { container: 'h-16 w-16 text-xl', image: 64, sizes: '64px' },
+  sm: 'h-7 w-7 text-[10px]',
+  md: 'h-10 w-10 text-sm',
+  lg: 'h-16 w-16 text-xl',
 } as const
 
-export function ConstructorLogo({
-  name,
-  logoUrl,
-  size = 'sm',
-  color,
-  className,
-}: ConstructorLogoProps) {
-  const { container, image, sizes } = sizeMap[size]
+/**
+ * Constructor identity mark: abbreviation on the team color.
+ *
+ * Team badges are registered trademarks and are deliberately not reproduced.
+ * See ATTRIBUTIONS.md.
+ */
+export function ConstructorLogo({ name, size = 'sm', color, className }: ConstructorLogoProps) {
   const abbr = name
     .split(/\s+/)
     .map((w) => w[0])
@@ -30,24 +27,12 @@ export function ConstructorLogo({
     .slice(0, 2)
     .toUpperCase()
 
-  if (logoUrl) {
-    return (
-      <Image
-        src={logoUrl}
-        alt={name}
-        width={image}
-        height={image}
-        sizes={sizes}
-        className={cn('shrink-0 object-contain', container, className)}
-      />
-    )
-  }
-
   return (
     <div
+      aria-label={name}
       className={cn(
         'flex shrink-0 items-center justify-center rounded-md font-bold text-white',
-        container,
+        sizeMap[size],
         className,
       )}
       style={{ backgroundColor: color ?? 'var(--primary)' }}
