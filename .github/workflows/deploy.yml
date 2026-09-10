@@ -47,6 +47,10 @@ env:
   APP_NAME: f1_api
   APP_DIR: /srv/apps/f1_api
 
+# Action versions are pinned to the majors this repository's ci.yml already runs
+# green (checkout@v5, setup-buildx@v3, build-push@v6), not the newer ones in the
+# platform's template. A tag that does not exist fails the deploy with a confusing
+# error; bump these only after confirming the release exists.
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -56,11 +60,11 @@ jobs:
       packages: write
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v5
 
-      - uses: docker/setup-buildx-action@v4
+      - uses: docker/setup-buildx-action@v3
 
-      - uses: docker/login-action@v4
+      - uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -72,7 +76,7 @@ jobs:
       # The build context is pipeline/, not the repository root: this is a
       # monorepo whose root holds the Next.js frontend, and the backend image
       # must not carry it. pipeline/Dockerfile expects that context.
-      - uses: docker/build-push-action@v7
+      - uses: docker/build-push-action@v6
         with:
           context: pipeline
           file: pipeline/Dockerfile
@@ -87,7 +91,7 @@ jobs:
       # Joins the tailnet as an ephemeral node tagged tag:ci, which is the
       # identity the server's SSH policy accepts. The node is removed when the
       # job ends.
-      - uses: tailscale/github-action@v4
+      - uses: tailscale/github-action@v3
         with:
           oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
           oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
