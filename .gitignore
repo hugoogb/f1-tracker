@@ -32,6 +32,7 @@ pipeline/.f1db_cache/
 .env
 .env.local
 .env.*.local
+.env.prod
 
 # IDE
 .vscode/

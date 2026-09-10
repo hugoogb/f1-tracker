@@ -2,6 +2,8 @@
 
 import argparse
 import logging
+import os
+import shutil
 import signal
 import subprocess
 import sys
@@ -20,6 +22,19 @@ BACKUP_SCRIPT = SCRIPTS_DIR / "db-backup.sh"
 RESTORE_SCRIPT = SCRIPTS_DIR / "db-restore.sh"
 BACKUP_FILE = Path(__file__).parent.parent.parent / "docker" / "backups" / "latest.sql.gz"
 
+# The restore/backup helpers shell out to the database *container*. Which one is
+# configurable so this works against local dev and the VPS stack alike, and it is
+# skipped entirely when there is no Docker CLI — e.g. when seed.py runs inside the
+# ingest container, which passes --no-restore --no-backup anyway.
+STACK_NAME = os.environ.get("STACK_NAME", "f1-tracker")
+DB_CONTAINER = os.environ.get("DB_CONTAINER", f"{STACK_NAME}-db")
+POSTGRES_USER = os.environ.get("POSTGRES_USER", "f1tracker")
+POSTGRES_DB = os.environ.get("POSTGRES_DB", "f1tracker")
+
+
+def _docker_available() -> bool:
+    return shutil.which("docker") is not None
+
 
 def restore_backup() -> None:
     """Restore from latest backup if it exists."""
@@ -27,12 +42,17 @@ def restore_backup() -> None:
         logger.info("No backup found, starting fresh")
         return
 
-    logger.info(f"Restoring from backup: {BACKUP_FILE}")
+    if not _docker_available():
+        logger.info("Docker CLI not available, skipping backup restore")
+        return
+
+    logger.info(f"Restoring from backup: {BACKUP_FILE} into {DB_CONTAINER}")
     result = subprocess.run(
         [
             "bash",
             "-c",
-            f'gunzip -c "{BACKUP_FILE}" | docker exec -i docker-db-1 psql -U f1tracker -d f1tracker --single-transaction -q',
+            f'gunzip -c "{BACKUP_FILE}" | docker exec -i {DB_CONTAINER} '
+            f"psql -U {POSTGRES_USER} -d {POSTGRES_DB} --single-transaction -q",
         ],
         capture_output=True,
         text=True,
@@ -49,6 +69,10 @@ def create_backup() -> None:
     """Create a backup after seed completes."""
     if not BACKUP_SCRIPT.exists():
         logger.warning(f"Backup script not found: {BACKUP_SCRIPT}")
+        return
+
+    if not _docker_available():
+        logger.info("Docker CLI not available, skipping backup")
         return
 
     logger.info("Creating backup...")
