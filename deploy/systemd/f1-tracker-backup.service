@@ -1,0 +1,22 @@
+# F1 Tracker — nightly database backup.
+#
+# Writes to /var/backups/f1-tracker (NOT the git checkout: docker/backups/
+# latest.sql.gz is tracked in git and writing there would break `git pull`).
+[Unit]
+Description=F1 Tracker database backup
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+User=deploy
+Group=docker
+WorkingDirectory=/opt/f1-tracker
+Environment=BACKUP_DIR=/var/backups/f1-tracker
+Environment=BACKUP_KEEP_LAST=14
+ExecStart=/opt/f1-tracker/scripts/vps/backup.sh
+TimeoutStartSec=1800
+Nice=10
+
+[Install]
+WantedBy=multi-user.target

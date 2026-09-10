@@ -4,19 +4,23 @@
 
 F1 analytics dashboard covering the complete history of Formula 1 (1950-present) with interactive visualizations and driver comparisons. Full-stack: Next.js frontend + Python FastAPI backend + PostgreSQL.
 
+Deployment: frontend on Vercel; API + PostgreSQL run as Docker containers on a self-hosted VPS shared with other projects (see `docs/VPS_MIGRATION.md`).
+
 ## Tech Stack
 
 - **Frontend**: Next.js 16 (App Router), TypeScript, Tailwind CSS 4, shadcn/ui, Recharts
 - **Backend**: Python 3.12, FastAPI, SQLAlchemy 2, Alembic
-- **Database**: PostgreSQL 16 (via Docker Compose)
+- **Database**: PostgreSQL 16 (via Docker Compose, local and production)
 - **Data Source**: f1db release artifacts (1950-present) + Fast-F1 (session timing, 2018+)
 - **Package Managers**: pnpm (frontend), uv (Python)
 
 ## Project Structure
 
 - `apps/web/` - Next.js frontend (15 routes, 36+ components)
-- `pipeline/` - Python data pipeline + FastAPI backend (11 routers, 38 endpoints)
-- `docker/` - Docker Compose for PostgreSQL
+- `pipeline/` - Python data pipeline + FastAPI backend (11 routers, 38 endpoints); `Dockerfile` builds the API/migrate/ingest image
+- `docker/` - Compose files: `docker-compose.yml` (local dev DB), `compose.prod.yml` (VPS stack), `compose.traefik.yml` (proxy overlay), `.env.prod.example`, backups
+- `deploy/` - systemd timers (ingest, backup) + Caddy/nginx site configs
+- `scripts/` - `bootstrap.sh`, `db-backup.sh`, `db-restore.sh`, `lib/db.sh` (shared container resolution), `vps/` (deploy, ingest, backup)
 
 ### Frontend Routes
 
@@ -55,7 +59,8 @@ F1 analytics dashboard covering the complete history of Formula 1 (1950-present)
 
 ### Backend Endpoints
 
-- `GET /api/health` - Health check
+- `GET /api/health` - Liveness check (used by the container HEALTHCHECK)
+- `GET /api/health/db` - Readiness check (verifies PostgreSQL connectivity; 503 when unreachable)
 - `GET /api/stats` - DB statistics (counts of seasons, drivers, constructors, races, circuits)
 - `GET /api/seasons` / `GET /api/seasons/{year}` - Seasons
 - `GET /api/seasons/{year}/standings/drivers` / `constructors` - Standings
@@ -103,20 +108,28 @@ F1 analytics dashboard covering the complete history of Formula 1 (1950-present)
 - `uv run alembic upgrade head` - Run database migrations
 - `uv run alembic revision --autogenerate -m "description"` - Generate migration
 - `uv run python scripts/seed.py` - Run data ingestion
-- `uv run pytest -v` - Run backend tests (82 tests)
+- `uv run python scripts/refresh_views.py` - Rebuild the computed-stats materialized views (`driver_career_stats`, `constructor_career_stats`, `season_champions`); `db-restore.sh` calls this, since the dump does not carry view contents
+- `uv run pytest -v` - Run backend tests (83 tests)
 - `uv run ruff check . && uv run ruff format --check .` - Lint + format check
 
+### VPS (production backend)
+- `./scripts/vps/deploy.sh [--pull]` - Build + start the stack, run migrations, verify `/api/health/db`
+- `TRAEFIK=1 ./scripts/vps/deploy.sh` - Same, published through a containerised Traefik
+- `./scripts/vps/ingest.sh [--force] [-- <seed flags>]` - Calendar-gated ingest + Vercel cache purge
+- `./scripts/vps/backup.sh` - Dump the production DB to `/var/backups/f1-tracker`
+- Env file: `.env.prod` at the repo root (template: `docker/.env.prod.example`), gitignored
+- Scheduling: `deploy/systemd/f1-tracker-{ingest,backup}.{service,timer}`
+- Deploys: pushes to `master` trigger `.github/workflows/deploy.yml`; run it by hand from the Actions tab (optional `ingest` input) or fall back to `./scripts/vps/deploy.sh --pull` on the box
+
 ### Data Updates
-- `./scripts/update-neon.sh` - Ingest new race data locally + push to Neon (one command, dump/restore)
-- `./scripts/update-neon.sh --results --standings` - Custom seed flags
-- Requires `NEON_DATABASE_URL` in `.env`
-- **Automated**: `.github/workflows/ingest.yml` runs Mondays, calendar-gated, ingests current-year data directly into Neon. Requires the `NEON_DATABASE_URL` GitHub secret. The f1db ingestors upsert from one release download, so they can bootstrap an empty DB too.
-- `uv run python scripts/should_ingest.py --days 3` - Calendar gate (used by the workflow): exits with `should_ingest=true/false`
+- **Automated**: `f1-tracker-ingest.timer` on the VPS runs Mondays 06:00, calendar-gated, straight into the stack's PostgreSQL, then purges the Vercel cache. The f1db ingestors upsert from one release download, so they can bootstrap an empty DB as well as update one.
+- `uv run python scripts/should_ingest.py --days 3 [--exit-code]` - Calendar gate; `--exit-code` makes the decision the exit status for shell callers
 - `F1DB_VERSION` (env) - f1db release to ingest; `latest` by default, pin a tag for reproducible seeds
 
 ### Database
-- `docker compose -f docker/docker-compose.yml up -d` - Start PostgreSQL
+- `docker compose -f docker/docker-compose.yml up -d` - Start PostgreSQL (container `f1-tracker-db`)
 - `docker compose -f docker/docker-compose.yml down` - Stop PostgreSQL
+- `docker compose --env-file .env.prod -f docker/compose.prod.yml <cmd>` - Production stack on the VPS
 
 ## Conventions
 
@@ -130,7 +143,10 @@ F1 analytics dashboard covering the complete history of Formula 1 (1950-present)
 - Use `Promise.allSettled` for optional data fetching (graceful degradation)
 - Client components (`'use client'`) only for interactive pieces (charts, filters, tabs, search)
 - Pre-commit: Husky runs lint-staged (prettier) + ruff check/format on staged `.py` files
-- CI: GitHub Actions — frontend (audit, format, lint, typecheck, build) + backend (ruff, pip-audit, pytest)
+- CI: GitHub Actions `ci.yml` — frontend (audit, format, lint, typecheck, build) + backend (ruff, pip-audit, pytest) + backend image (docker build + smoke test)
+- CD: GitHub Actions `deploy.yml` — on push to `master` touching `pipeline|docker|deploy|scripts`, SSHes to the VPS and runs `scripts/vps/deploy.sh --pull`; serialised by a `concurrency` group, gated on the `production` environment, needs `VPS_HOST`/`VPS_USER`/`VPS_SSH_KEY`/`VPS_SSH_KNOWN_HOSTS`. No DB credentials leave the server
+- Docker naming: every container/volume/network/image is prefixed with `STACK_NAME` (default `f1-tracker`) and labelled `com.f1tracker.stack`, so the project stays distinguishable on a VPS running several stacks
+- Shell scripts resolve the DB container via `scripts/lib/db.sh` (`STACK_NAME`/`DB_CONTAINER`) — never hardcode a container name
 
 ## Licensing & API Compliance
 
@@ -169,3 +185,5 @@ Rules to preserve when changing code:
 ## Known Issues
 
 - Next.js 16 build requires `NODE_ENV=production` to avoid `_global-error` prerender bug
+- Renaming the local dev DB container (`docker-db-1` → `f1-tracker-db`) orphans the old `docker_pgdata` volume; re-run `./scripts/bootstrap.sh`, then `docker volume rm docker_pgdata`
+- `docker/backups/latest.sql.gz` carries no `lap_times` or qualifying sector times — those come from Fast-F1 at ~45 s/session, so they are not bundled. Race pages' lap-time, tyre-strategy and position charts stay empty until an ingest fills them in (`--laptimes --qualifying-sectors`, or the VPS timer)

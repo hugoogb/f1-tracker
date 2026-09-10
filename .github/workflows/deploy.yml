@@ -1,0 +1,127 @@
+name: Deploy to VPS
+
+# Deploys the backend (API + PostgreSQL) to the self-hosted VPS. The frontend is
+# not touched here — Vercel deploys that from the same push.
+#
+# The VPS database is deliberately unreachable from GitHub's runners, so this
+# job does no work of its own: it opens an SSH session and lets the server run
+# its own scripts/vps/deploy.sh, which pulls, builds, migrates and blocks until
+# /api/health/db reports ready.
+#
+# One-time setup on the server (see docs/VPS_MIGRATION.md for the full runbook):
+#   - a checkout at $VPS_PATH, on the branch this workflow deploys (master),
+#     with a .env.prod beside it
+#   - a deploy user in the `docker` group whose ~/.ssh/authorized_keys holds the
+#     public half of VPS_SSH_KEY
+#
+# Required repository secrets (Settings -> Secrets and variables -> Actions):
+#   VPS_HOST              hostname or IP of the server
+#   VPS_USER              deploy user
+#   VPS_SSH_KEY           private key, PEM/OpenSSH, its own keypair for CI
+#   VPS_SSH_KNOWN_HOSTS   output of `ssh-keyscan <host>`, so the runner verifies
+#                         the server instead of trusting it on first use
+# Optional repository variables ("Variables" tab):
+#   VPS_PORT              SSH port (default 22)
+#   VPS_PATH              checkout on the server (default /opt/f1-tracker)
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'pipeline/**'
+      - 'docker/**'
+      - 'deploy/**'
+      - 'scripts/**'
+      - '.github/workflows/deploy.yml'
+  workflow_dispatch:
+    inputs:
+      ingest:
+        description: 'Run an ingest after deploying (ignores the calendar gate)'
+        type: boolean
+        required: false
+        default: false
+
+# One deploy at a time — two concurrent `docker compose up` runs would fight
+# over the same containers. Never cancel a deploy in flight: that could leave
+# the stack half-built.
+concurrency:
+  group: deploy-vps
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Gate on a `production` environment so required reviewers and the secrets
+    # above are scoped to it.
+    environment: production
+
+    env:
+      VPS_PATH: ${{ vars.VPS_PATH || '/opt/f1-tracker' }}
+
+    steps:
+      # Secrets go through the environment rather than `${{ }}` inside the shell
+      # script, so a key or hostname containing shell metacharacters is data and
+      # never becomes part of the command.
+      - name: Configure SSH
+        env:
+          SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.VPS_SSH_KNOWN_HOSTS }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_PORT: ${{ vars.VPS_PORT || '22' }}
+        run: |
+          set -euo pipefail
+          for var in SSH_KEY KNOWN_HOSTS VPS_HOST VPS_USER; do
+            if [ -z "${!var}" ]; then
+              echo "::error::$var is not set. See the header of this workflow" \
+                   "for the secrets it needs."
+              exit 1
+            fi
+          done
+
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+          # A host alias keeps the host and user out of every later command line.
+          umask 077
+          cat > ~/.ssh/config <<EOF
+          Host vps
+            HostName $VPS_HOST
+            User $VPS_USER
+            Port $VPS_PORT
+            IdentityFile ~/.ssh/deploy_key
+            IdentitiesOnly yes
+            StrictHostKeyChecking yes
+            UserKnownHostsFile ~/.ssh/known_hosts
+            BatchMode yes
+            ConnectTimeout 15
+          EOF
+
+      - name: Deploy
+        run: ssh vps "cd '$VPS_PATH' && ./scripts/vps/deploy.sh --pull"
+
+      # deploy.sh already blocks on /api/health/db and exits non-zero if the API
+      # never becomes ready, so reaching here means the stack is serving.
+      - name: Report stack state
+        run: |
+          ssh vps "cd '$VPS_PATH' && \
+            docker compose --env-file .env.prod -f docker/compose.prod.yml ps"
+
+      # Opt-in from the "Run workflow" button. The scheduled path is
+      # f1-tracker-ingest.timer on the server; this is the manual override, so
+      # it skips the calendar gate.
+      - name: Ingest
+        if: inputs.ingest
+        run: ssh vps "cd '$VPS_PATH' && ./scripts/vps/ingest.sh --force"
+
+      - name: Remove the deploy key
+        if: always()
+        run: rm -f ~/.ssh/deploy_key ~/.ssh/config

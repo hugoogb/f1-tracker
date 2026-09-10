@@ -1,0 +1,11 @@
+[Unit]
+Description=Nightly F1 Tracker database backup
+
+[Timer]
+OnCalendar=*-*-* 03:30:00
+Persistent=true
+RandomizedDelaySec=10m
+Unit=f1-tracker-backup.service
+
+[Install]
+WantedBy=timers.target

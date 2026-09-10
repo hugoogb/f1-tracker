@@ -1,0 +1,37 @@
+# Optional overlay for a VPS whose reverse proxy is Traefik running in Docker.
+#
+#   docker compose --env-file .env.prod \
+#     -f docker/compose.prod.yml -f docker/compose.traefik.yml up -d
+#
+# It joins the API to the shared proxy network (created once, outside this
+# project: `docker network create edge`) and drops the loopback port publish —
+# Traefik reaches the container over that network, so no host port is consumed
+# and no two projects can collide on one. The Traefik router and service are
+# named `f1-tracker-api` so they stay unique among all the projects Traefik
+# serves. (Compose does not interpolate variables inside label *keys*, so if you
+# run a second copy of this stack, edit those names here by hand.)
+#
+# If your proxy is Caddy or nginx on the host instead, ignore this file: the
+# loopback publish in compose.prod.yml is what you want.
+services:
+  api:
+    ports: !reset []
+    networks:
+      internal: null
+      proxy: null
+    labels:
+      com.f1tracker.stack: ${STACK_NAME:-f1-tracker}
+      com.f1tracker.managed-by: docker-compose
+      traefik.enable: 'true'
+      traefik.docker.network: ${PROXY_NETWORK:-edge}
+      traefik.http.routers.f1-tracker-api.rule: Host(`${API_DOMAIN:?set API_DOMAIN, e.g. f1-api.example.com}`)
+      traefik.http.routers.f1-tracker-api.entrypoints: ${TRAEFIK_ENTRYPOINT:-websecure}
+      traefik.http.routers.f1-tracker-api.tls: 'true'
+      traefik.http.routers.f1-tracker-api.tls.certresolver: ${TRAEFIK_CERTRESOLVER:-letsencrypt}
+      traefik.http.routers.f1-tracker-api.service: f1-tracker-api
+      traefik.http.services.f1-tracker-api.loadbalancer.server.port: '8000'
+
+networks:
+  proxy:
+    name: ${PROXY_NETWORK:-edge}
+    external: true
