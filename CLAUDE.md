@@ -18,9 +18,9 @@ Deployment: frontend on Vercel; API + PostgreSQL run as Docker containers on a s
 
 - `apps/web/` - Next.js frontend (15 routes, 36+ components)
 - `pipeline/` - Python data pipeline + FastAPI backend (11 routers, 38 endpoints); `Dockerfile` builds the API/migrate/ingest image
-- `docker/` - Compose files: `docker-compose.yml` (local dev DB), `compose.prod.yml` (VPS stack), `compose.traefik.yml` (proxy overlay), `.env.prod.example`, backups
-- `deploy/` - systemd timers (ingest, backup) + Caddy/nginx site configs
-- `scripts/` - `bootstrap.sh`, `db-backup.sh`, `db-restore.sh`, `lib/db.sh` (shared container resolution), `vps/` (deploy, ingest, backup)
+- `docker/` - `docker-compose.yml` (local dev DB), `compose.prod.yml` (the VPS stack — shipped to `/srv/apps/f1_api/compose.yaml` by the deploy), `.env.prod.example`, backups
+- `deploy/` - systemd timer for the weekly ingest
+- `scripts/` - `bootstrap.sh`, `db-backup.sh`, `db-restore.sh`, `lib/db.sh` (shared container resolution), `vps/ingest.sh` (copied to the VPS by the deploy)
 
 ### Frontend Routes
 
@@ -113,13 +113,13 @@ Deployment: frontend on Vercel; API + PostgreSQL run as Docker containers on a s
 - `uv run ruff check . && uv run ruff format --check .` - Lint + format check
 
 ### VPS (production backend)
-- `./scripts/vps/deploy.sh [--pull]` - Build + start the stack, run migrations, verify `/api/health/db`
-- `TRAEFIK=1 ./scripts/vps/deploy.sh` - Same, published through a containerised Traefik
-- `./scripts/vps/ingest.sh [--force] [-- <seed flags>]` - Calendar-gated ingest + Vercel cache purge
-- `./scripts/vps/backup.sh` - Dump the production DB to `/var/backups/f1-tracker`
-- Env file: `.env.prod` at the repo root (template: `docker/.env.prod.example`), gitignored
-- Scheduling: `deploy/systemd/f1-tracker-{ingest,backup}.{service,timer}`
-- Deploys: pushes to `master` trigger `.github/workflows/deploy.yml`; run it by hand from the Actions tab (optional `ingest` input) or fall back to `./scripts/vps/deploy.sh --pull` on the box
+- App name is `f1_api` everywhere: compose project, container, database, GHCR image. It lives at `/srv/apps/f1_api` on the box
+- Deploys: push to `master`, or Actions -> deploy -> Run workflow (optional `ingest` input). CI builds the image and the server pulls it — nothing is built on the VPS and the repo is not checked out there
+- `/srv/apps/f1_api/ingest.sh [--force] [-- <seed flags>]` - Calendar-gated ingest + Vercel cache purge; copied there by the deploy
+- Manual deploy/rollback on the box: `echo "TAG=<sha>" > .tag`, then `docker compose --env-file .env --env-file .tag pull && ... run --rm migrate && ... up -d --wait`
+- Env file: `/srv/apps/f1_api/.env` (created by the platform's `new-app.sh`; app-specific keys in `docker/.env.prod.example`) plus `.tag`, which carries only `TAG=<sha>`
+- Database is the platform's shared PostgreSQL: the API uses `DATABASE_URL` (PgBouncer), migrations and ingest use `DIRECT_URL` (direct — transaction pooling cannot run a migration). Backups are the platform's job
+- Scheduling: `deploy/systemd/f1-tracker-ingest.{service,timer}`
 
 ### Data Updates
 - **Automated**: `f1-tracker-ingest.timer` on the VPS runs Mondays 06:00, calendar-gated, straight into the stack's PostgreSQL, then purges the Vercel cache. The f1db ingestors upsert from one release download, so they can bootstrap an empty DB as well as update one.
@@ -129,7 +129,7 @@ Deployment: frontend on Vercel; API + PostgreSQL run as Docker containers on a s
 ### Database
 - `docker compose -f docker/docker-compose.yml up -d` - Start PostgreSQL (container `f1-tracker-db`)
 - `docker compose -f docker/docker-compose.yml down` - Stop PostgreSQL
-- `docker compose --env-file .env.prod -f docker/compose.prod.yml <cmd>` - Production stack on the VPS
+- `docker compose --env-file .env --env-file .tag <cmd>` - Production stack, run from `/srv/apps/f1_api` on the VPS
 
 ## Conventions
 
@@ -144,8 +144,8 @@ Deployment: frontend on Vercel; API + PostgreSQL run as Docker containers on a s
 - Client components (`'use client'`) only for interactive pieces (charts, filters, tabs, search)
 - Pre-commit: Husky runs lint-staged (prettier) + ruff check/format on staged `.py` files
 - CI: GitHub Actions `ci.yml` — frontend (audit, format, lint, typecheck, build) + backend (ruff, pip-audit, pytest) + backend image (docker build + smoke test)
-- CD: GitHub Actions `deploy.yml` — on push to `master` touching `pipeline|docker|deploy|scripts`, SSHes to the VPS and runs `scripts/vps/deploy.sh --pull`; serialised by a `concurrency` group, gated on the `production` environment, needs `VPS_HOST`/`VPS_USER`/`VPS_SSH_KEY`/`VPS_SSH_KNOWN_HOSTS`. No DB credentials leave the server
-- Docker naming: every container/volume/network/image is prefixed with `STACK_NAME` (default `f1-tracker`) and labelled `com.f1tracker.stack`, so the project stays distinguishable on a VPS running several stacks
+- CD: GitHub Actions `deploy.yml` — on push to `master` touching `pipeline|docker/compose.prod.yml|scripts/vps`, builds and pushes `ghcr.io/hugoogb/f1_api:<sha>`, joins the tailnet as `tag:ci`, then over Tailscale SSH ships `compose.yaml`+`ingest.sh`, pulls, migrates, `up -d --wait` and checks `/api/health/db`. Secrets are `VPS_HOST`/`TS_OAUTH_CLIENT_ID`/`TS_OAUTH_SECRET` — there is no SSH key (Tailscale SSH authenticates by tailnet identity), and no DB credentials leave the server
+- Docker naming: local dev is prefixed with `STACK_NAME` (default `f1-tracker`); on the VPS the platform's convention wins and everything is named `f1_api`, so the project stays distinguishable on a box running several apps
 - Shell scripts resolve the DB container via `scripts/lib/db.sh` (`STACK_NAME`/`DB_CONTAINER`) — never hardcode a container name
 
 ## Licensing & API Compliance

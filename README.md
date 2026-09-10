@@ -82,9 +82,7 @@ Open [http://localhost:3000](http://localhost:3000) to view the app.
 | `cd pipeline && uv run pytest -v` | Run backend tests |
 | `cd pipeline && uv run ruff check . && uv run ruff format --check .` | Lint + format check |
 | `docker compose -f docker/docker-compose.yml up -d` | Start PostgreSQL |
-| `./scripts/vps/deploy.sh` | Build + start the backend stack on the VPS |
-| `./scripts/vps/ingest.sh` | Run a data ingest on the VPS (calendar-gated) |
-| `./scripts/vps/backup.sh` | Back up the VPS database |
+| `/srv/apps/f1_api/ingest.sh` | Run a data ingest on the VPS (calendar-gated) |
 
 ### Pre-commit Hooks
 
