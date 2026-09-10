@@ -1,136 +1,104 @@
 # F1 Tracker — production stack for the VPS.
 #
-# Frontend stays on Vercel; everything below (API + PostgreSQL) runs here.
+# This file IS the server's compose file: the deploy workflow copies it to
+# /srv/apps/f1_api/compose.yaml on every run, so the stack stays version
+# controlled here rather than hand-edited on the box.
 #
-#   docker compose --env-file .env.prod -f docker/compose.prod.yml up -d --build
+#   cd /srv/apps/f1_api
+#   docker compose --env-file .env --env-file .tag up -d --wait
 #
-# NAMESPACING — this VPS runs several projects, so every object this stack
-# creates is prefixed with $STACK_NAME (default "f1-tracker"): the compose
-# project, container names, the volumes, the internal network and the built
-# image. `docker ps --filter label=com.f1tracker.stack=f1-tracker` shows exactly
-# this project's containers and nothing else. Set STACK_NAME to run a second
-# copy (e.g. f1-tracker-staging) side by side without collisions.
-name: ${STACK_NAME:-f1-tracker}
+# The image is built and pushed to GHCR by CI; nothing is built on the server.
+# `.tag` carries a single line, TAG=<commit sha>, which is what makes a rollback
+# one `echo` and one `up`.
+#
+# The database is NOT here. The platform's shared PostgreSQL owns it — new-app.sh
+# provisioned the `f1_api` database and wrote DATABASE_URL (through PgBouncer) and
+# DIRECT_URL into .env. Backups are the platform's job too.
+name: f1_api
 
-x-project-labels: &project-labels
-  com.f1tracker.stack: ${STACK_NAME:-f1-tracker}
-  com.f1tracker.managed-by: docker-compose
-
-# Container logs are capped so one project can't fill the VPS disk.
 x-logging: &default-logging
   driver: json-file
   options:
     max-size: '10m'
     max-file: '3'
 
-# The API image also runs migrations and the ingest job — same code, same deps.
-x-api-image: &api-image
-  image: ${STACK_NAME:-f1-tracker}-api:${IMAGE_TAG:-latest}
-  build:
-    context: ../pipeline
-    dockerfile: Dockerfile
-  environment: &api-env
-    DATABASE_URL: ${DATABASE_URL:-postgresql://${POSTGRES_USER:-f1tracker}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in the env file}@db:5432/${POSTGRES_DB:-f1tracker}}
-    FASTAPI_DEBUG: ${FASTAPI_DEBUG:-false}
-    CORS_ORIGINS: ${CORS_ORIGINS:?set CORS_ORIGINS to your Vercel/frontend origin(s)}
-    # Ingest-time settings. Harmless on the API, which never reads a dataset.
-    F1DB_VERSION: ${F1DB_VERSION:-latest}
-    F1DB_CACHE_DIR: /app/.f1db_cache
-    FASTF1_CACHE_DIR: /app/.fastf1_cache
+# One image, three roles: the API, Alembic migrations and the data pipeline.
+x-app-image: &app-image
+  image: ${IMAGE_REPO:-ghcr.io/hugoogb/f1_api}:${TAG:-latest}
+  # PgBouncer may be published on the host rather than sharing a Docker network;
+  # this makes a DATABASE_URL of host.docker.internal:6432 resolve either way.
+  extra_hosts:
+    - 'host.docker.internal:host-gateway'
   logging: *default-logging
 
+x-app-env: &app-env
+  DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL in /srv/apps/f1_api/.env}
+  FASTAPI_DEBUG: ${FASTAPI_DEBUG:-false}
+  CORS_ORIGINS: ${CORS_ORIGINS:?set CORS_ORIGINS to your Vercel/frontend origin(s)}
+  # Ingest-time settings. Harmless on the API, which never reads a dataset.
+  F1DB_VERSION: ${F1DB_VERSION:-latest}
+  F1DB_CACHE_DIR: /app/.f1db_cache
+  FASTF1_CACHE_DIR: /app/.fastf1_cache
+
+# Schema changes and bulk ingest both go direct, bypassing PgBouncer: its
+# transaction pooling cannot carry a migration, and a multi-minute ingest has no
+# business holding a pooled connection. Falls back to DATABASE_URL when the
+# platform did not provide a direct URL.
+x-direct-env: &direct-env
+  <<: *app-env
+  DATABASE_URL: ${DIRECT_URL:-${DATABASE_URL}}
+
 services:
-  db:
-    image: postgres:16-alpine
-    container_name: ${STACK_NAME:-f1-tracker}-db
+  # Service name matches APP_NAME so `compose run --rm f1_api ...` works as the
+  # platform's runbook documents.
+  f1_api:
+    <<: *app-image
+    container_name: f1_api
     restart: unless-stopped
-    labels: *project-labels
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-f1tracker}
-      POSTGRES_USER: ${POSTGRES_USER:-f1tracker}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in the env file}
-      # Postgres 16 defaults to scram-sha-256; be explicit so a future image bump
-      # can't silently weaken auth for the internal network.
-      POSTGRES_INITDB_ARGS: '--auth-host=scram-sha-256'
-    # No published port: the API reaches PostgreSQL over the internal network.
-    # For admin access use `docker compose exec db psql -U f1tracker f1tracker`
-    # (or the SSH tunnel documented in docs/VPS_MIGRATION.md).
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-    healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-f1tracker} -d ${POSTGRES_DB:-f1tracker}']
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
-    shm_size: 256mb
-    stop_grace_period: 30s
-    logging: *default-logging
-    networks:
-      - internal
-    deploy:
-      resources:
-        limits:
-          memory: ${DB_MEMORY_LIMIT:-1g}
-
-  # One-shot: brings the schema to head before the API starts. Runs on every
-  # `up`; it's a no-op when the database is already current.
-  migrate:
-    <<: *api-image
-    container_name: ${STACK_NAME:-f1-tracker}-migrate
-    labels: *project-labels
-    restart: 'no'
-    command: ['alembic', 'upgrade', 'head']
-    depends_on:
-      db:
-        condition: service_healthy
-    networks:
-      - internal
-
-  api:
-    <<: *api-image
-    container_name: ${STACK_NAME:-f1-tracker}-api
-    restart: unless-stopped
-    labels: *project-labels
-    environment:
-      <<: *api-env
+      <<: *app-env
       API_WORKERS: ${API_WORKERS:-2}
-    depends_on:
-      db:
-        condition: service_healthy
-      migrate:
-        condition: service_completed_successfully
-    # Bound to loopback by default: a reverse proxy on the host (Caddy/nginx)
-    # terminates TLS and forwards here. Pick a port that no other project on the
-    # VPS uses. If your proxy runs as a container instead, use the Traefik
-    # overlay (compose.traefik.yml), which drops this publish entirely.
+    # Bound to loopback for the platform's Caddy to forward to. Pick a port no
+    # other app on this VPS uses.
     ports:
       - '${API_BIND:-127.0.0.1}:${API_PORT:-8000}:8000'
-    volumes:
-      - fastf1cache:/app/.fastf1_cache
+    # Declared here as well as in the image so `up -d --wait` has an explicit
+    # contract: liveness only, so a database blip cannot get a healthy container
+    # killed. /api/health/db is the readiness probe the deploy checks.
+    healthcheck:
+      test: ['CMD', 'curl', '-fsS', 'http://127.0.0.1:8000/api/health']
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
     stop_grace_period: 30s
-    networks:
-      - internal
     deploy:
       resources:
         limits:
           memory: ${API_MEMORY_LIMIT:-1g}
 
-  # Data ingest. Not started by `up` — invoked on demand or by the systemd timer:
-  #   docker compose ... run --rm ingest
-  # Extra seed.py flags can be appended to that command.
-  ingest:
-    <<: *api-image
-    # No container_name: this service is only ever started with `compose run`,
-    # which would collide on a fixed name. The labels still identify it.
-    labels: *project-labels
-    profiles: ['ingest']
+  # --- Task services -----------------------------------------------------------
+  # Behind a profile so `up` never starts them; both are invoked with
+  # `compose run --rm`. The deploy runs `migrate`; the systemd timer runs `ingest`
+  # through ingest.sh.
+
+  migrate:
+    <<: *app-image
+    profiles: ['tasks']
     restart: 'no'
+    environment: *direct-env
+    command: ['alembic', 'upgrade', 'head']
+
+  ingest:
+    <<: *app-image
+    profiles: ['tasks']
+    restart: 'no'
+    environment: *direct-env
     entrypoint: ['/usr/bin/tini', '--', 'python', 'scripts/seed.py']
     # The f1db ingestors upsert the whole dataset from one release download, so
     # this both bootstraps an empty database and updates a populated one. Backup
     # and restore are skipped: those shell out to the Docker CLI, which this
-    # container deliberately does not have — scripts/vps/backup.sh owns backups.
+    # container deliberately does not have.
     command:
       [
         '--base',
@@ -146,31 +114,26 @@ services:
         '--no-restore',
         '--no-backup',
       ]
-    depends_on:
-      db:
-        condition: service_healthy
     volumes:
       - f1dbcache:/app/.f1db_cache
       - fastf1cache:/app/.fastf1_cache
-    networks:
-      - internal
 
 volumes:
-  pgdata:
-    name: ${STACK_NAME:-f1-tracker}_pgdata
-    labels: *project-labels
   f1dbcache:
-    name: ${STACK_NAME:-f1-tracker}_f1db_cache
-    labels: *project-labels
+    name: f1_api_f1db_cache
   fastf1cache:
-    name: ${STACK_NAME:-f1-tracker}_fastf1_cache
-    labels: *project-labels
-
-networks:
-  # Private to this project — other stacks on the VPS get their own, so nothing
-  # else on the box can reach this PostgreSQL. Not `internal: true`: the ingest
-  # job still needs outbound internet to fetch the f1db release and Fast-F1
-  # session data.
-  internal:
-    name: ${STACK_NAME:-f1-tracker}_internal
-    labels: *project-labels
+    name: f1_api_fastf1_cache
+# NETWORKS — nothing is declared, so compose creates a private `f1_api_default`
+# and the extra_hosts entry above covers a host-published PgBouncer.
+#
+# If PgBouncer is instead a container on a shared network, this stack has to join
+# it. Find the network:
+#
+#   docker inspect -f '{{range $k,$v := .NetworkSettings.Networks}}{{$k}}{{end}}' pgbouncer
+#
+# then add, with that name:
+#
+#   networks:
+#     default:
+#       name: <shared-network>
+#       external: true

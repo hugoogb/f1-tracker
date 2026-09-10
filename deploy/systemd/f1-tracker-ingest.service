@@ -1,13 +1,17 @@
-# F1 Tracker — weekly data ingest (replaces the GitHub Actions → Neon workflow).
+# F1 Tracker — weekly data ingest.
+#
+# The database lives on the VPS and is not reachable from GitHub's runners, so
+# ingestion runs here rather than in CI.
 #
 # Install:
-#   sudo cp deploy/systemd/f1-tracker-*.{service,timer} /etc/systemd/system/
+#   sudo cp deploy/systemd/f1-tracker-ingest.{service,timer} /etc/systemd/system/
 #   sudo systemctl daemon-reload
 #   sudo systemctl enable --now f1-tracker-ingest.timer
 #
-# Adjust WorkingDirectory/User if the checkout doesn't live at /opt/f1-tracker.
-# The unit name is project-prefixed so it's obvious which project it belongs to
-# among the other stacks on this VPS.
+# ingest.sh is placed in the app directory by the deploy workflow, so this unit
+# only runs after the app has been deployed at least once. The unit name is
+# project-prefixed so it is obvious which app it belongs to among the other
+# stacks on this VPS.
 [Unit]
 Description=F1 Tracker data ingest
 After=docker.service network-online.target
@@ -15,10 +19,10 @@ Requires=docker.service
 
 [Service]
 Type=oneshot
-User=deploy
+User=hugo
 Group=docker
-WorkingDirectory=/opt/f1-tracker
-ExecStart=/opt/f1-tracker/scripts/vps/ingest.sh
+WorkingDirectory=/srv/apps/f1_api
+ExecStart=/srv/apps/f1_api/ingest.sh
 # Ingesting a race weekend downloads the f1db release and Fast-F1 sessions;
 # give it room.
 TimeoutStartSec=5400

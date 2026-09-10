@@ -1,37 +1,31 @@
-name: Deploy to VPS
-
-# Deploys the backend (API + PostgreSQL) to the self-hosted VPS. The frontend is
-# not touched here — Vercel deploys that from the same push.
+# Deploys the F1 Tracker backend to the VPS. The frontend is not touched here —
+# Vercel builds that from the same push.
 #
-# The VPS database is deliberately unreachable from GitHub's runners, so this
-# job does no work of its own: it opens an SSH session and lets the server run
-# its own scripts/vps/deploy.sh, which pulls, builds, migrates and blocks until
-# /api/health/db reports ready.
+# The image is built and pushed to GHCR by this job; the server pulls it with its
+# own stored GHCR credentials. Nothing is built on the box, and no registry
+# credentials are passed to it.
 #
-# One-time setup on the server (see docs/VPS_MIGRATION.md for the full runbook):
-#   - a checkout at $VPS_PATH, on the branch this workflow deploys (master),
-#     with a .env.prod beside it
-#   - a deploy user in the `docker` group whose ~/.ssh/authorized_keys holds the
-#     public half of VPS_SSH_KEY
+# Repository secrets required:
+#   TS_OAUTH_CLIENT_ID / TS_OAUTH_SECRET   join the tailnet as tag:ci
+#   VPS_HOST                               the server's tailnet IP (100.x.y.z)
 #
-# Required repository secrets (Settings -> Secrets and variables -> Actions):
-#   VPS_HOST              hostname or IP of the server
-#   VPS_USER              deploy user
-#   VPS_SSH_KEY           private key, PEM/OpenSSH, its own keypair for CI
-#   VPS_SSH_KNOWN_HOSTS   output of `ssh-keyscan <host>`, so the runner verifies
-#                         the server instead of trusting it on first use
-# Optional repository variables ("Variables" tab):
-#   VPS_PORT              SSH port (default 22)
-#   VPS_PATH              checkout on the server (default /opt/f1-tracker)
+# There is deliberately NO SSH key here. The server runs Tailscale SSH, which
+# owns port 22 on the tailnet address and authenticates by tailnet identity
+# rather than authorized_keys — so a key would be ignored. What grants access is
+# the `ssh` rule in the tailnet policy file saying tag:ci may SSH to tag:server
+# as hugo. Revoking CI is editing that rule or deleting the OAuth client.
+name: deploy
 
 on:
   push:
+    # This repository's default branch is master, not main.
     branches: [master]
+    # Backend paths only: a frontend-only push is Vercel's business and should
+    # not churn the API container.
     paths:
       - 'pipeline/**'
-      - 'docker/**'
-      - 'deploy/**'
-      - 'scripts/**'
+      - 'docker/compose.prod.yml'
+      - 'scripts/vps/**'
       - '.github/workflows/deploy.yml'
   workflow_dispatch:
     inputs:
@@ -41,87 +35,138 @@ on:
         required: false
         default: false
 
-# One deploy at a time — two concurrent `docker compose up` runs would fight
-# over the same containers. Never cancel a deploy in flight: that could leave
-# the stack half-built.
 concurrency:
-  group: deploy-vps
+  group: deploy-${{ github.ref }}
+  # Never cancel a deploy in flight — a half-applied migration or a partial
+  # `up` is worse than waiting for the previous run to finish.
   cancel-in-progress: false
 
-permissions:
-  contents: read
+env:
+  # Must match the name passed to new-app.sh: it is the container name, the
+  # compose project, the database and the GHCR image name.
+  APP_NAME: f1_api
+  APP_DIR: /srv/apps/f1_api
 
+# Action versions are pinned to the majors this repository's ci.yml already runs
+# green (checkout@v5, setup-buildx@v3, build-push@v6), not the newer ones in the
+# platform's template. A tag that does not exist fails the deploy with a confusing
+# error; bump these only after confirming the release exists.
 jobs:
   deploy:
-    name: Deploy
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    # Gate on a `production` environment so required reviewers and the secrets
-    # above are scoped to it.
-    environment: production
-
-    env:
-      VPS_PATH: ${{ vars.VPS_PATH || '/opt/f1-tracker' }}
+    permissions:
+      contents: read
+      packages: write
 
     steps:
-      # Secrets go through the environment rather than `${{ }}` inside the shell
-      # script, so a key or hostname containing shell metacharacters is data and
-      # never becomes part of the command.
-      - name: Configure SSH
+      - uses: actions/checkout@v5
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Native amd64 build. No QEMU, no multi-arch: the runner and the VPS are
+      # the same architecture.
+      #
+      # The build context is pipeline/, not the repository root: this is a
+      # monorepo whose root holds the Next.js frontend, and the backend image
+      # must not carry it. pipeline/Dockerfile expects that context.
+      - uses: docker/build-push-action@v6
+        with:
+          context: pipeline
+          file: pipeline/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/${{ env.APP_NAME }}:${{ github.sha }}
+            ghcr.io/${{ github.repository_owner }}/${{ env.APP_NAME }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # Joins the tailnet as an ephemeral node tagged tag:ci, which is the
+      # identity the server's SSH policy accepts. The node is removed when the
+      # job ends.
+      - uses: tailscale/github-action@v3
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci
+
+      # StrictHostKeyChecking=accept-new is effectively `no` here: every run gets
+      # a fresh runner with an empty known_hosts, so there is never a stored key
+      # to compare against. That is acceptable ONLY because the connection rides
+      # inside WireGuard between two authenticated tailnet peers. Do not carry
+      # this into a deploy that reaches a host over the public internet.
+      #
+      # The stack definition lives in this repository rather than being
+      # hand-maintained on the box, so it is shipped here before anything runs.
+      # Written to a temp file and moved into place, so a truncated transfer
+      # cannot leave a half-written compose file behind.
+      - name: Ship the stack definition
         env:
-          SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
-          KNOWN_HOSTS: ${{ secrets.VPS_SSH_KNOWN_HOSTS }}
-          VPS_HOST: ${{ secrets.VPS_HOST }}
-          VPS_USER: ${{ secrets.VPS_USER }}
-          VPS_PORT: ${{ vars.VPS_PORT || '22' }}
+          SSH_OPTS: -o StrictHostKeyChecking=accept-new -o ConnectTimeout=30
         run: |
           set -euo pipefail
-          for var in SSH_KEY KNOWN_HOSTS VPS_HOST VPS_USER; do
-            if [ -z "${!var}" ]; then
-              echo "::error::$var is not set. See the header of this workflow" \
-                   "for the secrets it needs."
-              exit 1
-            fi
-          done
+          target="hugo@${{ secrets.VPS_HOST }}"
 
-          install -d -m 700 ~/.ssh
-          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
-          chmod 600 ~/.ssh/known_hosts
+          ssh $SSH_OPTS "$target" \
+            "cat > '$APP_DIR/compose.yaml.tmp'" < docker/compose.prod.yml
+          ssh $SSH_OPTS "$target" \
+            "cat > '$APP_DIR/ingest.sh.tmp'" < scripts/vps/ingest.sh
 
-          # A host alias keeps the host and user out of every later command line.
-          umask 077
-          cat > ~/.ssh/config <<EOF
-          Host vps
-            HostName $VPS_HOST
-            User $VPS_USER
-            Port $VPS_PORT
-            IdentityFile ~/.ssh/deploy_key
-            IdentitiesOnly yes
-            StrictHostKeyChecking yes
-            UserKnownHostsFile ~/.ssh/known_hosts
-            BatchMode yes
-            ConnectTimeout 15
-          EOF
+          ssh $SSH_OPTS "$target" bash -s <<REMOTE
+          set -euo pipefail
+          mv "$APP_DIR/compose.yaml.tmp" "$APP_DIR/compose.yaml"
+          mv "$APP_DIR/ingest.sh.tmp"    "$APP_DIR/ingest.sh"
+          chmod +x "$APP_DIR/ingest.sh"
+          REMOTE
 
-      - name: Deploy
-        run: ssh vps "cd '$VPS_PATH' && ./scripts/vps/deploy.sh --pull"
-
-      # deploy.sh already blocks on /api/health/db and exits non-zero if the API
-      # never becomes ready, so reaching here means the stack is serving.
-      - name: Report stack state
+      - name: Deploy over Tailscale SSH
         run: |
-          ssh vps "cd '$VPS_PATH' && \
-            docker compose --env-file .env.prod -f docker/compose.prod.yml ps"
+          ssh -o StrictHostKeyChecking=accept-new \
+              -o ConnectTimeout=30 \
+              "hugo@${{ secrets.VPS_HOST }}" 'bash -s' <<'REMOTE'
+          set -euo pipefail
+
+          cd /srv/apps/f1_api
+          echo "TAG=${{ github.sha }}" > .tag
+
+          dc() { docker compose --env-file .env --env-file .tag "$@"; }
+
+          # The server pulls with its own stored GHCR credentials. Nothing is
+          # passed from here.
+          dc pull
+
+          # Schema first, and against DIRECT_URL — PgBouncer's transaction
+          # pooling cannot run a migration. `run --rm` rather than a startup
+          # hook, so a failed migration fails the deploy instead of leaving the
+          # API crash-looping against a half-migrated database.
+          dc run --rm migrate
+
+          # --wait blocks on the healthcheck, so a broken image fails the
+          # workflow instead of quietly sitting there crash-looping.
+          dc up -d --wait
+
+          # Liveness got us this far; confirm the API can actually reach
+          # PostgreSQL before calling the deploy good.
+          dc exec -T f1_api curl -fsS http://127.0.0.1:8000/api/health/db
+
+          docker image prune -f
+          REMOTE
 
       # Opt-in from the "Run workflow" button. The scheduled path is
-      # f1-tracker-ingest.timer on the server; this is the manual override, so
-      # it skips the calendar gate.
+      # f1-tracker-ingest.timer on the server; this is the manual override, so it
+      # skips the calendar gate. Ingesting a race weekend pulls the f1db release
+      # and Fast-F1 sessions, which is slow — hence the long timeout upstream.
       - name: Ingest
         if: inputs.ingest
-        run: ssh vps "cd '$VPS_PATH' && ./scripts/vps/ingest.sh --force"
-
-      - name: Remove the deploy key
-        if: always()
-        run: rm -f ~/.ssh/deploy_key ~/.ssh/config
+        run: |
+          ssh -o StrictHostKeyChecking=accept-new \
+              -o ConnectTimeout=30 \
+              "hugo@${{ secrets.VPS_HOST }}" \
+              "/srv/apps/f1_api/ingest.sh --force"
