@@ -1,24 +1,37 @@
 #!/usr/bin/env bash
-# Run a data ingest on the VPS, straight into the stack's PostgreSQL.
+# Run a data ingest on the VPS, straight into the platform's PostgreSQL.
 #
-# This replaces the old GitHub Actions → Neon workflow: the database is no longer
-# reachable from the internet, so ingestion runs next to it instead.
+# The database is not reachable from GitHub's runners, so ingestion runs next to
+# it instead of in CI. The deploy workflow copies this script to
+# /srv/apps/f1_api/ingest.sh on every deploy, so it needs no repo checkout on the
+# server — only the app directory, its .env and its .tag.
 #
-# Usage:
-#   ./scripts/vps/ingest.sh                       # calendar-gated race-weekend update
-#   ./scripts/vps/ingest.sh --force               # ignore the calendar gate
-#   ./scripts/vps/ingest.sh --force -- --laptimes --current-year
-#                                                 # custom seed.py flags after `--`
+# Usage (on the VPS):
+#   /srv/apps/f1_api/ingest.sh                      # calendar-gated update
+#   /srv/apps/f1_api/ingest.sh --force              # ignore the calendar gate
+#   /srv/apps/f1_api/ingest.sh --force -- --laptimes --current-year
+#                                                   # custom seed.py flags after `--`
 #
 # Scheduled by deploy/systemd/f1-tracker-ingest.timer.
 #
-# The ingestors upsert from one f1db release download plus Fast-F1 session data,
+# The ingestors upsert from one f1db release download plus Fast-F1 session data
 # and write only to PostgreSQL, so this both bootstraps an empty database and
 # updates a populated one.
 set -euo pipefail
 
-# shellcheck source=_common.sh
-. "$(cd "$(dirname "$0")" && pwd)/_common.sh"
+APP_DIR="${APP_DIR:-/srv/apps/f1_api}"
+cd "$APP_DIR"
+
+for f in .env .tag compose.yaml; do
+  if [ ! -f "$f" ]; then
+    echo "Error: $APP_DIR/$f not found." >&2
+    echo "  .env and compose.yaml come from new-app.sh and the deploy;" >&2
+    echo "  .tag is written by the deploy. Has this app ever been deployed?" >&2
+    exit 1
+  fi
+done
+
+dc() { docker compose --env-file .env --env-file .tag "$@"; }
 
 FORCE=0
 GATE_DAYS="${GATE_DAYS:-3}"
@@ -53,8 +66,22 @@ fi
 echo "==> Validating (informational)..."
 dc run --rm --entrypoint python ingest scripts/validate.py || true
 
+# Bearer-token cache purge against the Next.js /api/revalidate route on Vercel.
+# Non-fatal: the data is already live and the frontend's TTL backstops a failure.
 echo "==> Purging frontend cache..."
-purge_frontend_cache
+REVALIDATE_URL="${REVALIDATE_URL:-$(grep -E '^REVALIDATE_URL=' .env | cut -d= -f2- || true)}"
+REVALIDATE_SECRET="${REVALIDATE_SECRET:-$(grep -E '^REVALIDATE_SECRET=' .env | cut -d= -f2- || true)}"
+
+if [ -z "$REVALIDATE_URL" ]; then
+  echo "    REVALIDATE_URL not set in .env — skipping frontend cache purge."
+elif curl -fsS --max-time 30 -X POST "$REVALIDATE_URL" \
+       -H "Authorization: Bearer ${REVALIDATE_SECRET}"; then
+  echo ""
+  echo "    Frontend cache purged (f1-data tag)."
+else
+  echo ""
+  echo "    Warning: cache purge failed — data is live; the TTL will refresh the frontend."
+fi
 
 echo ""
 echo "==> Ingest complete."
