@@ -2,9 +2,11 @@
 
 How to run F1 Tracker locally and in production.
 
-Production is **Next.js on Vercel + a self-hosted VPS running the API and
-PostgreSQL in Docker**. Migrating an existing Render/Neon deployment to that
-setup is a separate, step-by-step document: [VPS_MIGRATION.md](VPS_MIGRATION.md).
+Production is **Next.js on Vercel + the API as a Docker container on a
+self-hosted VPS**, with PostgreSQL provided by that VPS's shared cluster. The
+per-app runbook is [VPS_MIGRATION.md](VPS_MIGRATION.md); the server itself
+(Tailscale SSH, Caddy, PostgreSQL, PgBouncer, GHCR, `new-app.sh`) is set up once
+and documented in the platform's own `SETUP.md`.
 
 ## Architecture
 
@@ -17,18 +19,21 @@ setup is a separate, step-by-step document: [VPS_MIGRATION.md](VPS_MIGRATION.md)
                     ┌──────────────────────────────────────────┐
                     │  VPS                                     │
                     │  ┌────────────────────────────────────┐  │
-                    │  │ Reverse proxy (Caddy/nginx/Traefik)│  │
+                    │  │ Caddy            (platform)        │  │
                     │  └────────────┬───────────────────────┘  │
-                    │               │ 127.0.0.1:8000           │
+                    │               │ 127.0.0.1:${API_PORT}    │
                     │  ┌────────────▼──────────┐               │
-                    │  │ f1-tracker-api        │  FastAPI      │
+                    │  │ f1_api                │  FastAPI      │
                     │  └────────────┬──────────┘               │
-                    │               │ f1-tracker_internal      │
+                    │               │ DATABASE_URL             │
                     │  ┌────────────▼──────────┐               │
-                    │  │ f1-tracker-db         │  PostgreSQL   │
-                    │  └───────────────────────┘  (no host port)│
+                    │  │ PgBouncer → PostgreSQL│  (platform,   │
+                    │  └───────────────────────┘   shared)     │
                     └──────────────────────────────────────────┘
 ```
+
+The image is built by CI and pushed to GHCR; the server pulls it. Nothing is
+built on the box, and the repository is not checked out there.
 
 The frontend is served by Vercel and calls the API cross-origin, so `CORS_ORIGINS`
 on the API must list the Vercel domain.
@@ -47,8 +52,10 @@ on the API must list the Vercel domain.
 
 ### VPS
 
-Docker Engine 24+ with the Compose v2 plugin, a reverse proxy, and a DNS record
-for the API. Nothing else — Python, uv and Node are not needed on the server.
+Nothing this repository installs. The platform provides Docker, Caddy,
+PostgreSQL + PgBouncer, Tailscale SSH and GHCR credentials; `new-app.sh f1_api`
+creates `/srv/apps/f1_api/`, the `f1_api` database and its `.env`. Python, uv and
+Node are not needed on the server.
 
 ## Environment Variables
 
@@ -71,20 +78,25 @@ Two files, one per environment. Neither is committed.
 | `NEXT_PUBLIC_API_URL` | `http://localhost:8000/api`                                     | Backend URL, baked into the bundle at build time |
 | `REVALIDATE_URL` / `REVALIDATE_SECRET` | —                                              | Frontend cache purge after ingest               |
 
-### `.env.prod` (VPS — template: `docker/.env.prod.example`)
+### `/srv/apps/f1_api/.env` (VPS — template: `docker/.env.prod.example`)
 
-| Variable                | Required | Description                                                     |
-| ----------------------- | -------- | --------------------------------------------------------------- |
-| `STACK_NAME`            |          | Prefix for containers/volumes/network (default `f1-tracker`)      |
-| `POSTGRES_PASSWORD`     | ✅       | Database password — alphanumerics only (it is interpolated into a URL) |
-| `CORS_ORIGINS`          | ✅       | Your Vercel origin(s), comma-separated, no trailing slash        |
-| `DATABASE_URL`          |          | Only to target a database outside the stack; otherwise derived    |
-| `FASTAPI_DEBUG`         |          | `false` in production — keeps the OpenAPI docs off               |
-| `API_WORKERS`           |          | uvicorn workers (default 2)                                      |
-| `API_BIND` / `API_PORT` |          | Loopback bind for a host reverse proxy (default `127.0.0.1:8000`) |
-| `API_DOMAIN`, `PROXY_NETWORK`, `TRAEFIK_*` |  | Only with the Traefik overlay                    |
-| `DB_MEMORY_LIMIT` / `API_MEMORY_LIMIT` | | Container memory caps (default 1g each)            |
-| `REVALIDATE_URL` / `REVALIDATE_SECRET` | | Cache purge after a successful ingest              |
+`new-app.sh` writes the platform's half of this file. Append the app's own keys.
+
+| Variable | Required | Description |
+| -------- | -------- | ----------- |
+| `DATABASE_URL` | ✅ (from new-app.sh) | Through PgBouncer — what the API uses |
+| `DIRECT_URL` | (from new-app.sh) | Straight to PostgreSQL — migrations and ingest. Falls back to `DATABASE_URL` |
+| `CORS_ORIGINS` | ✅ | Your Vercel origin(s), comma-separated, no trailing slash |
+| `FASTAPI_DEBUG` | | `false` in production — keeps the OpenAPI docs off |
+| `API_WORKERS` | | uvicorn workers (default 2) |
+| `API_BIND` / `API_PORT` | | Loopback bind for Caddy to forward to (default `127.0.0.1:8000`) |
+| `API_MEMORY_LIMIT` | | Container memory cap (default 1g) |
+| `F1DB_VERSION` | | f1db release to ingest; pin a tag for reproducible seeds |
+| `IMAGE_REPO` | | Override the GHCR image (default `ghcr.io/hugoogb/f1_api`) |
+| `REVALIDATE_URL` / `REVALIDATE_SECRET` | | Cache purge after a successful ingest |
+
+`TAG` is not in this file — the deploy writes it to `/srv/apps/f1_api/.tag`, and
+both env files are passed to every compose call.
 
 > `NEXT_PUBLIC_API_URL` is baked into the Next.js bundle at build time — it lives
 > in the Vercel project settings, not on the VPS, and needs a redeploy to change.
@@ -113,13 +125,18 @@ cd pipeline && uv run uvicorn src.api.main:app --reload   # 4. API on :8000
 pnpm install && pnpm dev                            # 5. frontend on :3000
 ```
 
-### Running the backend in Docker locally
+### Running the backend image locally
 
-The production image builds and runs anywhere:
+`docker/compose.prod.yml` targets the VPS (it pulls from GHCR and expects the
+platform's database), so it is not the way to run the backend locally. Build and
+run the image directly against the dev database instead:
 
 ```bash
-cp docker/.env.prod.example .env.prod   # set POSTGRES_PASSWORD + CORS_ORIGINS
-docker compose --env-file .env.prod -f docker/compose.prod.yml up -d --build
+docker build -t f1-tracker-api:dev -f pipeline/Dockerfile pipeline
+docker run --rm -p 8000:8000 --network host \
+  -e DATABASE_URL="postgresql://f1tracker:f1tracker_dev@localhost:5432/f1tracker" \
+  -e CORS_ORIGINS="http://localhost:3000" \
+  f1-tracker-api:dev
 curl http://127.0.0.1:8000/api/health/db
 ```
 
@@ -127,91 +144,64 @@ curl http://127.0.0.1:8000/api/health/db
 
 ## Production: Vercel + VPS
 
-Full walkthrough — including retiring the Render and Neon services — in
-[VPS_MIGRATION.md](VPS_MIGRATION.md). The short version:
+Step-by-step, including first-time setup, in [VPS_MIGRATION.md](VPS_MIGRATION.md).
+In outline:
 
 ### 1. Backend on the VPS
 
-```bash
-git clone https://github.com/hugoogb/f1-tracker.git /opt/f1-tracker
-cd /opt/f1-tracker
-cp docker/.env.prod.example .env.prod && chmod 600 .env.prod && $EDITOR .env.prod
-./scripts/vps/deploy.sh
-```
-
-`deploy.sh` builds the image, starts the stack, runs migrations through the
-one-shot `migrate` service, and waits for `/api/health/db` before reporting
-success.
+`new-app.sh f1_api` on the box creates `/srv/apps/f1_api/`, the database and the
+`.env`; append the app keys from `docker/.env.prod.example` to that `.env`. After
+that, deploys are a push to `master` — CI builds the image, pushes it to GHCR and
+restarts the container. Nothing is built on the server.
 
 ### 2. Load the data
 
-The database starts empty. Either restore the dump committed at
-`docker/backups/latest.sql.gz`, or run one ingest — the f1db ingestors upsert
-the whole dataset from a single release download, so they populate an empty
-database directly:
+The database starts empty. The f1db ingestors upsert the whole dataset from one
+release download, so they populate it directly (about two minutes):
 
 ```bash
-FORCE=1 SKIP_MIGRATE=1 ./scripts/db-restore.sh docker/backups/latest.sql.gz
-# …or seed from f1db instead:
-./scripts/vps/ingest.sh --force -- --base --layouts --colors --results \
-  --qualifying --sprints --standings --pitstops --postprocess
+/srv/apps/f1_api/ingest.sh --force -- \
+  --base --layouts --colors --results --qualifying \
+  --sprints --standings --pitstops --postprocess
 ```
 
-After that the weekly timer keeps it current.
+Lap times and qualifying sector times come from Fast-F1 at ~45 s/session — add
+them a few seasons at a time, or let the weekly timer accumulate them.
 
 ### 3. Reverse proxy
 
-Copy a sample from `deploy/caddy/` or `deploy/nginx/`, replace the hostname, and
-reload. For a containerised Traefik, set `API_DOMAIN` and `PROXY_NETWORK` in
-`.env.prod` and deploy with `TRAEFIK=1 ./scripts/vps/deploy.sh`.
+The platform's Caddy terminates TLS and forwards to `127.0.0.1:${API_PORT}`.
+Adding the site block is covered in the platform's `SETUP.md`.
 
 ### 4. Frontend on Vercel
 
-| Setting              | Value                                    |
-| -------------------- | ---------------------------------------- |
-| **Root Directory**   | `apps/web`                               |
-| **Framework Preset** | `Next.js` (auto-detected)                |
-
-| Variable              | Value                                     |
-| --------------------- | ----------------------------------------- |
-| `NEXT_PUBLIC_API_URL` | `https://f1-api.your-domain.com/api`      |
-| `REVALIDATE_SECRET`   | Same value as in `.env.prod`              |
-
-Redeploy after changing `NEXT_PUBLIC_API_URL` — it is compiled into the bundle.
+Set `NEXT_PUBLIC_API_URL` to `https://<api-host>/api` in the Vercel project and
+redeploy — it is baked into the bundle at build time. Add that Vercel origin to
+`CORS_ORIGINS` on the VPS.
 
 ### 5. Verify
 
 ```bash
-curl https://f1-api.your-domain.com/api/health      # {"status":"ok"}
-curl https://f1-api.your-domain.com/api/health/db   # {"status":"ok","database":"ok"}
-curl https://f1-api.your-domain.com/api/stats       # row counts
+cd /srv/apps/f1_api
+docker compose --env-file .env --env-file .tag ps
+docker compose --env-file .env --env-file .tag exec -T f1_api \
+  curl -fsS http://127.0.0.1:8000/api/health/db
+curl -fsS https://<api-host>/api/stats
 ```
-
----
 
 ## Sharing the VPS with other projects
 
-Every object the stack creates is prefixed with `STACK_NAME` (default
-`f1-tracker`): the compose project, the containers (`f1-tracker-api`,
-`f1-tracker-db`, `f1-tracker-migrate`, `f1-tracker-ingest`), the volumes
-(`f1-tracker_pgdata`, `f1-tracker_fastf1_cache`), the private network
-(`f1-tracker_internal`), the image (`f1-tracker-api`) and the systemd units. Every
-container, volume and network also carries `com.f1tracker.stack=f1-tracker`:
+The box runs several apps, so this one stays inside its own lane:
 
-```bash
-docker ps --filter label=com.f1tracker.stack=f1-tracker
-```
-
-PostgreSQL publishes **no** host port — only this project's containers can reach
-it. The API binds to loopback on `API_PORT`; give each project on the box its own
-port, or use the Traefik overlay, which publishes no host port at all. Container
-logs are capped (10 MB × 3) and both containers have memory limits, so one
-project can't starve the others.
-
-Running a second copy (e.g. staging) is a matter of a second env file with a
-different `STACK_NAME` and `API_PORT`.
-
----
+- **One name everywhere.** `f1_api` is the compose project, the container, the
+  database and the GHCR image, so `docker ps` and `docker volume ls` never leave
+  you guessing which app an object belongs to.
+- **Loopback only.** The API publishes on `127.0.0.1:${API_PORT}`; pick a port no
+  other app uses. Only Caddy reaches it.
+- **The database is not this app's to run.** It is one database on the shared
+  cluster, reached through PgBouncer, provisioned by `new-app.sh`.
+- **Log rotation (10 MB × 3) and a memory cap**, so one app cannot fill the disk
+  or starve the others.
 
 ## Security
 
@@ -243,50 +233,46 @@ Set on all routes in `apps/web/next.config.ts`:
 
 ### Production checklist
 
-- [ ] `POSTGRES_PASSWORD` set to a generated value (not the dev default)
-- [ ] `.env.prod` is `chmod 600` and gitignored
-- [ ] `FASTAPI_DEBUG=false`
+- [ ] `/srv/apps/f1_api/.env` is `chmod 600`
 - [ ] `CORS_ORIGINS` limited to your frontend domain(s)
+- [ ] `FASTAPI_DEBUG=false`
+- [ ] `DIRECT_URL` present, so migrations do not run through PgBouncer
 - [ ] `NEXT_PUBLIC_API_URL` set on Vercel and the frontend redeployed
-- [ ] HTTPS configured at the reverse proxy
-- [ ] `f1-tracker-backup.timer` enabled, and a restore rehearsed at least once
+- [ ] HTTPS configured at Caddy
 - [ ] `f1-tracker-ingest.timer` enabled
-- [ ] Host firewall allows only 22/80/443
+- [ ] The platform's PostgreSQL backups cover the `f1_api` database, and a
+      restore has been rehearsed at least once
+- [ ] Host firewall allows only 80/443 publicly (SSH rides the tailnet)
 - [ ] `/api/health/db` monitored by an uptime check
+- [ ] The tailnet policy's `ssh` rule for `tag:ci` says `accept`, not `check`
 - [ ] Dependencies reviewed: `pnpm audit`, `uv run pip-audit`
 
 ---
 
 ## Database Backup & Restore
 
-Backups are gzipped **data-only** dumps (the schema belongs to Alembic, and
-`alembic_version` is excluded so restores never conflict).
+**On the VPS, backups belong to the platform.** The `f1_api` database lives on
+the shared PostgreSQL cluster, so it is covered by whatever the box already runs
+for every app — this repository ships no backup script or timer for it. Confirm
+`f1_api` is in that scope, and rehearse a restore once.
+
+Locally, backups are gzipped **data-only** dumps (the schema belongs to Alembic,
+and `alembic_version` is excluded so restores never conflict):
 
 ```bash
-./scripts/db-backup.sh                 # local; writes docker/backups/
-./scripts/vps/backup.sh                # VPS; writes /var/backups/f1-tracker/
+./scripts/db-backup.sh                 # writes docker/backups/
 ./scripts/db-restore.sh                # restore the latest backup (prompts)
 ./scripts/db-restore.sh path/to.sql.gz # restore a specific file
 ```
 
-Both scripts resolve the target container from `STACK_NAME`/`DB_CONTAINER`
-(`scripts/lib/db.sh`), so the same scripts work locally and on the VPS. Useful
-overrides: `FORCE=1` (skip the confirmation), `SKIP_MIGRATE=1` (don't shell out to
-`alembic`, which isn't installed on the VPS host), `BACKUP_DIR`, `BACKUP_KEEP_LAST`.
+`db-restore.sh` migrates, loads the data and rebuilds the materialized views the
+career-stats, records and champions endpoints read from — those are created by
+the ingest rather than by Alembic, and `pg_dump --data-only` does not carry them.
+Useful overrides: `FORCE=1` (skip the confirmation), `SKIP_MIGRATE=1`,
+`SKIP_VIEWS=1`, `BACKUP_DIR`, `BACKUP_KEEP_LAST`, `DB_CONTAINER`/`STACK_NAME`.
 
-On the VPS, backups must live **outside** the git checkout — `docker/backups/
-latest.sql.gz` is tracked in git, and writing there breaks `git pull`.
-`scripts/vps/backup.sh` defaults to `/var/backups/f1-tracker` for that reason.
-
-### Scheduled backups
-
-`deploy/systemd/f1-tracker-backup.timer` runs nightly at 03:30 and keeps 14 dumps:
-
-```bash
-sudo cp deploy/systemd/f1-tracker-*.service deploy/systemd/f1-tracker-*.timer /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable --now f1-tracker-backup.timer
-```
+The committed `docker/backups/latest.sql.gz` carries no `lap_times` or qualifying
+sector times — see `docker/backups/README.md`.
 
 ---
 
@@ -296,30 +282,33 @@ New race data has to be ingested after each race weekend.
 
 ### On the VPS (scheduled)
 
-`deploy/systemd/f1-tracker-ingest.timer` fires Mondays at 06:00.
-`scripts/vps/ingest.sh` then:
+`deploy/systemd/f1-tracker-ingest.timer` fires Mondays at 06:00 and runs
+`/srv/apps/f1_api/ingest.sh` (placed there by the deploy), which:
 
 1. **Calendar gate** — `pipeline/scripts/should_ingest.py --exit-code` skips the
    run unless a race ran in the last 3 days, so off-weekends cost nothing. It
    fails *open*: if the schedule can't be fetched, it ingests anyway.
 2. **Ingest** — runs the `ingest` compose service (the API image, `seed.py` with
-   `--current-year --no-restore --no-backup`) against the stack's PostgreSQL. The
-   ingestors are idempotent (`db.merge`), so re-runs are safe.
+   `--current-year --no-restore --no-backup`) against `DIRECT_URL`, bypassing
+   PgBouncer. The ingestors are idempotent (`db.merge`), so re-runs are safe.
 3. **Validate** — `scripts/validate.py`, informational.
 4. **Purge** — POSTs to `REVALIDATE_URL` so Vercel drops its cached pages.
 
 Manual runs:
 
 ```bash
-./scripts/vps/ingest.sh                              # calendar-gated
-./scripts/vps/ingest.sh --force                      # ignore the gate
-./scripts/vps/ingest.sh --force -- --laptimes --current-year   # custom seed flags
+/srv/apps/f1_api/ingest.sh                            # calendar-gated
+/srv/apps/f1_api/ingest.sh --force                    # ignore the gate
+/srv/apps/f1_api/ingest.sh --force -- --laptimes --current-year   # custom seed flags
 sudo journalctl -u f1-tracker-ingest.service -n 100
 ```
 
+Or from the Actions tab: **deploy → Run workflow → ingest**, which deploys and
+then runs the same script with `--force`.
+
 > Every ingestor writes to PostgreSQL only, so the scheduled run needs nothing
 > committed back to the repo. The f1db archive and Fast-F1 sessions are cached on
-> the stack's `${STACK_NAME}_f1db_cache` / `${STACK_NAME}_fastf1_cache` volumes.
+> the `f1_api_f1db_cache` / `f1_api_fastf1_cache` volumes.
 
 ### Locally
 
@@ -352,24 +341,40 @@ Dockerfile fails in CI instead of on the server.
 ### Deploying
 
 `.github/workflows/deploy.yml` deploys the backend on every push to `master`
-that touches `pipeline/`, `docker/`, `deploy/`, `scripts/` or the workflow
-itself, and on demand from the Actions tab (with an optional **ingest**
-checkbox). GitHub's runners cannot reach the VPS database by design, so the
-workflow does no work of its own: it SSHes in and runs the server's own
-`scripts/vps/deploy.sh --pull`, which pulls, builds, migrates and blocks until
-`/api/health/db` reports ready. Deploys are serialised with a `concurrency`
-group so two never overlap.
+that touches `pipeline/`, `docker/compose.prod.yml`, `scripts/vps/` or the
+workflow itself, and on demand from the Actions tab (with an optional **ingest**
+checkbox). It:
 
-It needs a `production` environment holding `VPS_HOST`, `VPS_USER`,
-`VPS_SSH_KEY` and `VPS_SSH_KNOWN_HOSTS`, plus optional `VPS_PORT` and `VPS_PATH`
-variables. Setup is step 8 of [VPS_MIGRATION.md](VPS_MIGRATION.md). No database
-credentials go to GitHub — `.env.prod` stays on the server.
+1. builds `ghcr.io/hugoogb/f1_api` for `linux/amd64` and pushes it tagged with
+   the commit SHA and `latest`
+2. joins the tailnet as an ephemeral node tagged `tag:ci`
+3. ships `compose.yaml` and `ingest.sh` into `/srv/apps/f1_api/`
+4. writes `TAG=<sha>` to `.tag`, pulls, runs migrations, `up -d --wait`, and
+   verifies `/api/health/db`
+
+Deploys are serialised with a `concurrency` group, and never cancelled in
+flight — a half-applied migration is worse than waiting.
+
+**There is no SSH key.** The server runs Tailscale SSH, which owns port 22 on the
+tailnet address and authenticates by tailnet identity rather than
+`authorized_keys`; a key would be ignored. Access is granted by the `ssh` rule in
+the tailnet policy file saying `tag:ci` may SSH to `tag:server` as `hugo`, so
+revoking CI means editing that rule or deleting the OAuth client. The three
+repository secrets are `VPS_HOST`, `TS_OAUTH_CLIENT_ID` and `TS_OAUTH_SECRET` —
+no database credentials go to GitHub; `.env` stays on the server, and the server
+pulls from GHCR with its own stored credentials.
 
 The equivalent by hand, which is also the fallback if Actions is unavailable:
 
 ```bash
-cd /opt/f1-tracker && ./scripts/vps/deploy.sh --pull
+cd /srv/apps/f1_api
+echo "TAG=<sha>" > .tag
+docker compose --env-file .env --env-file .tag pull
+docker compose --env-file .env --env-file .tag run --rm migrate
+docker compose --env-file .env --env-file .tag up -d --wait
 ```
+
+That is also how a rollback works — see [VPS_MIGRATION.md](VPS_MIGRATION.md).
 
 The frontend deploys independently: Vercel builds from the same push.
 
@@ -388,8 +393,11 @@ docker compose -f docker/docker-compose.yml logs db
 docker exec f1-tracker-db pg_isready -U f1tracker
 
 # VPS
-docker compose --env-file .env.prod -f docker/compose.prod.yml ps
-docker compose --env-file .env.prod -f docker/compose.prod.yml logs db api migrate
+cd /srv/apps/f1_api
+docker compose --env-file .env --env-file .tag ps
+docker compose --env-file .env --env-file .tag logs f1_api
+docker compose --env-file .env --env-file .tag exec -T f1_api \
+  curl -fsS http://127.0.0.1:8000/api/health/db
 ```
 
 ### Reset the local database
@@ -402,9 +410,12 @@ docker compose -f docker/docker-compose.yml down -v
 ### API container won't start
 
 ```bash
-dc logs migrate   # a failed migration blocks the API — it depends on migrate
-dc logs api
-dc config         # check the resolved DATABASE_URL and CORS_ORIGINS
+cd /srv/apps/f1_api
+dc() { docker compose --env-file .env --env-file .tag "$@"; }
+
+dc logs f1_api    # usually a missing CORS_ORIGINS in .env
+dc config         # check the resolved DATABASE_URL, DIRECT_URL and image tag
+dc run --rm migrate   # a failed migration is its own step, so re-run it alone
 ```
 
 ### Frontend build fails
