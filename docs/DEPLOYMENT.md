@@ -349,11 +349,29 @@ cd .. && ./scripts/db-backup.sh
 **Backend image**: builds `pipeline/Dockerfile` and smoke-tests it, so a broken
 Dockerfile fails in CI instead of on the server.
 
-Deployment itself is a pull on the VPS:
+### Deploying
+
+`.github/workflows/deploy.yml` deploys the backend on every push to `master`
+that touches `pipeline/`, `docker/`, `deploy/`, `scripts/` or the workflow
+itself, and on demand from the Actions tab (with an optional **ingest**
+checkbox). GitHub's runners cannot reach the VPS database by design, so the
+workflow does no work of its own: it SSHes in and runs the server's own
+`scripts/vps/deploy.sh --pull`, which pulls, builds, migrates and blocks until
+`/api/health/db` reports ready. Deploys are serialised with a `concurrency`
+group so two never overlap.
+
+It needs a `production` environment holding `VPS_HOST`, `VPS_USER`,
+`VPS_SSH_KEY` and `VPS_SSH_KNOWN_HOSTS`, plus optional `VPS_PORT` and `VPS_PATH`
+variables. Setup is step 8 of [VPS_MIGRATION.md](VPS_MIGRATION.md). No database
+credentials go to GitHub — `.env.prod` stays on the server.
+
+The equivalent by hand, which is also the fallback if Actions is unavailable:
 
 ```bash
 cd /opt/f1-tracker && ./scripts/vps/deploy.sh --pull
 ```
+
+The frontend deploys independently: Vercel builds from the same push.
 
 **Pre-commit hooks**: Husky runs Prettier on staged TS/config files via
 lint-staged, and `ruff check` + `ruff format --check` on staged Python files.

@@ -108,6 +108,7 @@ Deployment: frontend on Vercel; API + PostgreSQL run as Docker containers on a s
 - `uv run alembic upgrade head` - Run database migrations
 - `uv run alembic revision --autogenerate -m "description"` - Generate migration
 - `uv run python scripts/seed.py` - Run data ingestion
+- `uv run python scripts/refresh_views.py` - Rebuild the computed-stats materialized views (`driver_career_stats`, `constructor_career_stats`, `season_champions`); `db-restore.sh` calls this, since the dump does not carry view contents
 - `uv run pytest -v` - Run backend tests (83 tests)
 - `uv run ruff check . && uv run ruff format --check .` - Lint + format check
 
@@ -118,6 +119,7 @@ Deployment: frontend on Vercel; API + PostgreSQL run as Docker containers on a s
 - `./scripts/vps/backup.sh` - Dump the production DB to `/var/backups/f1-tracker`
 - Env file: `.env.prod` at the repo root (template: `docker/.env.prod.example`), gitignored
 - Scheduling: `deploy/systemd/f1-tracker-{ingest,backup}.{service,timer}`
+- Deploys: pushes to `master` trigger `.github/workflows/deploy.yml`; run it by hand from the Actions tab (optional `ingest` input) or fall back to `./scripts/vps/deploy.sh --pull` on the box
 
 ### Data Updates
 - **Automated**: `f1-tracker-ingest.timer` on the VPS runs Mondays 06:00, calendar-gated, straight into the stack's PostgreSQL, then purges the Vercel cache. The f1db ingestors upsert from one release download, so they can bootstrap an empty DB as well as update one.
@@ -141,7 +143,8 @@ Deployment: frontend on Vercel; API + PostgreSQL run as Docker containers on a s
 - Use `Promise.allSettled` for optional data fetching (graceful degradation)
 - Client components (`'use client'`) only for interactive pieces (charts, filters, tabs, search)
 - Pre-commit: Husky runs lint-staged (prettier) + ruff check/format on staged `.py` files
-- CI: GitHub Actions — frontend (audit, format, lint, typecheck, build) + backend (ruff, pip-audit, pytest) + backend image (docker build + smoke test)
+- CI: GitHub Actions `ci.yml` — frontend (audit, format, lint, typecheck, build) + backend (ruff, pip-audit, pytest) + backend image (docker build + smoke test)
+- CD: GitHub Actions `deploy.yml` — on push to `master` touching `pipeline|docker|deploy|scripts`, SSHes to the VPS and runs `scripts/vps/deploy.sh --pull`; serialised by a `concurrency` group, gated on the `production` environment, needs `VPS_HOST`/`VPS_USER`/`VPS_SSH_KEY`/`VPS_SSH_KNOWN_HOSTS`. No DB credentials leave the server
 - Docker naming: every container/volume/network/image is prefixed with `STACK_NAME` (default `f1-tracker`) and labelled `com.f1tracker.stack`, so the project stays distinguishable on a VPS running several stacks
 - Shell scripts resolve the DB container via `scripts/lib/db.sh` (`STACK_NAME`/`DB_CONTAINER`) — never hardcode a container name
 
@@ -183,4 +186,4 @@ Rules to preserve when changing code:
 
 - Next.js 16 build requires `NODE_ENV=production` to avoid `_global-error` prerender bug
 - Renaming the local dev DB container (`docker-db-1` → `f1-tracker-db`) orphans the old `docker_pgdata` volume; re-run `./scripts/bootstrap.sh`, then `docker volume rm docker_pgdata`
-- `docker/backups/latest.sql.gz` predates the f1db migrations (it still carries `url`, `time_of_day`, `has_headshot`, `has_logo` and Ergast-style refs), so `db-restore.sh` — and `bootstrap.sh`, which calls it — fails against the current schema. Seed instead: `cd pipeline && uv run python scripts/seed.py --no-restore`, then refresh the dump with `./scripts/db-backup.sh`
+- `docker/backups/latest.sql.gz` carries no `lap_times` or qualifying sector times — those come from Fast-F1 at ~45 s/session, so they are not bundled. Race pages' lap-time, tyre-strategy and position charts stay empty until an ingest fills them in (`--laptimes --qualifying-sectors`, or the VPS timer)

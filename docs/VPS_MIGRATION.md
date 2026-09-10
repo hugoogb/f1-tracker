@@ -30,6 +30,7 @@ Everything the VPS side needs lives in this repo:
 | `docker/backups/latest.sql.gz` | Committed dump — the VPS's starting data |
 | `deploy/systemd/` | Timers for ingest and backups |
 | `deploy/caddy/`, `deploy/nginx/` | Reverse-proxy site configs |
+| `.github/workflows/deploy.yml` | Redeploys the stack over SSH on push to `master` |
 
 ## Sharing the VPS with other projects
 
@@ -121,13 +122,13 @@ can rebuild it from scratch. Pick whichever you prefer.
 FORCE=1 SKIP_MIGRATE=1 ./scripts/db-restore.sh docker/backups/latest.sql.gz
 ```
 
-`SKIP_MIGRATE=1` because step 3 already brought the schema to head. The dump is
-only as fresh as the last commit that refreshed it — the first scheduled ingest
-closes the gap.
+`SKIP_MIGRATE=1` because step 3 already brought the schema to head. The script
+loads the data and then rebuilds the materialized views the career stats,
+records and champions endpoints read from — those are not in the dump.
 
-> The dump currently committed on `master` predates the f1db migrations, so it
-> will not restore against the current schema until it is regenerated. Until
-> then, use the seed below.
+The dump is only as fresh as the last commit that refreshed it, and it carries
+no `lap_times` or qualifying sector times (Fast-F1, ~45 s/session — see
+`docker/backups/README.md`). The first scheduled ingest closes both gaps.
 
 ### Or seed from f1db
 
@@ -214,7 +215,55 @@ Run either by hand:
 sudo journalctl -u f1-tracker-ingest.service -n 100
 ```
 
-## 8. Decommission Render and Neon
+## 8. Wire up deploys from CI
+
+Everything above is a one-time setup. From here, `.github/workflows/deploy.yml`
+redeploys on every push to `master` that touches `pipeline/`, `docker/`,
+`deploy/`, `scripts/` or the workflow itself — it SSHes in and runs the same
+`scripts/vps/deploy.sh --pull` you have been running by hand.
+
+**On the VPS**, give CI its own key rather than reusing a personal one:
+
+```bash
+# On your workstation, not the server:
+ssh-keygen -t ed25519 -C 'github-actions-f1-tracker' -f ~/.ssh/f1_deploy -N ''
+ssh-copy-id -i ~/.ssh/f1_deploy.pub <deploy-user>@<vps-host>
+ssh-keyscan <vps-host>          # keep this output for VPS_SSH_KNOWN_HOSTS
+```
+
+The deploy user must be in the `docker` group and own the checkout at
+`/opt/f1-tracker`, which must be on `master` with a clean working tree —
+`deploy.sh --pull` uses `git pull --ff-only` and will refuse to run over local
+edits.
+
+**On GitHub**, under Settings → Environments, create an environment named
+`production` (add required reviewers there if you want deploys gated), then add
+these to it (or to the repository) under Secrets and variables → Actions:
+
+| Secret | Value |
+| ------ | ----- |
+| `VPS_HOST` | hostname or IP |
+| `VPS_USER` | the deploy user |
+| `VPS_SSH_KEY` | contents of `~/.ssh/f1_deploy` (the private half) |
+| `VPS_SSH_KNOWN_HOSTS` | the `ssh-keyscan` output above |
+
+| Variable (optional) | Default |
+| ------------------- | ------- |
+| `VPS_PORT` | `22` |
+| `VPS_PATH` | `/opt/f1-tracker` |
+
+`VPS_SSH_KNOWN_HOSTS` is not optional dressing: without it the runner would
+accept any host key and a DNS or routing hijack could hand your deploy key to
+someone else.
+
+Verify with a manual run — Actions → Deploy to VPS → **Run workflow**. That
+button also exposes an **ingest** checkbox, which runs `ingest.sh --force`
+after the deploy for when you want data refreshed off-schedule.
+
+The workflow never touches the database directly and holds no database
+credentials; `.env.prod` stays on the server only.
+
+## 9. Decommission Render and Neon
 
 Once the site has been served from the VPS for a race weekend or two:
 
