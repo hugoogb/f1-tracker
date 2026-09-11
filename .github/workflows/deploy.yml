@@ -141,11 +141,6 @@ jobs:
           mv "$APP_DIR/docker-compose.yml.tmp" "$APP_DIR/docker-compose.yml"
           mv "$APP_DIR/ingest.sh.tmp"          "$APP_DIR/ingest.sh"
           chmod +x "$APP_DIR/ingest.sh"
-
-          # An earlier revision of this workflow shipped the stack as
-          # compose.yaml, which outranks docker-compose.yml in compose's file
-          # precedence and would keep shadowing the file above.
-          rm -f "$APP_DIR/compose.yaml"
           REMOTE
 
       - name: Deploy over Tailscale SSH
