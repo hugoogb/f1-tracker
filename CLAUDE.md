@@ -18,7 +18,7 @@ Deployment: frontend on Vercel; API + PostgreSQL run as Docker containers on a s
 
 - `apps/web/` - Next.js frontend (15 routes, 36+ components)
 - `pipeline/` - Python data pipeline + FastAPI backend (11 routers, 38 endpoints); `Dockerfile` builds the API/migrate/ingest image
-- `docker/` - `docker-compose.yml` (local dev DB), `compose.prod.yml` (the VPS stack — shipped to `/srv/apps/f1_api/compose.yaml` by the deploy), `.env.prod.example`, backups
+- `docker/` - `docker-compose.yml` (local dev DB), `compose.prod.yml` (the VPS stack — shipped to `/srv/apps/f1_api/docker-compose.yml` by the deploy), `.env.prod.example`, backups
 - `deploy/` - systemd timer for the weekly ingest
 - `scripts/` - `bootstrap.sh`, `db-backup.sh`, `db-restore.sh`, `lib/db.sh` (shared container resolution), `vps/ingest.sh` (copied to the VPS by the deploy)
 
@@ -144,7 +144,7 @@ Deployment: frontend on Vercel; API + PostgreSQL run as Docker containers on a s
 - Client components (`'use client'`) only for interactive pieces (charts, filters, tabs, search)
 - Pre-commit: Husky runs lint-staged (prettier) + ruff check/format on staged `.py` files
 - CI: GitHub Actions `ci.yml` — frontend (audit, format, lint, typecheck, build) + backend (ruff, pip-audit, pytest) + backend image (docker build + smoke test)
-- CD: GitHub Actions `deploy.yml` — on push to `master` touching `pipeline|docker/compose.prod.yml|scripts/vps`, builds and pushes `ghcr.io/hugoogb/f1_api:<sha>`, joins the tailnet as `tag:ci`, then over Tailscale SSH ships `compose.yaml`+`ingest.sh`, pulls, migrates, `up -d --wait` and checks `/api/health/db`. Secrets are `VPS_HOST`/`TS_OAUTH_CLIENT_ID`/`TS_OAUTH_SECRET` — there is no SSH key (Tailscale SSH authenticates by tailnet identity), and no DB credentials leave the server
+- CD: GitHub Actions `deploy.yml` — on push to `master` touching `pipeline|docker/compose.prod.yml|scripts/vps`, builds and pushes `ghcr.io/hugoogb/f1_api:<sha>`, joins the tailnet as `tag:ci`, then over Tailscale SSH ships `docker-compose.yml`+`ingest.sh`, pulls, migrates, `up -d --wait` and checks `/api/health/db`. Secrets are `VPS_HOST`/`TS_OAUTH_CLIENT_ID`/`TS_OAUTH_SECRET` — there is no SSH key (Tailscale SSH authenticates by tailnet identity), and no DB credentials leave the server
 - Docker naming: local dev is prefixed with `STACK_NAME` (default `f1-tracker`); on the VPS the platform's convention wins and everything is named `f1_api`, so the project stays distinguishable on a box running several apps
 - Shell scripts resolve the DB container via `scripts/lib/db.sh` (`STACK_NAME`/`DB_CONTAINER`) — never hardcode a container name
 
