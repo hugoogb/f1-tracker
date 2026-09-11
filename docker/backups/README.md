@@ -14,7 +14,7 @@ standings and pit stops — 1950 to the current season.
 **What it does not contain.** `lap_times` and qualifying sector times. Those
 come from Fast-F1, which is throttled to roughly one session per 45 s, so they
 are not practical to bundle. They accumulate on the VPS as
-`f1-tracker-ingest.timer` runs, and locally via
+the weekly ingest workflow runs, and locally via
 `cd pipeline && uv run python scripts/seed.py --laptimes --qualifying-sectors --year-range <years>`.
 Until then the lap-times, tyre-strategy and position charts on race pages are
 empty; everything else works.

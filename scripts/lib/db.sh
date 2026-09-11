@@ -2,11 +2,14 @@
 # Shared PostgreSQL/container settings for the scripts in this repo.
 # Source it, don't execute it:  . "$(dirname "$0")/lib/db.sh"
 #
+# This covers the LOCAL development database only. Production runs on the VPS
+# platform's shared PostgreSQL, which this repo neither starts nor backs up —
+# see docs/VPS_MIGRATION.md.
+#
 # Everything is overridable by environment variable or by a key in the repo-root
-# .env, so the same scripts drive the local dev database and the VPS stack:
+# .env:
 #
 #   local  : STACK_NAME=f1-tracker            → container f1-tracker-db
-#   VPS    : STACK_NAME=f1-tracker            → container f1-tracker-db
 #   staging: STACK_NAME=f1-tracker-staging    → container f1-tracker-staging-db
 
 # shellcheck disable=SC2034  # these are consumed by the sourcing script
@@ -36,7 +39,6 @@ POSTGRES_DB="${POSTGRES_DB:-$(env_get POSTGRES_DB)}"
 POSTGRES_DB="${POSTGRES_DB:-f1tracker}"
 
 # Compose file to fall back on when the database container isn't running.
-# Point it at docker/compose.prod.yml on the VPS.
 COMPOSE_FILE="${COMPOSE_FILE:-$PROJECT_DIR/docker/docker-compose.yml}"
 
 # --- Helpers -----------------------------------------------------------------
