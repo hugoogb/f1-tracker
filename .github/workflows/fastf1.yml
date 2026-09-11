@@ -1,0 +1,220 @@
+# Fast-F1 session data — fetched here, loaded on the VPS.
+#
+# Formula 1's live timing endpoints refuse the VPS's datacentre IP, so lap times
+# and qualifying sector times cannot be ingested next to the database the way
+# everything else is (ingest.yml). They are split in two instead:
+#
+#   1. ask the box what is missing      ssh … fastf1.sh status   → targets.json
+#   2. fetch it from this runner        scripts/fastf1_fetch.py  → payload
+#   3. load it on the box               ssh … fastf1.sh import   < payload
+#
+# No database credentials leave the server — the runner only ever sees
+# year/round/driver-code data, which is also why the payload is safe to keep as
+# a build artifact.
+#
+# The runner's own access is not guaranteed either: Formula 1 blocks ranges, and
+# GitHub's are datacentre ranges too. Every run therefore starts with a probe,
+# and a blocked probe fails the workflow loudly rather than looking like "no new
+# data". If that day comes, the same fetch script runs on a laptop:
+#
+#   uv run python scripts/fastf1_fetch.py --targets targets.json --out payload.ndjson.gz
+#   ssh hugo@<vps> '/srv/apps/f1_api/fastf1.sh import' < payload.ndjson.gz
+#
+# Scheduled workflows only run on the default branch.
+name: fastf1
+
+on:
+  schedule:
+    # Mondays 07:30 UTC — after ingest.yml (06:00) has created the race rows
+    # that `fastf1.sh status` looks for.
+    - cron: '30 7 * * 1'
+  workflow_dispatch:
+    inputs:
+      probe_only:
+        description: 'Only check whether this runner can reach Fast-F1'
+        type: boolean
+        required: false
+        default: false
+      need:
+        description: 'What to fetch'
+        type: choice
+        required: false
+        default: 'laps,quali_sectors'
+        options:
+          - 'laps,quali_sectors'
+          - 'laps'
+          - 'quali_sectors'
+      year_range:
+        description: 'Limit to a season or range, e.g. 2019 or 2018-2020 (blank = all)'
+        required: false
+        default: ''
+      limit:
+        description: 'Maximum sessions to fetch (each costs ~45s of throttle)'
+        required: false
+        default: '8'
+      oldest_first:
+        description: 'Backfill order (default takes the most recent races first)'
+        type: boolean
+        required: false
+        default: false
+      dry_run:
+        description: 'Fetch and upload the payload, but do not load it on the VPS'
+        type: boolean
+        required: false
+        default: false
+
+# Shares ingest.yml's group: both write race data, and the f1db download and
+# Fast-F1 cache are shared volumes.
+concurrency:
+  group: ingest-f1_api
+  cancel-in-progress: false
+
+jobs:
+  fastf1:
+    runs-on: ubuntu-latest
+    # A backfill is throttled to ~45s per session, so a large --limit is slow by
+    # design. The default schedule fetches a handful and finishes in minutes.
+    timeout-minutes: 360
+
+    defaults:
+      run:
+        working-directory: pipeline
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: astral-sh/setup-uv@v7
+        with:
+          version: '0.10'
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: uv sync
+
+      # Fail fast and unambiguously: a blocked runner is a different problem
+      # from an empty calendar, and the fix is to move the fetch, not to retry.
+      - name: Probe Fast-F1 access
+        id: probe
+        run: uv run python scripts/fastf1_fetch.py --probe
+
+      - name: Stop after the probe
+        if: inputs.probe_only
+        run: echo "Probe succeeded — Fast-F1 answers this runner." >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: tailscale/github-action@v3
+        if: '!inputs.probe_only'
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci
+
+      # The tailscale action exits 0 even when every join attempt failed, which
+      # would otherwise surface as an SSH timeout that says nothing useful.
+      - name: Verify the tailnet join
+        if: '!inputs.probe_only'
+        run: |
+          if ! tailscale status; then
+            echo "::error::Not on the tailnet, so the fetch cannot ask the server" \
+                 "what is missing. Check TS_OAUTH_CLIENT_ID and TS_OAUTH_SECRET," \
+                 "that the OAuth client carries the auth_keys scope, and that it" \
+                 "owns tag:ci — which must also exist in the policy file's tagOwners."
+            exit 1
+          fi
+
+      # Only the server knows what is already loaded, so the target list is
+      # built there. stdout is pure JSON; its progress goes to stderr.
+      - name: Ask the server what is missing
+        id: targets
+        if: '!inputs.probe_only'
+        env:
+          NEED: ${{ inputs.need || 'laps,quali_sectors' }}
+          YEAR_RANGE: ${{ inputs.year_range }}
+          LIMIT: ${{ inputs.limit || '8' }}
+          ORDER: ${{ inputs.oldest_first && '--oldest-first' || '' }}
+        run: |
+          set -euo pipefail
+
+          # These end up inside a command run on the server, so they are
+          # validated rather than trusted — a dispatch input is free text.
+          if ! printf '%s' "$LIMIT" | grep -qE '^[0-9]+$'; then
+            echo "::error::limit must be a number, got '$LIMIT'"
+            exit 1
+          fi
+          if ! printf '%s' "$NEED" | grep -qE '^(laps|quali_sectors)(,(laps|quali_sectors))*$'; then
+            echo "::error::need must be laps, quali_sectors or both, got '$NEED'"
+            exit 1
+          fi
+          if [ -n "$YEAR_RANGE" ] && ! printf '%s' "$YEAR_RANGE" | grep -qE '^[0-9]{4}(-[0-9]{4})?$'; then
+            echo "::error::year_range must be YYYY or YYYY-YYYY, got '$YEAR_RANGE'"
+            exit 1
+          fi
+
+          args="--need $NEED --limit $LIMIT $ORDER"
+          if [ -n "$YEAR_RANGE" ]; then
+            args="$args --year-range $YEAR_RANGE"
+          fi
+
+          ssh -o StrictHostKeyChecking=accept-new \
+              -o ConnectTimeout=30 \
+              "hugo@${{ secrets.VPS_HOST }}" \
+              "/srv/apps/f1_api/fastf1.sh status $args" > status.out
+
+          # fastf1.sh keeps its own chatter on stderr, but `docker compose` has
+          # been known to narrate on stdout too. The target list is the single
+          # JSON line the status script prints last.
+          grep '^{' status.out | tail -1 > targets.json
+
+          count=$(python -c 'import json; print(json.load(open("targets.json"))["count"])')
+          echo "count=$count" >> "$GITHUB_OUTPUT"
+          echo "$count race(s) missing Fast-F1 data"
+
+      - name: Fetch the sessions
+        id: fetch
+        if: ${{ !inputs.probe_only && steps.targets.outputs.count != '0' }}
+        env:
+          NEED: ${{ inputs.need || 'laps,quali_sectors' }}
+          LIMIT: ${{ inputs.limit || '8' }}
+        run: |
+          uv run python scripts/fastf1_fetch.py \
+            --targets targets.json \
+            --need "$NEED" \
+            --limit "$LIMIT" \
+            --out payload.ndjson.gz
+
+      # Kept whether or not the import runs, and whether or not the fetch ended
+      # badly: a fetch that was blocked or rate limited part-way still wrote
+      # every session it got, and this runner may be the last host able to get
+      # them at all.
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() && !inputs.probe_only && steps.fetch.outputs.sessions != '' && steps.fetch.outputs.sessions != '0' }}
+        with:
+          name: fastf1-payload-${{ github.run_id }}
+          path: pipeline/payload.ndjson.gz
+          retention-days: 14
+
+      # Also on a failed fetch, for the same reason: the sessions already in the
+      # payload are good data. The job still ends red — the fetch step owns that.
+      - name: Load it on the VPS
+        if: ${{ !cancelled() && !inputs.probe_only && !inputs.dry_run && steps.fetch.outputs.sessions != '' && steps.fetch.outputs.sessions != '0' }}
+        run: |
+          ssh -o StrictHostKeyChecking=accept-new \
+              -o ConnectTimeout=30 \
+              "hugo@${{ secrets.VPS_HOST }}" \
+              '/srv/apps/f1_api/fastf1.sh import' < payload.ndjson.gz
+
+      - name: Summary
+        if: ${{ !cancelled() && !inputs.probe_only }}
+        run: |
+          {
+            echo "### Fast-F1"
+            echo ""
+            echo "- races missing data: ${{ steps.targets.outputs.count || 'unknown' }}"
+            echo "- sessions fetched: ${{ steps.fetch.outputs.sessions || '0' }}"
+            echo "- payload partial: ${{ steps.fetch.outputs.partial || 'false' }}"
+            if [ "${{ inputs.dry_run }}" = "true" ]; then
+              echo "- dry run: payload uploaded as an artifact, nothing loaded"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

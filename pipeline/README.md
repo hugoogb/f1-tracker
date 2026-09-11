@@ -43,8 +43,10 @@ pipeline/
 │   │   ├── queries.py         # Reusable query helpers
 │   │   └── database.py        # Engine, session, Base
 │   └── ingestion/             # f1db + Fast-F1 data pipeline
-├── tests/                     # pytest suite (82 tests)
-├── scripts/                   # seed.py, backup/restore
+│       ├── fastf1_sessions.py # Fast-F1 → plain dicts (no DB; runs anywhere)
+│       └── fastf1_payload.py  # NDJSON wire format for off-box fetches
+├── tests/                     # pytest suite (113 tests)
+├── scripts/                   # seed.py, fastf1_{status,fetch,import}.py, backup/restore
 ├── alembic/                   # Database migrations
 └── pyproject.toml             # Dependencies + ruff/pytest config
 ```
@@ -56,7 +58,18 @@ pipeline/
   official standings, 1950 to present. Ingested from one versioned release download per run
   (`src/ingestion/f1db.py`); pin `F1DB_VERSION` for reproducible seeds.
 - **Fast-F1** (MIT): lap-by-lap times, sector times and tyre compound/stint data (2018+) — the only
-  source for lap-level detail, which f1db does not carry.
+  source for lap-level detail, which f1db does not carry. Formula 1 refuses datacentre IPs, so in
+  production this is fetched off the server and imported as a payload:
+
+  ```bash
+  uv run python scripts/fastf1_fetch.py --probe            # may this host fetch at all?
+  ssh hugo@<vps> '/srv/apps/f1_api/fastf1.sh status' > targets.json
+  uv run python scripts/fastf1_fetch.py --targets targets.json --out payload.ndjson.gz
+  ssh hugo@<vps> '/srv/apps/f1_api/fastf1.sh import' < payload.ndjson.gz
+  ```
+
+  Locally there is no block, so `seed.py --laptimes --qualifying-sectors` still does both halves
+  at once. See [../docs/DEPLOYMENT.md](../docs/DEPLOYMENT.md).
 
 See [../ATTRIBUTIONS.md](../ATTRIBUTIONS.md).
 
@@ -133,7 +146,7 @@ uv run pytest -v
 uv run pytest tests/test_races.py -v
 ```
 
-82 tests covering the routers plus the f1db transform helpers. Tests use SQLite in-memory with `StaticPool` and two fixtures:
+113 tests covering the routers, the f1db transform helpers and the off-box Fast-F1 path (session parsing, payload round trip, writers, import). Tests use SQLite in-memory with `StaticPool` and two fixtures:
 - `seed_data` — minimal: 1 season, 1 driver, 1 constructor, 1 circuit
 - `race_seed_data` — extended: adds race, results, qualifying, standings, pit stop, 2nd driver/constructor
 

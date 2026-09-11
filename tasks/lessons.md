@@ -40,3 +40,27 @@
 ## SQL Performance
 
 - **Window functions over Python loops**: Replacing Python position calculation (O(drivers x laps) loop) with SQL `SUM() OVER (PARTITION BY driver ORDER BY lap)` + `RANK() OVER (PARTITION BY lap ORDER BY cumulative_time)` moves the work to the database. The query also uses a subquery to find the max consecutive valid lap per driver (stopping at first NULL time) via `COALESCE(MIN(lap).FILTER(time IS NULL) - 1, MAX(lap))`.
+
+## Fast-F1 and Datacentre IPs
+
+- **Formula 1 blocks whole cloud IP ranges.** Fast-F1 worked from a laptop and from the VPS
+  during development, then the VPS's requests started being refused outright — not rate limited,
+  refused. Nothing in the pipeline was wrong; the host had become the problem. Rate limits
+  (429, "calls/h") clear themselves and are worth retrying; a block (403, connection reset) never
+  clears and must not be retried, so `is_blocked_error` and `is_rate_limit_error` are separate
+  checks with separate messages.
+- **Split fetching from writing when they can live on different hosts.** The fix was to make the
+  Fast-F1 layer (`fastf1_sessions.py`) import nothing from the database and emit plain dicts, so
+  the same parser runs on a GitHub runner and the same writers run next to PostgreSQL, with an
+  NDJSON payload in between. Keeping one parser and one writer shared by both paths is what stops
+  the off-box path from quietly drifting from the local one.
+- **Probe before a long job whose failure mode is ambiguous.** A blocked runner and a race
+  calendar with nothing new both look like "0 sessions fetched". One probe session at the start of
+  the workflow makes the difference obvious in the run's own log.
+- **Stream the payload, flush per record.** Fast-F1 fetches are throttled to 45 s/session, so a
+  long run will eventually hit a rate limit or a job timeout. Writing each session as it arrives
+  means a killed run still produces an importable file instead of nothing.
+- **Don't send database credentials to CI to solve a network problem.** Letting the runner write
+  to PostgreSQL directly would have been less code, but it would have put the database on the
+  tailnet edge and DB credentials in GitHub secrets. Shipping data files over the SSH path that
+  already exists keeps the credential boundary where it was.

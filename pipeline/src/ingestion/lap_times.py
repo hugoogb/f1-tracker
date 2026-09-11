@@ -1,20 +1,75 @@
-"""Ingest lap time data from Fast-F1 (2018+ only)."""
+"""Ingest lap time data from Fast-F1 (2018+ only).
 
-import time
+Two entry points onto the same writer:
+
+* `LapTimeIngestor` — fetch and write in one process, for a host whose IP
+  Fast-F1 still answers (a laptop, a fresh local seed).
+* `write_lap_rows` — write rows someone else fetched, used by
+  `scripts/fastf1_import.py` when the payload was built off-box.
+"""
+
 from datetime import date
 
-import fastf1
 from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 from src.db.models import LapTime, Race, Season
-from src.ingestion.base import (
-    THROTTLE_DELAY,
-    BaseIngestor,
-    clean,
-    is_interrupted,
+from src.ingestion.base import BaseIngestor, is_interrupted
+from src.ingestion.fastf1_sessions import (
+    fetch_race_laps,
+    is_blocked_error,
     is_rate_limit_error,
-    timedelta_to_ms,
+    throttle,
 )
+
+# Fast-F1's live timing archive starts here; before it there is no lap data.
+FIRST_LAP_DATA_YEAR = 2018
+
+
+def races_with_lap_times(db: Session) -> set[str]:
+    """Ids of races that already have lap times stored."""
+    return set(db.execute(select(LapTime.race_id).group_by(LapTime.race_id)).scalars().all())
+
+
+def write_lap_rows(
+    db: Session,
+    race_id: str,
+    rows: list[dict],
+    abbr_to_id: dict[str, str],
+) -> int:
+    """Merge extracted lap rows into `lap_times`. The caller commits.
+
+    Rows are keyed by driver abbreviation (see `fastf1_sessions`); anything
+    whose abbreviation is not among this race's entrants is skipped, which is
+    how a code reused across eras stays harmless.
+    """
+    written = 0
+    for row in rows:
+        driver_id = abbr_to_id.get(str(row.get("driver") or ""))
+        if not driver_id:
+            continue
+        lap_num = row.get("lap_number")
+        if lap_num is None:
+            continue
+        lap_num = int(lap_num)
+
+        db.merge(
+            LapTime(
+                id=f"{race_id}_L_{driver_id}_{lap_num}",
+                race_id=race_id,
+                driver_id=driver_id,
+                lap_number=lap_num,
+                time_millis=row.get("time_millis"),
+                sector1_ms=row.get("sector1_ms"),
+                sector2_ms=row.get("sector2_ms"),
+                sector3_ms=row.get("sector3_ms"),
+                compound=row.get("compound"),
+                stint=row.get("stint"),
+                tyre_life=row.get("tyre_life"),
+            )
+        )
+        written += 1
+    return written
 
 
 class LapTimeIngestor(BaseIngestor):
@@ -24,18 +79,20 @@ class LapTimeIngestor(BaseIngestor):
     times, tyre compound, stint and tyre life from Formula 1's own live timing
     archive. This is the only source for lap-level and tyre-compound data —
     f1db's finest granularity is one row per driver per session.
+
+    Requires an IP Fast-F1 will serve. The VPS's is blocked, so in production
+    this runs as fetch-elsewhere + `scripts/fastf1_import.py`; see
+    `docs/DEPLOYMENT.md`.
     """
 
     def ingest(self, year_range: tuple[int, int] | None = None) -> None:
         self.log("Fetching lap times (2018+)...")
 
         # Find races that already have lap times — skip them
-        existing = set(
-            self.db.execute(select(LapTime.race_id).group_by(LapTime.race_id)).scalars().all()
-        )
+        existing = races_with_lap_times(self.db)
 
         today = date.today()
-        min_year = max(2018, year_range[0]) if year_range else 2018
+        min_year = max(FIRST_LAP_DATA_YEAR, year_range[0]) if year_range else FIRST_LAP_DATA_YEAR
         query = select(Season).where(Season.year >= min_year).order_by(Season.year)
         if year_range:
             query = query.where(Season.year <= year_range[1])
@@ -71,73 +128,29 @@ class LapTimeIngestor(BaseIngestor):
 
                 try:
                     self.log(f"{season.year} R{race.round}: fetching lap times...")
-                    load_start = time.time()
-                    session = fastf1.get_session(season.year, race.round, "R")
-                    session.load(laps=True, telemetry=False, weather=False, messages=False)
-                    load_elapsed = time.time() - load_start
+                    abbrs, rows, load_elapsed = fetch_race_laps(season.year, race.round)
 
-                    laps = session.laps
-                    if laps is None or laps.empty:
+                    if not rows:
                         self.log(f"{season.year} R{race.round}: no lap data available")
                         continue
 
-                    # Build abbreviation -> driver_id map from session results
-                    # Codes are unique per session but reused across eras, so scope
-                    # the lookup to this race's entrants.
                     abbr_to_id = self.build_abbr_to_driver_id(
-                        session.results, self.race_entrant_codes(race.id)
+                        abbrs, self.race_entrant_codes(race.id)
                     )
-
                     if not abbr_to_id:
                         self.log(f"{season.year} R{race.round}: no driver mapping available")
                         continue
 
-                    race_records = 0
-                    for _, row in laps.iterrows():
-                        driver_abbr = str(row.get("Driver", ""))
-                        driver_id = abbr_to_id.get(driver_abbr)
-                        if not driver_id:
-                            continue
-
-                        lap_num = clean(row.get("LapNumber"))
-                        if lap_num is None:
-                            continue
-                        lap_num = int(lap_num)
-
-                        lap_id = f"{race.id}_L_{driver_id}_{lap_num}"
-                        stint = clean(row.get("Stint"))
-                        tyre_life = clean(row.get("TyreLife"))
-                        lap_time = LapTime(
-                            id=lap_id,
-                            race_id=race.id,
-                            driver_id=driver_id,
-                            lap_number=lap_num,
-                            time_millis=timedelta_to_ms(row.get("LapTime")),
-                            sector1_ms=timedelta_to_ms(row.get("Sector1Time")),
-                            sector2_ms=timedelta_to_ms(row.get("Sector2Time")),
-                            sector3_ms=timedelta_to_ms(row.get("Sector3Time")),
-                            compound=clean(row.get("Compound")),
-                            stint=int(stint) if stint is not None else None,
-                            tyre_life=int(tyre_life) if tyre_life is not None else None,
-                        )
-                        self.db.merge(lap_time)
-                        race_records += 1
-
+                    race_records = write_lap_rows(self.db, race.id, rows, abbr_to_id)
                     self.db.commit()
+
                     total_records += race_records
                     season_fetched += 1
                     total_fetched += 1
                     self.log(f"{season.year} R{race.round}: {race_records} lap times ingested")
 
                     # Throttle: only delay if the load hit the network (not cached)
-                    if load_elapsed > 1.0:
-                        remaining = max(0, THROTTLE_DELAY - load_elapsed)
-                        if remaining > 0:
-                            self.log(f"⏳ Throttle delay ({remaining:.0f}s)...")
-                            try:
-                                time.sleep(remaining)
-                            except KeyboardInterrupt:
-                                raise InterruptedError("Seed interrupted by user")
+                    throttle(load_elapsed, log=self.log)
 
                 except InterruptedError:
                     raise
@@ -145,6 +158,13 @@ class LapTimeIngestor(BaseIngestor):
                     raise InterruptedError("Seed interrupted by user")
                 except Exception as e:
                     self.db.rollback()
+                    if is_blocked_error(e):
+                        self.log(
+                            f"{season.year} R{race.round}: Fast-F1 refused this host "
+                            f"({e}). Fetch the sessions somewhere else and load them "
+                            f"with scripts/fastf1_import.py — see docs/DEPLOYMENT.md."
+                        )
+                        return
                     if is_rate_limit_error(e):
                         self.log(
                             f"{season.year} R{race.round}: rate limited, "

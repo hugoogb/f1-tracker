@@ -167,8 +167,10 @@ release download, so they populate it directly (about two minutes):
   --sprints --standings --pitstops --postprocess
 ```
 
-Lap times and qualifying sector times come from Fast-F1 at ~45 s/session — add
-them a few seasons at a time, or let the weekly timer accumulate them.
+Lap times and qualifying sector times cannot be loaded from the box — Formula 1
+blocks its IP. Fetch them elsewhere and import the payload (see *Fast-F1 data*
+under Data Updates); the fastf1 workflow also accumulates them a few sessions a
+week on its own.
 
 ### 3. Reverse proxy
 
@@ -319,15 +321,75 @@ Manual runs:
 ```bash
 /srv/apps/f1_api/ingest.sh                            # calendar-gated
 /srv/apps/f1_api/ingest.sh --force                    # ignore the gate
-/srv/apps/f1_api/ingest.sh --force -- --laptimes --current-year   # custom seed flags
+/srv/apps/f1_api/ingest.sh --force -- --results --current-year   # custom seed flags
 ```
 
 Or from the Actions tab: **ingest → Run workflow**, with optional `force` and
 `flags` inputs. **deploy → Run workflow → ingest** does the same after a deploy.
 
-> Every ingestor writes to PostgreSQL only, so the scheduled run needs nothing
-> committed back to the repo. The f1db archive and Fast-F1 sessions are cached on
-> the `f1_api_f1db_cache` / `f1_api_fastf1_cache` volumes.
+> Every f1db ingestor writes to PostgreSQL only, so the scheduled run needs
+> nothing committed back to the repo. The f1db archive is cached on the
+> `f1_api_f1db_cache` volume.
+
+**Not on this path: lap times and qualifying sector times.** Formula 1 blocks
+the VPS's datacentre IP, so `--laptimes` and `--qualifying-sectors` cannot run
+there at all — see below.
+
+### Fast-F1 data (lap times, qualifying sectors)
+
+Fast-F1 reads Formula 1's live timing archive, which refuses whole datacentre IP
+ranges — the VPS's among them. The fetch therefore happens somewhere Formula 1
+still answers, and only the database write happens on the box:
+
+```
+GitHub runner                                VPS
+─────────────                                ───
+                     fastf1.sh status  ──▶   what is still missing?  (JSON)
+  fastf1_fetch.py  ◀──────────────────────
+  (Fast-F1, ~45s/session)
+  payload.ndjson.gz ──▶ fastf1.sh import ─▶  fastf1_import.py → PostgreSQL
+                                             → validate → purge Vercel cache
+```
+
+`.github/workflows/fastf1.yml` runs this Mondays at 07:30 UTC (after the main
+ingest has created the race rows) and on demand from the Actions tab, with
+`need`, `year_range`, `limit`, `oldest_first` and `dry_run` inputs. Every run
+starts with a probe, so a runner that has *also* been blocked fails the workflow
+with that reason rather than looking like "no new data". The payload is kept as
+a build artifact for 14 days.
+
+No database credentials leave the server: the runner only ever handles
+year/round/driver-code data.
+
+If GitHub's runners get blocked too, the same two commands work from any machine
+Fast-F1 will serve — a laptop on a home connection:
+
+```bash
+ssh hugo@<vps> '/srv/apps/f1_api/fastf1.sh status --limit 10' > targets.json
+cd pipeline
+uv run python scripts/fastf1_fetch.py --targets targets.json --out payload.ndjson.gz
+ssh hugo@<vps> '/srv/apps/f1_api/fastf1.sh import' < payload.ndjson.gz
+```
+
+Useful variants:
+
+```bash
+# is this host allowed to talk to Fast-F1 at all?
+uv run python scripts/fastf1_fetch.py --probe
+
+# backfill without asking the server what is missing (re-imports are no-ops)
+uv run python scripts/fastf1_fetch.py --year-range 2018-2019 --need laps \
+    --out payload.ndjson.gz
+
+# check a payload before loading it
+ssh hugo@<vps> '/srv/apps/f1_api/fastf1.sh import --dry-run' < payload.ndjson.gz
+```
+
+The payload is newline-delimited JSON (gzipped), one line per session, streamed
+as it is fetched — a run stopped by the rate limit or a timeout still produces a
+file worth importing, and the importer is idempotent, so re-running it changes
+nothing. Sessions are keyed by year/round and three-letter driver code; the
+importer resolves both against the live database.
 
 ### Locally
 
@@ -339,9 +401,13 @@ cd .. && ./scripts/db-backup.sh
 
 > The dataset is one f1db release download per run, cached in `F1DB_CACHE_DIR`
 > — no rate limit. Set `F1DB_VERSION` to a release tag for a reproducible seed,
-> or leave it at `latest`. Fast-F1 (lap times and tyre data, 2018+) caches
-> sessions in `FASTF1_CACHE_DIR` and is throttled to stay within its ~500
-> calls/hour window.
+> or leave it at `latest`.
+
+Locally there is no IP block, so `seed.py --laptimes --qualifying-sectors` still
+fetches and writes in one step, against the local database. Sessions are cached
+in `FASTF1_CACHE_DIR` and throttled to stay within Fast-F1's ~500 calls/hour
+window, so a backfill takes ~45 s per session. To put that data on the *server*,
+use the payload path above rather than restoring a local dump over it.
 
 ---
 
@@ -367,7 +433,8 @@ checkbox). It:
 1. builds `ghcr.io/hugoogb/f1_api` for `linux/amd64` and pushes it tagged with
    the commit SHA and `latest`
 2. joins the tailnet as an ephemeral node tagged `tag:ci`
-3. ships `docker-compose.yml` and `ingest.sh` into `/srv/apps/f1_api/`
+3. ships `docker-compose.yml`, `ingest.sh`, `fastf1.sh` and `purge-cache.sh`
+   into `/srv/apps/f1_api/`
 4. writes `TAG=<sha>` to `.tag`, pulls, runs migrations, `up -d --wait`, and
    verifies `/api/health/db`
 
