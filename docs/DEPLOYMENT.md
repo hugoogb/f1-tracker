@@ -240,7 +240,6 @@ Set on all routes in `apps/web/next.config.ts`:
 - [ ] `DIRECT_URL` present, so migrations do not run through PgBouncer
 - [ ] `NEXT_PUBLIC_API_URL` set on Vercel and the frontend redeployed
 - [ ] HTTPS configured at Caddy
-- [ ] `f1-tracker-ingest.timer` enabled
 - [ ] The platform's PostgreSQL backups cover the `f1_api` database, and a
       restore has been rehearsed at least once
 - [ ] Host firewall allows only 80/443 publicly (SSH rides the tailnet)
@@ -283,8 +282,8 @@ New race data has to be ingested after each race weekend.
 
 ### On the VPS (scheduled)
 
-`deploy/systemd/f1-tracker-ingest.timer` fires Mondays at 06:00 and runs
-`/srv/apps/f1_api/ingest.sh` (placed there by the deploy), which:
+`.github/workflows/ingest.yml` fires Mondays at 06:00 UTC, joins the tailnet and
+runs `/srv/apps/f1_api/ingest.sh` (placed there by the deploy), which:
 
 1. **Calendar gate** — `pipeline/scripts/should_ingest.py --exit-code` skips the
    run unless a race ran in the last 3 days, so off-weekends cost nothing. It
@@ -301,11 +300,10 @@ Manual runs:
 /srv/apps/f1_api/ingest.sh                            # calendar-gated
 /srv/apps/f1_api/ingest.sh --force                    # ignore the gate
 /srv/apps/f1_api/ingest.sh --force -- --laptimes --current-year   # custom seed flags
-sudo journalctl -u f1-tracker-ingest.service -n 100
 ```
 
-Or from the Actions tab: **deploy → Run workflow → ingest**, which deploys and
-then runs the same script with `--force`.
+Or from the Actions tab: **ingest → Run workflow**, with optional `force` and
+`flags` inputs. **deploy → Run workflow → ingest** does the same after a deploy.
 
 > Every ingestor writes to PostgreSQL only, so the scheduled run needs nothing
 > committed back to the repo. The f1db archive and Fast-F1 sessions are cached on

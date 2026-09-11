@@ -19,7 +19,6 @@ Deployment: frontend on Vercel; API + PostgreSQL run as Docker containers on a s
 - `apps/web/` - Next.js frontend (15 routes, 36+ components)
 - `pipeline/` - Python data pipeline + FastAPI backend (11 routers, 38 endpoints); `Dockerfile` builds the API/migrate/ingest image
 - `docker/` - `docker-compose.yml` (local dev DB), `compose.prod.yml` (the VPS stack — shipped to `/srv/apps/f1_api/docker-compose.yml` by the deploy), `.env.prod.example`, backups
-- `deploy/` - systemd timer for the weekly ingest
 - `scripts/` - `bootstrap.sh`, `db-backup.sh`, `db-restore.sh`, `lib/db.sh` (shared container resolution), `vps/ingest.sh` (copied to the VPS by the deploy)
 
 ### Frontend Routes
@@ -119,10 +118,10 @@ Deployment: frontend on Vercel; API + PostgreSQL run as Docker containers on a s
 - Manual deploy/rollback on the box: `echo "TAG=<sha>" > .tag`, then `docker compose --env-file .env --env-file .tag pull && ... run --rm migrate && ... up -d --wait`
 - Env file: `/srv/apps/f1_api/.env` (created by the platform's `new-app.sh`; app-specific keys in `docker/.env.prod.example`) plus `.tag`, which carries only `TAG=<sha>`
 - Database is the platform's shared PostgreSQL: the API uses `DATABASE_URL` (PgBouncer), migrations and ingest use `DIRECT_URL` (direct — transaction pooling cannot run a migration). Backups are the platform's job
-- Scheduling: `deploy/systemd/f1-tracker-ingest.{service,timer}`
+- Scheduling: `.github/workflows/ingest.yml` — Mondays 06:00 UTC, calendar-gated inside `ingest.sh`; run it by hand from the Actions tab with optional `force`/`flags` inputs
 
 ### Data Updates
-- **Automated**: `f1-tracker-ingest.timer` on the VPS runs Mondays 06:00, calendar-gated, straight into the stack's PostgreSQL, then purges the Vercel cache. The f1db ingestors upsert from one release download, so they can bootstrap an empty DB as well as update one.
+- **Automated**: `.github/workflows/ingest.yml` runs Mondays 06:00 UTC — joins the tailnet and runs `/srv/apps/f1_api/ingest.sh` on the box, calendar-gated, straight into PostgreSQL, then purges the Vercel cache. The f1db ingestors upsert from one release download, so they can bootstrap an empty DB as well as update one.
 - `uv run python scripts/should_ingest.py --days 3 [--exit-code]` - Calendar gate; `--exit-code` makes the decision the exit status for shell callers
 - `F1DB_VERSION` (env) - f1db release to ingest; `latest` by default, pin a tag for reproducible seeds
 

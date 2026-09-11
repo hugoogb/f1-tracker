@@ -11,8 +11,9 @@ Vercel** — only the API and the database live here.
   VPS
    ├── Caddy                 (platform, terminates TLS)
    ├── f1_api                (this app's container)
-   ├── PgBouncer → PostgreSQL (platform, shared; database `f1_api`)
-   └── f1-tracker-ingest.timer
+   └── PgBouncer → PostgreSQL (platform, shared; database `f1_api`)
+
+  GitHub Actions ── weekly ingest ──(tailnet)──▶ f1_api
 ```
 
 **The platform owns the server.** Tailscale SSH, Caddy, the shared PostgreSQL,
@@ -28,8 +29,8 @@ F1 Tracker.
 | `docker/compose.prod.yml` | The stack. Copied to `/srv/apps/f1_api/docker-compose.yml` on every deploy, replacing the one new-app.sh generated |
 | `docker/.env.prod.example` | The app-specific keys to append to `/srv/apps/f1_api/.env` |
 | `scripts/vps/ingest.sh` | Calendar-gated ingest. Copied to `/srv/apps/f1_api/ingest.sh` on every deploy |
-| `deploy/systemd/` | The weekly ingest timer |
 | `.github/workflows/deploy.yml` | Builds the image, pushes to GHCR, deploys over Tailscale SSH |
+| `.github/workflows/ingest.yml` | Weekly data ingest, over the same SSH path |
 
 Note what is *not* here: no Postgres container, no backup script, no reverse
 proxy config. The platform provides all three.
@@ -101,16 +102,10 @@ transaction pooling cannot carry a migration.
 7. **Set `NEXT_PUBLIC_API_URL`** on Vercel to `https://<api-host>/api` and
    redeploy the frontend. Make sure that origin is in `CORS_ORIGINS`.
 
-8. **Schedule the ingest:**
-
-   ```bash
-   sudo cp deploy/systemd/f1-tracker-ingest.{service,timer} /etc/systemd/system/
-   sudo systemctl daemon-reload
-   sudo systemctl enable --now f1-tracker-ingest.timer
-   systemctl list-timers 'f1-tracker-*'
-   ```
-
-   Mondays 06:00, and it skips itself unless a race ran in the last 3 days.
+8. **Nothing to schedule.** `.github/workflows/ingest.yml` already runs Mondays
+   06:00 UTC over the same tailnet path as the deploy, and `ingest.sh` skips
+   itself unless a race ran in the last 3 days. Run it early from Actions →
+   ingest → Run workflow.
 
 ## Rollback
 
@@ -137,7 +132,6 @@ dc logs -f --tail 100      # follow the API
 dc exec -T f1_api curl -fsS http://127.0.0.1:8000/api/health/db
 
 ./ingest.sh --force        # ingest now, ignoring the calendar gate
-sudo journalctl -u f1-tracker-ingest.service -n 100
 
 dc run --rm --entrypoint python ingest scripts/validate.py   # data completeness
 dc run --rm migrate                                          # re-run migrations

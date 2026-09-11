@@ -22,11 +22,11 @@ set -euo pipefail
 APP_DIR="${APP_DIR:-/srv/apps/f1_api}"
 cd "$APP_DIR"
 
-for f in .env .tag compose.yaml; do
+for f in .env .tag docker-compose.yml; do
   if [ ! -f "$f" ]; then
     echo "Error: $APP_DIR/$f not found." >&2
-    echo "  .env and compose.yaml come from new-app.sh and the deploy;" >&2
-    echo "  .tag is written by the deploy. Has this app ever been deployed?" >&2
+    echo "  .env comes from new-app.sh; docker-compose.yml and .tag are written" >&2
+    echo "  by the deploy. Has this app ever been deployed?" >&2
     exit 1
   fi
 done
