@@ -96,8 +96,19 @@ transaction pooling cannot carry a migration.
      curl -fsS http://127.0.0.1:8000/api/stats
    ```
 
-6. **Point Caddy** at `127.0.0.1:${API_PORT}` for the API hostname, per the
-   platform's `SETUP.md`.
+6. **Point Caddy** at the container, not at a host port. Caddy runs on the
+   `edge` network and the API joins it, so the upstream is the service name:
+
+   ```
+   f1-api.<your-domain> {
+     import common
+     reverse_proxy f1_api:8000
+   }
+   ```
+
+   `127.0.0.1:8000` would resolve to Caddy itself and 502. The host publish that
+   `API_PORT` controls exists only so the API can be curl'd from the box when
+   diagnosing whether a problem is the container or the proxy in front of it.
 
 7. **Set `NEXT_PUBLIC_API_URL`** on Vercel to `https://<api-host>/api` and
    redeploy the frontend. Make sure that origin is in `CORS_ORIGINS`.
@@ -155,6 +166,13 @@ list `hugo` in `users`, or the server is not tagged `tag:server`.
 **`up -d --wait` fails but the container is running** — the healthcheck never went
 green. `dc logs f1_api`. The usual cause is the API failing to start because
 `CORS_ORIGINS` is missing from `.env`.
+
+**502 Bad Gateway from Caddy** — first check the container exists at all:
+`docker compose --env-file .env --env-file .tag ps`. An empty table means it is
+not running, so redeploy. If it is up, `curl -i http://127.0.0.1:${API_PORT}/api/health`
+from the box: a 200 there means the container is fine and Caddy's upstream is
+wrong. It must be `f1_api:8000` — Caddy is a container, so a loopback address
+points at Caddy itself.
 
 **`could not translate host name "postgres"` / `"pgbouncer"`** — the container is
 not on the same Docker network as the database, so those names do not resolve.
