@@ -126,12 +126,13 @@ volumes:
   fastf1cache:
     name: f1_api_fastf1_cache
 networks:
-  # PostgreSQL and PgBouncer are containers on a network this stack does not
-  # create, so joining it is what makes `postgres` and `pgbouncer` resolve. This
-  # is the app's default network, so every service here lands on it.
+  # PostgreSQL and PgBouncer are containers on `data`, a network this stack does
+  # not create, so joining it is what makes those hostnames resolve from inside
+  # the container. This is the app's default network, so every service here
+  # lands on it.
   #
-  # Find the name on the box with:
+  # Override only for a box that names it something else:
   #   docker inspect -f '{{range $$k, $$v := .NetworkSettings.Networks}}{{$$k}} {{end}}' postgres
   default:
-    name: ${SHARED_NETWORK:?set SHARED_NETWORK in .env to the Docker network PostgreSQL and PgBouncer are on}
+    name: ${SHARED_NETWORK:-data}
     external: true
