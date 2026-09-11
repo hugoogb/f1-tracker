@@ -25,7 +25,7 @@ F1 Tracker.
 | Path | What it is |
 | ---- | ---------- |
 | `pipeline/Dockerfile` | The image — API, Alembic migrations and the ingest job in one |
-| `docker/compose.prod.yml` | The stack. Copied to `/srv/apps/f1_api/compose.yaml` on every deploy |
+| `docker/compose.prod.yml` | The stack. Copied to `/srv/apps/f1_api/docker-compose.yml` on every deploy, replacing the one new-app.sh generated |
 | `docker/.env.prod.example` | The app-specific keys to append to `/srv/apps/f1_api/.env` |
 | `scripts/vps/ingest.sh` | Calendar-gated ingest. Copied to `/srv/apps/f1_api/ingest.sh` on every deploy |
 | `deploy/systemd/` | The weekly ingest timer |
@@ -40,7 +40,7 @@ A push to `master` touching `pipeline/`, `docker/compose.prod.yml` or
 `scripts/vps/` builds `ghcr.io/hugoogb/f1_api:<sha>`, joins the tailnet as
 `tag:ci`, and over SSH:
 
-1. ships `compose.yaml` and `ingest.sh` into `/srv/apps/f1_api/`
+1. ships `docker-compose.yml` and `ingest.sh` into `/srv/apps/f1_api/`
 2. writes `TAG=<sha>` to `.tag`
 3. `docker compose pull`
 4. `docker compose run --rm migrate` — Alembic against `DIRECT_URL`
@@ -162,10 +162,15 @@ list `hugo` in `users`, or the server is not tagged `tag:server`.
 green. `dc logs f1_api`. The usual cause is the API failing to start because
 `CORS_ORIGINS` is missing from `.env`.
 
-**The API starts but `/api/health/db` returns 503** — `DATABASE_URL` is wrong or
-PgBouncer is unreachable from the container. If PgBouncer is a container on a
-shared Docker network rather than published on the host, this stack has to join
-that network — see the note at the bottom of `docker/compose.prod.yml`.
+**`could not translate host name "postgres"` / `"pgbouncer"`** — the container is
+not on the same Docker network as the database, so those names do not resolve.
+The stack joins `data` by default; if this box names it something else, set
+`SHARED_NETWORK` in `.env`. Find it with
+`docker inspect -f '{{range $k, $v := .NetworkSettings.Networks}}{{$k}} {{end}}' postgres`.
+
+**The API starts but `/api/health/db` returns 503** — the name resolves but the
+connection does not. Check the credentials and database name in `DATABASE_URL`,
+and that PgBouncer is actually listening on the port it names.
 
 **Migrations fail with a prepared-statement or pooling error** — `DIRECT_URL` is
 unset in `.env`, so migrate fell back to the PgBouncer URL.

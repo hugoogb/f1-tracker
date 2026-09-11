@@ -119,6 +119,9 @@ jobs:
       #
       # The stack definition lives in this repository rather than being
       # hand-maintained on the box, so it is shipped here before anything runs.
+      # It is written as docker-compose.yml — the name new-app.sh uses — so the
+      # app directory holds exactly one compose file and the platform's own
+      # runbook commands address the same stack this deploy does.
       # Written to a temp file and moved into place, so a truncated transfer
       # cannot leave a half-written compose file behind.
       - name: Ship the stack definition
@@ -129,14 +132,14 @@ jobs:
           target="hugo@${{ secrets.VPS_HOST }}"
 
           ssh $SSH_OPTS "$target" \
-            "cat > '$APP_DIR/compose.yaml.tmp'" < docker/compose.prod.yml
+            "cat > '$APP_DIR/docker-compose.yml.tmp'" < docker/compose.prod.yml
           ssh $SSH_OPTS "$target" \
             "cat > '$APP_DIR/ingest.sh.tmp'" < scripts/vps/ingest.sh
 
           ssh $SSH_OPTS "$target" bash -s <<REMOTE
           set -euo pipefail
-          mv "$APP_DIR/compose.yaml.tmp" "$APP_DIR/compose.yaml"
-          mv "$APP_DIR/ingest.sh.tmp"    "$APP_DIR/ingest.sh"
+          mv "$APP_DIR/docker-compose.yml.tmp" "$APP_DIR/docker-compose.yml"
+          mv "$APP_DIR/ingest.sh.tmp"          "$APP_DIR/ingest.sh"
           chmod +x "$APP_DIR/ingest.sh"
           REMOTE
 
