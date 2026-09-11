@@ -86,6 +86,7 @@ Two files, one per environment. Neither is committed.
 | -------- | -------- | ----------- |
 | `DATABASE_URL` | ✅ (from new-app.sh) | Through PgBouncer — what the API uses |
 | `DIRECT_URL` | (from new-app.sh) | Straight to PostgreSQL — migrations and ingest. Falls back to `DATABASE_URL` |
+| `SHARED_NETWORK` | ✅ | The Docker network PostgreSQL and PgBouncer are on — this stack joins it so those hostnames resolve |
 | `CORS_ORIGINS` | ✅ | Your Vercel origin(s), comma-separated, no trailing slash |
 | `FASTAPI_DEBUG` | | `false` in production — keeps the OpenAPI docs off |
 | `API_WORKERS` | | uvicorn workers (default 2) |
