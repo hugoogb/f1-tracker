@@ -4,7 +4,7 @@
 #
 # This covers the LOCAL development database only. Production runs on the VPS
 # platform's shared PostgreSQL, which this repo neither starts nor backs up —
-# see docs/VPS_MIGRATION.md.
+# see docs/DEPLOYMENT.md.
 #
 # Everything is overridable by environment variable or by a key in the repo-root
 # .env:

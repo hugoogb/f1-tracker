@@ -121,7 +121,6 @@ f1-tracker/
 
 - **API Docs**: Interactive Swagger UI at [http://localhost:8000/docs](http://localhost:8000/docs) when the backend is running
 - **Deployment**: See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for local dev and the Vercel + VPS production setup
-- **VPS migration**: See [docs/VPS_MIGRATION.md](docs/VPS_MIGRATION.md) for the step-by-step move off Render + Neon
 - **Backend**: See [pipeline/README.md](pipeline/README.md) for API endpoints, testing, and project structure
 
 ## Licence & Attribution

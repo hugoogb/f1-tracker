@@ -4,9 +4,9 @@ How to run F1 Tracker locally and in production.
 
 Production is **Next.js on Vercel + the API as a Docker container on a
 self-hosted VPS**, with PostgreSQL provided by that VPS's shared cluster. The
-per-app runbook is [VPS_MIGRATION.md](VPS_MIGRATION.md); the server itself
-(Tailscale SSH, Caddy, PostgreSQL, PgBouncer, GHCR, `new-app.sh`) is set up once
-and documented in the platform's own `SETUP.md`.
+server itself (Tailscale SSH, Caddy, PostgreSQL, PgBouncer, GHCR, `new-app.sh`)
+is set up once and documented in the platform's own `SETUP.md`; everything
+specific to this app is below.
 
 ## Architecture
 
@@ -146,8 +146,8 @@ curl http://127.0.0.1:8000/api/health/db
 
 ## Production: Vercel + VPS
 
-Step-by-step, including first-time setup, in [VPS_MIGRATION.md](VPS_MIGRATION.md).
-In outline:
+Already done for `f1-api.hugoogb.dev`. This is the recipe for standing it up
+again — a rebuilt box, a second environment, disaster recovery.
 
 ### 1. Backend on the VPS
 
@@ -172,8 +172,27 @@ them a few seasons at a time, or let the weekly timer accumulate them.
 
 ### 3. Reverse proxy
 
-The platform's Caddy terminates TLS and forwards to `127.0.0.1:${API_PORT}`.
-Adding the site block is covered in the platform's `SETUP.md`.
+Caddy runs as a container on the `edge` network, which the API joins, so the
+upstream is the service name and port:
+
+```
+f1-api.<your-domain> {
+  import common
+  reverse_proxy f1_api:8000
+}
+```
+
+Not `127.0.0.1:${API_PORT}` — inside a containerised Caddy, loopback is Caddy
+itself. And not `:3000`, which is what `new-app.sh` fills in from the platform's
+Node template; this app serves on 8000.
+
+Reload after editing, and verify the config Caddy actually parsed rather than
+the file you edited — they are not always the same one:
+
+```bash
+docker exec caddy caddy reload --config /etc/caddy/Caddyfile
+docker exec caddy caddy adapt --config /etc/caddy/Caddyfile 2>/dev/null | grep -o 'f1_api:[0-9]*'
+```
 
 ### 4. Frontend on Vercel
 
@@ -374,12 +393,49 @@ docker compose --env-file .env --env-file .tag run --rm migrate
 docker compose --env-file .env --env-file .tag up -d --wait
 ```
 
-That is also how a rollback works — see [VPS_MIGRATION.md](VPS_MIGRATION.md).
+### Rollback
+
+Deploys are tagged by commit SHA, so rolling back needs neither CI nor a
+rebuild — the image is already in GHCR:
+
+```bash
+cd /srv/apps/f1_api
+echo "TAG=<previous-sha>" > .tag
+docker compose --env-file .env --env-file .tag pull
+docker compose --env-file .env --env-file .tag up -d --wait
+```
+
+A rollback across a schema change is not automatic — the deploy never runs
+Alembic downgrades. Check whether the range you are rolling back over contains a
+migration.
 
 The frontend deploys independently: Vercel builds from the same push.
 
 **Pre-commit hooks**: Husky runs Prettier on staged TS/config files via
 lint-staged, and `ruff check` + `ruff format --check` on staged Python files.
+
+---
+
+## Operations cheat sheet
+
+On the box, everything goes through the same two env files:
+
+```bash
+cd /srv/apps/f1_api
+dc() { docker compose --env-file .env --env-file .tag "$@"; }
+
+dc ps                      # what's running, and its health
+dc logs -f --tail 100      # follow the API
+dc exec -T f1_api curl -fsS http://127.0.0.1:8000/api/health/db
+
+./ingest.sh --force        # ingest now, ignoring the calendar gate
+
+dc run --rm -T --entrypoint python ingest scripts/validate.py </dev/null  # data completeness
+dc run --rm -T migrate </dev/null                                         # re-run migrations
+```
+
+`</dev/null` on `compose run` is not decoration: it attaches stdin, so without
+it a `run` inside a piped or heredoc'd script eats the rest of that script.
 
 ---
 
@@ -417,6 +473,43 @@ dc logs f1_api    # usually a missing CORS_ORIGINS in .env
 dc config         # check the resolved DATABASE_URL, DIRECT_URL and image tag
 dc run --rm migrate   # a failed migration is its own step, so re-run it alone
 ```
+
+### 502 from Caddy
+
+Bisect it — each step rules out everything before it:
+
+```bash
+cd /srv/apps/f1_api
+docker compose --env-file .env --env-file .tag ps   # 1. does the container exist?
+docker inspect -f '{{range $k,$v := .NetworkSettings.Networks}}{{$k}} {{end}}' f1_api  # 2. data AND edge?
+docker exec caddy wget -qO- http://f1_api:8000/api/health                              # 3. can Caddy reach it?
+docker exec caddy caddy adapt --config /etc/caddy/Caddyfile 2>/dev/null | grep -o 'f1_api:[0-9]*'  # 4. what port?
+docker logs caddy --tail 5                                                             # 5. the actual error
+```
+
+- **Empty `ps`** — nothing is running; redeploy.
+- **`connection refused`** — resolving fine, wrong port. Caddy must say
+  `f1_api:8000`; `new-app.sh` writes `:3000` from the platform's Node template.
+- **`no such host` / `server misbehaving`** — the container is not on `edge`, or
+  Caddy's DNS cache is stale (`docker restart caddy`).
+- **Step 3 returns `{"status":"ok"}` but step 4 still shows the old port** —
+  `caddy adapt` reads from disk, so the file you edited is not the one at
+  `/etc/caddy/Caddyfile` inside the container. Check
+  `docker inspect -f '{{range .Mounts}}{{.Source}} -> {{.Destination}}{{"\n"}}{{end}}' caddy`.
+
+### `/api/health/db` returns 503 while `/api/health` is 200
+
+The API is up but cannot reach PostgreSQL. `dc logs f1_api` names it:
+
+- **`could not translate host name "pgbouncer"`** — not on the `data` network.
+  Set `SHARED_NETWORK` in `.env` if this box names it something else.
+- **`invalid connection option "pgbouncer"`** — `DATABASE_URL` carries Prisma
+  query parameters (`?pgbouncer=true&connection_limit=1`). `new-app.sh` writes
+  those for its Node template; libpq rejects them. Strip the query string.
+- **Connection refused** — wrong port. PgBouncer here listens on 5432.
+
+`DIRECT_URL` is used by migrate and ingest and is normally clean, so migrations
+succeeding while the API fails points squarely at `DATABASE_URL`.
 
 ### Frontend build fails
 
