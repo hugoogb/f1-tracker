@@ -97,6 +97,20 @@ jobs:
           oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
           tags: tag:ci
 
+      # The tailscale action retries a failed `tailscale up` and then exits 0
+      # anyway, so a bad OAuth client surfaces two steps later as an SSH
+      # connection timeout that says nothing about the real cause. Fail here
+      # instead, while the reason is still on screen.
+      - name: Verify the tailnet join
+        run: |
+          if ! tailscale status; then
+            echo "::error::Not on the tailnet, so the deploy cannot reach the" \
+                 "server. Check TS_OAUTH_CLIENT_ID and TS_OAUTH_SECRET, that the" \
+                 "OAuth client carries the auth_keys scope, and that it owns" \
+                 "tag:ci — which must also exist in the policy file's tagOwners."
+            exit 1
+          fi
+
       # StrictHostKeyChecking=accept-new is effectively `no` here: every run gets
       # a fresh runner with an empty known_hosts, so there is never a stored key
       # to compare against. That is acceptable ONLY because the connection rides
