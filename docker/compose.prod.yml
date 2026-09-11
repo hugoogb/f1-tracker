@@ -1,8 +1,10 @@
 # F1 Tracker — production stack for the VPS.
 #
 # This file IS the server's compose file: the deploy workflow copies it to
-# /srv/apps/f1_api/compose.yaml on every run, so the stack stays version
-# controlled here rather than hand-edited on the box.
+# /srv/apps/f1_api/docker-compose.yml on every run, so the stack stays version
+# controlled here rather than hand-edited on the box. It deliberately replaces
+# the one new-app.sh generated — one compose file per app directory, and the
+# platform's own runbook commands then address this same stack.
 #
 #   cd /srv/apps/f1_api
 #   docker compose --env-file .env --env-file .tag up -d --wait

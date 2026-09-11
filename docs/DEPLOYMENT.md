@@ -349,7 +349,7 @@ checkbox). It:
 1. builds `ghcr.io/hugoogb/f1_api` for `linux/amd64` and pushes it tagged with
    the commit SHA and `latest`
 2. joins the tailnet as an ephemeral node tagged `tag:ci`
-3. ships `compose.yaml` and `ingest.sh` into `/srv/apps/f1_api/`
+3. ships `docker-compose.yml` and `ingest.sh` into `/srv/apps/f1_api/`
 4. writes `TAG=<sha>` to `.tag`, pulls, runs migrations, `up -d --wait`, and
    verifies `/api/health/db`
 
