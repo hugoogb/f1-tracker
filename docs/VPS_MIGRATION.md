@@ -162,10 +162,14 @@ list `hugo` in `users`, or the server is not tagged `tag:server`.
 green. `dc logs f1_api`. The usual cause is the API failing to start because
 `CORS_ORIGINS` is missing from `.env`.
 
-**The API starts but `/api/health/db` returns 503** — `DATABASE_URL` is wrong or
-PgBouncer is unreachable from the container. If PgBouncer is a container on a
-shared Docker network rather than published on the host, this stack has to join
-that network — see the note at the bottom of `docker/compose.prod.yml`.
+**`could not translate host name "postgres"` / `"pgbouncer"`** — the container is
+not on the same Docker network as the database, so those names do not resolve.
+`SHARED_NETWORK` in `.env` must name that network; find it with
+`docker inspect -f '{{range $k, $v := .NetworkSettings.Networks}}{{$k}} {{end}}' postgres`.
+
+**The API starts but `/api/health/db` returns 503** — the name resolves but the
+connection does not. Check the credentials and database name in `DATABASE_URL`,
+and that PgBouncer is actually listening on the port it names.
 
 **Migrations fail with a prepared-statement or pooling error** — `DIRECT_URL` is
 unset in `.env`, so migrate fell back to the PgBouncer URL.

@@ -123,17 +123,13 @@ volumes:
     name: f1_api_f1db_cache
   fastf1cache:
     name: f1_api_fastf1_cache
-# NETWORKS — nothing is declared, so compose creates a private `f1_api_default`
-# and the extra_hosts entry above covers a host-published PgBouncer.
-#
-# If PgBouncer is instead a container on a shared network, this stack has to join
-# it. Find the network:
-#
-#   docker inspect -f '{{range $k,$v := .NetworkSettings.Networks}}{{$k}}{{end}}' pgbouncer
-#
-# then add, with that name:
-#
-#   networks:
-#     default:
-#       name: <shared-network>
-#       external: true
+networks:
+  # PostgreSQL and PgBouncer are containers on a network this stack does not
+  # create, so joining it is what makes `postgres` and `pgbouncer` resolve. This
+  # is the app's default network, so every service here lands on it.
+  #
+  # Find the name on the box with:
+  #   docker inspect -f '{{range $$k, $$v := .NetworkSettings.Networks}}{{$$k}} {{end}}' postgres
+  default:
+    name: ${SHARED_NETWORK:?set SHARED_NETWORK in .env to the Docker network PostgreSQL and PgBouncer are on}
+    external: true
