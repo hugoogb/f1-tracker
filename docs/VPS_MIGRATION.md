@@ -25,7 +25,7 @@ F1 Tracker.
 | Path | What it is |
 | ---- | ---------- |
 | `pipeline/Dockerfile` | The image — API, Alembic migrations and the ingest job in one |
-| `docker/compose.prod.yml` | The stack. Copied to `/srv/apps/f1_api/compose.yaml` on every deploy |
+| `docker/compose.prod.yml` | The stack. Copied to `/srv/apps/f1_api/docker-compose.yml` on every deploy, replacing the one new-app.sh generated |
 | `docker/.env.prod.example` | The app-specific keys to append to `/srv/apps/f1_api/.env` |
 | `scripts/vps/ingest.sh` | Calendar-gated ingest. Copied to `/srv/apps/f1_api/ingest.sh` on every deploy |
 | `deploy/systemd/` | The weekly ingest timer |
@@ -40,7 +40,7 @@ A push to `master` touching `pipeline/`, `docker/compose.prod.yml` or
 `scripts/vps/` builds `ghcr.io/hugoogb/f1_api:<sha>`, joins the tailnet as
 `tag:ci`, and over SSH:
 
-1. ships `compose.yaml` and `ingest.sh` into `/srv/apps/f1_api/`
+1. ships `docker-compose.yml` and `ingest.sh` into `/srv/apps/f1_api/`
 2. writes `TAG=<sha>` to `.tag`
 3. `docker compose pull`
 4. `docker compose run --rm migrate` — Alembic against `DIRECT_URL`
