@@ -3,8 +3,9 @@
 #   docker compose -f docker/docker-compose.yml up -d
 #
 # The compose project is named explicitly so the container is `f1-tracker-db`
-# (not the directory-derived `docker-db-1`) — same naming as the VPS stack in
-# compose.prod.yml, which keeps scripts/*.sh working against either one.
+# rather than the directory-derived `docker-db-1`, which is what scripts/lib/db.sh
+# resolves. Production is unrelated to this file: the VPS uses the platform's
+# shared PostgreSQL.
 name: ${STACK_NAME:-f1-tracker}
 
 services:
