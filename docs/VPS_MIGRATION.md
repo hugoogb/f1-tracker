@@ -164,7 +164,8 @@ green. `dc logs f1_api`. The usual cause is the API failing to start because
 
 **`could not translate host name "postgres"` / `"pgbouncer"`** — the container is
 not on the same Docker network as the database, so those names do not resolve.
-`SHARED_NETWORK` in `.env` must name that network; find it with
+The stack joins `data` by default; if this box names it something else, set
+`SHARED_NETWORK` in `.env`. Find it with
 `docker inspect -f '{{range $k, $v := .NetworkSettings.Networks}}{{$k}} {{end}}' postgres`.
 
 **The API starts but `/api/health/db` returns 503** — the name resolves but the
