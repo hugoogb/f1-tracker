@@ -4,7 +4,7 @@
 
 F1 analytics dashboard covering the complete history of Formula 1 (1950-present) with interactive visualizations and driver comparisons. Full-stack: Next.js frontend + Python FastAPI backend + PostgreSQL.
 
-Deployment: frontend on Vercel; API + PostgreSQL run as Docker containers on a self-hosted VPS shared with other projects (see `docs/VPS_MIGRATION.md`).
+Deployment: frontend on Vercel; the API runs as a Docker container (`f1_api`) on a self-hosted VPS shared with other projects, against that platform's shared PostgreSQL (see `docs/DEPLOYMENT.md`).
 
 ## Tech Stack
 
