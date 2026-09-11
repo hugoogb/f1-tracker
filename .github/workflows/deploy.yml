@@ -163,7 +163,14 @@ jobs:
           # pooling cannot run a migration. `run --rm` rather than a startup
           # hook, so a failed migration fails the deploy instead of leaving the
           # API crash-looping against a half-migrated database.
-          dc run --rm migrate
+          #
+          # </dev/null is load-bearing. This whole script arrives on the SSH
+          # session's stdin, and `compose run` and `compose exec` both attach
+          # stdin — so without it they swallow the remaining lines, bash never
+          # runs them, and the deploy exits 0 having only migrated. That failed
+          # silently for four deploys: the API container was never created and
+          # the health check below never executed.
+          dc run --rm -T migrate </dev/null
 
           # --wait blocks on the healthcheck, so a broken image fails the
           # workflow instead of quietly sitting there crash-looping.
@@ -171,7 +178,12 @@ jobs:
 
           # Liveness got us this far; confirm the API can actually reach
           # PostgreSQL before calling the deploy good.
-          dc exec -T f1_api curl -fsS http://127.0.0.1:8000/api/health/db
+          dc exec -T f1_api curl -fsS http://127.0.0.1:8000/api/health/db </dev/null
+
+          # Belt and braces against the above ever regressing: assert the API
+          # container is actually running. A deploy that reports success while
+          # having started nothing is worse than one that fails.
+          dc ps --status running --services | grep -qx f1_api
 
           docker image prune -f
           REMOTE

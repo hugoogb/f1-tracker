@@ -48,8 +48,11 @@ if [ "$FORCE" = "1" ]; then
   echo "==> Calendar gate skipped (--force)."
 else
   echo "==> Calendar gate: did a race run in the last $GATE_DAYS day(s)?"
-  if ! dc run --rm --entrypoint python ingest \
-        scripts/should_ingest.py --days "$GATE_DAYS" --exit-code; then
+  # </dev/null on every `compose run`: it attaches stdin, so when this script
+  # is fed to a shell over SSH rather than executed from disk it would consume
+  # the rest of itself.
+  if ! dc run --rm -T --entrypoint python ingest \
+        scripts/should_ingest.py --days "$GATE_DAYS" --exit-code </dev/null; then
     echo "==> No recent race — nothing to ingest."
     exit 0
   fi
@@ -58,13 +61,13 @@ fi
 echo "==> Running ingest..."
 if [ ${#SEED_FLAGS[@]} -gt 0 ]; then
   # Explicit flags replace the default command; keep the container-safe ones.
-  dc run --rm ingest "${SEED_FLAGS[@]}" --no-restore --no-backup
+  dc run --rm -T ingest "${SEED_FLAGS[@]}" --no-restore --no-backup </dev/null
 else
-  dc run --rm ingest
+  dc run --rm -T ingest </dev/null
 fi
 
 echo "==> Validating (informational)..."
-dc run --rm --entrypoint python ingest scripts/validate.py || true
+dc run --rm -T --entrypoint python ingest scripts/validate.py </dev/null || true
 
 # Bearer-token cache purge against the Next.js /api/revalidate route on Vercel.
 # Non-fatal: the data is already live and the frontend's TTL backstops a failure.
