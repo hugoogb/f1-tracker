@@ -1,0 +1,79 @@
+# Weekly F1 data ingest.
+#
+# The database is only reachable from the VPS, so the work happens there: this
+# joins the tailnet and runs /srv/apps/f1_api/ingest.sh, which the deploy keeps
+# up to date on the box. Same credentials and same SSH path as deploy.yml — see
+# its header for the secrets and why there is no SSH key.
+#
+# ingest.sh applies its own calendar gate (skip unless a race ran in the last 3
+# days), so this schedule can be dumb: it fires every Monday and most weeks does
+# nothing. GitHub's scheduled runs drift by minutes to hours under load, which
+# does not matter for a weekly job with a 3-day window.
+#
+# Scheduled workflows only run on the default branch.
+name: ingest
+
+on:
+  schedule:
+    # Mondays 06:00 UTC — after Sunday races, with time for the data to settle.
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Ignore the calendar gate'
+        type: boolean
+        required: false
+        default: true
+      flags:
+        description: 'seed.py flags (blank = the default current-year update)'
+        required: false
+        default: ''
+
+# Never two ingests at once: they would fight over the same rows, and the f1db
+# download and Fast-F1 cache are shared volumes.
+concurrency:
+  group: ingest-f1_api
+  cancel-in-progress: false
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    # A full historical load takes minutes; a Fast-F1 backfill can take hours,
+    # and is throttled to ~45s per session.
+    timeout-minutes: 360
+
+    steps:
+      - uses: tailscale/github-action@v3
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci
+
+      # The tailscale action exits 0 even when every join attempt failed, which
+      # would otherwise surface as an SSH timeout that says nothing useful.
+      - name: Verify the tailnet join
+        run: |
+          if ! tailscale status; then
+            echo "::error::Not on the tailnet, so the ingest cannot reach the" \
+                 "server. Check TS_OAUTH_CLIENT_ID and TS_OAUTH_SECRET, that the" \
+                 "OAuth client carries the auth_keys scope, and that it owns" \
+                 "tag:ci — which must also exist in the policy file's tagOwners."
+            exit 1
+          fi
+
+      - name: Ingest
+        env:
+          # On the schedule both are empty, giving a plain gated run.
+          FORCE: ${{ inputs.force && '--force' || '' }}
+          FLAGS: ${{ inputs.flags }}
+        run: |
+          set -euo pipefail
+
+          cmd="/srv/apps/f1_api/ingest.sh $FORCE"
+          if [ -n "$FLAGS" ]; then
+            cmd="$cmd -- $FLAGS"
+          fi
+
+          ssh -o StrictHostKeyChecking=accept-new \
+              -o ConnectTimeout=30 \
+              "hugo@${{ secrets.VPS_HOST }}" "$cmd"

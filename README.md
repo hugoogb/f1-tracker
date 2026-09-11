@@ -82,7 +82,7 @@ Open [http://localhost:3000](http://localhost:3000) to view the app.
 | `cd pipeline && uv run pytest -v` | Run backend tests |
 | `cd pipeline && uv run ruff check . && uv run ruff format --check .` | Lint + format check |
 | `docker compose -f docker/docker-compose.yml up -d` | Start PostgreSQL |
-| `/srv/apps/f1_api/ingest.sh` | Run a data ingest on the VPS (calendar-gated) |
+| `/srv/apps/f1_api/ingest.sh` | Run a data ingest on the VPS (calendar-gated); scheduled weekly by `.github/workflows/ingest.yml` |
 
 ### Pre-commit Hooks
 
@@ -106,7 +106,6 @@ f1-tracker/
 │   ├── tests/             # pytest test suite
 │   └── scripts/           # Seed, validate, calendar-gate scripts
 ├── docker/                # Compose files (local dev + VPS production) + backups
-├── deploy/                # systemd timers, Caddy/nginx site configs
 ├── scripts/               # bootstrap, backup/restore, VPS deploy + ingest
 ├── docs/                  # Deployment guide + VPS migration runbook
 └── tasks/                 # Project tracking + lessons learned
