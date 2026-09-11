@@ -60,8 +60,15 @@ services:
     environment:
       <<: *app-env
       API_WORKERS: ${API_WORKERS:-2}
-    # Bound to loopback for the platform's Caddy to forward to. Pick a port no
-    # other app on this VPS uses.
+    # Caddy runs as a container on the proxy network, so it reaches this by
+    # service name — `reverse_proxy f1_api:8000`, not a host port. `data` stays
+    # the default network so PostgreSQL and PgBouncer keep resolving.
+    networks:
+      - default
+      - proxy
+    # The host publish is not what Caddy uses; it is kept so the API can be
+    # curl'd directly from the box when diagnosing whether a problem is the
+    # container or the proxy in front of it.
     ports:
       - '${API_BIND:-127.0.0.1}:${API_PORT:-8000}:8000'
     # Declared here as well as in the image so `up -d --wait` has an explicit
@@ -135,4 +142,9 @@ networks:
   #   docker inspect -f '{{range $$k, $$v := .NetworkSettings.Networks}}{{$$k}} {{end}}' postgres
   default:
     name: ${SHARED_NETWORK:-data}
+    external: true
+  # Caddy's network. Only the API joins it — migrate and ingest never serve
+  # traffic, so they stay off the edge entirely.
+  proxy:
+    name: ${PROXY_NETWORK:-edge}
     external: true
