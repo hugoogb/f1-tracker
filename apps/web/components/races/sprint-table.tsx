@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { getTeamColor } from '@/lib/utils'
+import { teamColorOf } from '@/lib/utils'
 import type { SprintResult } from '@/lib/types'
 import { DriverAvatar } from '@/components/ui/driver-avatar'
 import {
@@ -35,7 +35,7 @@ export function SprintTable({ results }: SprintTableProps) {
       </TableHeader>
       <TableBody>
         {results.map((result, idx) => {
-          const teamColor = getTeamColor(result.constructor.ref, result.constructor.color, null)
+          const teamColor = teamColorOf(result.constructor.color, null)
 
           return (
             <TableRow key={result.driver.ref ?? idx}>

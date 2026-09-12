@@ -30,6 +30,7 @@ import { FadeIn } from '@/components/ui/motion'
 import { JsonLd } from '@/components/seo/json-ld'
 import { raceSchema } from '@/lib/structured-data'
 import { buildMetadata, SITE_DESCRIPTION } from '@/lib/seo'
+import { LocalDate, LocalDateTime } from '@/components/ui/local-date'
 
 export const dynamic = 'force-dynamic'
 
@@ -51,6 +52,8 @@ interface SprintResponse {
 
 interface PitStopsResponse {
   raceId: string
+  /** The race's quickest pit lane time, in seconds. */
+  benchmark: string | null
   pitStops: PitStop[]
 }
 
@@ -212,12 +215,11 @@ export default async function RaceDetailPage({
               {race.circuit.location}, {race.circuit.country}
             </p>
             <p className="text-muted-foreground mt-1 text-sm">
-              {new Date(race.date).toLocaleDateString('en-GB', {
-                weekday: 'long',
-                day: 'numeric',
-                month: 'long',
-                year: 'numeric',
-              })}
+              {race.schedule?.race ? (
+                <LocalDateTime value={race.schedule.race} style="full" />
+              ) : (
+                <LocalDate value={race.date} style="full" />
+              )}
             </p>
           </div>
           <div className="accent-line" />
@@ -229,67 +231,108 @@ export default async function RaceDetailPage({
       {race.fastestLap && <FastestLapCard fastestLap={race.fastestLap} />}
 
       <RaceTabs
-        raceResultsContent={
-          <ResultsTable results={race.results} fastestLapDriverRef={race.fastestLap?.driver.ref} />
-        }
-        qualifyingContent={
-          qualifying ? (
-            <QualifyingTable
-              results={qualifying.results}
-              fastestSectors={qualifying.fastestSectors}
-            />
-          ) : (
-            <p className="text-muted-foreground text-sm">
-              No qualifying data available for this race.
-            </p>
-          )
-        }
-        sprintContent={
-          sprint ? (
-            <SprintTable results={sprint.results} />
-          ) : year >= 2021 ? (
-            <p className="text-muted-foreground text-sm">No sprint data available for this race.</p>
-          ) : undefined
-        }
-        pitStopsContent={
-          pitStops ? (
-            <div className="space-y-8">
-              {pitStopAnalysis && <PitStopAnalysisView analysis={pitStopAnalysis} />}
-              <div>
-                <h3 className="mb-3 text-sm font-medium">All Pit Stops</h3>
-                <PitStopsTable pitStops={pitStops.pitStops} />
-              </div>
-            </div>
-          ) : year >= 2012 ? (
-            <p className="text-muted-foreground text-sm">
-              No pit stop data available for this race.
-            </p>
-          ) : undefined
-        }
-        lapsContent={
-          laps ? (
-            <div className="space-y-8">
-              {positions && (
-                <div>
-                  <h3 className="mb-3 text-sm font-medium">Race Positions</h3>
-                  <PositionChart drivers={positions.drivers} totalLaps={positions.totalLaps} />
-                </div>
-              )}
-              <div>
-                <h3 className="mb-3 text-sm font-medium">Lap Times</h3>
-                <LapTimesChart drivers={laps.drivers} />
-              </div>
-              <div>
-                <h3 className="mb-3 text-sm font-medium">Tyre Strategy</h3>
-                <TyreStrategyChart drivers={laps.drivers} />
-              </div>
-            </div>
-          ) : year >= 2018 ? (
-            <p className="text-muted-foreground text-sm">
-              No lap time data available for this race.
-            </p>
-          ) : undefined
-        }
+        tabs={[
+          {
+            id: 'results',
+            label: 'Race Results',
+            content: (
+              <ResultsTable
+                results={race.results}
+                fastestLapDriverRef={race.fastestLap?.driver.ref}
+              />
+            ),
+          },
+          {
+            id: 'qualifying',
+            label: 'Qualifying',
+            content: qualifying ? (
+              <QualifyingTable
+                results={qualifying.results}
+                fastestSectors={qualifying.fastestSectors}
+              />
+            ) : (
+              <p className="text-muted-foreground text-sm">
+                No qualifying data available for this race.
+              </p>
+            ),
+          },
+          ...(sprint || year >= 2021
+            ? [
+                {
+                  id: 'sprint',
+                  label: 'Sprint',
+                  content: sprint ? (
+                    <SprintTable results={sprint.results} />
+                  ) : (
+                    <p className="text-muted-foreground text-sm">
+                      No sprint data available for this race.
+                    </p>
+                  ),
+                },
+              ]
+            : []),
+          // Strategy is where the stops and the stints belong together: a tyre
+          // stint only ends because of a pit stop.
+          ...(pitStops || laps || year >= 2012
+            ? [
+                {
+                  id: 'strategy',
+                  label: 'Strategy',
+                  content:
+                    pitStops || laps ? (
+                      <div className="space-y-8">
+                        {laps && (
+                          <div>
+                            <h3 className="mb-3 text-sm font-medium">Tyre Strategy</h3>
+                            <TyreStrategyChart drivers={laps.drivers} />
+                          </div>
+                        )}
+                        {pitStopAnalysis && <PitStopAnalysisView analysis={pitStopAnalysis} />}
+                        {pitStops && (
+                          <div>
+                            <h3 className="mb-3 text-sm font-medium">All Pit Stops</h3>
+                            <PitStopsTable
+                              pitStops={pitStops.pitStops}
+                              benchmark={pitStops.benchmark}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-muted-foreground text-sm">
+                        No strategy data available for this race.
+                      </p>
+                    ),
+                },
+              ]
+            : []),
+          ...(laps || year >= 2018
+            ? [
+                {
+                  id: 'lap-times',
+                  label: 'Lap Times',
+                  content: laps ? (
+                    <LapTimesChart drivers={laps.drivers} />
+                  ) : (
+                    <p className="text-muted-foreground text-sm">
+                      No lap time data available for this race.
+                    </p>
+                  ),
+                },
+              ]
+            : []),
+          ...(positions
+            ? [
+                {
+                  id: 'positions',
+                  label: 'Positions',
+                  content: (
+                    <PositionChart drivers={positions.drivers} totalLaps={positions.totalLaps} />
+                  ),
+                },
+              ]
+            : []),
+        ]}
       />
     </div>
   )

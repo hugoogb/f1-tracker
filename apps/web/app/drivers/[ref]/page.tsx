@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation'
 import { Flag, Trophy, Medal, TrendingUp, GitCompareArrows, Timer, Zap, Award } from 'lucide-react'
 import { api, isNotFound } from '@/lib/api'
 import type { Driver, DriverSeasonSummary, DriverPaceResponse } from '@/lib/types'
-import { getTeamColor } from '@/lib/utils'
+import { teamColorOf } from '@/lib/utils'
 import { CountryFlag } from '@/components/ui/country-flag'
 import { DriverAvatar } from '@/components/ui/driver-avatar'
 import { Breadcrumbs } from '@/components/layout/breadcrumbs'
@@ -16,6 +16,7 @@ import { FadeIn, StaggerList, StaggerItem } from '@/components/ui/motion'
 import { JsonLd } from '@/components/seo/json-ld'
 import { personSchema } from '@/lib/structured-data'
 import { buildMetadata, SITE_DESCRIPTION } from '@/lib/seo'
+import { LocalDate } from '@/components/ui/local-date'
 
 export const dynamic = 'force-dynamic'
 
@@ -83,9 +84,7 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ r
   const paceData = paceResult.status === 'fulfilled' ? paceResult.value : null
 
   const latestTeam = seasons[0]?.constructor
-  const teamColor = latestTeam
-    ? (getTeamColor(latestTeam.ref, latestTeam.color, null) ?? undefined)
-    : undefined
+  const teamColor = latestTeam ? (teamColorOf(latestTeam.color, null) ?? undefined) : undefined
 
   return (
     <div className="space-y-8">
@@ -128,12 +127,7 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ r
               )}
               {driverData.dateOfBirth && (
                 <span className="text-muted-foreground">
-                  Born{' '}
-                  {new Date(driverData.dateOfBirth).toLocaleDateString('en-GB', {
-                    day: 'numeric',
-                    month: 'long',
-                    year: 'numeric',
-                  })}
+                  Born <LocalDate value={driverData.dateOfBirth} style="long" />
                 </span>
               )}
               {driverData.number != null && <Badge variant="outline">#{driverData.number}</Badge>}

@@ -22,6 +22,7 @@ import { FadeIn, StaggerList, StaggerItem } from '@/components/ui/motion'
 import { JsonLd } from '@/components/seo/json-ld'
 import { placeSchema } from '@/lib/structured-data'
 import { buildMetadata, SITE_DESCRIPTION } from '@/lib/seo'
+import { LocalDate } from '@/components/ui/local-date'
 
 export const dynamic = 'force-dynamic'
 
@@ -250,13 +251,7 @@ export default async function CircuitDetailPage({ params }: { params: Promise<{ 
                           </Link>
                         </TableCell>
                         <TableCell className="text-muted-foreground text-right whitespace-nowrap">
-                          {race.date
-                            ? new Date(race.date).toLocaleDateString('en-GB', {
-                                day: 'numeric',
-                                month: 'short',
-                                year: 'numeric',
-                              })
-                            : '—'}
+                          {race.date ? <LocalDate value={race.date} /> : '—'}
                         </TableCell>
                       </TableRow>
                     ))}

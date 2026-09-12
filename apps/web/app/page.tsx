@@ -2,6 +2,9 @@ import Link from 'next/link'
 import { Calendar, Users, Building2, MapPin, Flag, Trophy } from 'lucide-react'
 import { api } from '@/lib/api'
 import type { DriverStanding, ConstructorStanding, Race, SeasonChampion } from '@/lib/types'
+import { raceStart } from '@/lib/schedule'
+import { cn } from '@/lib/utils'
+import { LocalDate, LocalDateTime } from '@/components/ui/local-date'
 import { CountryFlag } from '@/components/ui/country-flag'
 import { DriverAvatar } from '@/components/ui/driver-avatar'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -54,28 +57,51 @@ export default async function Home() {
     )
   }
 
-  const [driverStandingsResponse, constructorStandingsResponse, seasonDetail] = await Promise.all([
-    api.seasons.driverStandings(latestYear) as Promise<{
-      year: number
-      standings: DriverStanding[]
-    }>,
-    api.seasons.constructorStandings(latestYear) as Promise<{
-      year: number
-      standings: ConstructorStanding[]
-    }>,
-    api.seasons.get(latestYear) as Promise<{
-      year: number
-      races: Race[]
-    }>,
-  ])
+  // Settled, not all: a season whose calendar is published before its first
+  // race has no standings yet, and that must not take the whole page down.
+  const [driverStandingsResponse, constructorStandingsResponse, seasonDetail] =
+    await Promise.allSettled([
+      api.seasons.driverStandings(latestYear) as Promise<{
+        year: number
+        standings: DriverStanding[]
+      }>,
+      api.seasons.constructorStandings(latestYear) as Promise<{
+        year: number
+        standings: ConstructorStanding[]
+      }>,
+      api.seasons.get(latestYear) as Promise<{
+        year: number
+        races: Race[]
+      }>,
+    ])
 
-  const driverStandings = driverStandingsResponse.standings ?? []
-  const constructorStandings = constructorStandingsResponse.standings ?? []
-  const races = seasonDetail.races ?? []
+  const driverStandings =
+    driverStandingsResponse.status === 'fulfilled'
+      ? (driverStandingsResponse.value.standings ?? [])
+      : []
+  const constructorStandings =
+    constructorStandingsResponse.status === 'fulfilled'
+      ? (constructorStandingsResponse.value.standings ?? [])
+      : []
+  const races = seasonDetail.status === 'fulfilled' ? (seasonDetail.value.races ?? []) : []
   const recentChampions = champions.slice(0, 5)
 
-  const now = new Date()
-  const nextRace = races.find((r) => new Date(r.date) > now) ?? null
+  // This is a server component rendered per request (`force-dynamic`), so
+  // reading the clock here is the point — the lint rule is aimed at client
+  // components, where an impure read would drift between renders.
+  // eslint-disable-next-line react-hooks/purity
+  const now = Date.now()
+  // A race counts as done once its start time has passed. Seasons f1db does not
+  // schedule fall back to the calendar date, which is midnight UTC — close
+  // enough to place a race on one side of "now" or the other.
+  const startOf = (race: Race) => Date.parse(raceStart(race))
+  const nextRace = races.find((r) => startOf(r) > now) ?? null
+  const lastRace = [...races].reverse().find((r) => startOf(r) <= now) ?? null
+  const roundsRun = races.filter((r) => startOf(r) <= now).length
+  const leader = driverStandings[0]
+  const runnerUp = driverStandings[1]
+  const leadGap =
+    leader && runnerUp ? Math.round((leader.points - runnerUp.points) * 10) / 10 : null
 
   return (
     <div className="space-y-10">
@@ -101,12 +127,46 @@ export default async function Home() {
                 Explore every season, driver, constructor, and circuit from 1950 to today.
               </p>
             </FadeIn>
+            {races.length > 0 && (
+              <FadeIn delay={0.3} y={12}>
+                <div className="text-muted-foreground flex flex-wrap items-center gap-x-5 gap-y-1 pt-1 text-sm">
+                  <span className="text-foreground font-medium tabular-nums">
+                    Round {Math.min(roundsRun + 1, races.length)} of {races.length}
+                  </span>
+                  {leader && (
+                    <span>
+                      Leading:{' '}
+                      <Link
+                        href={`/drivers/${leader.driver.ref}`}
+                        className="text-foreground hover:text-primary font-medium transition-colors"
+                      >
+                        {leader.driver.firstName} {leader.driver.lastName}
+                      </Link>
+                      {leadGap !== null && leadGap > 0 && (
+                        <span className="tabular-nums"> (+{leadGap})</span>
+                      )}
+                    </span>
+                  )}
+                  {lastRace && (
+                    <span>
+                      Last out:{' '}
+                      <Link
+                        href={`/seasons/${latestYear}/races/${lastRace.round}`}
+                        className="text-foreground hover:text-primary font-medium transition-colors"
+                      >
+                        {lastRace.name}
+                      </Link>
+                    </span>
+                  )}
+                </div>
+              </FadeIn>
+            )}
           </div>
         </div>
         <div className="accent-line" />
       </div>
 
-      {/* Next Race Countdown */}
+      {/* Next race weekend, with the whole session schedule */}
       {nextRace && (
         <FadeIn>
           <NextRaceCountdown race={nextRace} seasonYear={latestYear} />
@@ -250,8 +310,14 @@ export default async function Home() {
       {/* Race Calendar */}
       <FadeIn>
         <Card>
-          <CardHeader>
-            <CardTitle>Race Calendar</CardTitle>
+          <CardHeader className="flex-row items-center justify-between">
+            <CardTitle>{latestYear} Race Calendar</CardTitle>
+            <Link
+              href={`/seasons/${latestYear}`}
+              className="text-primary hover:text-primary/80 text-sm font-medium transition-colors"
+            >
+              Season detail &rarr;
+            </Link>
           </CardHeader>
           <CardContent>
             {races.length > 0 ? (
@@ -267,13 +333,22 @@ export default async function Home() {
                 </TableHeader>
                 <TableBody>
                   {races.map((race) => {
-                    const raceDate = new Date(race.date)
-                    const isPast = raceDate < now
+                    const isPast = startOf(race) <= now
+                    const isNext = race.id === nextRace?.id
 
                     return (
-                      <TableRow key={race.id} className={isPast ? 'opacity-60' : ''}>
+                      <TableRow
+                        key={race.id}
+                        className={cn(
+                          isPast && 'opacity-60',
+                          isNext && 'bg-primary/5 hover:bg-primary/10',
+                        )}
+                      >
                         <TableCell>
-                          <Badge variant="outline" className="font-mono text-xs">
+                          <Badge
+                            variant={isNext ? 'default' : 'outline'}
+                            className="font-mono text-xs"
+                          >
                             R{race.round}
                           </Badge>
                         </TableCell>
@@ -296,12 +371,12 @@ export default async function Home() {
                             {race.circuit.country}
                           </span>
                         </TableCell>
-                        <TableCell className="text-right text-sm tabular-nums">
-                          {raceDate.toLocaleDateString('en-GB', {
-                            day: 'numeric',
-                            month: 'short',
-                            year: 'numeric',
-                          })}
+                        <TableCell className="text-right text-sm whitespace-nowrap tabular-nums">
+                          {race.schedule?.race ? (
+                            <LocalDateTime value={race.schedule.race} />
+                          ) : (
+                            <LocalDate value={race.date} />
+                          )}
                         </TableCell>
                       </TableRow>
                     )

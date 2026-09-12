@@ -13,7 +13,11 @@ from src.ingestion.base import BaseIngestor
 # Historical and current constructor colors (constructor ref → hex color)
 # Compiled from published team liveries and historical reference material.
 CONSTRUCTOR_COLORS: dict[str, str] = {
-    # === 2025 grid ===
+    # === Current grid ===
+    # f1db renames a team when it rebrands and keeps the old id for the seasons
+    # it raced under, so a team can need several entries: "rb" and
+    # "racing-bulls" are the same outfit either side of the 2025 rename, as are
+    # "sauber", "kick-sauber" and its 2026 successor "audi".
     "mclaren": "#F47600",
     "red-bull": "#4781D7",
     "ferrari": "#ED1131",
@@ -22,6 +26,10 @@ CONSTRUCTOR_COLORS: dict[str, str] = {
     "alpine": "#00A1E8",
     "williams": "#1868DB",
     "haas": "#9C9FA2",
+    "racing-bulls": "#6C98FF",
+    "kick-sauber": "#00E700",
+    "audi": "#009597",
+    "cadillac": "#B4975A",
     "rb": "#6C98FF",
     "sauber": "#F50537",
     # === Recent teams (2010s-2020s) ===
@@ -106,28 +114,34 @@ CONSTRUCTOR_COLORS: dict[str, str] = {
 
 class ConstructorColorIngestor(BaseIngestor):
     def ingest(self) -> None:
-        has_colors = self.db.scalar(
-            select(Constructor).where(Constructor.color.isnot(None)).limit(1)
-        )
-        if has_colors:
-            self.log("Skipping — constructor colors already loaded")
-            return
+        """Apply the palette to any constructor whose stored colour is out of date.
+
+        This used to bail out as soon as *any* constructor had a colour, which
+        meant a team joining the grid later — Audi and Cadillac for 2026 — never
+        got one and rendered grey everywhere for the rest of the dataset's life.
+        Loading the palette's constructors in one query and writing only what
+        differs is just as cheap, and stays idempotent across re-ingests.
+        """
 
         self.log(f"Loading colors for {len(CONSTRUCTOR_COLORS)} constructors...")
+
+        known = {
+            c.ref: c
+            for c in self.db.execute(
+                select(Constructor).where(Constructor.ref.in_(CONSTRUCTOR_COLORS))
+            )
+            .scalars()
+            .all()
+        }
+
         updated = 0
-        missing = []
-
         for ref, color in CONSTRUCTOR_COLORS.items():
-            constructor = self.db.execute(
-                select(Constructor).where(Constructor.ref == ref)
-            ).scalar_one_or_none()
-
-            if constructor:
+            constructor = known.get(ref)
+            if constructor is not None and constructor.color != color:
                 constructor.color = color
                 updated += 1
-            else:
-                missing.append(ref)
 
+        missing = [ref for ref in CONSTRUCTOR_COLORS if ref not in known]
         self.db.commit()
 
         if missing:
@@ -138,4 +152,4 @@ class ConstructorColorIngestor(BaseIngestor):
                 f"WARNING: {len(missing)} color refs are not constructor ids "
                 f"and were skipped: {sorted(missing)[:10]}"
             )
-        self.log(f"Updated colors for {updated} constructors")
+        self.log(f"Updated colors for {updated} of {len(known)} matched constructors")

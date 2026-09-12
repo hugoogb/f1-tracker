@@ -30,6 +30,7 @@ import { SeasonHeatmap } from '@/components/charts/season-heatmap'
 import { SeasonTabs } from './season-tabs'
 import { FadeIn } from '@/components/ui/motion'
 import { buildMetadata } from '@/lib/seo'
+import { LocalDate } from '@/components/ui/local-date'
 
 export const dynamic = 'force-dynamic'
 
@@ -215,11 +216,7 @@ function RacesTable({ races, year }: { races: Race[]; year: number }) {
               </span>
             </TableCell>
             <TableCell className="text-right whitespace-nowrap tabular-nums">
-              {new Date(race.date).toLocaleDateString('en-GB', {
-                day: 'numeric',
-                month: 'short',
-                year: 'numeric',
-              })}
+              <LocalDate value={race.date} />
             </TableCell>
           </TableRow>
         ))}

@@ -19,6 +19,20 @@ from src.db.queries import (
 router = APIRouter()
 
 
+def _raced(races: list[Race], race_points: dict[str, dict[str, float]]) -> list[Race]:
+    """Trim a season's calendar to the rounds that have been run.
+
+    A season in progress still lists its remaining rounds, and charting those
+    draws every line flat out to the end of the year as if the championship had
+    already been decided.
+    """
+    last = 0
+    for index, race in enumerate(races, start=1):
+        if race_points.get(race.id):
+            last = index
+    return races[:last]
+
+
 @router.get("/seasons/{year}/standings/drivers")
 def driver_standings(year: int, db: Session = Depends(get_db)):
     standings = get_driver_standings_for_season(db, year)
@@ -104,49 +118,21 @@ def standings_progression(
         return {"year": year, "rounds": [], "drivers": []}
 
     race_ids = [r.id for r in races]
+    race_round = {r.id: r.round for r in races}
 
     # Get final standings to determine top N drivers
     final_standings = get_driver_standings_for_season(db, year)
     top_driver_ids = [s.driver_id for s in final_standings[:top]]
 
-    # Fetch driver info + constructor for display (bulk)
-    last_race_results = (
-        db.execute(
-            select(RaceResult).where(
-                RaceResult.race_id == races[-1].id,
-                RaceResult.driver_id.in_(top_driver_ids),
-            )
-        )
-        .scalars()
-        .all()
-    )
-    constructor_ids = {r.constructor_id for r in last_race_results}
-    constructors = (
-        (db.execute(select(Constructor).where(Constructor.id.in_(constructor_ids))).scalars().all())
-        if constructor_ids
-        else []
-    )
-    c_map = {c.id: c for c in constructors}
-    result_cid_map = {r.driver_id: r.constructor_id for r in last_race_results}
-
-    driver_info: dict = {}
-    for s in final_standings[:top]:
-        driver = s.driver
-        cid = result_cid_map.get(driver.id)
-        constructor = c_map.get(cid) if cid else None
-        driver_info[driver.id] = {
-            "ref": driver.ref,
-            "code": driver.code,
-            "firstName": driver.first_name,
-            "lastName": driver.last_name,
-            "color": (constructor.color if constructor else None),
-        }
-
-    # Fetch all race + sprint points for top drivers in this season
+    # Fetch all race + sprint points for top drivers in this season. The race
+    # rows also carry the constructor, which is where each line's colour comes
+    # from — taking it from the last scheduled race would leave every driver
+    # colourless mid-season, when that race has not been run yet.
     race_points_rows = db.execute(
         select(
             RaceResult.race_id,
             RaceResult.driver_id,
+            RaceResult.constructor_id,
             RaceResult.points,
         ).where(
             RaceResult.race_id.in_(race_ids),
@@ -164,18 +150,53 @@ def standings_progression(
         )
     ).all()
 
+    # Each driver's most recent constructor: the one they last actually raced for.
+    latest_constructor: dict[str, tuple[int, str]] = {}
+    for race_id, driver_id, constructor_id, _pts in race_points_rows:
+        rnd = race_round[race_id]
+        seen = latest_constructor.get(driver_id)
+        if seen is None or rnd > seen[0]:
+            latest_constructor[driver_id] = (rnd, constructor_id)
+
+    constructor_ids = {cid for _, cid in latest_constructor.values()}
+    c_map = (
+        {
+            c.id: c
+            for c in db.execute(select(Constructor).where(Constructor.id.in_(constructor_ids)))
+            .scalars()
+            .all()
+        }
+        if constructor_ids
+        else {}
+    )
+
+    driver_info: dict = {}
+    for s in final_standings[:top]:
+        driver = s.driver
+        entry = latest_constructor.get(driver.id)
+        constructor = c_map.get(entry[1]) if entry else None
+        driver_info[driver.id] = {
+            "ref": driver.ref,
+            "code": driver.code,
+            "firstName": driver.first_name,
+            "lastName": driver.last_name,
+            "constructorRef": constructor.ref if constructor else None,
+            "color": (constructor.color if constructor else None),
+        }
+
     # Build per-race points map: {race_id: {driver_id: points}}
     race_points: dict[str, dict[str, float]] = {}
-    for race_id, driver_id, pts in race_points_rows:
+    for race_id, driver_id, _cid, pts in race_points_rows:
         race_points.setdefault(race_id, {})[driver_id] = pts
     for race_id, driver_id, pts in sprint_points_rows:
         race_points.setdefault(race_id, {}).setdefault(driver_id, 0)
         race_points[race_id][driver_id] += pts
 
-    # Build cumulative round-by-round data
+    # Build cumulative round-by-round data, stopping at the last round actually
+    # run so an in-progress season does not trail off into a flat line.
     cumulative: dict[str, float] = {did: 0.0 for did in top_driver_ids}
     rounds = []
-    for race in races:
+    for race in _raced(races, race_points):
         round_pts = race_points.get(race.id, {})
         round_data: dict = {"round": race.round, "raceName": race.name}
         for did in top_driver_ids:
@@ -257,7 +278,7 @@ def constructor_standings_progression(
 
     cumulative: dict[str, float] = {cid: 0.0 for cid in top_constructor_ids}
     rounds = []
-    for race in races:
+    for race in _raced(races, race_points):
         round_pts = race_points.get(race.id, {})
         round_data: dict = {"round": race.round, "raceName": race.name}
         for cid in top_constructor_ids:
