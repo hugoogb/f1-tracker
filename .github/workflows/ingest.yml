@@ -5,6 +5,11 @@
 # up to date on the box. Same credentials and same SSH path as deploy.yml — see
 # its header for the secrets and why there is no SSH key.
 #
+# This covers the f1db dataset only. Lap times and qualifying sector times come
+# from Fast-F1, which refuses both this runner and the server, so they are
+# fetched by hand (`pnpm fastf1`); the last step here reports how many
+# races are waiting.
+#
 # ingest.sh applies its own calendar gate (skip unless a race ran in the last 3
 # days), so this schedule can be dumb: it fires every Monday and most weeks does
 # nothing. GitHub's scheduled runs drift by minutes to hours under load, which
@@ -62,6 +67,7 @@ jobs:
           fi
 
       - name: Ingest
+        id: ingest
         env:
           # On the schedule both are empty, giving a plain gated run.
           FORCE: ${{ inputs.force && '--force' || '' }}
@@ -77,3 +83,47 @@ jobs:
           ssh -o StrictHostKeyChecking=accept-new \
               -o ConnectTimeout=30 \
               "hugo@${{ secrets.VPS_HOST }}" "$cmd"
+
+      # Lap times and qualifying sectors are not part of the run above and never
+      # can be: Formula 1 answers livetiming.formula1.com with a 403 for the
+      # server's IP and for GitHub's runners alike (measured — see
+      # docs/DEPLOYMENT.md). They are fetched by hand from a machine on a
+      # residential connection, with `pnpm fastf1`. Since nothing
+      # schedules that, this is the reminder that it is due — the ingest itself
+      # has already succeeded, so a failure here must not fail the run.
+      - name: Report the Fast-F1 backlog
+        if: always() && steps.ingest.outcome == 'success'
+        continue-on-error: true
+        run: |
+          set -uo pipefail
+
+          status=$(ssh -o StrictHostKeyChecking=accept-new \
+                       -o ConnectTimeout=30 \
+                       "hugo@${{ secrets.VPS_HOST }}" \
+                       "/srv/apps/f1_api/fastf1.sh status --limit 200" 2>/dev/null \
+                   | grep '^{' | tail -1) || true
+
+          if [ -z "$status" ]; then
+            echo "Could not read the Fast-F1 backlog (is fastf1.sh deployed?)."
+            exit 0
+          fi
+
+          count=$(printf '%s' "$status" | python3 -c 'import json,sys; print(json.load(sys.stdin)["count"])')
+
+          {
+            echo "### Fast-F1 backlog"
+            echo ""
+            if [ "$count" = "0" ]; then
+              echo "Nothing missing — every race since 2018 has its lap times and qualifying sectors."
+            else
+              echo "**$count race(s)** are missing lap times or qualifying sectors."
+              echo ""
+              echo 'Formula 1 blocks this server and GitHub'"'"'s runners, so fetch them from a laptop (VPS_HOST in .env):'
+              echo ""
+              echo '```bash'
+              echo 'pnpm fastf1'
+              echo '```'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          echo "$count race(s) missing Fast-F1 data"

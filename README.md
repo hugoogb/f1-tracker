@@ -67,6 +67,43 @@ pnpm dev
 
 Open [http://localhost:3000](http://localhost:3000) to view the app.
 
+## Keeping production data fresh
+
+Two jobs, and only one of them is yours.
+
+**Automatic.** `.github/workflows/ingest.yml` runs every Monday at 06:00 UTC and
+loads the f1db dataset — results, qualifying, standings, pit stops, the calendar
+— straight into the production database, then purges the Vercel cache. Nothing
+to do.
+
+**Manual, after a race weekend.** Lap times and qualifying sector times come
+from Fast-F1, and Formula 1 answers `livetiming.formula1.com` with a 403 for
+datacentre IPs — the VPS's *and* GitHub's runners. They have to be fetched from
+a machine on a residential connection, which means yours:
+
+```bash
+pnpm fastf1
+```
+
+That asks the server what is missing, fetches those sessions here, and loads
+them there. Set `VPS_HOST` in `.env` once and it needs no arguments.
+
+| | |
+|---|---|
+| `pnpm fastf1` | The 8 most recent sessions missing data (a race weekend is 2) |
+| `pnpm fastf1 --all` | Everything still missing — hours, and safe to interrupt |
+| `pnpm fastf1 --dry-run` | Fetch, but write nothing to the database |
+| `pnpm fastf1 --probe` | Check whether this machine can reach Fast-F1 at all |
+
+Each session is throttled to ~45 s to stay inside Fast-F1's rate limit, so this
+takes a couple of minutes per race weekend. Ctrl-C is safe: everything fetched
+so far is kept, and the next run picks up what is still missing. The Monday
+ingest reports the outstanding count in its job summary, so a missed week is
+visible.
+
+Full detail, including what to do if your own connection gets blocked, is in
+[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md#fast-f1-data-lap-times-qualifying-sectors).
+
 ## Development
 
 ### Commands
@@ -83,6 +120,7 @@ Open [http://localhost:3000](http://localhost:3000) to view the app.
 | `cd pipeline && uv run ruff check . && uv run ruff format --check .` | Lint + format check |
 | `docker compose -f docker/docker-compose.yml up -d` | Start PostgreSQL |
 | `/srv/apps/f1_api/ingest.sh` | Run a data ingest on the VPS (calendar-gated); scheduled weekly by `.github/workflows/ingest.yml` |
+| `pnpm fastf1` | Fetch lap times + qualifying sectors here and load them on the VPS — see [Keeping production data fresh](#keeping-production-data-fresh) |
 
 ### Pre-commit Hooks
 

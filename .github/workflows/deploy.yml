@@ -135,12 +135,20 @@ jobs:
             "cat > '$APP_DIR/docker-compose.yml.tmp'" < docker/compose.prod.yml
           ssh $SSH_OPTS "$target" \
             "cat > '$APP_DIR/ingest.sh.tmp'" < scripts/vps/ingest.sh
+          # fastf1.sh loads session data fetched off-box (Formula 1 blocks the
+          # server's IP); purge-cache.sh is the Vercel purge both scripts share.
+          ssh $SSH_OPTS "$target" \
+            "cat > '$APP_DIR/fastf1.sh.tmp'" < scripts/vps/fastf1.sh
+          ssh $SSH_OPTS "$target" \
+            "cat > '$APP_DIR/purge-cache.sh.tmp'" < scripts/vps/purge-cache.sh
 
           ssh $SSH_OPTS "$target" bash -s <<REMOTE
           set -euo pipefail
           mv "$APP_DIR/docker-compose.yml.tmp" "$APP_DIR/docker-compose.yml"
           mv "$APP_DIR/ingest.sh.tmp"          "$APP_DIR/ingest.sh"
-          chmod +x "$APP_DIR/ingest.sh"
+          mv "$APP_DIR/fastf1.sh.tmp"          "$APP_DIR/fastf1.sh"
+          mv "$APP_DIR/purge-cache.sh.tmp"     "$APP_DIR/purge-cache.sh"
+          chmod +x "$APP_DIR/ingest.sh" "$APP_DIR/fastf1.sh" "$APP_DIR/purge-cache.sh"
           REMOTE
 
       - name: Deploy over Tailscale SSH
