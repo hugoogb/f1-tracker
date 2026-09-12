@@ -30,7 +30,11 @@ from sqlalchemy import select  # noqa: E402
 from src.db.database import SessionLocal  # noqa: E402
 from src.db.models import Race  # noqa: E402
 from src.ingestion.fastf1_payload import KIND_LAPS, KIND_QUALI_SECTORS, KINDS  # noqa: E402
-from src.ingestion.lap_times import FIRST_LAP_DATA_YEAR, races_with_lap_times  # noqa: E402
+from src.ingestion.lap_times import (  # noqa: E402
+    FIRST_LAP_DATA_YEAR,
+    races_with_lap_positions,
+    races_with_lap_times,
+)
 from src.ingestion.qualifying_sectors import (  # noqa: E402
     races_with_quali_results,
     races_with_quali_sectors,
@@ -54,9 +58,19 @@ def find_targets(
     year_range: tuple[int, int] | None = None,
     limit: int | None = None,
     oldest_first: bool = False,
+    refresh_positions: bool = False,
 ) -> list[dict]:
-    """List races missing the requested Fast-F1 data, newest first by default."""
+    """List races missing the requested Fast-F1 data, newest first by default.
+
+    `refresh_positions` also claims races whose lap rows predate storing
+    Fast-F1's per-lap position. Their laps are already loaded, so nothing else
+    would ever ask for them again, and only re-fetching the session fills the
+    column in. Off by default: it is a one-off backfill at ~45s a session, and
+    the weekly run has no business dragging it along.
+    """
     have_laps = races_with_lap_times(db) if KIND_LAPS in need else set()
+    if refresh_positions and KIND_LAPS in need:
+        have_laps &= races_with_lap_positions(db)
     have_sectors = races_with_quali_sectors(db) if KIND_QUALI_SECTORS in need else set()
     have_quali = races_with_quali_results(db) if KIND_QUALI_SECTORS in need else set()
 
@@ -115,6 +129,11 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Backfill order; the default takes the most recent races first",
     )
+    parser.add_argument(
+        "--refresh-positions",
+        action="store_true",
+        help="Also re-fetch races whose laps were stored without per-lap positions",
+    )
     return parser.parse_args()
 
 
@@ -140,6 +159,7 @@ def main() -> int:
             year_range=year_range,
             limit=args.limit,
             oldest_first=args.oldest_first,
+            refresh_positions=args.refresh_positions,
         )
     finally:
         db.close()

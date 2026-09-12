@@ -340,20 +340,45 @@ def get_positions(year: int, round: int, db: Session = Depends(get_db)):
     # Get race results for grid positions, constructor info, and final position
     results = db.execute(select(RaceResult).where(RaceResult.race_id == race.id)).scalars().all()
     if not results:
-        return {"raceId": race.id, "totalLaps": 0, "drivers": []}
+        return {"raceId": race.id, "totalLaps": 0, "coveredLaps": 0, "drivers": []}
 
-    driver_grid = {r.driver_id: r.grid for r in results}
-    driver_constructor = {r.driver_id: r.constructor for r in results}
-    driver_final_pos = {r.driver_id: r.position for r in results}
+    # The race's real distance, from f1db rather than from the timing data, so
+    # the chart's axis spans the whole race even where the reconstruction below
+    # runs out early.
+    race_laps = max((r.laps or 0) for r in results)
 
-    # Use SQL window functions for cumulative times and rankings
-    # Step 1: Find the max consecutive lap per driver (stop at first NULL time_millis)
     lt = LapTime.__table__
+
+    # Fast-F1 reports a position per lap, and where it has been stored that is
+    # simply the answer.
+    stored = db.execute(
+        select(lt.c.driver_id, lt.c.lap_number, lt.c.position).where(
+            lt.c.race_id == race.id, lt.c.position.isnot(None)
+        )
+    ).all()
+    if stored:
+        return _positions_response(db, race, results, race_laps, stored)
+
+    # Otherwise fall back to reconstructing them: rank drivers each lap by
+    # elapsed race time. Races ingested before the position was stored have only
+    # lap times, and re-fetching a session costs ~45s, so this stays.
+    #
+    # Fast-F1 leaves LapTime empty more often than it leaves the sectors empty,
+    # so the sum of the three stands in when it does. That matters: a cumulative
+    # total needs an unbroken chain from lap 1, so a single gap ends the driver's
+    # line there — without this fallback one missing lap early on could cut the
+    # whole field off within the first handful of laps.
+    lap_ms = func.coalesce(
+        lt.c.time_millis,
+        lt.c.sector1_ms + lt.c.sector2_ms + lt.c.sector3_ms,
+    )
+
+    # Step 1: the last lap each driver has an unbroken chain of times up to
     max_valid_lap = (
         select(
             lt.c.driver_id,
             func.coalesce(
-                func.min(lt.c.lap_number).filter(lt.c.time_millis.is_(None)) - 1,
+                func.min(lt.c.lap_number).filter(lap_ms.is_(None)) - 1,
                 func.max(lt.c.lap_number),
             ).label("max_valid"),
         )
@@ -367,13 +392,13 @@ def get_positions(year: int, round: int, db: Session = Depends(get_db)):
         select(
             lt.c.driver_id,
             lt.c.lap_number,
-            func.sum(lt.c.time_millis)
+            func.sum(lap_ms)
             .over(partition_by=lt.c.driver_id, order_by=lt.c.lap_number)
             .label("cumulative_ms"),
         )
         .where(
             lt.c.race_id == race.id,
-            lt.c.time_millis.isnot(None),
+            lap_ms.isnot(None),
             lt.c.lap_number
             <= select(max_valid_lap.c.max_valid)
             .where(max_valid_lap.c.driver_id == lt.c.driver_id)
@@ -395,57 +420,9 @@ def get_positions(year: int, round: int, db: Session = Depends(get_db)):
     ).all()
 
     if not ranked_rows:
-        return {"raceId": race.id, "totalLaps": 0, "drivers": []}
+        return {"raceId": race.id, "totalLaps": 0, "coveredLaps": 0, "drivers": []}
 
-    # Build positions map from SQL results
-    positions_by_driver: dict[str, dict[int, int]] = defaultdict(dict)
-    max_lap = 0
-    driver_ids_seen: set[str] = set()
-    for row in ranked_rows:
-        positions_by_driver[row.driver_id][row.lap_number] = row.position
-        driver_ids_seen.add(row.driver_id)
-        if row.lap_number > max_lap:
-            max_lap = row.lap_number
-
-    # Add grid position as lap 0
-    for driver_id in driver_ids_seen:
-        grid = driver_grid.get(driver_id)
-        if grid:
-            positions_by_driver[driver_id][0] = grid
-
-    # Fetch driver objects for response
-    drivers = db.execute(select(Driver).where(Driver.id.in_(driver_ids_seen))).scalars().all()
-    driver_map = {d.id: d for d in drivers}
-
-    # Build response sorted by finishing position
-    sorted_driver_ids = sorted(
-        driver_ids_seen,
-        key=lambda d: driver_final_pos.get(d) or 999,
-    )
-
-    drivers_data = []
-    for driver_id in sorted_driver_ids:
-        driver = driver_map.get(driver_id)
-        if not driver:
-            continue
-        constructor = driver_constructor.get(driver_id)
-        positions = positions_by_driver.get(driver_id, {})
-
-        drivers_data.append(
-            {
-                "driver": driver_summary(driver),
-                "constructor": constructor_compact(constructor) if constructor else {},
-                "positions": [
-                    {"lap": lap_num, "position": pos} for lap_num, pos in sorted(positions.items())
-                ],
-            }
-        )
-
-    return {
-        "raceId": race.id,
-        "totalLaps": max_lap,
-        "drivers": drivers_data,
-    }
+    return _positions_response(db, race, results, race_laps, ranked_rows)
 
 
 @router.get("/seasons/{year}/races/{round}/pitstops/analysis")
@@ -581,4 +558,66 @@ def get_pitstops_analysis(year: int, round: int, db: Session = Depends(get_db)):
         },
         "teamAverages": team_averages,
         "distribution": distribution,
+    }
+
+
+def _positions_response(db: Session, race, results, race_laps: int, rows) -> dict:
+    """Shape `(driver_id, lap_number, position)` rows into the positions payload.
+
+    Shared by both sources — Fast-F1's stored positions and the reconstruction
+    from lap times — so the two cannot drift in what they return.
+    """
+    driver_grid = {r.driver_id: r.grid for r in results}
+    driver_constructor = {r.driver_id: r.constructor for r in results}
+    driver_final_pos = {r.driver_id: r.position for r in results}
+
+    positions_by_driver: dict[str, dict[int, int]] = defaultdict(dict)
+    max_lap = 0
+    driver_ids_seen: set[str] = set()
+    for driver_id, lap_number, position in rows:
+        positions_by_driver[driver_id][lap_number] = position
+        driver_ids_seen.add(driver_id)
+        max_lap = max(max_lap, lap_number)
+
+    if not driver_ids_seen:
+        return {"raceId": race.id, "totalLaps": 0, "coveredLaps": 0, "drivers": []}
+
+    # The grid is where everyone was before lap 1, so it anchors the chart at 0.
+    for driver_id in driver_ids_seen:
+        grid = driver_grid.get(driver_id)
+        if grid:
+            positions_by_driver[driver_id][0] = grid
+
+    drivers = db.execute(select(Driver).where(Driver.id.in_(driver_ids_seen))).scalars().all()
+    driver_map = {d.id: d for d in drivers}
+
+    # Finishing order, so the chart's default selection is the front of the field.
+    sorted_driver_ids = sorted(driver_ids_seen, key=lambda d: driver_final_pos.get(d) or 999)
+
+    drivers_data = []
+    for driver_id in sorted_driver_ids:
+        driver = driver_map.get(driver_id)
+        if not driver:
+            continue
+        constructor = driver_constructor.get(driver_id)
+        positions = positions_by_driver.get(driver_id, {})
+        drivers_data.append(
+            {
+                "driver": driver_summary(driver),
+                "constructor": constructor_compact(constructor) if constructor else {},
+                "positions": [
+                    {"lap": lap_num, "position": pos} for lap_num, pos in sorted(positions.items())
+                ],
+            }
+        )
+
+    return {
+        "raceId": race.id,
+        # The race's length, so the chart's axis is the race and not whatever
+        # the timing data happened to cover...
+        "totalLaps": max(race_laps, max_lap),
+        # ...and how far the data actually got, so the UI can say when it falls
+        # short instead of implying the race ended there.
+        "coveredLaps": max_lap,
+        "drivers": drivers_data,
     }

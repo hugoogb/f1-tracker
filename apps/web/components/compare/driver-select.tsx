@@ -1,16 +1,9 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Search } from 'lucide-react'
 import { Input } from '@/components/ui/input'
-import { API_BASE_URL } from '@/lib/constants'
-
-interface DriverResult {
-  ref: string
-  firstName: string
-  lastName: string
-  code: string | null
-}
+import { useSearch } from '@/lib/use-search'
 
 interface DriverSelectProps {
   label: string
@@ -20,30 +13,13 @@ interface DriverSelectProps {
 
 export function DriverSelect({ label, value, onChange }: DriverSelectProps) {
   const [query, setQuery] = useState('')
-  const [results, setResults] = useState<DriverResult[]>([])
   const [open, setOpen] = useState(false)
   const [selectedName, setSelectedName] = useState('')
   const containerRef = useRef<HTMLDivElement>(null)
   const inputId = label.toLowerCase().replace(/\s+/g, '-')
 
-  const search = useCallback(async (q: string) => {
-    if (q.length < 2) {
-      setResults([])
-      return
-    }
-    try {
-      const res = await fetch(`${API_BASE_URL}/search?q=${encodeURIComponent(q)}`)
-      const data = await res.json()
-      setResults(data.drivers ?? [])
-    } catch {
-      setResults([])
-    }
-  }, [])
-
-  useEffect(() => {
-    const timer = setTimeout(() => search(query), 300)
-    return () => clearTimeout(timer)
-  }, [query, search])
+  const { results: all, failed } = useSearch(query)
+  const results = all.drivers
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -92,6 +68,9 @@ export function DriverSelect({ label, value, onChange }: DriverSelectProps) {
               aria-expanded={open && results.length > 0}
             />
           </div>
+          {open && failed && (
+            <p className="text-muted-foreground mt-1.5 text-xs">Search is unavailable right now.</p>
+          )}
           {open && results.length > 0 && (
             <div
               role="listbox"
@@ -110,7 +89,6 @@ export function DriverSelect({ label, value, onChange }: DriverSelectProps) {
                     setSelectedName(name)
                     setQuery('')
                     setOpen(false)
-                    setResults([])
                   }}
                 >
                   {d.code && (

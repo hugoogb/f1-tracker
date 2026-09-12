@@ -327,7 +327,11 @@ export default async function RaceDetailPage({
                   id: 'positions',
                   label: 'Positions',
                   content: (
-                    <PositionChart drivers={positions.drivers} totalLaps={positions.totalLaps} />
+                    <PositionChart
+                      drivers={positions.drivers}
+                      totalLaps={positions.totalLaps}
+                      coveredLaps={positions.coveredLaps}
+                    />
                   ),
                 },
               ]

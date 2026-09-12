@@ -146,6 +146,16 @@ Two f1db quirks the UI is built around:
   frontend orders them and picks the next one; a race with no schedule falls
   back to its calendar date, which is midnight UTC and therefore a day marker
   rather than a start time.
+- **Lap-by-lap positions come from Fast-F1's own `Position`**, stored on
+  `lap_times.position`. Races ingested before that column existed have NULLs,
+  and `/positions` falls back to ranking drivers by cumulative lap time for
+  them — which needs an unbroken chain from lap 1, so one missing lap time ends
+  a driver's line there (the sum of the three sector times stands in where it
+  can). Backfill the column with `pnpm fastf1 --refresh-positions --all`; it
+  re-fetches sessions at ~45s each, so it is a deliberate one-off, not part of
+  the weekly run. `/positions` returns `totalLaps` (the race) and `coveredLaps`
+  (how far the data reaches) separately — never conflate them, or a race with
+  patchy timing renders as a three-lap race.
 - **A pit stop's `timeMillis` is pit *lane* time**, entry line to exit line with
   the stationary time included — there is no stationary time in the dataset.
   It runs from ~13s at Melbourne to ~24s at Bahrain, so it is dominated by the

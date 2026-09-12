@@ -19,6 +19,9 @@
 #   pnpm fastf1 --all                # everything still missing (hours; safe to stop)
 #   pnpm fastf1 --limit 24 --oldest-first
 #   pnpm fastf1 --need laps --year-range 2018-2019
+#   pnpm fastf1 --refresh-positions --all
+#                                    # one-off: re-fetch races whose laps were
+#                                    # stored before per-lap positions were kept
 #   pnpm fastf1 --dry-run            # fetch, but write nothing to the database
 #   pnpm fastf1 --probe              # can this machine reach Fast-F1 at all?
 #
@@ -58,6 +61,7 @@ NEED="laps,quali_sectors"
 LIMIT="8"
 YEAR_RANGE=""
 ORDER=""
+REFRESH_POSITIONS=""
 DRY_RUN=0
 PROBE=0
 
@@ -75,6 +79,7 @@ while [ $# -gt 0 ]; do
     --all) LIMIT=""; shift ;;
     --year-range) YEAR_RANGE="$2"; shift 2 ;;
     --oldest-first) ORDER="--oldest-first"; shift ;;
+    --refresh-positions) REFRESH_POSITIONS="--refresh-positions"; shift ;;
     --dry-run) DRY_RUN=1; shift ;;
     --probe) PROBE=1; shift ;;
     -h|--help) usage 0 ;;
@@ -111,6 +116,7 @@ status_args=(--need "$NEED")
 [ -n "$LIMIT" ] && status_args+=(--limit "$LIMIT")
 [ -n "$ORDER" ] && status_args+=("$ORDER")
 [ -n "$YEAR_RANGE" ] && status_args+=(--year-range "$YEAR_RANGE")
+[ -n "$REFRESH_POSITIONS" ] && status_args+=("$REFRESH_POSITIONS")
 
 echo "==> Asking $TARGET what is missing..."
 targets="$(mktemp)"

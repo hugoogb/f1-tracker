@@ -11,16 +11,20 @@ import { PageHeader } from '@/components/ui/page-header'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { FadeIn } from '@/components/ui/motion'
 
+// f1db ids, which are hyphenated and use the driver's full name — not Ergast's
+// (`hamilton`, `max_verstappen`, `red_bull`). Every one of these was an Ergast
+// ref, so the comparison 404'd and the page redirected straight back here,
+// which looked like the links did nothing at all.
 const suggestedDriverComparisons = [
-  { d1: 'hamilton', d2: 'max_verstappen', label: 'Hamilton vs Verstappen' },
-  { d1: 'michael_schumacher', d2: 'hamilton', label: 'Schumacher vs Hamilton' },
-  { d1: 'senna', d2: 'prost', label: 'Senna vs Prost' },
-  { d1: 'fangio', d2: 'clark', label: 'Fangio vs Clark' },
+  { d1: 'lewis-hamilton', d2: 'max-verstappen', label: 'Hamilton vs Verstappen' },
+  { d1: 'michael-schumacher', d2: 'lewis-hamilton', label: 'Schumacher vs Hamilton' },
+  { d1: 'ayrton-senna', d2: 'alain-prost', label: 'Senna vs Prost' },
+  { d1: 'juan-manuel-fangio', d2: 'jim-clark', label: 'Fangio vs Clark' },
 ]
 
 const suggestedConstructorComparisons = [
   { c1: 'ferrari', c2: 'mclaren', label: 'Ferrari vs McLaren' },
-  { c1: 'mercedes', c2: 'red_bull', label: 'Mercedes vs Red Bull' },
+  { c1: 'mercedes', c2: 'red-bull', label: 'Mercedes vs Red Bull' },
   { c1: 'ferrari', c2: 'williams', label: 'Ferrari vs Williams' },
 ]
 
