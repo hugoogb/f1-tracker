@@ -77,7 +77,7 @@ Two files, one per environment. Neither is committed.
 | `FASTF1_CACHE_DIR`    | `.fastf1_cache`                                                 | Fast-F1 session cache directory                 |
 | `VPS_HOST`            | —                                                               | Server address for `pnpm fastf1` (local only)   |
 | `NEXT_PUBLIC_API_URL` | `http://localhost:8000/api`                                     | Backend URL, baked into the bundle at build time |
-| `NEXT_PUBLIC_SITE_URL` | `https://f1-tracker-web.vercel.app`                            | Canonical public origin (no trailing slash) behind every canonical URL, Open Graph tag and sitemap entry |
+| `NEXT_PUBLIC_SITE_URL` | `https://f1-tracker.hugoogb.dev`                                | Canonical public origin (no trailing slash) behind every canonical URL, Open Graph tag and sitemap entry |
 | `REVALIDATE_URL` / `REVALIDATE_SECRET` | —                                              | Frontend cache purge after ingest               |
 
 ### `/srv/apps/f1_api/.env` (VPS — template: `docker/.env.prod.example`)
@@ -207,10 +207,12 @@ redeploy — it is baked into the bundle at build time. Add that Vercel origin t
 
 Set `NEXT_PUBLIC_SITE_URL` to the site's own public origin (no trailing slash)
 in the same place. It is what `rel=canonical`, the Open Graph tags, the sitemap
-and `robots.txt` advertise, so on a custom domain it has to be that domain and
-not the `*.vercel.app` default — otherwise every page tells Google its canonical
-lives somewhere else. Preview deployments inherit it too, which is what keeps
-them from competing with production in the index.
+and `robots.txt` advertise, so it has to be the domain you want indexed — the
+project also answers on its `*.vercel.app` alias, and pointing canonicals there
+tells Google the real domain is a duplicate. Preview deployments inherit it too,
+which is what keeps them from competing with production in the index. The code
+falls back to the production domain when the variable is unset, so a missing
+value degrades to the right host rather than the alias.
 
 After the first deploy on a new domain, submit `https://<domain>/sitemap.xml`
 in Google Search Console — the sitemap is generated from the API, so it also
