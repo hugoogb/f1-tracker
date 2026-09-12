@@ -145,8 +145,7 @@ f1-tracker/
 │   └── scripts/           # Seed, validate, calendar-gate scripts
 ├── docker/                # Compose files (local dev + VPS production) + backups
 ├── scripts/               # bootstrap, backup/restore, VPS deploy + ingest
-├── docs/                  # Deployment guide + VPS migration runbook
-└── tasks/                 # Project tracking + lessons learned
+└── docs/                  # Deployment guide + VPS migration runbook
 ```
 
 ## Testing & CI
