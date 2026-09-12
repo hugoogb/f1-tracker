@@ -62,7 +62,9 @@ limits to observe. Pin `F1DB_VERSION` for reproducible seeds.
 
 **How we comply:** credited by name in the footer, README and `/attributions`.
 Session loads are throttled (`THROTTLE_DELAY = 45` seconds between uncached
-loads, ~500 calls/hr) and cached on disk via `fastf1.Cache`.
+loads, ~500 calls/hr) and cached on disk via `fastf1.Cache`. The redistributed
+dump in `docker/backups/` carries this data too — it is a full database dump —
+and `docker/backups/README.md` credits both sources.
 
 > Fast-F1 carries the same Formula One Licensing B.V. trademark disclaimer we
 > reproduce above. Timing data originates from Formula 1's own systems and is

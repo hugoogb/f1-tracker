@@ -275,28 +275,53 @@ Set on all routes in `apps/web/next.config.ts`:
 
 ## Database Backup & Restore
 
-**On the VPS, backups belong to the platform.** The `f1_api` database lives on
+**Cluster-level backups belong to the platform.** The `f1_api` database lives on
 the shared PostgreSQL cluster, so it is covered by whatever the box already runs
-for every app — this repository ships no backup script or timer for it. Confirm
-`f1_api` is in that scope, and rehearse a restore once.
+for every app. Confirm `f1_api` is in that scope, and rehearse a restore once.
 
-Locally, backups are gzipped **data-only** dumps (the schema belongs to Alembic,
-and `alembic_version` is excluded so restores never conflict):
+What this repository ships on top of that is an **app-level export**: one
+gzipped file carrying the whole database — schema, every table, the Alembic
+stamp and the materialized views.
 
 ```bash
-./scripts/db-backup.sh                 # writes docker/backups/
+./scripts/db-backup.sh --remote        # dump production  (pnpm db:backup:prod)
+./scripts/db-backup.sh                 # dump the local dev container
 ./scripts/db-restore.sh                # restore the latest backup (prompts)
 ./scripts/db-restore.sh path/to.sql.gz # restore a specific file
 ```
 
-`db-restore.sh` migrates, loads the data and rebuilds the materialized views the
-career-stats, records and champions endpoints read from — those are created by
-the ingest rather than by Alembic, and `pg_dump --data-only` does not carry them.
-Useful overrides: `FORCE=1` (skip the confirmation), `SKIP_MIGRATE=1`,
-`SKIP_VIEWS=1`, `BACKUP_DIR`, `BACKUP_KEEP_LAST`, `DB_CONTAINER`/`STACK_NAME`.
+`--remote` runs `/srv/apps/f1_api/backup.sh` on the box over Tailscale SSH and
+streams the dump back into `docker/backups/`. It reads `VPS_HOST` from `.env`,
+the same key `pnpm fastf1` uses. On the server the dump runs from a throwaway
+`postgres:16-alpine` container on the shared network, against `DIRECT_URL` —
+the app image carries Python, not the PostgreSQL client, and a dump has no
+business going through PgBouncer's transaction pooling.
 
-The committed `docker/backups/latest.sql.gz` carries no `lap_times` or qualifying
-sector times — see `docker/backups/README.md`.
+**Why production is the one to dump.** Fast-F1 payloads are imported straight
+into production, so `lap_times` and the qualifying sector columns exist nowhere
+else in full. They cost ~45 s per session to fetch and cannot be fetched from
+this box or from CI at all, so they are precisely the data a backup has to
+carry. `db-backup.sh` prints the row counts of what it wrote and warns when
+`lap_times` is empty.
+
+`db-restore.sh` detects which flavour of dump it was handed. A full dump is
+loaded first and Alembic runs afterwards, to carry an older backup up to the
+current head; the dump's own `REFRESH MATERIALIZED VIEW` statements bring the
+career-stats, records and champions views back populated. The **data-only**
+dumps this repo used to write are still accepted and still get the old order:
+migrate, load, then rebuild the views by hand.
+
+Both paths verify the archive before dropping anything, and load it with
+`--single-transaction -v ON_ERROR_STOP=1`, so a restore is all-or-nothing rather
+than a partial one reported as success.
+
+Useful overrides: `FORCE=1` (skip the confirmation), `SKIP_MIGRATE=1`,
+`SKIP_VIEWS=1`, `BACKUP_DIR`, `BACKUP_KEEP_LAST`, `DB_CONTAINER`/`STACK_NAME`,
+`VPS_HOST`/`VPS_USER`. `SKIP_MIGRATE=1 SKIP_VIEWS=1` restores a full dump with
+nothing but `psql` — worth remembering when the reason you are restoring is that
+the rest of the toolchain is unavailable.
+
+See `docker/backups/README.md` for what the file contains and what it costs.
 
 ---
 
@@ -426,6 +451,10 @@ uv run python scripts/seed.py --base --layouts --colors --results --qualifying -
 cd .. && ./scripts/db-backup.sh
 ```
 
+> That backup covers the local database. The committed
+> `docker/backups/latest.sql.gz` should come from `./scripts/db-backup.sh
+> --remote` instead — production is where the Fast-F1 data is.
+
 > The dataset is one f1db release download per run, cached in `F1DB_CACHE_DIR`
 > — no rate limit. Set `F1DB_VERSION` to a release tag for a reproducible seed,
 > or leave it at `latest`.
@@ -460,8 +489,8 @@ checkbox). It:
 1. builds `ghcr.io/hugoogb/f1_api` for `linux/amd64` and pushes it tagged with
    the commit SHA and `latest`
 2. joins the tailnet as an ephemeral node tagged `tag:ci`
-3. ships `docker-compose.yml`, `ingest.sh`, `fastf1.sh` and `purge-cache.sh`
-   into `/srv/apps/f1_api/`
+3. ships `docker-compose.yml`, `ingest.sh`, `fastf1.sh`, `backup.sh` and
+   `purge-cache.sh` into `/srv/apps/f1_api/`
 4. writes `TAG=<sha>` to `.tag`, pulls, runs migrations, `up -d --wait`, and
    verifies `/api/health/db`
 

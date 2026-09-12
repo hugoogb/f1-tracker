@@ -54,13 +54,13 @@ docker compose -f docker/docker-compose.yml up -d
 pnpm install
 cd pipeline && uv sync && cd ..
 
-# 4. Set up database
-cd pipeline && uv run alembic upgrade head && cd ..
+# 4. Restore the bundled backup — schema, data and all (seconds)
+./scripts/db-restore.sh
 
-# 5. Seed data (or restore from backup: ./scripts/db-restore.sh)
-cd pipeline && uv run python scripts/seed.py && cd ..
+#    ...or build the database from scratch instead (slow)
+# cd pipeline && uv run alembic upgrade head && uv run python scripts/seed.py && cd ..
 
-# 6. Start backend + frontend (in separate terminals)
+# 5. Start backend + frontend (in separate terminals)
 cd pipeline && uv run uvicorn src.api.main:app --reload
 pnpm dev
 ```
@@ -100,6 +100,12 @@ takes a couple of minutes per race weekend. Ctrl-C is safe: everything fetched
 so far is kept, and the next run picks up what is still missing. The Monday
 ingest reports the outstanding count in its job summary, so a missed week is
 visible.
+
+**Worth doing after a backfill.** `pnpm db:backup:prod` pulls a full dump of the
+production database into `docker/backups/latest.sql.gz` — schema, data, Alembic
+stamp and materialized views, Fast-F1 lap times included. Committing it is what
+makes those hours of fetching survivable: restoring takes seconds and re-fetching
+does not.
 
 Full detail, including what to do if your own connection gets blocked, is in
 [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md#fast-f1-data-lap-times-qualifying-sectors).
@@ -145,8 +151,7 @@ f1-tracker/
 │   └── scripts/           # Seed, validate, calendar-gate scripts
 ├── docker/                # Compose files (local dev + VPS production) + backups
 ├── scripts/               # bootstrap, backup/restore, VPS deploy + ingest
-├── docs/                  # Deployment guide + VPS migration runbook
-└── tasks/                 # Project tracking + lessons learned
+└── docs/                  # Deployment guide + VPS migration runbook
 ```
 
 ## Testing & CI
@@ -166,7 +171,7 @@ f1-tracker/
 | What | Licence |
 |------|---------|
 | Source code | [MIT](LICENSE) |
-| F1 dataset (incl. `docker/backups/latest.sql.gz`) | [CC BY 4.0](LICENSE-DATA.md) — from f1db |
+| F1 dataset (incl. `docker/backups/latest.sql.gz`) | [CC BY 4.0](LICENSE-DATA.md) — from f1db; session timing from Fast-F1 |
 | Circuit layout SVGs | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) — ship with f1db |
 | World map geometry | Public domain — Natural Earth |
 

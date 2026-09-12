@@ -26,22 +26,26 @@ docker compose -f "$DOCKER_COMPOSE" up -d
 
 db_wait_ready 60
 
-# --- Step 2: Run migrations ---
-echo "==> Running database migrations..."
+# --- Step 2: Install Python dependencies ---
+echo "==> Installing Python dependencies..."
 cd "$PIPELINE_DIR"
 uv sync --extra dev
-uv run alembic upgrade head
 
-# --- Step 3: Restore data from the bundled backup (fast path) ---
+# --- Step 3: Restore the bundled backup (fast path) ---
+# Migrations are db-restore.sh's business, not this script's: the bundled dump
+# is a full one, carrying the schema and its own Alembic stamp, so it has to be
+# loaded *before* `alembic upgrade head` rather than after. Running them here
+# would only be undone by the restore.
 BACKUP_FILE="$PROJECT_DIR/docker/backups/latest.sql.gz"
 if [ -f "$BACKUP_FILE" ]; then
-  echo "==> Restoring data from latest backup..."
-  # Bootstrap already migrated the schema above, and the DB is empty on a fresh
-  # volume, so there is nothing to confirm.
-  FORCE=1 SKIP_MIGRATE=1 "$SCRIPT_DIR/db-restore.sh"
+  echo "==> Restoring from the bundled backup..."
+  # The database is empty on a fresh volume, so there is nothing to confirm.
+  FORCE=1 "$SCRIPT_DIR/db-restore.sh"
 else
   echo "==> No backup found at docker/backups/latest.sql.gz."
-  echo "    Run the full ingestion instead (slow — fetches from Fast-F1/Jolpica):"
+  echo "==> Running database migrations..."
+  uv run alembic upgrade head
+  echo "    Run the full ingestion to fill it (slow — downloads the f1db release):"
   echo "      cd pipeline && uv run python scripts/seed.py --base --layouts --colors --results --qualifying --sprints --standings --pitstops --postprocess"
 fi
 
