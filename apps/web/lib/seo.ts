@@ -4,9 +4,13 @@ import type { Metadata } from 'next'
  * Canonical origin for the deployed site. Absolute URLs are required for
  * Open Graph/Twitter images and `rel=canonical`, and crawlers ignore relative
  * ones, so everything SEO-facing is resolved against this.
+ *
+ * The fallback is the production domain rather than the `*.vercel.app` alias
+ * the project also answers on: an unset env var then still advertises the host
+ * we want indexed, instead of quietly pointing every canonical at the alias.
  */
 export const SITE_URL = (
-  process.env.NEXT_PUBLIC_SITE_URL ?? 'https://f1-tracker-web.vercel.app'
+  process.env.NEXT_PUBLIC_SITE_URL ?? 'https://f1-tracker.hugoogb.dev'
 ).replace(/\/$/, '')
 
 export const SITE_NAME = 'F1 Tracker'
