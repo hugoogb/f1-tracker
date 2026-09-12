@@ -27,7 +27,7 @@ A full-stack Formula 1 analytics dashboard covering the complete history of F1 (
 |-------|-----------|
 | Frontend | Next.js 16, TypeScript, Tailwind CSS 4, shadcn/ui, Recharts |
 | Backend | Python 3.12, FastAPI, SQLAlchemy 2, Alembic |
-| Database | PostgreSQL 16 |
+| Database | PostgreSQL 17 |
 | Data Source | [f1db](https://github.com/f1db/f1db) (1950-present, [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)) + Fast-F1 (session timing 2018+) |
 | Map | Natural Earth geometry (public domain), rendered with Leaflet |
 | Deployment | Frontend on Vercel; API + PostgreSQL in Docker on a self-hosted VPS |

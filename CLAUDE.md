@@ -10,7 +10,7 @@ Deployment: frontend on Vercel; the API runs as a Docker container (`f1_api`) on
 
 - **Frontend**: Next.js 16 (App Router), TypeScript, Tailwind CSS 4, shadcn/ui, Recharts
 - **Backend**: Python 3.12, FastAPI, SQLAlchemy 2, Alembic
-- **Database**: PostgreSQL 16 (via Docker Compose, local and production)
+- **Database**: PostgreSQL 17 — local dev via Docker Compose, production on the VPS platform's shared cluster. Keep the majors matching: a dump only loads into a server of the same or a later version
 - **Data Source**: f1db release artifacts (1950-present) + Fast-F1 (session timing, 2018+)
 - **Package Managers**: pnpm (frontend), uv (Python)
 
@@ -121,7 +121,7 @@ Deployment: frontend on Vercel; the API runs as a Docker container (`f1_api`) on
 - Deploys: push to `master`, or Actions -> deploy -> Run workflow (optional `ingest` input). CI builds the image and the server pulls it — nothing is built on the VPS and the repo is not checked out there
 - `/srv/apps/f1_api/ingest.sh [--force] [-- <seed flags>]` - Calendar-gated f1db ingest + Vercel cache purge; copied there by the deploy
 - `/srv/apps/f1_api/fastf1.sh status|import` - The database half of the Fast-F1 path: report what is missing (JSON on stdout), or load a payload arriving on stdin. Formula 1 blocks the VPS's IP, so nothing here fetches from Fast-F1
-- `/srv/apps/f1_api/backup.sh > f1_api.sql.gz` - Dump the whole production database to stdout, from a throwaway `postgres:16-alpine` container on the shared network against `DIRECT_URL`. Driven from a laptop by `pnpm db:backup:prod`
+- `/srv/apps/f1_api/backup.sh > f1_api.sql.gz` - Dump the whole production database to stdout, from a throwaway postgres container on the shared network against `DIRECT_URL`. It asks the server its version first and pulls the matching `postgres:<major>-alpine`, because pg_dump refuses to dump a server newer than itself; `PG_IMAGE` pins one instead. Driven from a laptop by `pnpm db:backup:prod`
 - Manual deploy/rollback on the box: `echo "TAG=<sha>" > .tag`, then `docker compose --env-file .env --env-file .tag pull && ... run --rm migrate && ... up -d --wait`
 - Env file: `/srv/apps/f1_api/.env` (created by the platform's `new-app.sh`; app-specific keys in `docker/.env.prod.example`) plus `.tag`, which carries only `TAG=<sha>`
 - Database is the platform's shared PostgreSQL: the API uses `DATABASE_URL` (PgBouncer), migrations and ingest use `DIRECT_URL` (direct — transaction pooling cannot run a migration). Backups are the platform's job
@@ -197,5 +197,11 @@ Rules to preserve when changing code:
 
 - Next.js 16 build requires `NODE_ENV=production` to avoid `_global-error` prerender bug
 - Renaming the local dev DB container (`docker-db-1` → `f1-tracker-db`) orphans the old `docker_pgdata` volume; re-run `./scripts/bootstrap.sh`, then `docker volume rm docker_pgdata`
+- **The local dev database moved from PostgreSQL 16 to 17** to match the VPS's shared cluster. A PostgreSQL 16 data directory will not start under 17 (`database files are incompatible with server`), so an existing volume has to go — it holds nothing that is not in the backup:
+  ```bash
+  docker compose -f docker/docker-compose.yml down -v   # or: docker volume rm f1-tracker_dev_pgdata
+  ./scripts/bootstrap.sh                                # recreates and restores
+  ```
+  The majors have to match in this direction specifically: `pg_dump` output is only guaranteed to load into a server of the same or a later version, and `latest.sql.gz` now comes from production. A 17 dump fails on a 16 server at `SET transaction_timeout`, which does not exist before 17
 - **Formula 1 blocks datacentre IPs for Fast-F1 — the VPS's and GitHub's runners alike** (403 from `livetiming.formula1.com`; the control host answers 200, so it is a block, not an outage). Lap times and qualifying sectors therefore cannot be ingested on the server or in CI: they are fetched from a laptop with `pnpm fastf1` (`scripts/fastf1-sync.sh`) and imported as a payload. `scripts/fastf1_fetch.py --probe` re-checks any host in about a second. Fast-F1 does not raise when it is refused — it warns per source and returns an empty session — so three empty sessions in a row abort with the blocked-host message rather than grinding through the calendar at 45 s each.
 - `docker/backups/latest.sql.gz` is a **full** dump and is meant to carry the Fast-F1 data (`lap_times`, qualifying sector columns) so a restore never means re-fetching it at ~45 s/session. It only does so when it was taken from production (`pnpm db:backup:prod`) — a local dump carries whatever lap times that database happens to hold, and `db-backup.sh` warns when there are none. Until it is regenerated from production, race pages' lap-time, tyre-strategy and position charts stay empty after a restore
