@@ -129,6 +129,11 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Limit ingestion to current year only",
     )
+    parser.add_argument(
+        "--refresh-positions",
+        action="store_true",
+        help="Re-fetch lap data stored before per-lap positions were kept",
+    )
     return parser.parse_args()
 
 
@@ -172,7 +177,7 @@ if __name__ == "__main__":
 
     # 2. Run the load
     try:
-        run_full_load(targets, year_range=year_range)
+        run_full_load(targets, year_range=year_range, refresh_positions=args.refresh_positions)
     except (InterruptedError, KeyboardInterrupt):
         logger.warning("Seed interrupted by user")
 
