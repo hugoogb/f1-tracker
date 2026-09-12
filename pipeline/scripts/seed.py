@@ -13,6 +13,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.ingestion.base import set_interrupted  # noqa: E402
+from src.ingestion.fastf1_sessions import configure_logging  # noqa: E402
 from src.ingestion.full_load import run_full_load  # noqa: E402
 
 logger = logging.getLogger(__name__)
@@ -148,7 +149,7 @@ if __name__ == "__main__":
         format="%(asctime)s %(levelname)-5s %(message)s",
         datefmt="%H:%M:%S",
     )
-    logging.getLogger("fastf1").setLevel(logging.WARNING)
+    configure_logging()
 
     args = parse_args()
     signal.signal(signal.SIGTERM, _handle_signal)
