@@ -259,6 +259,9 @@ class LapTime(Base):
     race_id: Mapped[str] = mapped_column(ForeignKey("races.id"), index=True)
     driver_id: Mapped[str] = mapped_column(ForeignKey("drivers.id"), index=True)
     lap_number: Mapped[int] = mapped_column(Integer)
+    # Fast-F1's own position at the end of the lap. NULL for races ingested
+    # before it was stored, which is what the positions endpoint falls back on.
+    position: Mapped[int | None] = mapped_column(Integer)
     time_millis: Mapped[int | None] = mapped_column(BigInteger)
     sector1_ms: Mapped[int | None] = mapped_column(BigInteger)
     sector2_ms: Mapped[int | None] = mapped_column(BigInteger)

@@ -310,7 +310,10 @@ export interface DriverPositions {
 
 export interface PositionsResponse {
   raceId: string
+  /** The race's real distance, from the results — the chart's x-axis. */
   totalLaps: number
+  /** How far the reconstruction from lap times actually got. */
+  coveredLaps: number
   drivers: DriverPositions[]
 }
 

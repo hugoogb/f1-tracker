@@ -1,31 +1,21 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Search, User, Building2, MapPin } from 'lucide-react'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { API_BASE_URL, SEARCH_DEBOUNCE_MS, SEARCH_MIN_LENGTH } from '@/lib/constants'
-
-interface SearchResults {
-  drivers: {
-    ref: string
-    firstName: string
-    lastName: string
-    code: string | null
-    nationality: string | null
-  }[]
-  constructors: { ref: string; name: string; nationality: string | null }[]
-  circuits: { ref: string; name: string; location: string | null; country: string | null }[]
-}
+import { SEARCH_MIN_LENGTH } from '@/lib/constants'
+import { useSearch } from '@/lib/use-search'
 
 export function CommandSearch() {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
-  const [results, setResults] = useState<SearchResults | null>(null)
   const [activeIndex, setActiveIndex] = useState(0)
   const router = useRouter()
   const inputRef = useRef<HTMLInputElement>(null)
+
+  const { results, failed } = useSearch(query)
 
   // Keyboard shortcut: Cmd+K / Ctrl+K
   useEffect(() => {
@@ -39,28 +29,16 @@ export function CommandSearch() {
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [])
 
-  const search = useCallback(async (q: string) => {
-    if (q.length < SEARCH_MIN_LENGTH) {
-      setResults(null)
-      return
-    }
-    try {
-      const res = await fetch(`${API_BASE_URL}/search?q=${encodeURIComponent(q)}`)
-      const data = await res.json()
-      setResults(data)
-      setActiveIndex(0)
-    } catch {
-      setResults(null)
-    }
-  }, [])
-
-  useEffect(() => {
-    const timer = setTimeout(() => search(query), SEARCH_DEBOUNCE_MS)
-    return () => clearTimeout(timer)
-  }, [query, search])
+  // A new query starts the highlight back at the top. Adjusting during render
+  // rather than in an effect: React re-renders before painting, so the reset is
+  // never visible, and an effect here would be a second render for nothing.
+  const [highlightedFor, setHighlightedFor] = useState(query)
+  if (highlightedFor !== query) {
+    setHighlightedFor(query)
+    setActiveIndex(0)
+  }
 
   function getAllItems() {
-    if (!results) return []
     const items: { type: string; label: string; sublabel?: string; href: string }[] = []
     results.drivers.forEach((d) =>
       items.push({
@@ -92,7 +70,6 @@ export function CommandSearch() {
   function navigate(href: string) {
     setOpen(false)
     setQuery('')
-    setResults(null)
     router.push(href)
   }
 
@@ -201,7 +178,13 @@ export function CommandSearch() {
             </div>
           )}
 
-          {query.length >= SEARCH_MIN_LENGTH && groups.length === 0 && results && (
+          {query.length >= SEARCH_MIN_LENGTH && failed && (
+            <div className="text-muted-foreground py-8 text-center text-sm">
+              Search is unavailable right now. Try again in a moment.
+            </div>
+          )}
+
+          {query.length >= SEARCH_MIN_LENGTH && !failed && groups.length === 0 && (
             <div className="text-muted-foreground py-8 text-center text-sm">No results found.</div>
           )}
 

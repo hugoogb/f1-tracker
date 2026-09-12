@@ -15,7 +15,10 @@ import type { DriverPositions } from '@/lib/types'
 
 interface PositionChartProps {
   drivers: DriverPositions[]
+  /** The race distance — the x-axis, regardless of how far the data reaches. */
   totalLaps: number
+  /** How many laps the reconstruction covers; short of `totalLaps` when timing is patchy. */
+  coveredLaps?: number
 }
 
 function getDriverColor(driver: DriverPositions): string {
@@ -65,7 +68,7 @@ function CustomTooltip({
   )
 }
 
-export function PositionChart({ drivers, totalLaps }: PositionChartProps) {
+export function PositionChart({ drivers, totalLaps, coveredLaps }: PositionChartProps) {
   const [enabledDrivers, setEnabledDrivers] = useState<Set<string>>(() => {
     return new Set(drivers.slice(0, 5).map((d) => d.driver.ref))
   })
@@ -104,8 +107,18 @@ export function PositionChart({ drivers, totalLaps }: PositionChartProps) {
 
   const maxPosition = Math.max(...drivers.flatMap((d) => d.positions.map((p) => p.position)), 20)
 
+  // Positions are derived from cumulative lap times, so a driver's line ends at
+  // their first lap with no time and no sector times to stand in for it.
+  const short = coveredLaps !== undefined && coveredLaps > 0 && coveredLaps < totalLaps
+
   return (
     <div className="space-y-4">
+      {short && (
+        <p className="text-muted-foreground text-xs">
+          Positions are reconstructed from lap times, and the timing data for this race runs out
+          after lap {coveredLaps} of {totalLaps}.
+        </p>
+      )}
       {/* Driver toggles */}
       <div className="flex flex-wrap gap-2">
         {drivers.map((d) => {
