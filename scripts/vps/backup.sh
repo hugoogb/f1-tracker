@@ -17,6 +17,13 @@
 # client), so it runs from a throwaway postgres container on the shared network
 # — the same network that makes the hostname in DIRECT_URL resolve.
 #
+# Which postgres image is not a constant: pg_dump refuses outright to dump a
+# server newer than itself ("aborting because of server version mismatch"), and
+# the platform's shared cluster is upgraded on its own schedule, not this repo's.
+# So the server is asked its version first — psql, unlike pg_dump, talks to any
+# of them — and pg_dump then runs from the image matching that major. A platform
+# upgrade changes which image is pulled, not this script.
+#
 # The deploy copies this to /srv/apps/f1_api/backup.sh on every run, so it needs
 # no repo checkout on the server.
 #
@@ -27,7 +34,8 @@
 #   ssh hugo@vps '/srv/apps/f1_api/backup.sh' > docker/backups/latest.sql.gz
 #
 # Env:
-#   PG_IMAGE        client image to run pg_dump from (default: postgres:16-alpine)
+#   PG_IMAGE        pin the client image instead of matching the server
+#   PG_PROBE_IMAGE  image used to ask the server its version (default: postgres:alpine)
 #   SHARED_NETWORK  the network PostgreSQL is on (default: data)
 set -euo pipefail
 
@@ -59,27 +67,53 @@ if [ -z "$DUMP_URL" ]; then
   exit 1
 fi
 
-PG_IMAGE="${PG_IMAGE:-postgres:16-alpine}"
 SHARED_NETWORK="${SHARED_NETWORK:-$(env_value SHARED_NETWORK)}"
 SHARED_NETWORK="${SHARED_NETWORK:-data}"
+PG_PROBE_IMAGE="${PG_PROBE_IMAGE:-postgres:alpine}"
+
+# Run a postgres client image against the database. The URL travels as an
+# environment variable rather than an argument so the password stays out of the
+# box's process list, and </dev/null keeps `docker run` from eating the rest of
+# this script when it arrives on an SSH session's stdin.
+pg_client() {
+  local image="$1"
+  shift
+  docker run --rm -i \
+    --network "$SHARED_NETWORK" \
+    -e PGCONNECT_TIMEOUT=30 \
+    -e DUMP_URL="$DUMP_URL" \
+    "$image" \
+    sh -c "$1" \
+    </dev/null
+}
+
+if [ -n "${PG_IMAGE:-}" ]; then
+  say "==> Using pinned client image $PG_IMAGE."
+else
+  say "==> Asking the server which PostgreSQL version it is..."
+  # server_version_num is 170006 for 17.6 — integer division gives the major.
+  # psql is used rather than pg_dump precisely because it does not care that the
+  # server is newer than the client.
+  # `|| true`: a probe that cannot run at all must reach the explanation below,
+  # not abort the script through `set -e` with only docker's error on screen.
+  version_num="$(pg_client "$PG_PROBE_IMAGE" \
+    'exec psql --dbname="$DUMP_URL" -At -c "SHOW server_version_num"' | tr -dc '0-9' || true)"
+  if [ -z "$version_num" ]; then
+    say "Error: could not read the server version — cannot pick a matching pg_dump."
+    say "  Pin one yourself if the probe cannot run here: PG_IMAGE=postgres:17-alpine $0"
+    exit 1
+  fi
+  PG_IMAGE="postgres:$((version_num / 10000))-alpine"
+  say "    Server reports $version_num, so dumping with $PG_IMAGE."
+fi
 
 say "==> Dumping the f1_api database via $PG_IMAGE on network $SHARED_NETWORK..."
 
-# The URL is passed as an environment variable rather than an argument so the
-# password does not show up in the box's process list. --clean --if-exists makes
-# the dump loadable over an existing database; --no-owner --no-privileges makes
-# it loadable as a different role, which is what a developer's container is.
-#
-# </dev/null: this script is often fed to a shell over SSH rather than executed
-# from disk, and `docker run` attaches stdin — without it, it would eat the rest
-# of the script.
-docker run --rm -i \
-  --network "$SHARED_NETWORK" \
-  -e PGCONNECT_TIMEOUT=30 \
-  -e DUMP_URL="$DUMP_URL" \
-  "$PG_IMAGE" \
-  sh -c 'exec pg_dump --dbname="$DUMP_URL" --format=plain --no-owner --no-privileges --clean --if-exists' \
-  </dev/null \
+# --clean --if-exists makes the dump loadable over an existing database;
+# --no-owner --no-privileges makes it loadable as a different role, which is
+# what a developer's container is.
+pg_client "$PG_IMAGE" \
+  'exec pg_dump --dbname="$DUMP_URL" --format=plain --no-owner --no-privileges --clean --if-exists' \
   | gzip -9
 
 say "==> Dump complete."

@@ -293,9 +293,18 @@ stamp and the materialized views.
 `--remote` runs `/srv/apps/f1_api/backup.sh` on the box over Tailscale SSH and
 streams the dump back into `docker/backups/`. It reads `VPS_HOST` from `.env`,
 the same key `pnpm fastf1` uses. On the server the dump runs from a throwaway
-`postgres:16-alpine` container on the shared network, against `DIRECT_URL` —
+throwaway postgres container on the shared network, against `DIRECT_URL` —
 the app image carries Python, not the PostgreSQL client, and a dump has no
 business going through PgBouncer's transaction pooling.
+
+**Versions have to match.** `pg_dump` refuses outright to dump a server newer
+than itself, and the platform upgrades its cluster on its own schedule — so
+`backup.sh` asks the server its version (`SHOW server_version_num`, via `psql`,
+which does not mind the gap) and pulls the matching `postgres:<major>-alpine`.
+Pin `PG_IMAGE` to override. In the other direction a dump is only guaranteed to
+load into a server of the same or a later version, which is why
+`docker/docker-compose.yml` and the CI service container track the same major as
+the VPS: a 17 dump fails on a 16 server at `SET transaction_timeout`.
 
 **Why production is the one to dump.** Fast-F1 payloads are imported straight
 into production, so `lap_times` and the qualifying sector columns exist nowhere
@@ -473,7 +482,7 @@ use the payload path above rather than restoring a local dump over it.
 
 **Frontend**: `pnpm audit` (non-blocking) → `format:check` → `lint` → `typecheck` → `build`.
 
-**Backend** (with a PostgreSQL 16 service container): `ruff check` → `ruff format
+**Backend** (with a PostgreSQL 17 service container): `ruff check` → `ruff format
 --check` → `pip-audit` (non-blocking) → `pytest`.
 
 **Backend image**: builds `pipeline/Dockerfile` and smoke-tests it, so a broken

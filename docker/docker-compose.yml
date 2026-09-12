@@ -10,7 +10,12 @@ name: ${STACK_NAME:-f1-tracker}
 
 services:
   db:
-    image: postgres:16-alpine
+    # Matches the major version of the platform's shared PostgreSQL on the VPS.
+    # Not cosmetic: a dump is only guaranteed to load into a server of the same
+    # or a later version, and docker/backups/latest.sql.gz is taken from
+    # production — a 17 dump meets syntax a 16 server rejects outright
+    # (`SET transaction_timeout`, new in 17). Bump this when the platform does.
+    image: postgres:17-alpine
     container_name: ${STACK_NAME:-f1-tracker}-db
     restart: unless-stopped
     labels:

@@ -51,7 +51,8 @@ jobs:
 
     services:
       postgres:
-        image: postgres:16
+        # Same major as the local dev container and the VPS's shared cluster.
+        image: postgres:17
         env:
           POSTGRES_USER: f1tracker
           POSTGRES_PASSWORD: f1tracker_dev
