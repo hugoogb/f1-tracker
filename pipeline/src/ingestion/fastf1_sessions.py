@@ -58,6 +58,48 @@ PROBE_URLS = (
 )
 
 
+class _RecoveredRequestFilter(logging.Filter):
+    """Strips the stack trace from cache-fallback warnings.
+
+    When a request fails and `requests_cache` has a usable stale entry, it warns
+    *and attaches the exception* — so a source Fast-F1 could not reach prints
+    forty lines of traceback even though nothing went wrong. Over a few hundred
+    sessions that buries the actual progress log. The message itself is kept:
+    it names the URL that is unreachable, which is worth knowing.
+    """
+
+    RECOVERED = "using cached response"
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        if record.exc_info and self.RECOVERED in record.getMessage():
+            record.exc_info = None
+            record.exc_text = None
+        return True
+
+
+def configure_logging(level: int = logging.WARNING) -> None:
+    """Make a long Fast-F1 run readable. Call after `logging.basicConfig`.
+
+    Three separate sources of noise, none of them ours:
+
+    * `requests_cache` logs a full traceback whenever it falls back to the
+      cache. The filter goes on the root *handler*, not on a logger — a logger's
+      filters do not apply to records propagating up from its children, and
+      these come from `requests_cache.session`.
+    * Fast-F1 installs its own console handler, so every one of its messages is
+      printed twice: once in its format and once in ours. Dropping its handler
+      leaves propagation to deliver a single copy with our timestamps.
+    * Fast-F1 is chatty at INFO.
+    """
+    fastf1_logger = logging.getLogger("fastf1")
+    fastf1_logger.setLevel(level)
+    fastf1_logger.handlers.clear()
+
+    for handler in logging.getLogger().handlers:
+        if not any(isinstance(f, _RecoveredRequestFilter) for f in handler.filters):
+            handler.addFilter(_RecoveredRequestFilter())
+
+
 _cache_enabled = False
 
 

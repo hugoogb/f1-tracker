@@ -46,6 +46,7 @@ from src.ingestion.fastf1_sessions import (  # noqa: E402
     EMPTY_STREAK_LIMIT,
     PROBE_URLS,
     THROTTLE_DELAY,
+    configure_logging,
     enable_cache,
     fetch_qualifying_bests,
     fetch_race_laps,
@@ -302,7 +303,7 @@ def main() -> int:
         datefmt="%H:%M:%S",
         stream=sys.stderr,
     )
-    logging.getLogger("fastf1").setLevel(logging.WARNING)
+    configure_logging()
 
     args = parse_args()
 
