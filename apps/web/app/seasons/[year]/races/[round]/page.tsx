@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation'
-import { api } from '@/lib/api'
+import { api, isNotFound } from '@/lib/api'
 import type {
   Race,
   RaceResult,
@@ -27,6 +27,9 @@ import { TyreStrategyChart } from '@/components/races/tyre-strategy-chart'
 import { PositionChart } from '@/components/races/position-chart'
 import { RaceTabs } from './race-tabs'
 import { FadeIn } from '@/components/ui/motion'
+import { JsonLd } from '@/components/seo/json-ld'
+import { raceSchema } from '@/lib/structured-data'
+import { buildMetadata, SITE_DESCRIPTION } from '@/lib/seo'
 
 export const dynamic = 'force-dynamic'
 
@@ -59,18 +62,37 @@ export async function generateMetadata({
   const { year, round } = await params
   const yearNum = parseInt(year, 10)
   const roundNum = parseInt(round, 10)
+  const path = `/seasons/${year}/races/${round}`
 
-  if (isNaN(yearNum) || isNaN(roundNum)) return { title: 'Race | F1 Tracker' }
+  const fallback = () =>
+    buildMetadata({ title: 'Race', description: SITE_DESCRIPTION, path, noindex: true })
 
+  if (isNaN(yearNum) || isNaN(roundNum)) return fallback()
+
+  let race: RaceDetailResponse
   try {
-    const race = (await api.races.get(yearNum, roundNum)) as RaceDetailResponse
-    return {
-      title: `${race.name} ${year} | F1 Tracker`,
-      description: `Results and qualifying for the ${year} ${race.name} at ${race.circuit.name}.`,
-    }
+    race = (await api.races.get(yearNum, roundNum)) as RaceDetailResponse
   } catch {
-    return { title: 'Race | F1 Tracker' }
+    // The page itself decides between 404 and error; metadata must not throw.
+    return fallback()
   }
+
+  const winner = race.results.find((result) => result.position === 1)
+  const podium = race.results
+    .filter((result) => result.position !== null && result.position <= 3)
+    .sort((a, b) => (a.position ?? 99) - (b.position ?? 99))
+    .map((result) => `${result.driver.firstName} ${result.driver.lastName}`)
+
+  return buildMetadata({
+    title: `${race.name} ${year}`,
+    description:
+      `Full results for the ${year} ${race.name} at ${race.circuit.name}` +
+      (winner ? `, won by ${winner.driver.firstName} ${winner.driver.lastName}` : '') +
+      `${podium.length === 3 ? ` ahead of ${podium[1]} and ${podium[2]}` : ''}. ` +
+      'Qualifying, grid, pit stops and lap-by-lap analysis.',
+    path,
+    type: 'article',
+  })
 }
 
 export default async function RaceDetailPage({
@@ -84,7 +106,6 @@ export default async function RaceDetailPage({
 
   if (isNaN(year) || isNaN(round)) notFound()
 
-  let race: RaceDetailResponse
   let qualifying: QualifyingResponse | null = null
   let sprint: SprintResponse | null = null
   let pitStops: PitStopsResponse | null = null
@@ -92,61 +113,59 @@ export default async function RaceDetailPage({
   let positions: PositionsResponse | null = null
   let laps: LapsResponse | null = null
 
-  try {
-    const [
-      raceResult,
-      qualifyingResult,
-      sprintResult,
-      pitStopsResult,
-      pitStopAnalysisResult,
-      positionsResult,
-      lapsResult,
-    ] = await Promise.allSettled([
-      api.races.get(year, round) as Promise<RaceDetailResponse>,
-      api.races.qualifying(year, round) as Promise<QualifyingResponse>,
-      year >= 2021
-        ? (api.races.sprint(year, round) as Promise<SprintResponse>)
-        : Promise.reject('not applicable'),
-      year >= 2012
-        ? (api.races.pitStops(year, round) as Promise<PitStopsResponse>)
-        : Promise.reject('not applicable'),
-      year >= 2012
-        ? (api.races.pitStopAnalysis(year, round) as Promise<PitStopAnalysis>)
-        : Promise.reject('not applicable'),
-      year >= 2018
-        ? (api.races.positions(year, round) as Promise<PositionsResponse>)
-        : Promise.reject('not applicable'),
-      year >= 2018
-        ? (api.races.laps(year, round) as Promise<LapsResponse>)
-        : Promise.reject('not applicable'),
-    ])
+  const [
+    raceResult,
+    qualifyingResult,
+    sprintResult,
+    pitStopsResult,
+    pitStopAnalysisResult,
+    positionsResult,
+    lapsResult,
+  ] = await Promise.allSettled([
+    api.races.get(year, round) as Promise<RaceDetailResponse>,
+    api.races.qualifying(year, round) as Promise<QualifyingResponse>,
+    year >= 2021
+      ? (api.races.sprint(year, round) as Promise<SprintResponse>)
+      : Promise.reject('not applicable'),
+    year >= 2012
+      ? (api.races.pitStops(year, round) as Promise<PitStopsResponse>)
+      : Promise.reject('not applicable'),
+    year >= 2012
+      ? (api.races.pitStopAnalysis(year, round) as Promise<PitStopAnalysis>)
+      : Promise.reject('not applicable'),
+    year >= 2018
+      ? (api.races.positions(year, round) as Promise<PositionsResponse>)
+      : Promise.reject('not applicable'),
+    year >= 2018
+      ? (api.races.laps(year, round) as Promise<LapsResponse>)
+      : Promise.reject('not applicable'),
+  ])
 
-    if (raceResult.status === 'rejected') notFound()
-    race = raceResult.value
+  // A round that does not exist must answer 404 — but an API outage has to
+  // surface as an error rather than telling crawlers the race never happened.
+  if (raceResult.status === 'rejected') {
+    if (isNotFound(raceResult.reason)) notFound()
+    throw raceResult.reason
+  }
+  const race = raceResult.value
 
-    if (qualifyingResult.status === 'fulfilled') {
-      qualifying = qualifyingResult.value
-    }
-    if (sprintResult.status === 'fulfilled' && sprintResult.value.results?.length > 0) {
-      sprint = sprintResult.value
-    }
-    if (pitStopsResult.status === 'fulfilled' && pitStopsResult.value.pitStops?.length > 0) {
-      pitStops = pitStopsResult.value
-    }
-    if (
-      pitStopAnalysisResult.status === 'fulfilled' &&
-      pitStopAnalysisResult.value.totalStops > 0
-    ) {
-      pitStopAnalysis = pitStopAnalysisResult.value
-    }
-    if (positionsResult.status === 'fulfilled' && positionsResult.value.drivers?.length > 0) {
-      positions = positionsResult.value
-    }
-    if (lapsResult.status === 'fulfilled' && lapsResult.value.drivers?.length > 0) {
-      laps = lapsResult.value
-    }
-  } catch {
-    notFound()
+  if (qualifyingResult.status === 'fulfilled') {
+    qualifying = qualifyingResult.value
+  }
+  if (sprintResult.status === 'fulfilled' && sprintResult.value.results?.length > 0) {
+    sprint = sprintResult.value
+  }
+  if (pitStopsResult.status === 'fulfilled' && pitStopsResult.value.pitStops?.length > 0) {
+    pitStops = pitStopsResult.value
+  }
+  if (pitStopAnalysisResult.status === 'fulfilled' && pitStopAnalysisResult.value.totalStops > 0) {
+    pitStopAnalysis = pitStopAnalysisResult.value
+  }
+  if (positionsResult.status === 'fulfilled' && positionsResult.value.drivers?.length > 0) {
+    positions = positionsResult.value
+  }
+  if (lapsResult.status === 'fulfilled' && lapsResult.value.drivers?.length > 0) {
+    laps = lapsResult.value
   }
 
   const podium = race.results
@@ -155,6 +174,16 @@ export default async function RaceDetailPage({
 
   return (
     <div className="space-y-6">
+      <JsonLd
+        data={raceSchema({
+          name: `${year} ${race.name}`,
+          path: `/seasons/${year}/races/${round}`,
+          startDate: race.date,
+          circuitName: race.circuit.name,
+          locality: race.circuit.location,
+          country: race.circuit.country,
+        })}
+      />
       <Breadcrumbs
         items={[
           { label: 'Home', href: '/' },

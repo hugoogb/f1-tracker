@@ -1,6 +1,7 @@
 import Link from 'next/link'
+import { notFound } from 'next/navigation'
 import { Flag, Trophy, Medal, TrendingUp } from 'lucide-react'
-import { api } from '@/lib/api'
+import { api, isNotFound } from '@/lib/api'
 import type { Constructor, ConstructorSeasonSummary, Driver } from '@/lib/types'
 import { getTeamColor } from '@/lib/utils'
 import { CountryFlag } from '@/components/ui/country-flag'
@@ -11,6 +12,9 @@ import { StatCard } from '@/components/ui/stat-card'
 import { ConstructorSeasonHistoryTable } from '@/components/constructors/season-history-table'
 import { CareerPointsChart } from '@/components/charts/career-points-chart'
 import { FadeIn, StaggerList, StaggerItem, MotionCard } from '@/components/ui/motion'
+import { JsonLd } from '@/components/seo/json-ld'
+import { organizationSchema } from '@/lib/structured-data'
+import { buildMetadata, SITE_DESCRIPTION } from '@/lib/seo'
 
 export const dynamic = 'force-dynamic'
 
@@ -25,11 +29,29 @@ interface ConstructorDetail extends Constructor {
 
 export async function generateMetadata({ params }: { params: Promise<{ ref: string }> }) {
   const { ref } = await params
-  const constructor = (await api.constructors.get(ref)) as ConstructorDetail
-  return {
-    title: `${constructor.name} | F1 Tracker`,
-    description: `Career stats for ${constructor.name}`,
+  let constructor: ConstructorDetail
+  try {
+    constructor = (await api.constructors.get(ref)) as ConstructorDetail
+  } catch {
+    // The page itself decides between 404 and error; metadata must not throw.
+    // Streaming means the 404 body still ships with a 200, so noindex is what
+    // actually keeps a missing resource out of the index.
+    return buildMetadata({
+      title: 'Constructor',
+      description: SITE_DESCRIPTION,
+      path: `/constructors/${ref}`,
+      noindex: true,
+    })
   }
+
+  const { total_entries: entries, wins, podiums, total_points: points } = constructor.stats
+  return buildMetadata({
+    title: constructor.name,
+    description:
+      `${constructor.name}'s complete Formula 1 record: ${entries} race entries, ${wins} wins, ` +
+      `${podiums} podiums and ${points} championship points, season by season with the full driver roster.`,
+    path: `/constructors/${ref}`,
+  })
 }
 
 export default async function ConstructorDetailPage({
@@ -45,7 +67,12 @@ export default async function ConstructorDetailPage({
     api.constructors.roster(ref) as Promise<{ year: number | null; drivers: Driver[] }>,
   ])
 
-  if (constructorResult.status === 'rejected') throw new Error('Constructor not found')
+  // An unknown ref must answer 404, not 500 — but only when the API actually
+  // said the constructor is missing; an outage has to keep returning an error.
+  if (constructorResult.status === 'rejected') {
+    if (isNotFound(constructorResult.reason)) notFound()
+    throw constructorResult.reason
+  }
   const constructor = constructorResult.value
   const seasons = seasonsResult.status === 'fulfilled' ? seasonsResult.value.seasons : []
   const roster = rosterResult.status === 'fulfilled' ? rosterResult.value : null
@@ -54,6 +81,13 @@ export default async function ConstructorDetailPage({
 
   return (
     <div className="space-y-8">
+      <JsonLd
+        data={organizationSchema({
+          name: constructor.name,
+          path: `/constructors/${ref}`,
+          nationality: constructor.nationality,
+        })}
+      />
       <Breadcrumbs
         items={[
           { label: 'Home', href: '/' },

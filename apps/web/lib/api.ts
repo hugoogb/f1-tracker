@@ -1,5 +1,24 @@
 import { API_BASE_URL, REVALIDATE_SECONDS, F1_DATA_TAG } from './constants'
 
+/**
+ * Carries the upstream status so callers can tell "this driver does not exist"
+ * from "the API is down" — the first should render a 404, the second must not.
+ */
+export class ApiError extends Error {
+  constructor(
+    readonly status: number,
+    message: string,
+  ) {
+    super(message)
+    this.name = 'ApiError'
+  }
+}
+
+/** True when the API said the resource itself is missing. */
+export function isNotFound(error: unknown): boolean {
+  return error instanceof ApiError && error.status === 404
+}
+
 async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE_URL}${endpoint}`, {
     ...options,
@@ -11,7 +30,7 @@ async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> 
   })
 
   if (!res.ok) {
-    throw new Error(`API error: ${res.status} ${res.statusText}`)
+    throw new ApiError(res.status, `API error: ${res.status} ${res.statusText}`)
   }
 
   return res.json() as Promise<T>

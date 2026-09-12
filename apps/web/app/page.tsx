@@ -19,13 +19,17 @@ import { DriverStandingsTable } from '@/components/standings/driver-standings-ta
 import { ConstructorStandingsTable } from '@/components/standings/constructor-standings-table'
 import { FadeIn, StaggerList, StaggerItem, HeroGlow } from '@/components/ui/motion'
 import { NextRaceCountdown } from '@/components/ui/next-race-countdown'
+import type { Metadata } from 'next'
+import { SITE_DESCRIPTION, SITE_NAME, absoluteUrl } from '@/lib/seo'
 
 export const dynamic = 'force-dynamic'
 
-export const metadata = {
-  title: 'F1 Tracker',
-  description:
-    'Explore the complete history of Formula 1 with interactive analytics, standings, and race results from 1950 to today',
+export const metadata: Metadata = {
+  // `absolute` opts out of the root layout's `%s | F1 Tracker` template, which
+  // would otherwise render as "F1 Tracker | F1 Tracker".
+  title: { absolute: `${SITE_NAME} — Formula 1 history, stats and analytics` },
+  description: SITE_DESCRIPTION,
+  alternates: { canonical: absoluteUrl('/') },
 }
 
 export default async function Home() {

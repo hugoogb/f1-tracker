@@ -7,13 +7,16 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { ChampionsTabs } from './champions-tabs'
 import { FadeIn, StaggerList, StaggerItem } from '@/components/ui/motion'
+import { buildMetadata } from '@/lib/seo'
 
 export const dynamic = 'force-dynamic'
 
-export const metadata = {
-  title: 'Champions | F1 Tracker',
-  description: 'Formula 1 World Champions throughout history',
-}
+export const metadata = buildMetadata({
+  title: 'Champions',
+  description:
+    "Every Formula 1 World Drivers' and Constructors' Champion since 1950, season by season, with points and title counts.",
+  path: '/champions',
+})
 
 function groupByDecade<T extends { year: number }>(items: T[]) {
   const groups: Record<string, T[]> = {}

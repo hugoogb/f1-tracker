@@ -12,6 +12,7 @@ import { DriverRadarChart } from '@/components/charts/driver-radar-chart'
 import { HeadToHeadCard } from '@/components/compare/head-to-head-card'
 import { CareerStatsTable } from '@/components/compare/career-stats-table'
 import { FadeIn } from '@/components/ui/motion'
+import { buildMetadata } from '@/lib/seo'
 
 export const dynamic = 'force-dynamic'
 
@@ -48,16 +49,30 @@ export async function generateMetadata({
   searchParams: Promise<{ d1?: string; d2?: string }>
 }) {
   const params = await searchParams
-  if (!params.d1 || !params.d2) return { title: 'Compare Drivers | F1 Tracker' }
+
+  // Every pairing of ~900 drivers is its own URL, so the results are kept out
+  // of the index and `/compare` is the canonical entry point for them.
+  const seo = (title: string, description: string) =>
+    buildMetadata({ title, description, path: '/compare', noindex: true })
+
+  const generic = () =>
+    seo(
+      'Compare Drivers',
+      'Compare any two Formula 1 drivers head-to-head — wins, poles, podiums, championships, teammate seasons and points by season.',
+    )
+
+  if (!params.d1 || !params.d2) return generic()
 
   try {
     const data = (await api.compare.drivers(params.d1, params.d2)) as CompareResponse
-    return {
-      title: `${data.driver1.lastName} vs ${data.driver2.lastName} | F1 Tracker`,
-      description: `Head-to-head comparison of ${data.driver1.firstName} ${data.driver1.lastName} and ${data.driver2.firstName} ${data.driver2.lastName}`,
-    }
+    const one = `${data.driver1.firstName} ${data.driver1.lastName}`
+    const two = `${data.driver2.firstName} ${data.driver2.lastName}`
+    return seo(
+      `${data.driver1.lastName} vs ${data.driver2.lastName}`,
+      `${one} against ${two}: race and qualifying head-to-head, career wins, poles, podiums and championships, side by side.`,
+    )
   } catch {
-    return { title: 'Compare Drivers | F1 Tracker' }
+    return generic()
   }
 }
 

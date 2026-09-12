@@ -42,6 +42,12 @@ Deployment: frontend on Vercel; the API runs as a Docker container (`f1_api`) on
 | `/compare/constructors` | Side-by-side constructor comparison |
 | `/attributions` | Data sources, licences, trademark notice (compliance) |
 
+Metadata routes (Next file conventions, all under `apps/web/app/`): `sitemap.ts`
+(static routes + every season, driver, constructor, circuit and race, rebuilt
+daily and on the `f1-data` tag purge), `robots.ts`, `manifest.ts`,
+`opengraph-image.tsx` + `twitter-image.tsx` (1200x630 card via `next/og`),
+`icon.svg`, `favicon.ico`, `apple-icon.png`.
+
 ### Frontend Components
 
 - `components/ui/` - shadcn/ui base components (badge, button, card, table, tabs, sheet, dialog, dropdown-menu, country-flag, driver-avatar, constructor-logo, empty-state, motion, page-header, position-badge, sonner, stat-card, next-race-countdown)
@@ -54,6 +60,7 @@ Deployment: frontend on Vercel; the API runs as a Docker container (`f1_api`) on
 - `components/circuits/` - Track layout, world map, world map wrapper
 - `components/compare/` - Driver select, constructor select, head-to-head-card, career-stats-table
 - `components/providers/` - Theme provider
+- `components/seo/` - `json-ld.tsx` (renders a schema.org graph into a `<script type="application/ld+json">`)
 - Root: pagination, list-filter, error-boundary
 
 ### Backend Endpoints
@@ -151,6 +158,18 @@ Deployment: frontend on Vercel; the API runs as a Docker container (`f1_api`) on
 - Next.js frontend calls FastAPI at `NEXT_PUBLIC_API_URL` (default: http://localhost:8000/api)
 - Dark-mode-first UI with F1 team colors
 - Use `Promise.allSettled` for optional data fetching (graceful degradation)
+- Page metadata goes through `buildMetadata()` in `lib/seo.ts` — it fills in the
+  canonical URL, Open Graph and Twitter cards from one title/description, and
+  the root layout's `%s | F1 Tracker` template appends the suffix, so a page
+  title must never carry it itself
+- `NEXT_PUBLIC_SITE_URL` is the canonical origin behind every canonical tag,
+  Open Graph URL and sitemap entry; nothing else should hardcode the host
+- `fetchApi` throws `ApiError` with the upstream status. Detail pages call
+  `notFound()` only when `isNotFound(reason)` and rethrow otherwise, so an API
+  outage never tells a crawler the resource does not exist
+- Icons are generated from `app/icon.svg`; regenerating `favicon.ico`,
+  `apple-icon.png` and the `public/icon-*.png` set means re-rendering from it
+  rather than editing the binaries
 - Client components (`'use client'`) only for interactive pieces (charts, filters, tabs, search)
 - Pre-commit: Husky runs lint-staged (prettier) + ruff check/format on staged `.py` files
 - CI: GitHub Actions `ci.yml` — frontend (audit, format, lint, typecheck, build) + backend (ruff, pip-audit, pytest) + backend image (docker build + smoke test)

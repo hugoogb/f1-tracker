@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { api } from '@/lib/api'
+import { api, isNotFound } from '@/lib/api'
 import type {
   Race,
   DriverStanding,
@@ -29,6 +29,7 @@ import { ChampionshipProgressionChart } from '@/components/charts/championship-p
 import { SeasonHeatmap } from '@/components/charts/season-heatmap'
 import { SeasonTabs } from './season-tabs'
 import { FadeIn } from '@/components/ui/motion'
+import { buildMetadata } from '@/lib/seo'
 
 export const dynamic = 'force-dynamic'
 
@@ -49,10 +50,13 @@ interface ConstructorStandingsResponse {
 
 export async function generateMetadata({ params }: { params: Promise<{ year: string }> }) {
   const { year } = await params
-  return {
-    title: `${year} Season | F1 Tracker`,
-    description: `Races, driver standings, and constructor standings for the ${year} Formula 1 season.`,
-  }
+  return buildMetadata({
+    title: `${year} F1 Season`,
+    description:
+      `The ${year} Formula 1 season: full race calendar and results, final driver and constructor ` +
+      'standings, round-by-round championship progression and a season results heatmap.',
+    path: `/seasons/${year}`,
+  })
 }
 
 export default async function SeasonDetailPage({ params }: { params: Promise<{ year: string }> }) {
@@ -77,7 +81,12 @@ export default async function SeasonDetailPage({ params }: { params: Promise<{ y
     api.seasons.heatmap(year) as Promise<SeasonHeatmapResponse>,
   ])
 
-  if (season.status === 'rejected') notFound()
+  // A year with no data must answer 404 — but an API outage has to surface as
+  // an error rather than telling crawlers the season does not exist.
+  if (season.status === 'rejected') {
+    if (isNotFound(season.reason)) notFound()
+    throw season.reason
+  }
 
   const seasonData = season.value
   const driverStandingsData =

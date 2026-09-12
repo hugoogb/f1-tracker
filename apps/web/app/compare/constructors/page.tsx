@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
 import { ComparisonChart } from '@/components/charts/comparison-chart'
 import { FadeIn } from '@/components/ui/motion'
+import { buildMetadata } from '@/lib/seo'
 
 export const dynamic = 'force-dynamic'
 
@@ -36,19 +37,31 @@ export async function generateMetadata({
   searchParams: Promise<{ c1?: string; c2?: string }>
 }) {
   const params = await searchParams
-  if (!params.c1 || !params.c2) return { title: 'Compare Constructors | F1 Tracker' }
+
+  // Every pairing is its own URL, so the results are kept out of the index and
+  // `/compare` is the canonical entry point for them.
+  const seo = (title: string, description: string) =>
+    buildMetadata({ title, description, path: '/compare', noindex: true })
+
+  const generic = () =>
+    seo(
+      'Compare Constructors',
+      'Compare any two Formula 1 constructors head-to-head — race entries, wins, podiums, points and season-by-season form.',
+    )
+
+  if (!params.c1 || !params.c2) return generic()
 
   try {
     const data = (await api.compare.constructors(
       params.c1,
       params.c2,
     )) as CompareConstructorsResponse
-    return {
-      title: `${data.constructor1.name} vs ${data.constructor2.name} | F1 Tracker`,
-      description: `Head-to-head comparison of ${data.constructor1.name} and ${data.constructor2.name}`,
-    }
+    return seo(
+      `${data.constructor1.name} vs ${data.constructor2.name}`,
+      `${data.constructor1.name} against ${data.constructor2.name}: head-to-head race record, wins, podiums and points across every season they shared.`,
+    )
   } catch {
-    return { title: 'Compare Constructors | F1 Tracker' }
+    return generic()
   }
 }
 
