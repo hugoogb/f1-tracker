@@ -32,6 +32,21 @@ def races_with_lap_times(db: Session) -> set[str]:
     return set(db.execute(select(LapTime.race_id).group_by(LapTime.race_id)).scalars().all())
 
 
+def races_with_lap_positions(db: Session) -> set[str]:
+    """Ids of races whose lap rows carry Fast-F1's per-lap position.
+
+    Races ingested before the position was stored have lap times but no
+    positions, and only a re-fetch of the session can fill them in.
+    """
+    return set(
+        db.execute(
+            select(LapTime.race_id).where(LapTime.position.isnot(None)).group_by(LapTime.race_id)
+        )
+        .scalars()
+        .all()
+    )
+
+
 def write_lap_rows(
     db: Session,
     race_id: str,
@@ -60,6 +75,7 @@ def write_lap_rows(
                 race_id=race_id,
                 driver_id=driver_id,
                 lap_number=lap_num,
+                position=row.get("position"),
                 time_millis=row.get("time_millis"),
                 sector1_ms=row.get("sector1_ms"),
                 sector2_ms=row.get("sector2_ms"),

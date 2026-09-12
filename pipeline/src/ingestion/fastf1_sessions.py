@@ -235,10 +235,15 @@ def extract_race_laps(session) -> list[dict]:
         stint = clean(row.get("Stint"))
         tyre_life = clean(row.get("TyreLife"))
         compound = clean(row.get("Compound"))
+        # Fast-F1 reports the driver's position at the end of the lap. Taking it
+        # verbatim beats deriving one from cumulative lap times, which any gap
+        # in the timing data breaks.
+        position = clean(row.get("Position"))
         rows.append(
             {
                 "driver": str(driver),
                 "lap_number": int(lap_num),
+                "position": int(position) if position is not None else None,
                 "time_millis": timedelta_to_ms(row.get("LapTime")),
                 "sector1_ms": timedelta_to_ms(row.get("Sector1Time")),
                 "sector2_ms": timedelta_to_ms(row.get("Sector2Time")),
