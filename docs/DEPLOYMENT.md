@@ -77,6 +77,7 @@ Two files, one per environment. Neither is committed.
 | `FASTF1_CACHE_DIR`    | `.fastf1_cache`                                                 | Fast-F1 session cache directory                 |
 | `VPS_HOST`            | —                                                               | Server address for `pnpm fastf1` (local only)   |
 | `NEXT_PUBLIC_API_URL` | `http://localhost:8000/api`                                     | Backend URL, baked into the bundle at build time |
+| `NEXT_PUBLIC_SITE_URL` | `https://f1-tracker-web.vercel.app`                            | Canonical public origin (no trailing slash) behind every canonical URL, Open Graph tag and sitemap entry |
 | `REVALIDATE_URL` / `REVALIDATE_SECRET` | —                                              | Frontend cache purge after ingest               |
 
 ### `/srv/apps/f1_api/.env` (VPS — template: `docker/.env.prod.example`)
@@ -204,6 +205,17 @@ Set `NEXT_PUBLIC_API_URL` to `https://<api-host>/api` in the Vercel project and
 redeploy — it is baked into the bundle at build time. Add that Vercel origin to
 `CORS_ORIGINS` on the VPS.
 
+Set `NEXT_PUBLIC_SITE_URL` to the site's own public origin (no trailing slash)
+in the same place. It is what `rel=canonical`, the Open Graph tags, the sitemap
+and `robots.txt` advertise, so on a custom domain it has to be that domain and
+not the `*.vercel.app` default — otherwise every page tells Google its canonical
+lives somewhere else. Preview deployments inherit it too, which is what keeps
+them from competing with production in the index.
+
+After the first deploy on a new domain, submit `https://<domain>/sitemap.xml`
+in Google Search Console — the sitemap is generated from the API, so it also
+serves as a check that the frontend can reach the backend.
+
 ### 5. Verify
 
 ```bash
@@ -263,6 +275,8 @@ Set on all routes in `apps/web/next.config.ts`:
 - [ ] `FASTAPI_DEBUG=false`
 - [ ] `DIRECT_URL` present, so migrations do not run through PgBouncer
 - [ ] `NEXT_PUBLIC_API_URL` set on Vercel and the frontend redeployed
+- [ ] `NEXT_PUBLIC_SITE_URL` set on Vercel to the canonical public origin, and
+      `/robots.txt`, `/sitemap.xml` and the `og:url` tags all show that host
 - [ ] HTTPS configured at Caddy
 - [ ] The platform's PostgreSQL backups cover the `f1_api` database, and a
       restore has been rehearsed at least once

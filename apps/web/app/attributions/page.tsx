@@ -1,12 +1,14 @@
 import { PageHeader } from '@/components/ui/page-header'
 import { Card, CardContent } from '@/components/ui/card'
 import { FadeIn } from '@/components/ui/motion'
+import { buildMetadata } from '@/lib/seo'
 
-export const metadata = {
+export const metadata = buildMetadata({
   title: 'Attributions',
   description:
     'Data sources, licences and trademark notices for F1 Tracker — an unofficial, non-commercial Formula 1 fan project.',
-}
+  path: '/attributions',
+})
 
 interface SourceEntry {
   name: string

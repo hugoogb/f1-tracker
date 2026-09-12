@@ -10,7 +10,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
-import { getTeamColor } from '@/lib/utils'
+import { teamColorOf } from '@/lib/utils'
 import type { DriverPositions } from '@/lib/types'
 
 interface PositionChartProps {
@@ -19,7 +19,7 @@ interface PositionChartProps {
 }
 
 function getDriverColor(driver: DriverPositions): string {
-  return getTeamColor(driver.constructor.ref, driver.constructor.color)!
+  return teamColorOf(driver.constructor.color)!
 }
 
 function CustomTooltip({

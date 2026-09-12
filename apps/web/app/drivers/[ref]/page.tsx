@@ -1,8 +1,9 @@
 import Link from 'next/link'
+import { notFound } from 'next/navigation'
 import { Flag, Trophy, Medal, TrendingUp, GitCompareArrows, Timer, Zap, Award } from 'lucide-react'
-import { api } from '@/lib/api'
+import { api, isNotFound } from '@/lib/api'
 import type { Driver, DriverSeasonSummary, DriverPaceResponse } from '@/lib/types'
-import { getTeamColor } from '@/lib/utils'
+import { teamColorOf } from '@/lib/utils'
 import { CountryFlag } from '@/components/ui/country-flag'
 import { DriverAvatar } from '@/components/ui/driver-avatar'
 import { Breadcrumbs } from '@/components/layout/breadcrumbs'
@@ -12,6 +13,10 @@ import { SeasonHistoryTable } from '@/components/drivers/season-history-table'
 import { CareerPointsChart } from '@/components/charts/career-points-chart'
 import { QualiVsRaceChart } from '@/components/charts/quali-vs-race-chart'
 import { FadeIn, StaggerList, StaggerItem } from '@/components/ui/motion'
+import { JsonLd } from '@/components/seo/json-ld'
+import { personSchema } from '@/lib/structured-data'
+import { buildMetadata, SITE_DESCRIPTION } from '@/lib/seo'
+import { LocalDate } from '@/components/ui/local-date'
 
 export const dynamic = 'force-dynamic'
 
@@ -29,11 +34,34 @@ interface DriverDetail extends Driver {
 
 export async function generateMetadata({ params }: { params: Promise<{ ref: string }> }) {
   const { ref } = await params
-  const driver = (await api.drivers.get(ref)) as DriverDetail
-  return {
-    title: `${driver.firstName} ${driver.lastName} | F1 Tracker`,
-    description: `Career stats for ${driver.firstName} ${driver.lastName}`,
+  let driver: DriverDetail
+  try {
+    driver = (await api.drivers.get(ref)) as DriverDetail
+  } catch {
+    // The page itself decides between 404 and error; metadata must not throw.
+    // Streaming means the 404 body still ships with a 200, so noindex is what
+    // actually keeps a missing resource out of the index.
+    return buildMetadata({
+      title: 'Driver',
+      description: SITE_DESCRIPTION,
+      path: `/drivers/${ref}`,
+      noindex: true,
+    })
   }
+
+  const name = `${driver.firstName} ${driver.lastName}`
+  const { wins, poles, podiums, championships, total_races: races } = driver.stats
+  const titles =
+    championships === 1 ? '1 world championship' : `${championships} world championships`
+
+  return buildMetadata({
+    title: name,
+    description:
+      `${name}'s complete Formula 1 career: ${races} race starts, ${wins} wins, ${poles} poles, ` +
+      `${podiums} podiums and ${titles}, with points by season and qualifying vs race pace.`,
+    path: `/drivers/${ref}`,
+    type: 'profile',
+  })
 }
 
 export default async function DriverDetailPage({ params }: { params: Promise<{ ref: string }> }) {
@@ -45,18 +73,30 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ r
     api.drivers.pace(ref) as Promise<DriverPaceResponse>,
   ])
 
-  if (driver.status === 'rejected') throw new Error('Driver not found')
+  // An unknown ref must answer 404, not 500 — but only when the API actually
+  // said the driver is missing; an outage has to keep returning an error.
+  if (driver.status === 'rejected') {
+    if (isNotFound(driver.reason)) notFound()
+    throw driver.reason
+  }
   const driverData = driver.value
   const seasons = seasonsResult.status === 'fulfilled' ? seasonsResult.value.seasons : []
   const paceData = paceResult.status === 'fulfilled' ? paceResult.value : null
 
   const latestTeam = seasons[0]?.constructor
-  const teamColor = latestTeam
-    ? (getTeamColor(latestTeam.ref, latestTeam.color, null) ?? undefined)
-    : undefined
+  const teamColor = latestTeam ? (teamColorOf(latestTeam.color, null) ?? undefined) : undefined
 
   return (
     <div className="space-y-8">
+      <JsonLd
+        data={personSchema({
+          name: `${driverData.firstName} ${driverData.lastName}`,
+          path: `/drivers/${ref}`,
+          nationality: driverData.nationality,
+          dateOfBirth: driverData.dateOfBirth,
+          permanentNumber: driverData.number,
+        })}
+      />
       <Breadcrumbs
         items={[
           { label: 'Home', href: '/' },
@@ -87,12 +127,7 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ r
               )}
               {driverData.dateOfBirth && (
                 <span className="text-muted-foreground">
-                  Born{' '}
-                  {new Date(driverData.dateOfBirth).toLocaleDateString('en-GB', {
-                    day: 'numeric',
-                    month: 'long',
-                    year: 'numeric',
-                  })}
+                  Born <LocalDate value={driverData.dateOfBirth} style="long" />
                 </span>
               )}
               {driverData.number != null && <Badge variant="outline">#{driverData.number}</Badge>}

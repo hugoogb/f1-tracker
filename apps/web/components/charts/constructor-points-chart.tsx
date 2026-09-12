@@ -10,7 +10,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
-import { getTeamColor } from '@/lib/utils'
+import { teamColorOf } from '@/lib/utils'
 import type { ConstructorStanding } from '@/lib/types'
 
 interface ConstructorPointsChartProps {
@@ -57,7 +57,7 @@ export function ConstructorPointsChart({ standings }: ConstructorPointsChartProp
   const data = standings.map((s) => ({
     name: s.constructor.name,
     points: s.points,
-    color: getTeamColor(s.constructor.ref, s.constructor.color)!,
+    color: teamColorOf(s.constructor.color)!,
   }))
 
   if (data.length === 0) return null

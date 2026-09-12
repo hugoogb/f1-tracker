@@ -44,6 +44,22 @@ export interface CircuitLayout {
   seasonsActive: string
 }
 
+/**
+ * Session start times for a race weekend, as UTC instants.
+ *
+ * f1db only schedules the seasons around the present day, so every field is
+ * null for a historic race — `hasSchedule` in `lib/schedule.ts` is the check.
+ */
+export interface RaceSchedule {
+  fp1: string | null
+  fp2: string | null
+  fp3: string | null
+  sprintQualifying: string | null
+  sprintRace: string | null
+  qualifying: string | null
+  race: string | null
+}
+
 export interface Race {
   id: string
   seasonYear: number
@@ -51,6 +67,7 @@ export interface Race {
   name: string
   circuit: Circuit
   date: string
+  schedule?: RaceSchedule
   url?: string
 }
 
@@ -180,9 +197,13 @@ export interface SprintResult {
 
 export interface PitStop {
   driver: Driver
+  constructor: Constructor | null
   stopNumber: number
   lap: number
+  /** Pit lane time in seconds — entry line to exit line, stationary included. */
   duration: string | null
+  /** Seconds off the quickest pit lane time of the same race. */
+  timeLost: string | null
 }
 
 export interface DriverSeasonSummary {
@@ -364,10 +385,20 @@ export interface CircuitStats {
 }
 
 // Pit Stop Analysis
+/**
+ * Pit stop figures for one race, all in seconds.
+ *
+ * `duration` values are pit *lane* times, which are dominated by how long the
+ * pit lane is; `timeLost` values are measured against `benchmark`, the quickest
+ * pit lane time of the same race, and are what actually compares crews.
+ */
 export interface PitStopAnalysis {
   raceId: string
   totalStops: number
+  benchmark: string | null
   avgDuration: string | null
+  medianDuration: string | null
+  avgTimeLost: string | null
   fastestStop: {
     driver: { ref: string; code: string | null; firstName: string; lastName: string }
     constructor: { ref: string; name: string; color: string | null } | null
@@ -378,6 +409,8 @@ export interface PitStopAnalysis {
   teamAverages: Array<{
     constructor: { ref: string; name: string; color: string | null }
     avgDuration: string
+    bestDuration: string
+    avgTimeLost: string
     stopCount: number
   }>
   distribution: Array<{ range: string; count: number }>
@@ -388,6 +421,8 @@ export interface StandingsProgressionDriver {
   code: string | null
   firstName: string
   lastName: string
+  /** The team the driver last actually raced for — the line's colour. */
+  constructorRef: string | null
   color: string | null
 }
 

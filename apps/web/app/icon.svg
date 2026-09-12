@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="F1 Tracker">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FF1E00"/>
+      <stop offset="1" stop-color="#B00500"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#g)"/>
+  <g transform="translate(167.5,150) skewX(-12)" fill="#FFFFFF">
+    <path d="M0 0h118v46H46v38h96v42H46v86H0z"/>
+    <path d="M222 212h-46V52l-36 18V26L186 0h36z"/>
+  </g>
+</svg>

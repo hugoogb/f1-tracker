@@ -4,6 +4,9 @@ pnpm exec lint-staged
 STAGED_PY=$(git diff --cached --name-only --diff-filter=ACM -- 'pipeline/**/*.py' | sed 's|^pipeline/||')
 if [ -n "$STAGED_PY" ]; then
   cd pipeline
-  uv run ruff check $STAGED_PY
-  uv run ruff format --check $STAGED_PY
+  # --force-exclude so a named file still honours pyproject's extend-exclude
+  # (alembic/). Without it the hook is stricter than CI, which runs `ruff .`,
+  # and generated migrations fail here but pass there.
+  uv run ruff check --force-exclude $STAGED_PY
+  uv run ruff format --check --force-exclude $STAGED_PY
 fi

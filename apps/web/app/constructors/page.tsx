@@ -15,13 +15,16 @@ import {
 import { Pagination } from '@/components/pagination'
 import { ListFilter } from '@/components/list-filter'
 import { FadeIn } from '@/components/ui/motion'
+import { buildMetadata } from '@/lib/seo'
 
 export const dynamic = 'force-dynamic'
 
-export const metadata = {
-  title: 'Constructors | F1 Tracker',
-  description: 'Browse all Formula 1 constructors throughout history',
-}
+export const metadata = buildMetadata({
+  title: 'Constructors',
+  description:
+    'Every Formula 1 constructor in the history of the championship, filterable by nationality, with wins, poles, podiums and titles.',
+  path: '/constructors',
+})
 
 export default async function ConstructorsPage({
   searchParams,

@@ -1,9 +1,13 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import Link from 'next/link'
-import { Clock, MapPin } from 'lucide-react'
+import { CalendarClock, MapPin } from 'lucide-react'
 import { CountryFlag } from '@/components/ui/country-flag'
+import { LocalDateTime, LocalWeekdayTime } from '@/components/ui/local-date'
+import { cn } from '@/lib/utils'
+import { useNow } from '@/lib/client-only'
+import { nextSession, sessionsOf } from '@/lib/schedule'
 import type { Race } from '@/lib/types'
 
 interface NextRaceCountdownProps {
@@ -11,51 +15,50 @@ interface NextRaceCountdownProps {
   seasonYear: number
 }
 
-function getTimeLeft(targetDate: Date) {
-  const now = new Date()
-  const diff = targetDate.getTime() - now.getTime()
-
+function getTimeLeft(target: number, now: number) {
+  const diff = target - now
   if (diff <= 0) return null
 
-  const days = Math.floor(diff / (1000 * 60 * 60 * 24))
-  const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
-  const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
-  const seconds = Math.floor((diff % (1000 * 60)) / 1000)
-
-  return { days, hours, minutes, seconds }
+  return {
+    days: Math.floor(diff / 86_400_000),
+    hours: Math.floor((diff % 86_400_000) / 3_600_000),
+    minutes: Math.floor((diff % 3_600_000) / 60_000),
+    seconds: Math.floor((diff % 60_000) / 1000),
+  }
 }
 
 export function NextRaceCountdown({ race, seasonYear }: NextRaceCountdownProps) {
-  const raceDate = useMemo(() => new Date(race.date), [race.date])
-  const [timeLeft, setTimeLeft] = useState(() => getTimeLeft(raceDate))
+  const sessions = useMemo(() => sessionsOf(race.schedule), [race.schedule])
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const left = getTimeLeft(raceDate)
-      setTimeLeft(left)
-      if (!left) clearInterval(interval)
-    }, 1000)
+  // Null until the client takes over. The server has no clock the viewer would
+  // recognise, and a countdown baked into HTML is stale before it arrives, so
+  // the first client render has to match the server's and then correct itself.
+  const now = useNow()
 
-    return () => clearInterval(interval)
-  }, [raceDate])
+  // Counts down to the next session that has not started — qualifying on the
+  // Saturday, not the race three days later. Without a schedule the only marker
+  // is the race date, which is midnight UTC: a day, not a start time.
+  const upcoming = now === null ? (sessions[0] ?? null) : nextSession(sessions, now)
+  const target = upcoming ? Date.parse(upcoming.at) : Date.parse(race.date)
+  const timeLeft = now === null ? null : getTimeLeft(target, now)
 
-  if (!timeLeft) return null
+  const href = `/seasons/${seasonYear}/races/${race.round}`
 
   return (
-    <Link
-      href={`/seasons/${seasonYear}/races/${race.round}`}
-      className="glass group hover:border-primary/30 block rounded-xl border p-5 transition-colors"
-    >
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="glass hover:border-primary/30 rounded-xl border transition-colors">
+      <div className="flex flex-col gap-5 p-5 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-1.5">
           <p className="text-muted-foreground flex items-center gap-1.5 text-xs font-medium tracking-widest uppercase">
-            <Clock className="h-3.5 w-3.5" />
-            Next Race — Round {race.round}
+            <CalendarClock className="h-3.5 w-3.5" />
+            Next Up — Round {race.round}
           </p>
-          <h3 className="group-hover:text-primary text-lg font-bold transition-colors">
+          <Link
+            href={href}
+            className="hover:text-primary block text-lg font-bold transition-colors"
+          >
             {race.name}
-          </h3>
-          <div className="text-muted-foreground flex items-center gap-3 text-sm">
+          </Link>
+          <div className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
             <span className="inline-flex items-center gap-1.5">
               <CountryFlag code={race.circuit.countryCode} />
               {race.circuit.country}
@@ -67,24 +70,64 @@ export function NextRaceCountdown({ race, seasonYear }: NextRaceCountdownProps) 
           </div>
         </div>
 
-        <div className="flex gap-3">
-          {[
-            { value: timeLeft.days, label: 'days' },
-            { value: timeLeft.hours, label: 'hrs' },
-            { value: timeLeft.minutes, label: 'min' },
-            { value: timeLeft.seconds, label: 'sec' },
-          ].map(({ value, label }) => (
-            <div key={label} className="text-center">
-              <span className="font-heading text-foreground block text-2xl font-bold tabular-nums sm:text-3xl">
-                {String(value).padStart(2, '0')}
-              </span>
-              <span className="text-muted-foreground text-[10px] tracking-wider uppercase">
-                {label}
-              </span>
-            </div>
-          ))}
+        <div className="space-y-2 sm:text-right">
+          <p className="text-muted-foreground text-xs tracking-wider uppercase">
+            {upcoming ? upcoming.label : 'Race day'}
+            {upcoming && (
+              <>
+                {' · '}
+                <LocalDateTime value={upcoming.at} style="short" />
+              </>
+            )}
+          </p>
+          <div className="flex gap-3 sm:justify-end">
+            {[
+              { value: timeLeft?.days, label: 'days' },
+              { value: timeLeft?.hours, label: 'hrs' },
+              { value: timeLeft?.minutes, label: 'min' },
+              { value: timeLeft?.seconds, label: 'sec' },
+            ].map(({ value, label }) => (
+              <div key={label} className="text-center">
+                <span
+                  className="font-heading text-foreground block text-2xl font-bold tabular-nums sm:text-3xl"
+                  suppressHydrationWarning
+                >
+                  {value === undefined ? '--' : String(value).padStart(2, '0')}
+                </span>
+                <span className="text-muted-foreground text-[10px] tracking-wider uppercase">
+                  {label}
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
-    </Link>
+
+      {sessions.length > 0 && (
+        <ul className="flex flex-wrap gap-x-5 gap-y-2 border-t border-[var(--glass-border)] px-5 py-3">
+          {sessions.map((session) => {
+            const done = now !== null && Date.parse(session.at) <= now
+            const isNext = upcoming?.key === session.key
+            return (
+              <li
+                key={session.key}
+                suppressHydrationWarning
+                className={cn(
+                  'flex items-baseline gap-1.5 text-xs',
+                  done && 'text-muted-foreground/50 line-through',
+                  isNext && 'text-primary font-semibold',
+                  !done && !isNext && 'text-muted-foreground',
+                )}
+              >
+                <span className={cn(session.isRace && !done && 'text-foreground font-medium')}>
+                  {session.label}
+                </span>
+                <LocalWeekdayTime value={session.at} className="tabular-nums" />
+              </li>
+            )
+          })}
+        </ul>
+      )}
+    </div>
   )
 }

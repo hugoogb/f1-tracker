@@ -1,6 +1,6 @@
 """Ingest the race schedule from the f1db dataset."""
 
-from datetime import date, time
+from datetime import date, datetime, time
 
 from sqlalchemy import delete, select
 
@@ -54,6 +54,33 @@ def _parse_time(value) -> time | None:
         return None
 
 
+def _parse_session(race: dict, prefix: str) -> datetime | None:
+    """Combine an f1db session's date and time into one naive UTC timestamp.
+
+    f1db publishes session times in UTC and only for the seasons around the
+    present day; a session missing either half is treated as unscheduled rather
+    than pinned to midnight, which would make it sort ahead of everything else.
+    """
+    day = _parse_date(race.get(f"{prefix}Date"))
+    moment = _parse_time(race.get(f"{prefix}Time"))
+    if day is None or moment is None:
+        return None
+    return datetime.combine(day, moment)
+
+
+# f1db session key -> races column. Free practice 4, pre-qualifying, the split
+# qualifying 1/2 sessions and the warm-up are historical formats f1db has no
+# schedule for, so they are left out.
+_SESSIONS = {
+    "freePractice1": "fp1_at",
+    "freePractice2": "fp2_at",
+    "freePractice3": "fp3_at",
+    "qualifying": "qualifying_at",
+    "sprintQualifying": "sprint_qualifying_at",
+    "sprintRace": "sprint_race_at",
+}
+
+
 class RaceIngestor(BaseIngestor):
     def ingest(self, year_range: tuple[int, int] | None = None) -> None:
         data = f1db.load()
@@ -79,6 +106,9 @@ class RaceIngestor(BaseIngestor):
                     "circuit_id": race["circuitId"],
                     "date": _parse_date(race.get("date")),
                     "time": _parse_time(race.get("time")),
+                    **{
+                        column: _parse_session(race, prefix) for prefix, column in _SESSIONS.items()
+                    },
                 }
             )
 
