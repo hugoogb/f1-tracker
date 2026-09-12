@@ -74,3 +74,64 @@ db_wait_ready() {
   done
   echo "    PostgreSQL is ready."
 }
+
+# --- Dump inspection ---------------------------------------------------------
+# These read a gzipped plain-SQL dump, so they behave the same whether the file
+# was written here or pulled off the VPS. Each decompresses the whole file
+# rather than stopping at the first hit: closing the pipe early kills gunzip
+# with SIGPIPE, and under `set -o pipefail` that failure would be read as an
+# answer.
+
+# Is the file a full dump (schema, data, Alembic stamp, materialized views) or
+# one of the data-only dumps this repo used to write? That decides the restore
+# order — a full dump brings its own schema, a data-only one needs the schema
+# migrated into place first.
+dump_is_full() {
+  local matches
+  matches="$(gunzip -c "$1" | grep -c '^CREATE TABLE ' || true)"
+  [ "${matches:-0}" -gt 0 ]
+}
+
+# Fail early and clearly on a truncated or corrupt archive, rather than halfway
+# through a restore that has already dropped the old data.
+dump_verify_gzip() {
+  if ! gzip -t "$1" 2>/dev/null; then
+    echo "Error: $1 is not a valid gzip archive (truncated or corrupt)." >&2
+    return 1
+  fi
+}
+
+# Row counts per table, read out of the dump's COPY blocks. The artifact is what
+# gets restored, so it is the artifact that gets counted rather than the
+# database it came from. qualifying_results also reports how many rows carry
+# Fast-F1 sector times, which live in columns rather than a table of their own.
+dump_row_counts() {
+  gunzip -c "$1" | awk -F'\t' '
+    # COPY headers are space-separated; the data between them is tab-separated,
+    # which is what FS is set for. Match on the whole line and split it here.
+    /^COPY public\.[a-z_]+ \(/ {
+      split($0, head, " ")
+      table = head[2]; sub(/^public\./, "", table)
+      rows = 0; sectors = 0; qidx = 0
+      if (table == "qualifying_results") {
+        cols = $0
+        sub(/^[^(]*\(/, "", cols); sub(/\).*$/, "", cols)
+        n = split(cols, col, ", ")
+        for (i = 1; i <= n; i++) if (col[i] == "q1_s1_ms") qidx = i
+      }
+      copying = 1
+      next
+    }
+    copying && $0 == "\\." {
+      line = sprintf("  %-22s %8d rows", table, rows)
+      if (qidx) line = line sprintf("  (%d with Fast-F1 sector times)", sectors)
+      print line
+      copying = 0
+      next
+    }
+    copying {
+      rows++
+      if (qidx && $qidx != "\\N") sectors++
+    }
+  '
+}

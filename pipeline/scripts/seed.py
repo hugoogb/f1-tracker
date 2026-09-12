@@ -22,14 +22,13 @@ BACKUP_SCRIPT = SCRIPTS_DIR / "db-backup.sh"
 RESTORE_SCRIPT = SCRIPTS_DIR / "db-restore.sh"
 BACKUP_FILE = Path(__file__).parent.parent.parent / "docker" / "backups" / "latest.sql.gz"
 
-# The restore/backup helpers shell out to the database *container*. Which one is
-# configurable so this works against local dev and the VPS stack alike, and it is
-# skipped entirely when there is no Docker CLI — e.g. when seed.py runs inside the
-# ingest container, which passes --no-restore --no-backup anyway.
-STACK_NAME = os.environ.get("STACK_NAME", "f1-tracker")
-DB_CONTAINER = os.environ.get("DB_CONTAINER", f"{STACK_NAME}-db")
-POSTGRES_USER = os.environ.get("POSTGRES_USER", "f1tracker")
-POSTGRES_DB = os.environ.get("POSTGRES_DB", "f1tracker")
+# The restore/backup helpers shell out to the database *container*. Which one
+# they pick is theirs to decide (scripts/lib/db.sh reads STACK_NAME/DB_CONTAINER
+# from the environment or .env), so it works against local dev and the VPS stack
+# alike. Both are skipped entirely when there is no Docker CLI — e.g. when
+# seed.py runs inside the ingest container, which passes --no-restore
+# --no-backup anyway. DB_CONTAINER is read here only to name it in the log.
+DB_CONTAINER = os.environ.get("DB_CONTAINER", f"{os.environ.get('STACK_NAME', 'f1-tracker')}-db")
 
 
 def _docker_available() -> bool:
@@ -46,21 +45,24 @@ def restore_backup() -> None:
         logger.info("Docker CLI not available, skipping backup restore")
         return
 
+    # Delegated to db-restore.sh rather than piped into psql here. Backups are
+    # full dumps now — schema, data, the Alembic stamp and the materialized
+    # views — so the order of restore and `alembic upgrade head` depends on the
+    # dump's flavour, and that decision belongs in one place.
     logger.info(f"Restoring from backup: {BACKUP_FILE} into {DB_CONTAINER}")
     result = subprocess.run(
-        [
-            "bash",
-            "-c",
-            f'gunzip -c "{BACKUP_FILE}" | docker exec -i {DB_CONTAINER} '
-            f"psql -U {POSTGRES_USER} -d {POSTGRES_DB} --single-transaction -q",
-        ],
+        ["bash", str(RESTORE_SCRIPT), str(BACKUP_FILE)],
+        env={**os.environ, "FORCE": "1"},
         capture_output=True,
         text=True,
     )
     if result.returncode != 0:
-        logger.warning(
-            f"Restore failed (may be OK if data already exists): {result.stderr.strip()}"
-        )
+        # Non-fatal, and safely so: db-restore.sh loads the dump with
+        # --single-transaction, so a failure leaves the database exactly as it
+        # was rather than half-replaced, and the ingest below upserts either
+        # way. The usual cause is a legacy data-only dump meeting a database
+        # that already holds the same rows.
+        logger.warning(f"Restore skipped — continuing with the ingest: {result.stderr.strip()}")
     else:
         logger.info("Backup restored successfully")
 

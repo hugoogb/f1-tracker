@@ -9,6 +9,9 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "fastf1": "./scripts/fastf1-sync.sh",
+    "db:backup": "./scripts/db-backup.sh",
+    "db:backup:prod": "./scripts/db-backup.sh --remote",
+    "db:restore": "./scripts/db-restore.sh",
     "prepare": "husky"
   },
   "devDependencies": {
