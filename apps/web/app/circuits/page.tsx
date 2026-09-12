@@ -16,13 +16,16 @@ import { Pagination } from '@/components/pagination'
 import { ListFilter } from '@/components/list-filter'
 import { WorldMapWrapper } from '@/components/circuits/world-map-wrapper'
 import { FadeIn } from '@/components/ui/motion'
+import { buildMetadata } from '@/lib/seo'
 
 export const dynamic = 'force-dynamic'
 
-export const metadata = {
-  title: 'Circuits | F1 Tracker',
-  description: 'Browse all Formula 1 circuits throughout history',
-}
+export const metadata = buildMetadata({
+  title: 'Circuits',
+  description:
+    'Every circuit to have hosted a Formula 1 Grand Prix, filterable by country, with track layouts, locations and full race history.',
+  path: '/circuits',
+})
 
 export default async function CircuitsPage({
   searchParams,

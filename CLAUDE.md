@@ -42,6 +42,12 @@ Deployment: frontend on Vercel; the API runs as a Docker container (`f1_api`) on
 | `/compare/constructors` | Side-by-side constructor comparison |
 | `/attributions` | Data sources, licences, trademark notice (compliance) |
 
+Metadata routes (Next file conventions, all under `apps/web/app/`): `sitemap.ts`
+(static routes + every season, driver, constructor, circuit and race, rebuilt
+daily and on the `f1-data` tag purge), `robots.ts`, `manifest.ts`,
+`opengraph-image.tsx` + `twitter-image.tsx` (1200x630 card via `next/og`),
+`icon.svg`, `favicon.ico`, `apple-icon.png`.
+
 ### Frontend Components
 
 - `components/ui/` - shadcn/ui base components (badge, button, card, table, tabs, sheet, dialog, dropdown-menu, country-flag, driver-avatar, constructor-logo, empty-state, motion, page-header, position-badge, sonner, stat-card, next-race-countdown)
@@ -54,6 +60,7 @@ Deployment: frontend on Vercel; the API runs as a Docker container (`f1_api`) on
 - `components/circuits/` - Track layout, world map, world map wrapper
 - `components/compare/` - Driver select, constructor select, head-to-head-card, career-stats-table
 - `components/providers/` - Theme provider
+- `components/seo/` - `json-ld.tsx` (renders a schema.org graph into a `<script type="application/ld+json">`)
 - Root: pagination, list-filter, error-boundary
 
 ### Backend Endpoints
@@ -66,7 +73,7 @@ Deployment: frontend on Vercel; the API runs as a Docker container (`f1_api`) on
 - `GET /api/seasons/{year}/races/{round}` - Race results
 - `GET /api/seasons/{year}/races/{round}/qualifying` - Qualifying
 - `GET /api/seasons/{year}/races/{round}/sprint` - Sprint results (2021+)
-- `GET /api/seasons/{year}/races/{round}/pitstops` - Pit stops (1994+)
+- `GET /api/seasons/{year}/races/{round}/pitstops` - Pit stops (1994+), with time lost vs the race benchmark
 - `GET /api/seasons/{year}/races/{round}/pitstops/analysis` - Pit stop analysis (1994+)
 - `GET /api/seasons/{year}/races/{round}/positions` - Lap-by-lap positions (2018+)
 - `GET /api/seasons/{year}/races/{round}/laps` - Lap times + tyre strategy (2018+)
@@ -127,6 +134,26 @@ Deployment: frontend on Vercel; the API runs as a Docker container (`f1_api`) on
 - Database is the platform's shared PostgreSQL: the API uses `DATABASE_URL` (PgBouncer), migrations and ingest use `DIRECT_URL` (direct — transaction pooling cannot run a migration). Backups are the platform's job
 - Scheduling: `.github/workflows/ingest.yml` — Mondays 06:00 UTC, calendar-gated inside `ingest.sh`; run it by hand from the Actions tab with optional `force`/`flags` inputs. Its last step reports the Fast-F1 backlog, which is a manual job (`scripts/fastf1-sync.sh`)
 
+### Weekend schedules and pit stop timing
+
+Two f1db quirks the UI is built around:
+
+- **Session times exist only for the seasons around the present day** (2024-2026
+  at the time of writing) and always as a date/time pair in UTC. They are stored
+  on `races` as `fp1_at`/`fp2_at`/`fp3_at`/`qualifying_at`/
+  `sprint_qualifying_at`/`sprint_race_at` and served under `schedule` by
+  `/api/seasons/{year}` and the race detail endpoint. `lib/schedule.ts` on the
+  frontend orders them and picks the next one; a race with no schedule falls
+  back to its calendar date, which is midnight UTC and therefore a day marker
+  rather than a start time.
+- **A pit stop's `timeMillis` is pit *lane* time**, entry line to exit line with
+  the stationary time included — there is no stationary time in the dataset.
+  It runs from ~13s at Melbourne to ~24s at Bahrain, so it is dominated by the
+  circuit. Everything comparative is therefore expressed as time lost against
+  the quickest stop of the same race (`benchmark`), which is what isolates the
+  crew. Do not reintroduce absolute duration buckets: they put every stop of a
+  race in one bar.
+
 ### Data Updates
 - **Automated (f1db)**: `.github/workflows/ingest.yml` runs Mondays 06:00 UTC — joins the tailnet and runs `/srv/apps/f1_api/ingest.sh` on the box, calendar-gated, straight into PostgreSQL, then purges the Vercel cache. The f1db ingestors upsert from one release download, so they can bootstrap an empty DB as well as update one.
 - **Manual (Fast-F1)**: `pnpm fastf1` from a machine on a residential connection (`VPS_HOST` in `.env`) — asks the box what is missing (`fastf1.sh status`), fetches those sessions locally (`pipeline/scripts/fastf1_fetch.py`, ~45 s each), ships the payload back and loads it (`fastf1.sh import`). This cannot be automated in CI: `livetiming.formula1.com` returns 403 to the VPS *and* to GitHub's runners (measured — see `docs/DEPLOYMENT.md`). The Monday ingest run reports how many races are waiting, since nothing else will remind you.
@@ -151,6 +178,27 @@ Deployment: frontend on Vercel; the API runs as a Docker container (`f1_api`) on
 - Next.js frontend calls FastAPI at `NEXT_PUBLIC_API_URL` (default: http://localhost:8000/api)
 - Dark-mode-first UI with F1 team colors
 - Use `Promise.allSettled` for optional data fetching (graceful degradation)
+- Constructor colours come from the backend palette (`src/ingestion/colors.py`)
+  and travel on every constructor payload; the frontend only picks a fallback,
+  via `teamColorOf()` in `lib/utils.ts`. Never key a colour off a driver ref, and
+  never reintroduce a second palette in the frontend — refs are f1db's
+  (`red-bull`), not Ergast's (`red_bull`), and a mismatched map fails silently
+- Anything whose output depends on the viewer's clock, locale or timezone goes
+  through `useHydrated()`/`useNow()` in `lib/client-only.ts` (and the
+  `LocalDate`/`LocalDateTime`/`LocalTime` components) so the server pass and the
+  first client render agree. Never format a date with a hardcoded locale
+- Page metadata goes through `buildMetadata()` in `lib/seo.ts` — it fills in the
+  canonical URL, Open Graph and Twitter cards from one title/description, and
+  the root layout's `%s | F1 Tracker` template appends the suffix, so a page
+  title must never carry it itself
+- `NEXT_PUBLIC_SITE_URL` is the canonical origin behind every canonical tag,
+  Open Graph URL and sitemap entry; nothing else should hardcode the host
+- `fetchApi` throws `ApiError` with the upstream status. Detail pages call
+  `notFound()` only when `isNotFound(reason)` and rethrow otherwise, so an API
+  outage never tells a crawler the resource does not exist
+- Icons are generated from `app/icon.svg`; regenerating `favicon.ico`,
+  `apple-icon.png` and the `public/icon-*.png` set means re-rendering from it
+  rather than editing the binaries
 - Client components (`'use client'`) only for interactive pieces (charts, filters, tabs, search)
 - Pre-commit: Husky runs lint-staged (prettier) + ruff check/format on staged `.py` files
 - CI: GitHub Actions `ci.yml` — frontend (audit, format, lint, typecheck, build) + backend (ruff, pip-audit, pytest) + backend image (docker build + smoke test)

@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { MapPin, Calendar } from 'lucide-react'
-import { api } from '@/lib/api'
+import { api, isNotFound } from '@/lib/api'
 import type { Circuit, CircuitLayout, CircuitLapRecord, CircuitStats } from '@/lib/types'
 import { CountryFlag } from '@/components/ui/country-flag'
 import { Breadcrumbs } from '@/components/layout/breadcrumbs'
@@ -19,6 +19,10 @@ import {
 import { TrackLayout } from '@/components/circuits/track-layout'
 import { CircuitStatsView } from '@/components/circuits/circuit-stats'
 import { FadeIn, StaggerList, StaggerItem } from '@/components/ui/motion'
+import { JsonLd } from '@/components/seo/json-ld'
+import { placeSchema } from '@/lib/structured-data'
+import { buildMetadata, SITE_DESCRIPTION } from '@/lib/seo'
+import { LocalDate } from '@/components/ui/local-date'
 
 export const dynamic = 'force-dynamic'
 
@@ -38,11 +42,34 @@ interface CircuitDetail extends Circuit {
 
 export async function generateMetadata({ params }: { params: Promise<{ ref: string }> }) {
   const { ref } = await params
-  const circuit = (await api.circuits.get(ref)) as CircuitDetail
-  return {
-    title: `${circuit.name} | F1 Tracker`,
-    description: `Race history at ${circuit.name}, ${circuit.location}, ${circuit.country}`,
+  let circuit: CircuitDetail
+  try {
+    circuit = (await api.circuits.get(ref)) as CircuitDetail
+  } catch {
+    // The page itself decides between 404 and error; metadata must not throw.
+    // Streaming means the 404 body still ships with a 200, so noindex is what
+    // actually keeps a missing resource out of the index.
+    return buildMetadata({
+      title: 'Circuit',
+      description: SITE_DESCRIPTION,
+      path: `/circuits/${ref}`,
+      noindex: true,
+    })
   }
+
+  const where = [circuit.location, circuit.country].filter(Boolean).join(', ')
+  const years = circuit.races.map((race) => race.seasonYear)
+  const first = years.length > 0 ? Math.min(...years) : null
+  const last = years.length > 0 ? Math.max(...years) : null
+  const span = first === null ? '' : first === last ? ` in ${first}` : ` from ${first} to ${last}`
+
+  return buildMetadata({
+    title: circuit.name,
+    description:
+      `${circuit.name}${where ? ` in ${where}` : ''} — track layout, lap record and every Formula 1 ` +
+      `Grand Prix held there${span}, with the drivers and constructors that won them.`,
+    path: `/circuits/${ref}`,
+  })
 }
 
 export default async function CircuitDetailPage({ params }: { params: Promise<{ ref: string }> }) {
@@ -53,7 +80,12 @@ export default async function CircuitDetailPage({ params }: { params: Promise<{ 
     api.circuits.stats(ref) as Promise<CircuitStats>,
   ])
 
-  if (circuitResult.status === 'rejected') notFound()
+  // An unknown ref must answer 404 — but an API outage has to surface as an
+  // error rather than telling crawlers the circuit does not exist.
+  if (circuitResult.status === 'rejected') {
+    if (isNotFound(circuitResult.reason)) notFound()
+    throw circuitResult.reason
+  }
   const circuit = circuitResult.value
   const circuitStats = statsResult.status === 'fulfilled' ? statsResult.value : null
 
@@ -71,6 +103,16 @@ export default async function CircuitDetailPage({ params }: { params: Promise<{ 
 
   return (
     <div className="space-y-8">
+      <JsonLd
+        data={placeSchema({
+          name: circuit.name,
+          path: `/circuits/${ref}`,
+          locality: circuit.location,
+          country: circuit.country,
+          latitude: circuit.latitude,
+          longitude: circuit.longitude,
+        })}
+      />
       <Breadcrumbs
         items={[
           { label: 'Home', href: '/' },
@@ -209,13 +251,7 @@ export default async function CircuitDetailPage({ params }: { params: Promise<{ 
                           </Link>
                         </TableCell>
                         <TableCell className="text-muted-foreground text-right whitespace-nowrap">
-                          {race.date
-                            ? new Date(race.date).toLocaleDateString('en-GB', {
-                                day: 'numeric',
-                                month: 'short',
-                                year: 'numeric',
-                              })
-                            : '—'}
+                          {race.date ? <LocalDate value={race.date} /> : '—'}
                         </TableCell>
                       </TableRow>
                     ))}

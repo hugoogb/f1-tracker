@@ -4,13 +4,16 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardHeader, CardTitle } from '@/components/ui/card'
 import { PageHeader } from '@/components/ui/page-header'
 import { FadeIn, StaggerList, StaggerItem, MotionCard } from '@/components/ui/motion'
+import { buildMetadata } from '@/lib/seo'
 
 export const dynamic = 'force-dynamic'
 
-export const metadata = {
-  title: 'Seasons | F1 Tracker',
-  description: 'Browse every Formula 1 season from 1950 to today.',
-}
+export const metadata = buildMetadata({
+  title: 'Seasons',
+  description:
+    'Browse every Formula 1 season from 1950 to today — race calendars, driver and constructor standings, and championship progression.',
+  path: '/seasons',
+})
 
 function groupByDecade(seasons: { year: number }[]) {
   const groups: Record<string, number[]> = {}

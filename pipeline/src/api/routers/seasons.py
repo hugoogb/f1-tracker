@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from src.api.serializers import race_schedule
 from src.db.database import get_db
 from src.db.models import DriverStanding, RaceResult
 from src.db.queries import get_all_seasons, get_season_races
@@ -28,6 +29,7 @@ def get_season(year: int, db: Session = Depends(get_db)):
                 "round": r.round,
                 "name": r.name,
                 "date": str(r.date) if r.date else None,
+                "schedule": race_schedule(r),
                 "circuit": {
                     "id": r.circuit.id,
                     "ref": r.circuit.ref,

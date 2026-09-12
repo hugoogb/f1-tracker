@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import type { RaceResult } from '@/lib/types'
-import { getTeamColor } from '@/lib/utils'
+import { teamColorOf } from '@/lib/utils'
 import { Card, CardContent } from '@/components/ui/card'
 import { PodiumReveal } from '@/components/ui/motion'
 
@@ -18,7 +18,7 @@ export function PodiumCard({ podium }: { podium: RaceResult[] }) {
   return (
     <PodiumReveal>
       {podium.map((result) => {
-        const teamColor = getTeamColor(result.constructor.ref, result.constructor.color, null)
+        const teamColor = teamColorOf(result.constructor.color, null)
         const idx = (result.position ?? 1) - 1
 
         return (

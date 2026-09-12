@@ -10,7 +10,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
-import { getTeamColor } from '@/lib/utils'
+import { teamColorOf } from '@/lib/utils'
 import type { DriverLaps } from '@/lib/types'
 
 interface LapTimesChartProps {
@@ -27,7 +27,7 @@ function formatSeconds(s: number): string {
 }
 
 function getDriverColor(driver: DriverLaps): string {
-  return getTeamColor(driver.constructor.ref, driver.constructor.color)!
+  return teamColorOf(driver.constructor.color)!
 }
 
 function CustomTooltip({

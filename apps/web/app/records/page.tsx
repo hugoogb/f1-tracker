@@ -17,13 +17,16 @@ import {
 import { PositionBadge } from '@/components/ui/position-badge'
 import { FadeIn, StaggerList, StaggerItem } from '@/components/ui/motion'
 import { RecordsTabs } from './records-tabs'
+import { buildMetadata } from '@/lib/seo'
 
 export const dynamic = 'force-dynamic'
 
-export const metadata = {
-  title: 'Records | F1 Tracker',
-  description: 'All-time Formula 1 records — most wins, poles, podiums, championships, and more.',
-}
+export const metadata = buildMetadata({
+  title: 'Records',
+  description:
+    'All-time Formula 1 records — most wins, pole positions, podiums, fastest laps, championships and race starts, for drivers and constructors.',
+  path: '/records',
+})
 
 function DriverRecordTable({
   title,

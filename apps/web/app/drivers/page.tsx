@@ -17,13 +17,16 @@ import {
 import { Pagination } from '@/components/pagination'
 import { ListFilter } from '@/components/list-filter'
 import { FadeIn } from '@/components/ui/motion'
+import { buildMetadata } from '@/lib/seo'
 
 export const dynamic = 'force-dynamic'
 
-export const metadata = {
-  title: 'Drivers | F1 Tracker',
-  description: 'Browse all Formula 1 drivers throughout history',
-}
+export const metadata = buildMetadata({
+  title: 'Drivers',
+  description:
+    'Every driver to have started a Formula 1 Grand Prix since 1950, filterable by nationality, with career stats, wins, poles and championships.',
+  path: '/drivers',
+})
 
 export default async function DriversPage({
   searchParams,

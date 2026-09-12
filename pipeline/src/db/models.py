@@ -1,8 +1,10 @@
 import uuid
+from datetime import datetime
 
 from sqlalchemy import (
     BigInteger,
     Date,
+    DateTime,
     Float,
     ForeignKey,
     Integer,
@@ -100,6 +102,16 @@ class Race(Base):
     circuit_id: Mapped[str] = mapped_column(ForeignKey("circuits.id"), index=True)
     date: Mapped[str | None] = mapped_column(Date)
     time: Mapped[str | None] = mapped_column(Time)
+
+    # Weekend schedule, UTC. f1db only carries these for the seasons around the
+    # present day, and always as a date/time pair, so each session is one
+    # timestamp that is either set or NULL.
+    fp1_at: Mapped[datetime | None] = mapped_column(DateTime)
+    fp2_at: Mapped[datetime | None] = mapped_column(DateTime)
+    fp3_at: Mapped[datetime | None] = mapped_column(DateTime)
+    qualifying_at: Mapped[datetime | None] = mapped_column(DateTime)
+    sprint_qualifying_at: Mapped[datetime | None] = mapped_column(DateTime)
+    sprint_race_at: Mapped[datetime | None] = mapped_column(DateTime)
 
     # Precomputed: race fastest lap
     fastest_lap_driver_id: Mapped[str | None] = mapped_column(ForeignKey("drivers.id"))

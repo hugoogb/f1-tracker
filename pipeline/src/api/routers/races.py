@@ -1,14 +1,20 @@
+import statistics
 from collections import defaultdict
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from src.api.serializers import constructor_compact, driver_summary
+from src.api.serializers import constructor_compact, driver_summary, race_schedule
 from src.db.database import get_db
 from src.db.models import Driver, LapTime, PitStop, QualifyingResult, Race, RaceResult, SprintResult
 
 router = APIRouter()
+
+
+def _seconds(milliseconds: float) -> str:
+    """Milliseconds as a fixed-3dp second string, the unit the API speaks in."""
+    return f"{milliseconds / 1000:.3f}"
 
 
 @router.get("/seasons/{year}/races/{round}")
@@ -53,6 +59,7 @@ def get_race(year: int, round: int, db: Session = Depends(get_db)):
         "round": race.round,
         "name": race.name,
         "date": str(race.date) if race.date else None,
+        "schedule": race_schedule(race),
         "circuit": {
             "id": race.circuit.id,
             "ref": race.circuit.ref,
@@ -210,13 +217,28 @@ def get_pitstops(year: int, round: int, db: Session = Depends(get_db)):
         .all()
     )
 
+    # Durations are pit lane times, so the useful comparison within one race is
+    # against its quickest stop rather than against an absolute target — see
+    # the analysis endpoint below.
+    durations = [s.duration_ms for s in stops if s.duration_ms is not None]
+    benchmark_ms = min(durations) if durations else None
+
+    results = db.execute(select(RaceResult).where(RaceResult.race_id == race.id)).scalars().all()
+    driver_constructor = {r.driver_id: r.constructor for r in results}
+
     return {
         "raceId": race.id,
+        "benchmark": _seconds(benchmark_ms) if benchmark_ms is not None else None,
         "pitStops": [
             {
                 "stopNumber": s.stop_number,
                 "lap": s.lap,
-                "duration": f"{s.duration_ms / 1000:.3f}" if s.duration_ms is not None else None,
+                "duration": _seconds(s.duration_ms) if s.duration_ms is not None else None,
+                "timeLost": (
+                    _seconds(s.duration_ms - benchmark_ms)
+                    if s.duration_ms is not None and benchmark_ms is not None
+                    else None
+                ),
                 "driver": {
                     "id": s.driver.id,
                     "ref": s.driver.ref,
@@ -224,6 +246,11 @@ def get_pitstops(year: int, round: int, db: Session = Depends(get_db)):
                     "firstName": s.driver.first_name,
                     "lastName": s.driver.last_name,
                 },
+                "constructor": (
+                    constructor_compact(driver_constructor[s.driver_id])
+                    if s.driver_id in driver_constructor
+                    else None
+                ),
             }
             for s in stops
         ],
@@ -423,6 +450,16 @@ def get_positions(year: int, round: int, db: Session = Depends(get_db)):
 
 @router.get("/seasons/{year}/races/{round}/pitstops/analysis")
 def get_pitstops_analysis(year: int, round: int, db: Session = Depends(get_db)):
+    """Pit stop analysis for one race.
+
+    f1db measures a stop as *pit lane* time — the run from the pit entry line to
+    the exit line, stationary time included. That total is dominated by how long
+    the pit lane is (roughly 13s at Melbourne, 24s at Bahrain), so on its own it
+    says little about the crew. What isolates the crew and the traffic is the
+    gap to the quickest stop of the same race: the transit is common to
+    everyone, so whatever is left over is time genuinely lost. Both are
+    reported, and the distribution buckets the gap rather than the total.
+    """
     race = db.execute(
         select(Race).where(Race.season_year == year, Race.round == round)
     ).scalar_one_or_none()
@@ -435,54 +472,51 @@ def get_pitstops_analysis(year: int, round: int, db: Session = Depends(get_db)):
         .all()
     )
 
+    empty = {
+        "raceId": race.id,
+        "totalStops": len(stops),
+        "benchmark": None,
+        "avgDuration": None,
+        "medianDuration": None,
+        "avgTimeLost": None,
+        "fastestStop": None,
+        "teamAverages": [],
+        "distribution": [],
+    }
     if not stops:
-        return {
-            "raceId": race.id,
-            "totalStops": 0,
-            "avgDuration": None,
-            "fastestStop": None,
-            "teamAverages": [],
-            "distribution": [],
-        }
+        return empty
 
     # Build driver -> constructor map from race results
     results = db.execute(select(RaceResult).where(RaceResult.race_id == race.id)).scalars().all()
     driver_constructor = {r.driver_id: r.constructor for r in results}
 
-    # Filter stops with valid duration
     valid_stops = [s for s in stops if s.duration_ms is not None]
     if not valid_stops:
-        return {
-            "raceId": race.id,
-            "totalStops": len(stops),
-            "avgDuration": None,
-            "fastestStop": None,
-            "teamAverages": [],
-            "distribution": [],
-        }
+        return empty
 
-    # Fastest stop
-    fastest = valid_stops[0]  # Already sorted by duration_ms
+    # Fastest stop — already sorted by duration, and the benchmark everything
+    # else is measured against.
+    fastest = valid_stops[0]
     fastest_constructor = driver_constructor.get(fastest.driver_id)
+    benchmark_ms = fastest.duration_ms
 
-    # Average duration
-    total_duration = sum(s.duration_ms for s in valid_stops)
-    avg_duration = total_duration / len(valid_stops)
+    durations = [s.duration_ms for s in valid_stops]
+    avg_duration = sum(durations) / len(durations)
+    median_duration = statistics.median(durations)
 
-    # Team averages
-    team_totals: dict[int, dict] = {}
+    # Team averages, ranked by time lost against the benchmark
+    team_totals: dict[str, dict] = {}
     for s in valid_stops:
         constructor = driver_constructor.get(s.driver_id)
         if not constructor:
             continue
-        if constructor.id not in team_totals:
-            team_totals[constructor.id] = {
-                "constructor": constructor,
-                "total_ms": 0,
-                "count": 0,
-            }
-        team_totals[constructor.id]["total_ms"] += s.duration_ms
-        team_totals[constructor.id]["count"] += 1
+        entry = team_totals.setdefault(
+            constructor.id,
+            {"constructor": constructor, "total_ms": 0, "best_ms": s.duration_ms, "count": 0},
+        )
+        entry["total_ms"] += s.duration_ms
+        entry["best_ms"] = min(entry["best_ms"], s.duration_ms)
+        entry["count"] += 1
 
     team_averages = sorted(
         [
@@ -492,33 +526,41 @@ def get_pitstops_analysis(year: int, round: int, db: Session = Depends(get_db)):
                     "name": t["constructor"].name,
                     "color": t["constructor"].color,
                 },
-                "avgDuration": f"{t['total_ms'] / t['count'] / 1000:.3f}",
+                "avgDuration": _seconds(t["total_ms"] / t["count"]),
+                "bestDuration": _seconds(t["best_ms"]),
+                "avgTimeLost": _seconds(t["total_ms"] / t["count"] - benchmark_ms),
                 "stopCount": t["count"],
             }
             for t in team_totals.values()
         ],
-        key=lambda x: float(x["avgDuration"]),
+        key=lambda x: float(x["avgTimeLost"]),
     )
 
-    # Distribution buckets
-    buckets = [
-        ("<2.0s", 0, 2000),
-        ("2.0-2.5s", 2000, 2500),
-        ("2.5-3.0s", 2500, 3000),
-        ("3.0-4.0s", 3000, 4000),
-        ("4.0-5.0s", 4000, 5000),
-        ("5.0s+", 5000, float("inf")),
+    # Distribution of time lost against the race benchmark. Bucketing the raw
+    # total instead drops every stop of a race into a single bar, since the
+    # spread within one pit lane is only a couple of seconds wide.
+    buckets = (
+        ("+0.0-0.5s", 0, 500),
+        ("+0.5-1.0s", 500, 1000),
+        ("+1.0-2.0s", 1000, 2000),
+        ("+2.0-5.0s", 2000, 5000),
+        ("+5.0s or more", 5000, float("inf")),
+    )
+    distribution = [
+        {
+            "range": label,
+            "count": sum(1 for s in valid_stops if low <= s.duration_ms - benchmark_ms < high),
+        }
+        for label, low, high in buckets
     ]
-    distribution = []
-    for label, low, high in buckets:
-        count = sum(1 for s in valid_stops if low <= s.duration_ms < high)
-        if count > 0:
-            distribution.append({"range": label, "count": count})
 
     return {
         "raceId": race.id,
         "totalStops": len(stops),
-        "avgDuration": f"{avg_duration / 1000:.3f}",
+        "benchmark": _seconds(benchmark_ms),
+        "avgDuration": _seconds(avg_duration),
+        "medianDuration": _seconds(median_duration),
+        "avgTimeLost": _seconds(avg_duration - benchmark_ms),
         "fastestStop": {
             "driver": {
                 "ref": fastest.driver.ref,
@@ -534,7 +576,7 @@ def get_pitstops_analysis(year: int, round: int, db: Session = Depends(get_db)):
             if fastest_constructor
             else None,
             "lap": fastest.lap,
-            "duration": f"{fastest.duration_ms / 1000:.3f}",
+            "duration": _seconds(benchmark_ms),
             "stopNumber": fastest.stop_number,
         },
         "teamAverages": team_averages,
