@@ -20,10 +20,22 @@
 #   uv run python scripts/fastf1_fetch.py --targets targets.json --out payload.ndjson.gz
 #   ssh hugo@<vps> '/srv/apps/f1_api/fastf1.sh import' < payload.ndjson.gz
 #
+# A pull request touching any of this runs the probe and stops there — it never
+# joins the tailnet, never reaches the server and needs no secrets. That is how
+# a change here is tested before it can be dispatched (workflow_dispatch only
+# works once the file is on the default branch), and it keeps answering the one
+# question this whole design rests on: does a GitHub runner still get served?
+#
 # Scheduled workflows only run on the default branch.
 name: fastf1
 
 on:
+  pull_request:
+    branches: [master]
+    paths:
+      - 'pipeline/scripts/fastf1_*.py'
+      - 'pipeline/src/ingestion/fastf1_*.py'
+      - '.github/workflows/fastf1.yml'
   schedule:
     # Mondays 07:30 UTC — after ingest.yml (06:00) has created the race rows
     # that `fastf1.sh status` looks for.
@@ -63,10 +75,14 @@ on:
         required: false
         default: false
 
-# Shares ingest.yml's group: both write race data, and the f1db download and
-# Fast-F1 cache are shared volumes.
+# A real run shares ingest.yml's group: both write race data, and the f1db
+# download and Fast-F1 cache are shared volumes. A probe writes nothing, so it
+# gets its own group per ref instead of queueing behind (or delaying) an ingest.
 concurrency:
-  group: ingest-f1_api
+  group: >-
+    ${{ (inputs.probe_only || github.event_name == 'pull_request')
+        && format('fastf1-probe-{0}', github.ref)
+        || 'ingest-f1_api' }}
   cancel-in-progress: false
 
 jobs:
@@ -79,6 +95,11 @@ jobs:
     defaults:
       run:
         working-directory: pipeline
+
+    env:
+      # A pull request is a probe by definition: it has no business touching the
+      # server, and the workflow file it is testing is not on master yet.
+      PROBE_ONLY: ${{ inputs.probe_only || github.event_name == 'pull_request' }}
 
     steps:
       - uses: actions/checkout@v5
@@ -101,11 +122,11 @@ jobs:
         run: uv run python scripts/fastf1_fetch.py --probe
 
       - name: Stop after the probe
-        if: inputs.probe_only
+        if: env.PROBE_ONLY == 'true'
         run: echo "Probe succeeded — Fast-F1 answers this runner." >> "$GITHUB_STEP_SUMMARY"
 
       - uses: tailscale/github-action@v3
-        if: '!inputs.probe_only'
+        if: env.PROBE_ONLY != 'true'
         with:
           oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
           oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
@@ -114,7 +135,7 @@ jobs:
       # The tailscale action exits 0 even when every join attempt failed, which
       # would otherwise surface as an SSH timeout that says nothing useful.
       - name: Verify the tailnet join
-        if: '!inputs.probe_only'
+        if: env.PROBE_ONLY != 'true'
         run: |
           if ! tailscale status; then
             echo "::error::Not on the tailnet, so the fetch cannot ask the server" \
@@ -128,7 +149,7 @@ jobs:
       # built there. stdout is pure JSON; its progress goes to stderr.
       - name: Ask the server what is missing
         id: targets
-        if: '!inputs.probe_only'
+        if: env.PROBE_ONLY != 'true'
         env:
           NEED: ${{ inputs.need || 'laps,quali_sectors' }}
           YEAR_RANGE: ${{ inputs.year_range }}
@@ -173,7 +194,7 @@ jobs:
 
       - name: Fetch the sessions
         id: fetch
-        if: ${{ !inputs.probe_only && steps.targets.outputs.count != '0' }}
+        if: ${{ env.PROBE_ONLY != 'true' && steps.targets.outputs.count != '0' }}
         env:
           NEED: ${{ inputs.need || 'laps,quali_sectors' }}
           LIMIT: ${{ inputs.limit || '8' }}
@@ -189,7 +210,7 @@ jobs:
       # every session it got, and this runner may be the last host able to get
       # them at all.
       - uses: actions/upload-artifact@v4
-        if: ${{ !cancelled() && !inputs.probe_only && steps.fetch.outputs.sessions != '' && steps.fetch.outputs.sessions != '0' }}
+        if: ${{ !cancelled() && env.PROBE_ONLY != 'true' && steps.fetch.outputs.sessions != '' && steps.fetch.outputs.sessions != '0' }}
         with:
           name: fastf1-payload-${{ github.run_id }}
           path: pipeline/payload.ndjson.gz
@@ -198,7 +219,7 @@ jobs:
       # Also on a failed fetch, for the same reason: the sessions already in the
       # payload are good data. The job still ends red — the fetch step owns that.
       - name: Load it on the VPS
-        if: ${{ !cancelled() && !inputs.probe_only && !inputs.dry_run && steps.fetch.outputs.sessions != '' && steps.fetch.outputs.sessions != '0' }}
+        if: ${{ !cancelled() && env.PROBE_ONLY != 'true' && !inputs.dry_run && steps.fetch.outputs.sessions != '' && steps.fetch.outputs.sessions != '0' }}
         run: |
           ssh -o StrictHostKeyChecking=accept-new \
               -o ConnectTimeout=30 \
@@ -206,7 +227,7 @@ jobs:
               '/srv/apps/f1_api/fastf1.sh import' < payload.ndjson.gz
 
       - name: Summary
-        if: ${{ !cancelled() && !inputs.probe_only }}
+        if: ${{ !cancelled() && env.PROBE_ONLY != 'true' }}
         run: |
           {
             echo "### Fast-F1"

@@ -358,6 +358,11 @@ starts with a probe, so a runner that has *also* been blocked fails the workflow
 with that reason rather than looking like "no new data". The payload is kept as
 a build artifact for 14 days.
 
+A pull request touching the Fast-F1 scripts or the workflow runs the probe and
+stops there — no tailnet, no server, no secrets. That is both how a change here
+is tested (`workflow_dispatch` only works once the file is on `master`) and a
+standing answer to whether GitHub's runners are still served.
+
 No database credentials leave the server: the runner only ever handles
 year/round/driver-code data.
 
