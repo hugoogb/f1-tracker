@@ -19,7 +19,7 @@ Deployment: frontend on Vercel; the API runs as a Docker container (`f1_api`) on
 - `apps/web/` - Next.js frontend (15 routes, 36+ components)
 - `pipeline/` - Python data pipeline + FastAPI backend (11 routers, 38 endpoints); `Dockerfile` builds the API/migrate/ingest image
 - `docker/` - `docker-compose.yml` (local dev DB), `compose.prod.yml` (the VPS stack — shipped to `/srv/apps/f1_api/docker-compose.yml` by the deploy), `.env.prod.example`, backups
-- `scripts/` - `bootstrap.sh`, `db-backup.sh`, `db-restore.sh`, `fastf1-sync.sh` (laptop-side Fast-F1 fetch), `lib/db.sh` (shared container resolution), `vps/ingest.sh`, `vps/fastf1.sh`, `vps/purge-cache.sh` (copied to the VPS by the deploy)
+- `scripts/` - `bootstrap.sh`, `db-backup.sh`, `db-restore.sh`, `fastf1-sync.sh` (laptop-side Fast-F1 fetch), `lib/db.sh` (shared container resolution + dump inspection), `vps/ingest.sh`, `vps/fastf1.sh`, `vps/backup.sh`, `vps/purge-cache.sh` (copied to the VPS by the deploy)
 
 ### Frontend Routes
 
@@ -112,7 +112,7 @@ Deployment: frontend on Vercel; the API runs as a Docker container (`f1_api`) on
 - `uv run python scripts/fastf1_fetch.py --targets targets.json --out payload.ndjson.gz` - Fetch Fast-F1 sessions into a payload (no DB needed)
 - `uv run python scripts/fastf1_status.py` - List races still missing Fast-F1 data, as JSON (DB, no network)
 - `uv run python scripts/fastf1_import.py --payload payload.ndjson.gz` - Load a payload into PostgreSQL (DB, no network)
-- `uv run python scripts/refresh_views.py` - Rebuild the computed-stats materialized views (`driver_career_stats`, `constructor_career_stats`, `season_champions`); `db-restore.sh` calls this, since the dump does not carry view contents
+- `uv run python scripts/refresh_views.py` - Rebuild the computed-stats materialized views (`driver_career_stats`, `constructor_career_stats`, `season_champions`); `db-restore.sh` calls this after migrating
 - `uv run pytest -v` - Run backend tests (120 tests)
 - `uv run ruff check . && uv run ruff format --check .` - Lint + format check
 
@@ -121,6 +121,7 @@ Deployment: frontend on Vercel; the API runs as a Docker container (`f1_api`) on
 - Deploys: push to `master`, or Actions -> deploy -> Run workflow (optional `ingest` input). CI builds the image and the server pulls it — nothing is built on the VPS and the repo is not checked out there
 - `/srv/apps/f1_api/ingest.sh [--force] [-- <seed flags>]` - Calendar-gated f1db ingest + Vercel cache purge; copied there by the deploy
 - `/srv/apps/f1_api/fastf1.sh status|import` - The database half of the Fast-F1 path: report what is missing (JSON on stdout), or load a payload arriving on stdin. Formula 1 blocks the VPS's IP, so nothing here fetches from Fast-F1
+- `/srv/apps/f1_api/backup.sh > f1_api.sql.gz` - Dump the whole production database to stdout, from a throwaway `postgres:16-alpine` container on the shared network against `DIRECT_URL`. Driven from a laptop by `pnpm db:backup:prod`
 - Manual deploy/rollback on the box: `echo "TAG=<sha>" > .tag`, then `docker compose --env-file .env --env-file .tag pull && ... run --rm migrate && ... up -d --wait`
 - Env file: `/srv/apps/f1_api/.env` (created by the platform's `new-app.sh`; app-specific keys in `docker/.env.prod.example`) plus `.tag`, which carries only `TAG=<sha>`
 - Database is the platform's shared PostgreSQL: the API uses `DATABASE_URL` (PgBouncer), migrations and ingest use `DIRECT_URL` (direct — transaction pooling cannot run a migration). Backups are the platform's job
@@ -133,6 +134,8 @@ Deployment: frontend on Vercel; the API runs as a Docker container (`f1_api`) on
 - `F1DB_VERSION` (env) - f1db release to ingest; `latest` by default, pin a tag for reproducible seeds
 
 ### Database
+- `pnpm db:backup` / `pnpm db:backup:prod` - Full dump (schema + every table + Alembic stamp + materialized views) of the local dev container, or of production over Tailscale SSH. Use `:prod` for the committed `docker/backups/latest.sql.gz` — Fast-F1 payloads go straight into production, so the server is the only host with the complete dataset
+- `pnpm db:restore` - Restore a dump. Detects full vs legacy data-only dumps and orders the migrate/load/refresh steps accordingly; `SKIP_MIGRATE=1 SKIP_VIEWS=1` restores a full dump with nothing but `psql`
 - `docker compose -f docker/docker-compose.yml up -d` - Start PostgreSQL (container `f1-tracker-db`)
 - `docker compose -f docker/docker-compose.yml down` - Stop PostgreSQL
 - `docker compose --env-file .env --env-file .tag <cmd>` - Production stack, run from `/srv/apps/f1_api` on the VPS
@@ -195,4 +198,4 @@ Rules to preserve when changing code:
 - Next.js 16 build requires `NODE_ENV=production` to avoid `_global-error` prerender bug
 - Renaming the local dev DB container (`docker-db-1` → `f1-tracker-db`) orphans the old `docker_pgdata` volume; re-run `./scripts/bootstrap.sh`, then `docker volume rm docker_pgdata`
 - **Formula 1 blocks datacentre IPs for Fast-F1 — the VPS's and GitHub's runners alike** (403 from `livetiming.formula1.com`; the control host answers 200, so it is a block, not an outage). Lap times and qualifying sectors therefore cannot be ingested on the server or in CI: they are fetched from a laptop with `pnpm fastf1` (`scripts/fastf1-sync.sh`) and imported as a payload. `scripts/fastf1_fetch.py --probe` re-checks any host in about a second. Fast-F1 does not raise when it is refused — it warns per source and returns an empty session — so three empty sessions in a row abort with the blocked-host message rather than grinding through the calendar at 45 s each.
-- `docker/backups/latest.sql.gz` carries no `lap_times` or qualifying sector times — those come from Fast-F1 at ~45 s/session, so they are not bundled. Race pages' lap-time, tyre-strategy and position charts stay empty until an ingest fills them in (`--laptimes --qualifying-sectors`, or the VPS timer)
+- `docker/backups/latest.sql.gz` is a **full** dump and is meant to carry the Fast-F1 data (`lap_times`, qualifying sector columns) so a restore never means re-fetching it at ~45 s/session. It only does so when it was taken from production (`pnpm db:backup:prod`) — a local dump carries whatever lap times that database happens to hold, and `db-backup.sh` warns when there are none. Until it is regenerated from production, race pages' lap-time, tyre-strategy and position charts stay empty after a restore
