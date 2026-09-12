@@ -216,9 +216,12 @@ def _should_run(targets: set[str] | None, key: str) -> bool:
 def run_full_load(
     targets: set[str] | None = None,
     year_range: tuple[int, int] | None = None,
+    refresh_positions: bool = False,
 ) -> None:
     """Run the data load. If targets is None, run everything.
     If year_range is provided, only ingest data for seasons in [start, end].
+    `refresh_positions` re-fetches lap data stored before per-lap positions
+    were kept; see `LapTimeIngestor.ingest`.
     """
     db: Session = SessionLocal()
     start = time.time()
@@ -275,7 +278,7 @@ def run_full_load(
 
         if _should_run(targets, "laptimes"):
             logger.info("\n--- Lap times ---")
-            LapTimeIngestor(db).ingest(year_range=year_range)
+            LapTimeIngestor(db).ingest(year_range=year_range, refresh_positions=refresh_positions)
 
         if _should_run(targets, "qualifying-sectors"):
             logger.info("\n--- Qualifying sectors ---")

@@ -37,6 +37,11 @@ def races_with_lap_positions(db: Session) -> set[str]:
 
     Races ingested before the position was stored have lap times but no
     positions, and only a re-fetch of the session can fill them in.
+
+    One non-null row is enough to count the race as done. A session Fast-F1 has
+    no positions for *at all* therefore stays outstanding and is offered again
+    by every `--refresh-positions` run — wasteful rather than wrong, and only on
+    an opt-in backfill, so it is not worth a column to remember the attempt.
     """
     return set(
         db.execute(
@@ -102,11 +107,24 @@ class LapTimeIngestor(BaseIngestor):
     `docs/DEPLOYMENT.md`.
     """
 
-    def ingest(self, year_range: tuple[int, int] | None = None) -> None:
+    def ingest(
+        self,
+        year_range: tuple[int, int] | None = None,
+        refresh_positions: bool = False,
+    ) -> None:
+        """Fetch and store lap data for races that do not have it.
+
+        `refresh_positions` also re-fetches races whose lap rows predate storing
+        Fast-F1's per-lap position — the same opt-in `scripts/fastf1_status.py`
+        offers the off-box path, so a local seed and a payload run agree on what
+        counts as already loaded.
+        """
         self.log("Fetching lap times (2018+)...")
 
-        # Find races that already have lap times — skip them
+        # Races that already have what this run is after — skip them
         existing = races_with_lap_times(self.db)
+        if refresh_positions:
+            existing &= races_with_lap_positions(self.db)
 
         today = date.today()
         min_year = max(FIRST_LAP_DATA_YEAR, year_range[0]) if year_range else FIRST_LAP_DATA_YEAR
