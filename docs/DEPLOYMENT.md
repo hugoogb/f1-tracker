@@ -168,9 +168,10 @@ release download, so they populate it directly (about two minutes):
 ```
 
 Lap times and qualifying sector times cannot be loaded from the box — Formula 1
-blocks its IP. Fetch them elsewhere and import the payload (see *Fast-F1 data*
-under Data Updates); the fastf1 workflow also accumulates them a few sessions a
-week on its own.
+blocks its IP, and GitHub's runners with it. Fetch them from a laptop and import
+the payload: `VPS_HOST=<address> ./scripts/fastf1-sync.sh --limit 24
+--oldest-first`, repeated until the backlog is clear (see *Fast-F1 data* under
+Data Updates).
 
 ### 3. Reverse proxy
 
@@ -315,6 +316,8 @@ runs `/srv/apps/f1_api/ingest.sh` (placed there by the deploy), which:
    PgBouncer. The ingestors are idempotent (`db.merge`), so re-runs are safe.
 3. **Validate** — `scripts/validate.py`, informational.
 4. **Purge** — POSTs to `REVALIDATE_URL` so Vercel drops its cached pages.
+5. **Report** — prints how many races are still missing Fast-F1 data into the
+   run's job summary. Nothing schedules that fetch, so this is the reminder.
 
 Manual runs:
 
@@ -333,41 +336,55 @@ Or from the Actions tab: **ingest → Run workflow**, with optional `force` and
 
 **Not on this path: lap times and qualifying sector times.** Formula 1 blocks
 the VPS's datacentre IP, so `--laptimes` and `--qualifying-sectors` cannot run
-there at all — see below.
+there at all, and no workflow can stand in for it either — see below.
 
 ### Fast-F1 data (lap times, qualifying sectors)
 
-Fast-F1 reads Formula 1's live timing archive, which refuses whole datacentre IP
-ranges — the VPS's among them. The fetch therefore happens somewhere Formula 1
-still answers, and only the database write happens on the box:
+Fast-F1 reads Formula 1's live timing archive, and `livetiming.formula1.com`
+answers datacentre IPs with a 403. The VPS is in one — and so are GitHub's
+runners, which was measured rather than assumed:
 
 ```
-GitHub runner                                VPS
-─────────────                                ───
-                     fastf1.sh status  ──▶   what is still missing?  (JSON)
+Checking Fast-F1's sources from this host...      (ubuntu-latest)
+  live timing archive:      HTTP 403 — <!DOCTYPE HTML ...>
+  Jolpica/Ergast (control): HTTP 200
+```
+
+A residential connection still works, so the fetch runs on a laptop and only
+the database half runs on the box:
+
+```
+your machine                                 VPS
+                     fastf1.sh status  ──▶   what is still missing? (JSON)
   fastf1_fetch.py  ◀──────────────────────
-  (Fast-F1, ~45s/session)
   payload.ndjson.gz ──▶ fastf1.sh import ─▶  fastf1_import.py → PostgreSQL
                                              → validate → purge Vercel cache
 ```
 
-`.github/workflows/fastf1.yml` runs this Mondays at 07:30 UTC (after the main
-ingest has created the race rows) and on demand from the Actions tab, with
-`need`, `year_range`, `limit`, `oldest_first` and `dry_run` inputs. Every run
-starts with a probe, so a runner that has *also* been blocked fails the workflow
-with that reason rather than looking like "no new data". The payload is kept as
-a build artifact for 14 days.
+One command does all three:
 
-A pull request touching the Fast-F1 scripts or the workflow runs the probe and
-stops there — no tailnet, no server, no secrets. That is both how a change here
-is tested (`workflow_dispatch` only works once the file is on `master`) and a
-standing answer to whether GitHub's runners are still served.
+```bash
+VPS_HOST=<tailnet-address> ./scripts/fastf1-sync.sh
+```
 
-No database credentials leave the server: the runner only ever handles
-year/round/driver-code data.
+Run it after a race weekend, once the Monday ingest has created the race rows —
+that run's job summary reports how many races are waiting, since nothing
+schedules this. Useful variants:
 
-If GitHub's runners get blocked too, the same two commands work from any machine
-Fast-F1 will serve — a laptop on a home connection:
+```bash
+./scripts/fastf1-sync.sh --limit 24 --oldest-first     # chip away at the backfill
+./scripts/fastf1-sync.sh --need laps --year-range 2018-2019
+./scripts/fastf1-sync.sh --dry-run                     # fetch, but write nothing
+./scripts/fastf1-sync.sh --probe                       # can this machine fetch at all?
+```
+
+Each session costs ~45 s of rate-limit throttle, so a full 2018-onward backfill
+is hours of wall clock. It does not have to happen in one sitting: the payload
+is written as it is fetched, Ctrl-C is safe, and the next run asks the server
+what is *still* missing.
+
+The three steps are also available separately, which is what to reach for when
+something goes wrong:
 
 ```bash
 ssh hugo@<vps> '/srv/apps/f1_api/fastf1.sh status --limit 10' > targets.json
@@ -376,25 +393,19 @@ uv run python scripts/fastf1_fetch.py --targets targets.json --out payload.ndjso
 ssh hugo@<vps> '/srv/apps/f1_api/fastf1.sh import' < payload.ndjson.gz
 ```
 
-Useful variants:
-
-```bash
-# is this host allowed to talk to Fast-F1 at all?
-uv run python scripts/fastf1_fetch.py --probe
-
-# backfill without asking the server what is missing (re-imports are no-ops)
-uv run python scripts/fastf1_fetch.py --year-range 2018-2019 --need laps \
-    --out payload.ndjson.gz
-
-# check a payload before loading it
-ssh hugo@<vps> '/srv/apps/f1_api/fastf1.sh import --dry-run' < payload.ndjson.gz
-```
-
 The payload is newline-delimited JSON (gzipped), one line per session, streamed
-as it is fetched — a run stopped by the rate limit or a timeout still produces a
+as it is fetched — a run stopped by the rate limit or a Ctrl-C still produces a
 file worth importing, and the importer is idempotent, so re-running it changes
 nothing. Sessions are keyed by year/round and three-letter driver code; the
-importer resolves both against the live database.
+importer resolves both against the live database, so no database credentials
+or ids ever leave the server. Payloads are kept in `.fastf1_payloads/`
+(gitignored) so a failed import can be retried without re-fetching.
+
+> **If a fetch produces nothing.** Fast-F1 does not raise when it is refused —
+> it logs a one-line warning per source and hands back an empty session. Three
+> empty sessions in a row therefore stop the run with a blocked-host message,
+> and `--probe` prints the HTTP status codes behind it. If your own connection
+> starts returning 403, the fetch has to move to one that does not.
 
 ### Locally
 

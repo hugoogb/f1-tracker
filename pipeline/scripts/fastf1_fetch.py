@@ -1,9 +1,10 @@
 """Fetch Fast-F1 session data into a payload file. No database required.
 
-Formula 1's live timing endpoints refuse the VPS's IP, so lap times and
-qualifying sector times are fetched from a host Fast-F1 still answers — a
-GitHub runner, or a laptop — and shipped to the box as a payload for
-`scripts/fastf1_import.py` to load. This is the fetching half.
+Formula 1's live timing endpoints refuse datacentre IPs — the VPS's and
+GitHub's runners alike — so lap times and qualifying sector times are fetched
+from a machine on a residential connection and shipped to the box as a payload
+for `scripts/fastf1_import.py` to load. This is the fetching half;
+`scripts/fastf1-sync.sh` in the repository root drives all three steps.
 
 It deliberately touches no database: the target list comes from
 `scripts/fastf1_status.py` (run on the box) or from the Fast-F1 calendar, and
@@ -11,7 +12,7 @@ sessions are keyed by year/round and driver abbreviation until the importer
 resolves them against PostgreSQL.
 
 Usage:
-    # what the workflow does — targets produced on the server
+    # targets produced on the server by scripts/fastf1_status.py
     uv run python scripts/fastf1_fetch.py --targets targets.json --out payload.ndjson.gz
 
     # standalone backfill, no server involved

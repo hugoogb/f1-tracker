@@ -19,7 +19,7 @@ Deployment: frontend on Vercel; the API runs as a Docker container (`f1_api`) on
 - `apps/web/` - Next.js frontend (15 routes, 36+ components)
 - `pipeline/` - Python data pipeline + FastAPI backend (11 routers, 38 endpoints); `Dockerfile` builds the API/migrate/ingest image
 - `docker/` - `docker-compose.yml` (local dev DB), `compose.prod.yml` (the VPS stack — shipped to `/srv/apps/f1_api/docker-compose.yml` by the deploy), `.env.prod.example`, backups
-- `scripts/` - `bootstrap.sh`, `db-backup.sh`, `db-restore.sh`, `lib/db.sh` (shared container resolution), `vps/ingest.sh`, `vps/fastf1.sh`, `vps/purge-cache.sh` (copied to the VPS by the deploy)
+- `scripts/` - `bootstrap.sh`, `db-backup.sh`, `db-restore.sh`, `fastf1-sync.sh` (laptop-side Fast-F1 fetch), `lib/db.sh` (shared container resolution), `vps/ingest.sh`, `vps/fastf1.sh`, `vps/purge-cache.sh` (copied to the VPS by the deploy)
 
 ### Frontend Routes
 
@@ -96,6 +96,7 @@ Deployment: frontend on Vercel; the API runs as a Docker container (`f1_api`) on
 
 ### Local setup (from root)
 - `./scripts/bootstrap.sh` - One-command setup: `.env` + DB + migrations + restore backup + frontend deps
+- `VPS_HOST=<address> ./scripts/fastf1-sync.sh` - Fetch the Fast-F1 data the VPS is blocked from and load it there (status -> fetch -> import); `--probe`, `--limit`, `--need`, `--year-range`, `--oldest-first`, `--dry-run`
 
 ### Frontend (from root)
 - `pnpm dev` - Start Next.js dev server
@@ -107,7 +108,7 @@ Deployment: frontend on Vercel; the API runs as a Docker container (`f1_api`) on
 - `uv run alembic upgrade head` - Run database migrations
 - `uv run alembic revision --autogenerate -m "description"` - Generate migration
 - `uv run python scripts/seed.py` - Run data ingestion (locally this includes `--laptimes` / `--qualifying-sectors`; on the VPS those two cannot run — see below)
-- `uv run python scripts/fastf1_fetch.py --probe` - Check whether this host may talk to Fast-F1 at all
+- `uv run python scripts/fastf1_fetch.py --probe` - Check whether this host may talk to Fast-F1 at all (prints HTTP status for live timing and a control host)
 - `uv run python scripts/fastf1_fetch.py --targets targets.json --out payload.ndjson.gz` - Fetch Fast-F1 sessions into a payload (no DB needed)
 - `uv run python scripts/fastf1_status.py` - List races still missing Fast-F1 data, as JSON (DB, no network)
 - `uv run python scripts/fastf1_import.py --payload payload.ndjson.gz` - Load a payload into PostgreSQL (DB, no network)
@@ -123,11 +124,11 @@ Deployment: frontend on Vercel; the API runs as a Docker container (`f1_api`) on
 - Manual deploy/rollback on the box: `echo "TAG=<sha>" > .tag`, then `docker compose --env-file .env --env-file .tag pull && ... run --rm migrate && ... up -d --wait`
 - Env file: `/srv/apps/f1_api/.env` (created by the platform's `new-app.sh`; app-specific keys in `docker/.env.prod.example`) plus `.tag`, which carries only `TAG=<sha>`
 - Database is the platform's shared PostgreSQL: the API uses `DATABASE_URL` (PgBouncer), migrations and ingest use `DIRECT_URL` (direct — transaction pooling cannot run a migration). Backups are the platform's job
-- Scheduling: `.github/workflows/ingest.yml` — Mondays 06:00 UTC, calendar-gated inside `ingest.sh`; run it by hand from the Actions tab with optional `force`/`flags` inputs
+- Scheduling: `.github/workflows/ingest.yml` — Mondays 06:00 UTC, calendar-gated inside `ingest.sh`; run it by hand from the Actions tab with optional `force`/`flags` inputs. Its last step reports the Fast-F1 backlog, which is a manual job (`scripts/fastf1-sync.sh`)
 
 ### Data Updates
 - **Automated (f1db)**: `.github/workflows/ingest.yml` runs Mondays 06:00 UTC — joins the tailnet and runs `/srv/apps/f1_api/ingest.sh` on the box, calendar-gated, straight into PostgreSQL, then purges the Vercel cache. The f1db ingestors upsert from one release download, so they can bootstrap an empty DB as well as update one.
-- **Automated (Fast-F1)**: `.github/workflows/fastf1.yml` runs Mondays 07:30 UTC — asks the box what is missing (`fastf1.sh status`), fetches those sessions **on the runner** (`scripts/fastf1_fetch.py`, ~45 s each), ships the payload back and loads it (`fastf1.sh import`). Formula 1 blocks the VPS's datacentre IP, so lap times and qualifying sectors can only be fetched off-box; every run probes first, and a blocked runner fails loudly. The same two commands work from a laptop — see `docs/DEPLOYMENT.md`.
+- **Manual (Fast-F1)**: `VPS_HOST=<address> ./scripts/fastf1-sync.sh` from a machine on a residential connection — asks the box what is missing (`fastf1.sh status`), fetches those sessions locally (`pipeline/scripts/fastf1_fetch.py`, ~45 s each), ships the payload back and loads it (`fastf1.sh import`). This cannot be automated in CI: `livetiming.formula1.com` returns 403 to the VPS *and* to GitHub's runners (measured — see `docs/DEPLOYMENT.md`). The Monday ingest run reports how many races are waiting, since nothing else will remind you.
 - `uv run python scripts/should_ingest.py --days 3 [--exit-code]` - Calendar gate; `--exit-code` makes the decision the exit status for shell callers
 - `F1DB_VERSION` (env) - f1db release to ingest; `latest` by default, pin a tag for reproducible seeds
 
@@ -193,5 +194,5 @@ Rules to preserve when changing code:
 
 - Next.js 16 build requires `NODE_ENV=production` to avoid `_global-error` prerender bug
 - Renaming the local dev DB container (`docker-db-1` → `f1-tracker-db`) orphans the old `docker_pgdata` volume; re-run `./scripts/bootstrap.sh`, then `docker volume rm docker_pgdata`
-- **Formula 1 blocks the VPS's IP for Fast-F1.** Lap times and qualifying sectors cannot be ingested on the server; they are fetched by `.github/workflows/fastf1.yml` (or a laptop) and imported as a payload. GitHub's runner ranges could be blocked next — the workflow probes on every run so that failure is unambiguous.
+- **Formula 1 blocks datacentre IPs for Fast-F1 — the VPS's and GitHub's runners alike** (403 from `livetiming.formula1.com`; the control host answers 200, so it is a block, not an outage). Lap times and qualifying sectors therefore cannot be ingested on the server or in CI: they are fetched from a laptop with `scripts/fastf1-sync.sh` and imported as a payload. `scripts/fastf1_fetch.py --probe` re-checks any host in about a second. Fast-F1 does not raise when it is refused — it warns per source and returns an empty session — so three empty sessions in a row abort with the blocked-host message rather than grinding through the calendar at 45 s each.
 - `docker/backups/latest.sql.gz` carries no `lap_times` or qualifying sector times — those come from Fast-F1 at ~45 s/session, so they are not bundled. Race pages' lap-time, tyre-strategy and position charts stay empty until an ingest fills them in (`--laptimes --qualifying-sectors`, or the VPS timer)

@@ -28,6 +28,9 @@ pipeline/.fastf1_cache/
 # f1db release archives
 pipeline/.f1db_cache/
 
+# Fast-F1 payloads fetched for the VPS (scripts/fastf1-sync.sh)
+.fastf1_payloads/
+
 # Environment
 .env
 .env.local

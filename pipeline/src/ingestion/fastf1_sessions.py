@@ -1,15 +1,16 @@
 """Fast-F1 session extraction — network in, JSON-safe dicts out, no database.
 
-Formula 1's live timing endpoints refuse the VPS's datacentre IP, so the host
-that *fetches* session data is no longer the host that *writes* it to
-PostgreSQL. Everything Fast-F1-shaped therefore lives here, keyed by the
-three-letter driver abbreviation and carrying only JSON-safe values:
+Formula 1's live timing endpoints refuse datacentre IPs — the VPS's and
+GitHub's runners alike — so the host that *fetches* session data is no longer
+the host that *writes* it to PostgreSQL. Everything Fast-F1-shaped therefore
+lives here, keyed by the three-letter driver abbreviation and carrying only
+JSON-safe values:
 
 * `lap_times.py` / `qualifying_sectors.py` call these directly when the local
-  IP can reach Fast-F1 (a laptop, a fresh seed).
-* `scripts/fastf1_fetch.py` calls the same functions on a GitHub runner and
-  writes the results to a payload (`fastf1_payload.py`) that
-  `scripts/fastf1_import.py` loads on the box.
+  IP can reach Fast-F1 (a laptop, a fresh local seed).
+* `scripts/fastf1_fetch.py` calls the same functions on whatever machine is
+  doing the fetching and writes the results to a payload (`fastf1_payload.py`)
+  that `scripts/fastf1_import.py` loads on the box.
 
 One parser, two transports — so the offline path can never drift from the
 direct one.

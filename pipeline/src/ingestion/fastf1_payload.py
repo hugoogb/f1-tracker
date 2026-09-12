@@ -1,9 +1,9 @@
 """The wire format for Fast-F1 session data fetched off-box.
 
-Formula 1 blocks the VPS's IP, so lap times and qualifying sectors are fetched
-where Fast-F1 still answers (a GitHub runner, or a laptop) and carried to the
-server as a payload file. That file is newline-delimited JSON, gzip-compressed
-by default:
+Formula 1 blocks datacentre IPs, so lap times and qualifying sectors are
+fetched where Fast-F1 still answers — a machine on a residential connection —
+and carried to the server as a payload file. That file is newline-delimited
+JSON, gzip-compressed by default:
 
     line 1   {"kind": "header", "schema": 1, "created_at": ..., ...}
     line 2+  one session per line — see `SessionRecord`

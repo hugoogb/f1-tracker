@@ -58,18 +58,18 @@ pipeline/
   official standings, 1950 to present. Ingested from one versioned release download per run
   (`src/ingestion/f1db.py`); pin `F1DB_VERSION` for reproducible seeds.
 - **Fast-F1** (MIT): lap-by-lap times, sector times and tyre compound/stint data (2018+) — the only
-  source for lap-level detail, which f1db does not carry. Formula 1 refuses datacentre IPs, so in
-  production this is fetched off the server and imported as a payload:
+  source for lap-level detail, which f1db does not carry. Formula 1 refuses datacentre IPs — the
+  VPS's and GitHub's runners alike — so production data is fetched from a machine on a residential
+  connection and imported as a payload:
 
   ```bash
-  uv run python scripts/fastf1_fetch.py --probe            # may this host fetch at all?
-  ssh hugo@<vps> '/srv/apps/f1_api/fastf1.sh status' > targets.json
-  uv run python scripts/fastf1_fetch.py --targets targets.json --out payload.ndjson.gz
-  ssh hugo@<vps> '/srv/apps/f1_api/fastf1.sh import' < payload.ndjson.gz
+  uv run python scripts/fastf1_fetch.py --probe   # may this machine fetch at all?
+  VPS_HOST=<address> ../scripts/fastf1-sync.sh    # status -> fetch -> import, in one go
   ```
 
-  Locally there is no block, so `seed.py --laptimes --qualifying-sectors` still does both halves
-  at once. See [../docs/DEPLOYMENT.md](../docs/DEPLOYMENT.md).
+  Against a local database there is no block to work around, so
+  `seed.py --laptimes --qualifying-sectors` still does both halves at once. See
+  [../docs/DEPLOYMENT.md](../docs/DEPLOYMENT.md).
 
 See [../ATTRIBUTIONS.md](../ATTRIBUTIONS.md).
 

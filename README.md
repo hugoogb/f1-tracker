@@ -83,8 +83,8 @@ Open [http://localhost:3000](http://localhost:3000) to view the app.
 | `cd pipeline && uv run ruff check . && uv run ruff format --check .` | Lint + format check |
 | `docker compose -f docker/docker-compose.yml up -d` | Start PostgreSQL |
 | `/srv/apps/f1_api/ingest.sh` | Run a data ingest on the VPS (calendar-gated); scheduled weekly by `.github/workflows/ingest.yml` |
-| `cd pipeline && uv run python scripts/fastf1_fetch.py --probe` | Check whether this host can reach Fast-F1 (Formula 1 blocks the VPS) |
-| `/srv/apps/f1_api/fastf1.sh status` / `... import` | List races missing Fast-F1 data / load a payload fetched elsewhere; scheduled weekly by `.github/workflows/fastf1.yml` |
+| `VPS_HOST=<address> ./scripts/fastf1-sync.sh` | Fetch lap times + qualifying sectors here and load them on the VPS (Formula 1 blocks the server and CI, so this one is manual) |
+| `cd pipeline && uv run python scripts/fastf1_fetch.py --probe` | Check whether this machine can reach Fast-F1 at all |
 
 ### Pre-commit Hooks
 

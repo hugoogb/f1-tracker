@@ -2,10 +2,10 @@
 # Fast-F1 data on the VPS — the two halves that need the database, and only those.
 #
 # Formula 1's live timing endpoints refuse this box's datacentre IP, so lap
-# times and qualifying sector times cannot be fetched here at all. They are
-# fetched where Fast-F1 still answers (.github/workflows/fastf1.yml on a GitHub
-# runner, or a laptop) and arrive as a payload. What stays on the box is the
-# part that needs PostgreSQL:
+# times and qualifying sector times cannot be fetched here at all — nor from a
+# GitHub runner, which is refused the same way. They are fetched from a machine
+# on a residential connection (scripts/fastf1-sync.sh) and arrive as a payload.
+# What stays on the box is the part that needs PostgreSQL:
 #
 #   status   print the races still missing Fast-F1 data, as JSON on stdout
 #   import   load a payload arriving on stdin, then purge the frontend cache
@@ -19,7 +19,8 @@
 #   /srv/apps/f1_api/fastf1.sh import < payload.ndjson.gz   # gzip or plain NDJSON
 #   /srv/apps/f1_api/fastf1.sh import --dry-run < payload.ndjson.gz
 #
-# Over SSH, from a machine that has the payload:
+# Over SSH, from the machine doing the fetching — which is what
+# scripts/fastf1-sync.sh automates:
 #   ssh hugo@vps '/srv/apps/f1_api/fastf1.sh status' > targets.json
 #   ssh hugo@vps '/srv/apps/f1_api/fastf1.sh import' < payload.ndjson.gz
 set -euo pipefail
