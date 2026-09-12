@@ -25,6 +25,10 @@
 #   VPS_HOST / VPS_USER         the server, for --remote
 set -euo pipefail
 
+# `set -e` aborts without printing anything, which once turned a missing .env
+# key into a bare "exit 1" and nothing else. Name the line instead.
+trap 'status=$?; echo "Error: $(basename "$0") failed at line $LINENO (exit $status)." >&2' ERR
+
 # shellcheck source=lib/db.sh
 . "$(cd "$(dirname "$0")" && pwd)/lib/db.sh"
 
