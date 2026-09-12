@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 from src.db.models import LapTime, Race, Season
 from src.ingestion.base import BaseIngestor, is_interrupted
 from src.ingestion.fastf1_sessions import (
+    EMPTY_STREAK_LIMIT,
     fetch_race_laps,
     is_blocked_error,
     is_rate_limit_error,
@@ -101,6 +102,9 @@ class LapTimeIngestor(BaseIngestor):
         total_fetched = 0
         total_skipped = 0
         total_records = 0
+        # Fast-F1 answers a refused request with a warning and no laps, so a run
+        # of empty sessions is how a blocked host looks from in here.
+        empty_streak = 0
         for season in seasons:
             races = (
                 self.db.execute(
@@ -132,7 +136,18 @@ class LapTimeIngestor(BaseIngestor):
 
                     if not rows:
                         self.log(f"{season.year} R{race.round}: no lap data available")
+                        empty_streak += 1
+                        if empty_streak >= EMPTY_STREAK_LIMIT:
+                            self.log(
+                                f"{empty_streak} sessions in a row came back empty — "
+                                f"Fast-F1 is most likely refusing this host. Fetch "
+                                f"elsewhere and load with scripts/fastf1_import.py; "
+                                f"see docs/DEPLOYMENT.md."
+                            )
+                            return
+                        throttle(load_elapsed, log=self.log)
                         continue
+                    empty_streak = 0
 
                     abbr_to_id = self.build_abbr_to_driver_id(
                         abbrs, self.race_entrant_codes(race.id)

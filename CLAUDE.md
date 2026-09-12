@@ -112,7 +112,7 @@ Deployment: frontend on Vercel; the API runs as a Docker container (`f1_api`) on
 - `uv run python scripts/fastf1_status.py` - List races still missing Fast-F1 data, as JSON (DB, no network)
 - `uv run python scripts/fastf1_import.py --payload payload.ndjson.gz` - Load a payload into PostgreSQL (DB, no network)
 - `uv run python scripts/refresh_views.py` - Rebuild the computed-stats materialized views (`driver_career_stats`, `constructor_career_stats`, `season_champions`); `db-restore.sh` calls this, since the dump does not carry view contents
-- `uv run pytest -v` - Run backend tests (113 tests)
+- `uv run pytest -v` - Run backend tests (120 tests)
 - `uv run ruff check . && uv run ruff format --check .` - Lint + format check
 
 ### VPS (production backend)

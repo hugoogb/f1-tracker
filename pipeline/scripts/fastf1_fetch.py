@@ -42,12 +42,16 @@ from src.ingestion.fastf1_payload import (  # noqa: E402
     payload_writer,
 )
 from src.ingestion.fastf1_sessions import (  # noqa: E402
+    EMPTY_STREAK_LIMIT,
+    PROBE_URLS,
     THROTTLE_DELAY,
     enable_cache,
     fetch_qualifying_bests,
     fetch_race_laps,
+    http_check,
     is_blocked_error,
     is_rate_limit_error,
+    raise_load_errors,
     throttle,
 )
 
@@ -180,19 +184,60 @@ def fetch_session(target: dict, kind: str) -> tuple[SessionRecord | None, float]
 
 
 def probe() -> int:
-    """Check whether this host can reach Fast-F1 at all. 0 = yes, 1 = no."""
-    logger.info(f"Probing Fast-F1 with {PROBE_YEAR} round {PROBE_ROUND}...")
+    """Check whether this host can reach Fast-F1 at all. 0 = yes, 1 = no.
+
+    Two parts, because they answer different questions. The HTTP checks say
+    whether Formula 1's servers will talk to this IP — a 403 there is a block,
+    an answer from the control host but not from live timing is a block aimed at
+    this project's data specifically. The session load then says whether a real
+    fetch works end to end.
+    """
+    # Without this, a refused request is a one-line warning and an empty
+    # session, which is indistinguishable from a session that has no data.
+    raise_load_errors()
+
+    logger.info("Checking Fast-F1's sources from this host...")
+    reachability = {}
+    for name, url in PROBE_URLS:
+        ok, detail = http_check(url)
+        reachability[name] = ok
+        logger.log(logging.INFO if ok else logging.ERROR, f"  {name}: {detail}")
+
+    live_timing_ok = reachability.get("live timing archive", False)
+    control_ok = any(ok for name, ok in reachability.items() if "control" in name)
+
+    if not live_timing_ok:
+        if control_ok:
+            logger.error(
+                "Live timing refuses this host while the control host answers — "
+                "this is an IP block, not an outage."
+            )
+        else:
+            logger.error("Nothing answered — this host may have no outbound access at all.")
+        logger.error(BLOCKED_HELP)
+        _gha_output(reachable=False, blocked=control_ok, rate_limited=False)
+        return 1
+
+    logger.info(f"Loading {PROBE_YEAR} round {PROBE_ROUND} to confirm a real fetch works...")
     try:
         abbrs, rows, elapsed = fetch_race_laps(PROBE_YEAR, PROBE_ROUND)
     except Exception as e:
         blocked = is_blocked_error(e)
         rate_limited = is_rate_limit_error(e)
-        logger.error(f"Probe failed: {e}")
+        logger.error(f"Probe failed: {type(e).__name__}: {e}")
         if blocked:
             logger.error(BLOCKED_HELP)
         elif rate_limited:
             logger.error("This host is rate limited, not blocked — the window clears on its own.")
         _gha_output(reachable=False, blocked=blocked, rate_limited=rate_limited)
+        return 1
+
+    if not rows:
+        logger.error(
+            "The session loaded but carried no laps. Live timing answered the "
+            "reachability check, so this is worth reading the warnings above for."
+        )
+        _gha_output(reachable=False, blocked=False, rate_limited=False)
         return 1
 
     logger.info(f"Fast-F1 reachable: {len(rows)} laps for {len(abbrs)} drivers in {elapsed:.0f}s")
@@ -290,6 +335,7 @@ def main() -> int:
 
     fetched = 0
     empty = 0
+    empty_streak = 0
     failed = 0
     partial = False
     blocked = False
@@ -332,7 +378,19 @@ def main() -> int:
                     if record is None:
                         logger.info(f"{label}: no data available")
                         empty += 1
+                        empty_streak += 1
+                        if empty_streak >= EMPTY_STREAK_LIMIT:
+                            logger.error(
+                                f"{empty_streak} sessions in a row came back empty. "
+                                f"Fast-F1 does not raise when it is refused, so this "
+                                f"is what a block looks like from here."
+                            )
+                            logger.error(BLOCKED_HELP)
+                            blocked = True
+                            partial = True
+                            raise _StopFetchError
                     else:
+                        empty_streak = 0
                         size = len(record.rows) or len(record.bests)
                         logger.info(f"{label}: {size} record(s)")
                         write(record)

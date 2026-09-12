@@ -13,6 +13,7 @@ import json
 
 import pandas as pd
 import pytest
+from fastf1.exceptions import DataNotLoadedError
 
 from scripts.fastf1_import import import_record
 from scripts.fastf1_status import find_targets
@@ -30,7 +31,9 @@ from src.ingestion.fastf1_payload import (
 from src.ingestion.fastf1_sessions import (
     extract_qualifying_bests,
     extract_race_laps,
+    http_check,
     session_abbreviations,
+    session_laps,
 )
 from src.ingestion.lap_times import write_lap_rows
 from src.ingestion.qualifying_sectors import write_quali_sectors
@@ -486,3 +489,58 @@ def test_import_record_skips_a_session_whose_drivers_are_unknown(db, race_seed_d
 
     assert import_record(db, record) == (None, 0)
     assert db.query(LapTime).count() == 0
+
+
+# --- Blocked-host handling ---------------------------------------------------
+
+
+class _UnloadedSession:
+    """What Fast-F1 hands back when every source refused: accessing laps raises."""
+
+    @property
+    def laps(self):
+        raise DataNotLoadedError("The data you are trying to access has not been loaded yet.")
+
+    @property
+    def results(self):
+        raise DataNotLoadedError("The data you are trying to access has not been loaded yet.")
+
+
+def test_a_refused_session_reads_as_no_data_not_a_crash():
+    session = _UnloadedSession()
+
+    assert session_laps(session) is None
+    assert extract_race_laps(session) == []
+    assert extract_qualifying_bests(session) == {}
+    assert session_abbreviations(session) == []
+
+
+@pytest.mark.parametrize(
+    ("status", "reachable"),
+    [(200, True), (404, True), (403, False), (429, False), (451, False)],
+)
+def test_http_check_treats_only_refusals_as_unreachable(monkeypatch, status, reachable):
+    """A 404 still proves the host answered; a 403 is what a block looks like."""
+
+    class _Response:
+        status_code = status
+        text = "blocked" if status == 403 else ""
+
+    monkeypatch.setattr("src.ingestion.fastf1_sessions.requests.get", lambda *a, **k: _Response())
+
+    ok, detail = http_check("https://example.invalid")
+
+    assert ok is reachable
+    assert str(status) in detail
+
+
+def test_http_check_reports_a_connection_failure(monkeypatch):
+    def _boom(*args, **kwargs):
+        raise ConnectionError("connection reset by peer")
+
+    monkeypatch.setattr("src.ingestion.fastf1_sessions.requests.get", _boom)
+
+    ok, detail = http_check("https://example.invalid")
+
+    assert ok is False
+    assert "ConnectionError" in detail

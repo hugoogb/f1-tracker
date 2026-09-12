@@ -45,7 +45,7 @@ pipeline/
 │   └── ingestion/             # f1db + Fast-F1 data pipeline
 │       ├── fastf1_sessions.py # Fast-F1 → plain dicts (no DB; runs anywhere)
 │       └── fastf1_payload.py  # NDJSON wire format for off-box fetches
-├── tests/                     # pytest suite (113 tests)
+├── tests/                     # pytest suite (120 tests)
 ├── scripts/                   # seed.py, fastf1_{status,fetch,import}.py, backup/restore
 ├── alembic/                   # Database migrations
 └── pyproject.toml             # Dependencies + ruff/pytest config
@@ -146,7 +146,7 @@ uv run pytest -v
 uv run pytest tests/test_races.py -v
 ```
 
-113 tests covering the routers, the f1db transform helpers and the off-box Fast-F1 path (session parsing, payload round trip, writers, import). Tests use SQLite in-memory with `StaticPool` and two fixtures:
+120 tests covering the routers, the f1db transform helpers and the off-box Fast-F1 path (session parsing, payload round trip, writers, import). Tests use SQLite in-memory with `StaticPool` and two fixtures:
 - `seed_data` — minimal: 1 season, 1 driver, 1 constructor, 1 circuit
 - `race_seed_data` — extended: adds race, results, qualifying, standings, pit stop, 2nd driver/constructor
 

@@ -16,11 +16,14 @@ direct one.
 """
 
 import logging
+import os
 import time
 from pathlib import Path
 
 import fastf1
 import pandas as pd
+import requests
+from fastf1.exceptions import DataNotLoadedError
 
 from src.config import settings
 
@@ -37,6 +40,21 @@ CACHED_LOAD_SECONDS = 1.0
 # Fast-F1 session identifiers for the data this pipeline ingests.
 SESSION_RACE = "R"
 SESSION_QUALIFYING = "Q"
+
+# A refused host does not raise: Fast-F1 catches per-source failures, logs a
+# one-line warning and hands back a session with no laps in it (unless
+# FASTF1_DEBUG is set — see `raise_load_errors`). So "no data" repeated is the
+# symptom of a block, and this many in a row means stop rather than grind
+# through the whole calendar at 45s a session producing nothing.
+EMPTY_STREAK_LIMIT = 3
+
+# What Fast-F1 fetches session data from, and one control that is not Formula
+# 1's own infrastructure — if live timing is refused but the control answers,
+# the host is blocked rather than offline.
+PROBE_URLS = (
+    ("live timing archive", "https://livetiming.formula1.com/static/2023/Index.json"),
+    ("Jolpica/Ergast (control)", "https://api.jolpi.ca/ergast/f1/2023/1/results.json?limit=1"),
+)
 
 
 _cache_enabled = False
@@ -88,6 +106,39 @@ def is_rate_limit_error(e: Exception) -> bool:
     )
 
 
+def raise_load_errors() -> None:
+    """Stop Fast-F1 swallowing per-source load failures.
+
+    `Session.load` wraps each source in `soft_exceptions`, which turns a refused
+    request into a warning and an empty DataFrame — useful in a notebook,
+    useless when the question is *why* nothing came back. Setting FASTF1_DEBUG
+    makes those exceptions propagate so they can be classified.
+    """
+    os.environ["FASTF1_DEBUG"] = "1"
+
+
+def http_check(url: str, timeout: float = 20.0) -> tuple[bool, str]:
+    """GET a URL and describe what came back: `(reachable, description)`.
+
+    Reachable means the host answered at all — a 404 still proves the request
+    was not refused, which is the distinction that matters here.
+    """
+    try:
+        response = requests.get(url, timeout=timeout)
+    except Exception as e:
+        return False, f"{type(e).__name__}: {e}"
+
+    # 403 (and 451) is what an IP block looks like from the outside; 429 is the
+    # rate limit, which is a different problem.
+    ok = response.status_code not in (401, 403, 429, 451)
+    detail = f"HTTP {response.status_code}"
+    if not ok:
+        body = response.text[:120].replace("\n", " ").strip()
+        if body:
+            detail = f"{detail} — {body}"
+    return ok, detail
+
+
 def is_blocked_error(e: Exception) -> bool:
     """Check whether Fast-F1 was refused outright rather than rate limited.
 
@@ -131,13 +182,30 @@ def _load(year: int, rnd: int, session_id: str):
     return session, time.time() - start
 
 
+def session_laps(session):
+    """A session's laps, or None when nothing loaded.
+
+    Reaching for `session.laps` after a failed load raises rather than handing
+    back an empty frame, and a refused host fails exactly that way. Callers
+    treat both as "no data" and let the empty streak decide whether the host
+    itself is the problem.
+    """
+    try:
+        return session.laps
+    except DataNotLoadedError:
+        return None
+
+
 def session_abbreviations(session) -> list[str]:
     """The three-letter codes of the drivers classified in a session.
 
     Fast-F1's own `DriverId` is an Ergast reference, which no longer matches
     our f1db-derived refs, so drivers are matched on this code instead.
     """
-    results = session.results
+    try:
+        results = session.results
+    except DataNotLoadedError:
+        return []
     if results is None or results.empty:
         return []
     abbrs: list[str] = []
@@ -150,7 +218,7 @@ def session_abbreviations(session) -> list[str]:
 
 def extract_race_laps(session) -> list[dict]:
     """Flatten a race session's laps into JSON-safe rows keyed by abbreviation."""
-    laps = session.laps
+    laps = session_laps(session)
     if laps is None or laps.empty:
         return []
 
@@ -187,7 +255,7 @@ def extract_qualifying_bests(session) -> dict[str, dict[str, dict]]:
 
     Returns `{abbreviation: {"Q1": {"s1_ms": ..., "lap_ms": ...}, ...}}`.
     """
-    laps = session.laps
+    laps = session_laps(session)
     if laps is None or laps.empty:
         return {}
 
