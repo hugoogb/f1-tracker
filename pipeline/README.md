@@ -64,7 +64,7 @@ pipeline/
 
   ```bash
   uv run python scripts/fastf1_fetch.py --probe   # may this machine fetch at all?
-  VPS_HOST=<address> ../scripts/fastf1-sync.sh    # status -> fetch -> import, in one go
+  cd .. && pnpm fastf1                            # status -> fetch -> import, in one go
   ```
 
   Against a local database there is no block to work around, so

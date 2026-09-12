@@ -8,6 +8,7 @@
     "typecheck": "pnpm --filter web typecheck",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "fastf1": "./scripts/fastf1-sync.sh",
     "prepare": "husky"
   },
   "devDependencies": {

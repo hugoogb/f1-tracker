@@ -75,6 +75,7 @@ Two files, one per environment. Neither is committed.
 | `F1DB_VERSION`        | `latest`                                                        | f1db release to ingest; pin a tag for reproducible seeds |
 | `F1DB_CACHE_DIR`      | `.f1db_cache`                                                   | f1db release archive cache directory            |
 | `FASTF1_CACHE_DIR`    | `.fastf1_cache`                                                 | Fast-F1 session cache directory                 |
+| `VPS_HOST`            | —                                                               | Server address for `pnpm fastf1` (local only)   |
 | `NEXT_PUBLIC_API_URL` | `http://localhost:8000/api`                                     | Backend URL, baked into the bundle at build time |
 | `REVALIDATE_URL` / `REVALIDATE_SECRET` | —                                              | Frontend cache purge after ingest               |
 
@@ -168,10 +169,10 @@ release download, so they populate it directly (about two minutes):
 ```
 
 Lap times and qualifying sector times cannot be loaded from the box — Formula 1
-blocks its IP, and GitHub's runners with it. Fetch them from a laptop and import
-the payload: `VPS_HOST=<address> ./scripts/fastf1-sync.sh --limit 24
---oldest-first`, repeated until the backlog is clear (see *Fast-F1 data* under
-Data Updates).
+blocks its IP, and GitHub's runners with it. Fetch them from a laptop instead:
+`pnpm fastf1 --all --oldest-first` (see *Fast-F1 data* under Data Updates). It
+is throttled to ~45 s a session, so a load from 2018 runs for hours; it can be
+stopped and resumed at any point.
 
 ### 3. Reverse proxy
 
@@ -364,18 +365,28 @@ your machine                                 VPS
 One command does all three:
 
 ```bash
-VPS_HOST=<tailnet-address> ./scripts/fastf1-sync.sh
+pnpm fastf1
 ```
+
+Set the server's tailnet address in `.env` once and it takes no arguments:
+
+```bash
+VPS_HOST=100.x.y.z        # VPS_USER defaults to hugo
+```
+
+`scripts/fastf1-sync.sh` is the script behind it, if you would rather not go
+through pnpm; `VPS_HOST=… pnpm fastf1` or `--host` override the `.env` value.
 
 Run it after a race weekend, once the Monday ingest has created the race rows —
 that run's job summary reports how many races are waiting, since nothing
 schedules this. Useful variants:
 
 ```bash
-./scripts/fastf1-sync.sh --limit 24 --oldest-first     # chip away at the backfill
-./scripts/fastf1-sync.sh --need laps --year-range 2018-2019
-./scripts/fastf1-sync.sh --dry-run                     # fetch, but write nothing
-./scripts/fastf1-sync.sh --probe                       # can this machine fetch at all?
+pnpm fastf1 --all                            # everything missing (hours; safe to stop)
+pnpm fastf1 --limit 24 --oldest-first        # chip away at the backfill
+pnpm fastf1 --need laps --year-range 2018-2019
+pnpm fastf1 --dry-run                        # fetch, but write nothing
+pnpm fastf1 --probe                          # can this machine fetch at all?
 ```
 
 Each session costs ~45 s of rate-limit throttle, so a full 2018-onward backfill

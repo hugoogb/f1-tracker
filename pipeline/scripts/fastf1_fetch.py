@@ -4,7 +4,7 @@ Formula 1's live timing endpoints refuse datacentre IPs — the VPS's and
 GitHub's runners alike — so lap times and qualifying sector times are fetched
 from a machine on a residential connection and shipped to the box as a payload
 for `scripts/fastf1_import.py` to load. This is the fetching half;
-`scripts/fastf1-sync.sh` in the repository root drives all three steps.
+`pnpm fastf1` (scripts/fastf1-sync.sh) drives all three steps.
 
 It deliberately touches no database: the target list comes from
 `scripts/fastf1_status.py` (run on the box) or from the Fast-F1 calendar, and

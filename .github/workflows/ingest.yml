@@ -7,7 +7,7 @@
 #
 # This covers the f1db dataset only. Lap times and qualifying sector times come
 # from Fast-F1, which refuses both this runner and the server, so they are
-# fetched by hand (scripts/fastf1-sync.sh); the last step here reports how many
+# fetched by hand (`pnpm fastf1`); the last step here reports how many
 # races are waiting.
 #
 # ingest.sh applies its own calendar gate (skip unless a race ran in the last 3
@@ -88,7 +88,7 @@ jobs:
       # can be: Formula 1 answers livetiming.formula1.com with a 403 for the
       # server's IP and for GitHub's runners alike (measured — see
       # docs/DEPLOYMENT.md). They are fetched by hand from a machine on a
-      # residential connection, with scripts/fastf1-sync.sh. Since nothing
+      # residential connection, with `pnpm fastf1`. Since nothing
       # schedules that, this is the reminder that it is due — the ingest itself
       # has already succeeded, so a failure here must not fail the run.
       - name: Report the Fast-F1 backlog
@@ -118,10 +118,10 @@ jobs:
             else
               echo "**$count race(s)** are missing lap times or qualifying sectors."
               echo ""
-              echo 'Formula 1 blocks this server and GitHub'"'"'s runners, so fetch them from a laptop:'
+              echo 'Formula 1 blocks this server and GitHub'"'"'s runners, so fetch them from a laptop (VPS_HOST in .env):'
               echo ""
               echo '```bash'
-              echo 'VPS_HOST=<tailnet-address> ./scripts/fastf1-sync.sh'
+              echo 'pnpm fastf1'
               echo '```'
             fi
           } >> "$GITHUB_STEP_SUMMARY"
