@@ -1,19 +1,107 @@
-"""Ingest qualifying sector times from Fast-F1 (2018+ only)."""
+"""Ingest qualifying sector times from Fast-F1 (2018+ only).
 
-import time
+Two entry points onto the same writer:
+
+* `QualifyingSectorIngestor` — fetch and write in one process, for a host whose
+  IP Fast-F1 still answers.
+* `write_quali_sectors` — write bests someone else fetched, used by
+  `scripts/fastf1_import.py` when the payload was built off-box.
+"""
+
 from datetime import date
 
-import fastf1
 from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 from src.db.models import QualifyingResult, Race, Season
-from src.ingestion.base import (
-    THROTTLE_DELAY,
-    BaseIngestor,
-    is_interrupted,
+from src.ingestion.base import BaseIngestor, is_interrupted
+from src.ingestion.fastf1_sessions import (
+    EMPTY_STREAK_LIMIT,
+    fetch_qualifying_bests,
+    is_blocked_error,
     is_rate_limit_error,
-    timedelta_to_ms,
+    throttle,
 )
+
+# Fast-F1's live timing archive starts here; before it there are no sector times.
+FIRST_SECTOR_DATA_YEAR = 2018
+
+# Qualifying segment -> the QualifyingResult columns it fills.
+_SEGMENT_COLUMNS = {
+    "Q1": ("q1_s1_ms", "q1_s2_ms", "q1_s3_ms"),
+    "Q2": ("q2_s1_ms", "q2_s2_ms", "q2_s3_ms"),
+    "Q3": ("q3_s1_ms", "q3_s2_ms", "q3_s3_ms"),
+}
+
+
+def races_with_quali_sectors(db: Session) -> set[str]:
+    """Ids of races whose qualifying results already carry sector times."""
+    return set(
+        db.execute(
+            select(QualifyingResult.race_id)
+            .where(QualifyingResult.q1_s1_ms.isnot(None))
+            .group_by(QualifyingResult.race_id)
+        )
+        .scalars()
+        .all()
+    )
+
+
+def races_with_quali_results(db: Session) -> set[str]:
+    """Ids of races that have qualifying results at all.
+
+    Sector times update existing rows, so a race without them has nothing to
+    attach to and is not worth fetching.
+    """
+    return set(
+        db.execute(select(QualifyingResult.race_id).group_by(QualifyingResult.race_id))
+        .scalars()
+        .all()
+    )
+
+
+def write_quali_sectors(
+    db: Session,
+    race_id: str,
+    bests: dict[str, dict],
+    abbr_to_id: dict[str, str],
+) -> int:
+    """Fill sector columns on this race's qualifying rows. The caller commits.
+
+    `bests` is `{abbreviation: {"Q1": {"s1_ms": ..., "lap_ms": ...}, ...}}` as
+    produced by `fastf1_sessions.extract_qualifying_bests`.
+    """
+    quali_by_driver = {
+        q.driver_id: q
+        for q in db.execute(select(QualifyingResult).where(QualifyingResult.race_id == race_id))
+        .scalars()
+        .all()
+    }
+    if not quali_by_driver:
+        return 0
+
+    updated = 0
+    for abbr, segments in bests.items():
+        driver_id = abbr_to_id.get(str(abbr))
+        if not driver_id:
+            continue
+        quali = quali_by_driver.get(driver_id)
+        if not quali:
+            continue
+
+        touched = False
+        for segment, (s1_col, s2_col, s3_col) in _SEGMENT_COLUMNS.items():
+            best = segments.get(segment)
+            if not best:
+                continue
+            setattr(quali, s1_col, best.get("s1_ms"))
+            setattr(quali, s2_col, best.get("s2_ms"))
+            setattr(quali, s3_col, best.get("s3_ms"))
+            touched = True
+
+        if touched:
+            updated += 1
+    return updated
 
 
 class QualifyingSectorIngestor(BaseIngestor):
@@ -21,24 +109,23 @@ class QualifyingSectorIngestor(BaseIngestor):
 
     Populates sector columns (q1_s1_ms .. q3_s3_ms) on existing
     QualifyingResult rows using Fast-F1's session.laps DataFrame.
+
+    Requires an IP Fast-F1 will serve. The VPS's is blocked, so in production
+    this runs as fetch-elsewhere + `scripts/fastf1_import.py`; see
+    `docs/DEPLOYMENT.md`.
     """
 
     def ingest(self, year_range: tuple[int, int] | None = None) -> None:
         self.log("Fetching qualifying sectors (2018+)...")
 
         # Find races that already have qualifying sector data — skip them
-        existing = set(
-            self.db.execute(
-                select(QualifyingResult.race_id)
-                .where(QualifyingResult.q1_s1_ms.isnot(None))
-                .group_by(QualifyingResult.race_id)
-            )
-            .scalars()
-            .all()
-        )
+        existing = races_with_quali_sectors(self.db)
+        have_quali = races_with_quali_results(self.db)
 
         today = date.today()
-        min_year = max(2018, year_range[0]) if year_range else 2018
+        min_year = (
+            max(FIRST_SECTOR_DATA_YEAR, year_range[0]) if year_range else FIRST_SECTOR_DATA_YEAR
+        )
         query = select(Season).where(Season.year >= min_year).order_by(Season.year)
         if year_range:
             query = query.where(Season.year <= year_range[1])
@@ -47,6 +134,9 @@ class QualifyingSectorIngestor(BaseIngestor):
         total_fetched = 0
         total_skipped = 0
         total_updated = 0
+        # Fast-F1 answers a refused request with a warning and no laps, so a run
+        # of empty sessions is how a blocked host looks from in here.
+        empty_streak = 0
         for season in seasons:
             races = (
                 self.db.execute(
@@ -71,124 +161,40 @@ class QualifyingSectorIngestor(BaseIngestor):
                     continue
                 if race.date and race.date > today:
                     continue
-
-                # Check if qualifying results exist for this race
-                quali_results = (
-                    self.db.execute(
-                        select(QualifyingResult).where(QualifyingResult.race_id == race.id)
-                    )
-                    .scalars()
-                    .all()
-                )
-                if not quali_results:
+                # Sector times update existing qualifying rows; without them
+                # there is nothing to fill in.
+                if race.id not in have_quali:
                     continue
 
                 try:
                     self.log(f"{season.year} R{race.round}: fetching qualifying sectors...")
-                    load_start = time.time()
-                    session = fastf1.get_session(season.year, race.round, "Q")
-                    session.load(
-                        laps=True,
-                        telemetry=False,
-                        weather=False,
-                        messages=False,
-                    )
-                    load_elapsed = time.time() - load_start
+                    abbrs, bests, load_elapsed = fetch_qualifying_bests(season.year, race.round)
 
-                    laps = session.laps
-                    if laps is None or laps.empty:
+                    if not bests:
                         self.log(f"{season.year} R{race.round}: no qualifying lap data")
+                        empty_streak += 1
+                        if empty_streak >= EMPTY_STREAK_LIMIT:
+                            self.log(
+                                f"{empty_streak} sessions in a row came back empty — "
+                                f"Fast-F1 is most likely refusing this host. Fetch "
+                                f"elsewhere and load with scripts/fastf1_import.py; "
+                                f"see docs/DEPLOYMENT.md."
+                            )
+                            return
+                        throttle(load_elapsed, log=self.log)
                         continue
+                    empty_streak = 0
 
-                    # Build abbreviation -> driver_id map
-                    # Codes are unique per session but reused across eras, so scope
-                    # the lookup to this race's entrants.
                     abbr_to_id = self.build_abbr_to_driver_id(
-                        session.results, self.race_entrant_codes(race.id)
+                        abbrs, self.race_entrant_codes(race.id)
                     )
-
                     if not abbr_to_id:
                         self.log(f"{season.year} R{race.round}: no driver mapping")
                         continue
 
-                    # Split laps into Q1/Q2/Q3 sessions
-                    try:
-                        q_parts = laps.split_qualifying_sessions()
-                    except Exception:
-                        self.log(
-                            f"{season.year} R{race.round}: could not split qualifying sessions"
-                        )
-                        continue
-
-                    # For each driver, find best lap per Q session
-                    driver_sectors: dict[
-                        str,
-                        dict[
-                            str,
-                            tuple[
-                                int | None,
-                                int | None,
-                                int | None,
-                                int | None,
-                            ],
-                        ],
-                    ] = {}
-
-                    for q_label, q_laps in zip(["Q1", "Q2", "Q3"], q_parts):
-                        if q_laps is None or q_laps.empty:
-                            continue
-                        for _, row in q_laps.iterrows():
-                            abbr = str(row.get("Driver", ""))
-                            driver_id = abbr_to_id.get(abbr)
-                            if not driver_id:
-                                continue
-
-                            lap_time = timedelta_to_ms(row.get("LapTime"))
-                            if lap_time is None:
-                                continue
-
-                            s1 = timedelta_to_ms(row.get("Sector1Time"))
-                            s2 = timedelta_to_ms(row.get("Sector2Time"))
-                            s3 = timedelta_to_ms(row.get("Sector3Time"))
-
-                            if driver_id not in driver_sectors:
-                                driver_sectors[driver_id] = {}
-                            current = driver_sectors[driver_id].get(q_label)
-                            # Keep the lap with the fastest time
-                            if current is None or (
-                                current[3] is not None and lap_time < current[3]
-                            ):
-                                driver_sectors[driver_id][q_label] = (s1, s2, s3, lap_time)
-
-                    # Update QualifyingResult rows with sector data
-                    race_updated = 0
-                    quali_by_driver = {q.driver_id: q for q in quali_results}
-                    for driver_id, sessions in driver_sectors.items():
-                        quali = quali_by_driver.get(driver_id)
-                        if not quali:
-                            continue
-
-                        q1 = sessions.get("Q1")
-                        if q1:
-                            quali.q1_s1_ms = q1[0]
-                            quali.q1_s2_ms = q1[1]
-                            quali.q1_s3_ms = q1[2]
-
-                        q2 = sessions.get("Q2")
-                        if q2:
-                            quali.q2_s1_ms = q2[0]
-                            quali.q2_s2_ms = q2[1]
-                            quali.q2_s3_ms = q2[2]
-
-                        q3 = sessions.get("Q3")
-                        if q3:
-                            quali.q3_s1_ms = q3[0]
-                            quali.q3_s2_ms = q3[1]
-                            quali.q3_s3_ms = q3[2]
-
-                        race_updated += 1
-
+                    race_updated = write_quali_sectors(self.db, race.id, bests, abbr_to_id)
                     self.db.commit()
+
                     total_updated += race_updated
                     season_fetched += 1
                     total_fetched += 1
@@ -197,14 +203,7 @@ class QualifyingSectorIngestor(BaseIngestor):
                     )
 
                     # Throttle uncached loads
-                    if load_elapsed > 1.0:
-                        remaining = max(0, THROTTLE_DELAY - load_elapsed)
-                        if remaining > 0:
-                            self.log(f"Throttle delay ({remaining:.0f}s)...")
-                            try:
-                                time.sleep(remaining)
-                            except KeyboardInterrupt:
-                                raise InterruptedError("Seed interrupted by user")
+                    throttle(load_elapsed, log=self.log)
 
                 except InterruptedError:
                     raise
@@ -212,6 +211,13 @@ class QualifyingSectorIngestor(BaseIngestor):
                     raise InterruptedError("Seed interrupted by user")
                 except Exception as e:
                     self.db.rollback()
+                    if is_blocked_error(e):
+                        self.log(
+                            f"{season.year} R{race.round}: Fast-F1 refused this host "
+                            f"({e}). Fetch the sessions somewhere else and load them "
+                            f"with scripts/fastf1_import.py — see docs/DEPLOYMENT.md."
+                        )
+                        return
                     if is_rate_limit_error(e):
                         self.log(
                             f"{season.year} R{race.round}: rate limited, "

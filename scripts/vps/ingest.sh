@@ -9,14 +9,18 @@
 # Usage (on the VPS):
 #   /srv/apps/f1_api/ingest.sh                      # calendar-gated update
 #   /srv/apps/f1_api/ingest.sh --force              # ignore the calendar gate
-#   /srv/apps/f1_api/ingest.sh --force -- --laptimes --current-year
+#   /srv/apps/f1_api/ingest.sh --force -- --results --current-year
 #                                                   # custom seed.py flags after `--`
 #
-# Scheduled by deploy/systemd/f1-tracker-ingest.timer.
+# Scheduled by .github/workflows/ingest.yml.
 #
-# The ingestors upsert from one f1db release download plus Fast-F1 session data
-# and write only to PostgreSQL, so this both bootstraps an empty database and
-# updates a populated one.
+# The ingestors upsert from one f1db release download and write only to
+# PostgreSQL, so this both bootstraps an empty database and updates a populated
+# one.
+#
+# NOT here: lap times and qualifying sector times (--laptimes,
+# --qualifying-sectors). Formula 1 blocks this box's IP, so those are fetched
+# off-box and loaded with fastf1.sh — see that script and docs/DEPLOYMENT.md.
 set -euo pipefail
 
 APP_DIR="${APP_DIR:-/srv/apps/f1_api}"
@@ -69,21 +73,13 @@ fi
 echo "==> Validating (informational)..."
 dc run --rm -T --entrypoint python ingest scripts/validate.py </dev/null || true
 
-# Bearer-token cache purge against the Next.js /api/revalidate route on Vercel.
-# Non-fatal: the data is already live and the frontend's TTL backstops a failure.
-echo "==> Purging frontend cache..."
-REVALIDATE_URL="${REVALIDATE_URL:-$(grep -E '^REVALIDATE_URL=' .env | cut -d= -f2- || true)}"
-REVALIDATE_SECRET="${REVALIDATE_SECRET:-$(grep -E '^REVALIDATE_SECRET=' .env | cut -d= -f2- || true)}"
-
-if [ -z "$REVALIDATE_URL" ]; then
-  echo "    REVALIDATE_URL not set in .env — skipping frontend cache purge."
-elif curl -fsS --max-time 30 -X POST "$REVALIDATE_URL" \
-       -H "Authorization: Bearer ${REVALIDATE_SECRET}"; then
-  echo ""
-  echo "    Frontend cache purged (f1-data tag)."
+# Cache purge against the Next.js /api/revalidate route on Vercel. Shared with
+# fastf1.sh, which changes the same data; both get it from purge-cache.sh, also
+# shipped by the deploy.
+if [ -x "$APP_DIR/purge-cache.sh" ]; then
+  "$APP_DIR/purge-cache.sh"
 else
-  echo ""
-  echo "    Warning: cache purge failed — data is live; the TTL will refresh the frontend."
+  echo "    purge-cache.sh not found — skipping frontend cache purge."
 fi
 
 echo ""

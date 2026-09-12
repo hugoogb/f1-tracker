@@ -40,3 +40,38 @@
 ## SQL Performance
 
 - **Window functions over Python loops**: Replacing Python position calculation (O(drivers x laps) loop) with SQL `SUM() OVER (PARTITION BY driver ORDER BY lap)` + `RANK() OVER (PARTITION BY lap ORDER BY cumulative_time)` moves the work to the database. The query also uses a subquery to find the max consecutive valid lap per driver (stopping at first NULL time) via `COALESCE(MIN(lap).FILTER(time IS NULL) - 1, MAX(lap))`.
+
+## Fast-F1 and Datacentre IPs
+
+- **Formula 1 blocks whole cloud IP ranges.** Fast-F1 worked from a laptop and from the VPS
+  during development, then the VPS's requests started being refused outright — not rate limited,
+  refused. Nothing in the pipeline was wrong; the host had become the problem. Rate limits
+  (429, "calls/h") clear themselves and are worth retrying; a block (403, connection reset) never
+  clears and must not be retried, so `is_blocked_error` and `is_rate_limit_error` are separate
+  checks with separate messages.
+- **"Move it to CI" was the obvious fix and it was wrong.** GitHub's runners are Azure, which is
+  as much a datacentre range as the VPS: `livetiming.formula1.com` returns 403 there too, while
+  the Jolpica control host returns 200 from the same runner. Worth measuring before building on
+  it — one probe job answered in seven seconds what would otherwise have been found out by a
+  silent weekly cron. The payload design survived the answer intact; only the fetch *host*
+  changed, from a runner to a laptop.
+- **Split fetching from writing when they can live on different hosts.** The fix was to make the
+  Fast-F1 layer (`fastf1_sessions.py`) import nothing from the database and emit plain dicts, so
+  the same parser runs wherever the fetch is allowed and the same writers run next to PostgreSQL,
+  with an NDJSON payload in between. Keeping one parser and one writer shared by both paths is what stops
+  the off-box path from quietly drifting from the local one.
+- **Probe before a long job whose failure mode is ambiguous.** A blocked host and a race calendar
+  with nothing new both look like "0 sessions fetched". Better still, probe over plain HTTP and
+  print the status code: Fast-F1 wraps every source in `soft_exceptions`, so a refused request
+  becomes a one-line warning and an empty DataFrame, and the run dies later with a misleading
+  "data has not been loaded yet". `FASTF1_DEBUG=1` turns those back into real exceptions.
+- **Guard the silent-failure path too.** Because a refused host returns empty sessions rather than
+  errors, the ingestors would have walked the whole calendar at 45 s a session writing nothing.
+  Three empty sessions in a row now aborts with the blocked-host message.
+- **Stream the payload, flush per record.** Fast-F1 fetches are throttled to 45 s/session, so a
+  long run will eventually hit a rate limit or a job timeout. Writing each session as it arrives
+  means a killed run still produces an importable file instead of nothing.
+- **Don't send database credentials to CI to solve a network problem.** Letting the runner write
+  to PostgreSQL directly would have been less code, but it would have put the database on the
+  tailnet edge and DB credentials in GitHub secrets. Shipping data files over the SSH path that
+  already exists keeps the credential boundary where it was.

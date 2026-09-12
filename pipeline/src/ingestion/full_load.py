@@ -6,6 +6,7 @@ times and qualifying sector times come from Fast-F1 session data (2018+).
 
 import logging
 import time
+from collections.abc import Collection
 
 from sqlalchemy import text
 from sqlalchemy.orm import Session
@@ -134,11 +135,24 @@ def _parse_lap_time_ms(time_str: str) -> int | None:
         return None
 
 
-def compute_race_aggregates(db: Session) -> None:
-    """Compute and store fastest lap + fastest qualifying sectors on Race rows."""
-    logger.info("Computing race aggregates (fastest lap + qualifying sectors)...")
+def compute_race_aggregates(db: Session, race_ids: Collection[str] | None = None) -> None:
+    """Compute and store fastest lap + fastest qualifying sectors on Race rows.
 
-    races = db.query(Race).all()
+    Pass `race_ids` to recompute only those races — what the Fast-F1 payload
+    importer does after loading a handful of sessions, rather than walking the
+    whole schedule since 1950 for two race weekends.
+    """
+    scope = "all races" if race_ids is None else f"{len(race_ids)} race(s)"
+    logger.info(f"Computing race aggregates (fastest lap + qualifying sectors) for {scope}...")
+
+    query = db.query(Race)
+    if race_ids is not None:
+        ids = list(race_ids)
+        if not ids:
+            logger.info("No races to recompute")
+            return
+        query = query.filter(Race.id.in_(ids))
+    races = query.all()
     updated = 0
 
     for race in races:
