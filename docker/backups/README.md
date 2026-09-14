@@ -10,6 +10,19 @@ pg_dump --format=plain --no-owner --no-privileges --clean --if-exists
 Write one with `../../scripts/db-backup.sh`, load one with
 `../../scripts/db-restore.sh`.
 
+**Nothing in this directory is tracked by git.** The dump is published as a
+release asset instead, and `bootstrap.sh` downloads it on a fresh clone:
+
+```bash
+../../scripts/seed-fetch.sh     # pnpm db:seed:fetch
+```
+
+It used to be committed, which cost more than it looked like. gzip does not
+delta-compress, so each refresh added its full size to the pack permanently
+rather than a diff — nine superseded copies had grown a ~5 MB artifact into
+~35 MB of history that no clone could ever shed. The release asset is fetched
+once, is never part of `git clone`, and can be replaced in place.
+
 ## What it contains
 
 Everything. That is the point: it is a restore-from-nothing artifact, not a
@@ -48,24 +61,30 @@ Older **data-only** dumps (what this repo wrote before) still restore: they are
 detected by the absence of a schema and get the old treatment — migrate first,
 load the data, then rebuild the views by hand.
 
-## Regenerating it
+## Regenerating and publishing it
 
 ```bash
-./scripts/db-backup.sh --remote     # from the VPS  (pnpm db:backup:prod)
-./scripts/db-backup.sh              # from the local dev container
+./scripts/db-backup.sh --remote --publish   # from the VPS  (pnpm db:seed:publish)
+./scripts/db-backup.sh --remote             # dump only, don't publish
+./scripts/db-backup.sh                      # from the local dev container
 ```
 
-**Use `--remote` for the committed copy.** Fast-F1 payloads are imported
+**Use `--remote` for the published seed.** Fast-F1 payloads are imported
 straight into production (`pnpm fastf1`), so the server is the only host where
 the complete dataset exists; a local dump carries lap times only for whatever
 you happen to have ingested yourself. `db-backup.sh` prints the row counts of
 whatever it wrote and warns when `lap_times` is empty, so a backup that silently
-lost the expensive half does not pass as fine.
+lost the expensive half does not pass as fine — and `--publish` refuses outright
+rather than replacing the seed everyone else bootstraps from with a lapless one.
 
-Expect roughly 5 MB gzipped once the Fast-F1 data is in — it is committed as a
-real file, so each regeneration adds a blob of about that size to the
-repository's history. Regenerate it when there is something worth keeping, not
-on every ingest.
+`--publish` needs the [GitHub CLI](https://cli.github.com) authenticated as
+someone who can write releases. It uploads to one rolling tag (`seed`) with
+`--clobber`, so the download URL never changes, and rewrites the release notes
+with the date and row counts — the tag being rolling, those notes are the only
+record of what the current asset holds.
+
+Expect roughly 5 MB gzipped once the Fast-F1 data is in. Regenerate it when
+there is something worth keeping, not on every ingest.
 
 ## Licence
 

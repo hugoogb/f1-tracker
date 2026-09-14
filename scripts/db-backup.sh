@@ -12,17 +12,25 @@
 #   ./scripts/db-backup.sh            dump the local dev container
 #   ./scripts/db-backup.sh --remote   dump the VPS's production database
 #
-# --remote is the one that matters for the committed backup. Fast-F1 payloads
+# --remote is the one that matters for the published seed. Fast-F1 payloads
 # are imported straight into production (`pnpm fastf1`), so the server is the
 # only place the complete dataset exists. It runs `backup.sh` on the box over
 # Tailscale SSH and streams the dump back here; VPS_HOST comes from .env, the
 # same key scripts/fastf1-sync.sh reads.
+#
+# Add --publish to upload the result to the seed release, which is where
+# bootstrap.sh fetches it from. The dump is not tracked by git — see the "Seed
+# release" section of lib/db.sh — so publishing is what makes a new one reach
+# anyone else:
+#
+#   ./scripts/db-backup.sh --remote --publish
 #
 # Env:
 #   BACKUP_DIR        where to write (default: docker/backups)
 #   BACKUP_KEEP_LAST  timestamped dumps to retain (default: 5)
 #   DB_CONTAINER / STACK_NAME   which local container to dump
 #   VPS_HOST / VPS_USER         the server, for --remote
+#   SEED_TAG / SEED_REPO        the release to publish to, for --publish
 set -euo pipefail
 
 # `set -e` aborts without printing anything, which once turned a missing .env
@@ -37,23 +45,42 @@ APP_DIR="${APP_DIR:-/srv/apps/f1_api}"
 SSH_OPTS=(-o StrictHostKeyChecking=accept-new -o ConnectTimeout=30)
 
 REMOTE=0
+PUBLISH=0
 HOST="${VPS_HOST:-$(env_get VPS_HOST)}"
 USER_NAME="${VPS_USER:-$(env_get VPS_USER)}"
 
 usage() {
-  sed -n '2,27p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+  sed -n '2,33p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
   exit "${1:-2}"
 }
 
 while [ $# -gt 0 ]; do
   case "$1" in
     --remote|--vps) REMOTE=1; shift ;;
+    --publish) PUBLISH=1; shift ;;
     --host) HOST="$2"; REMOTE=1; shift 2 ;;
     --user) USER_NAME="$2"; shift 2 ;;
     -h|--help) usage 0 ;;
     *) echo "Unknown argument: $1" >&2; usage ;;
   esac
 done
+
+# Checked before the dump rather than after it: --remote streams the whole
+# production database over Tailscale, and finding out that `gh` is missing at
+# the end of that is a wasted transfer.
+if [ "$PUBLISH" = "1" ] && ! command -v gh >/dev/null 2>&1; then
+  cat >&2 <<EOF
+Error: --publish needs the GitHub CLI, and gh is not on PATH.
+
+  Install it (https://cli.github.com) and authenticate once with 'gh auth login',
+  or drop --publish and upload the dump yourself. Upload the copy named
+  $SEED_ASSET — the asset takes the file's basename, and that name is
+  half the URL seed-fetch.sh downloads from:
+
+      gh release upload $SEED_TAG $BACKUP_DIR/$SEED_ASSET --clobber --repo $SEED_REPO
+EOF
+  exit 2
+fi
 
 mkdir -p "$BACKUP_DIR"
 TIMESTAMP=$(date -u +%Y%m%d_%H%M%S)
@@ -108,7 +135,8 @@ dump_verify_gzip "$PARTIAL"
 mv "$PARTIAL" "$BACKUP_FILE"
 trap - EXIT
 
-# Copied rather than symlinked: git tracks latest.sql.gz as a real file.
+# Copied rather than symlinked: db-restore.sh and --publish both want a real
+# file at this path, and its basename is the published asset's name.
 cp "$BACKUP_FILE" "$LATEST_COPY"
 
 SIZE=$(du -h "$BACKUP_FILE" | cut -f1)
@@ -143,6 +171,41 @@ Warning: this backup contains no lap times, so restoring it leaves the race
   Or fill this database in first: cd pipeline && uv run python scripts/seed.py \\
       --laptimes --qualifying-sectors
 EOF
+fi
+
+if [ "$PUBLISH" = "1" ]; then
+  # A lapless dump is a warning above, but publishing one replaces the seed
+  # everyone else bootstraps from — which would quietly cost them the Fast-F1
+  # data the seed exists to carry. Refuse rather than warn.
+  if [ "${LAPS:-0}" -eq 0 ]; then
+    echo "" >&2
+    echo "Error: refusing to publish a dump with no lap times — it would replace the" >&2
+    echo "       seed with one that leaves every race page's charts empty." >&2
+    echo "       Dump production instead: $0 --remote --publish" >&2
+    exit 1
+  fi
+
+  echo ""
+  echo "Publishing to the '$SEED_TAG' release of $SEED_REPO..."
+  # The release is created once and reused; --clobber replaces the asset so the
+  # download URL bootstrap.sh uses stays constant. `gh release create` is only
+  # reached the very first time.
+  if ! gh release view "$SEED_TAG" --repo "$SEED_REPO" >/dev/null 2>&1; then
+    echo "  Release '$SEED_TAG' does not exist yet — creating it."
+    gh release create "$SEED_TAG" --repo "$SEED_REPO" \
+      --title "Seed database dump" --notes "$(seed_release_notes "$BACKUP_FILE")"
+  else
+    gh release edit "$SEED_TAG" --repo "$SEED_REPO" \
+      --notes "$(seed_release_notes "$BACKUP_FILE")" >/dev/null
+  fi
+
+  # $LATEST_COPY rather than the timestamped $BACKUP_FILE: a release asset is
+  # named after the file's basename, and that name is half the download URL
+  # seed-fetch.sh hard-codes. Uploading f1tracker_<stamp>.sql.gz would publish
+  # it at a URL nothing looks for.
+  gh release upload "$SEED_TAG" "$LATEST_COPY" --clobber --repo "$SEED_REPO"
+
+  echo "Published: $SEED_URL"
 fi
 
 # Rotate old backups — keep only the last N.

@@ -51,9 +51,10 @@ Thumbs.db
 # Docker
 docker/pgdata/
 
-# DB backups — only keep latest in git
+# DB backups — none of them are tracked. The seed dump is a release asset
+# (scripts/seed-fetch.sh); gzip does not delta-compress, so every committed
+# refresh used to add its full size to the pack for good.
 docker/backups/*
-!docker/backups/latest.sql.gz
 !docker/backups/README.md
 
 # Testing

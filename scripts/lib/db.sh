@@ -143,3 +143,37 @@ dump_row_counts() {
     }
   '
 }
+
+# --- Seed release ------------------------------------------------------------
+# Where the seed dump lives now that it is no longer committed. It is a release
+# asset rather than a tracked file because gzip does not delta-compress: every
+# refresh used to add its full size to the pack permanently, and nine
+# superseded copies had grown the clone to ~49 MB for a ~5 MB artifact.
+#
+# One rolling tag rather than a dated one, so the download URL is a constant
+# that bootstrap.sh can hard-code — no API call, no token, no release lookup on
+# a fresh clone. `gh release upload --clobber` replaces the asset in place.
+SEED_REPO="${SEED_REPO:-hugoogb/f1-tracker}"
+SEED_TAG="${SEED_TAG:-seed}"
+SEED_ASSET="${SEED_ASSET:-latest.sql.gz}"
+SEED_URL="${SEED_URL:-https://github.com/${SEED_REPO}/releases/download/${SEED_TAG}/${SEED_ASSET}}"
+
+# Release notes for the seed asset. The tag is rolling, so the notes are the
+# only record of what the current asset actually contains — which matters most
+# for lap_times, the half that is expensive to rebuild.
+seed_release_notes() {
+  local file="$1"
+  cat <<EOF
+Complete PostgreSQL dump used by \`scripts/bootstrap.sh\`. Not tracked in git —
+fetch it with \`./scripts/seed-fetch.sh\`, replace it with
+\`./scripts/db-backup.sh --remote --publish\`.
+
+Taken from production on $(date -u +%Y-%m-%d) ($(du -h "$file" | cut -f1) gzipped).
+
+\`\`\`
+$(dump_row_counts "$file")
+\`\`\`
+
+Data: f1db (CC BY 4.0) and Fast-F1 (MIT). See ATTRIBUTIONS.md.
+EOF
+}
