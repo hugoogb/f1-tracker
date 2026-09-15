@@ -113,6 +113,7 @@ services:
         '--base',
         '--layouts',
         '--colors',
+        '--lineages',
         '--results',
         '--qualifying',
         '--sprints',
