@@ -1,4 +1,5 @@
 import { API_BASE_URL, REVALIDATE_SECONDS, F1_DATA_TAG } from './constants'
+import type { PointsSystem } from './types'
 
 /**
  * Carries the upstream status so callers can tell "this driver does not exist"
@@ -51,6 +52,11 @@ export const api = {
       const params = new URLSearchParams({ top: String(top) })
       return fetchApi(`/seasons/${year}/standings/constructors/progression?${params}`)
     },
+    permutations: (year: number) => fetchApi(`/seasons/${year}/permutations`),
+    normalisedStandings: (year: number, system: string) => {
+      const params = new URLSearchParams({ system })
+      return fetchApi(`/seasons/${year}/standings/normalised?${params}`)
+    },
   },
   drivers: {
     list: (page = 1, pageSize = 50, nationality?: string) => {
@@ -72,6 +78,7 @@ export const api = {
     nationalities: () => fetchApi<{ nationalities: string[] }>('/constructors/nationalities'),
     get: (ref: string) => fetchApi(`/constructors/${ref}`),
     seasons: (ref: string) => fetchApi(`/constructors/${ref}/seasons`),
+    lineage: (ref: string) => fetchApi(`/constructors/${ref}/lineage`),
     roster: (ref: string, year?: number) => {
       const params = new URLSearchParams()
       if (year) params.set('year', String(year))
@@ -100,8 +107,12 @@ export const api = {
     positions: (year: number, round: number) =>
       fetchApi(`/seasons/${year}/races/${round}/positions`),
     laps: (year: number, round: number) => fetchApi(`/seasons/${year}/races/${round}/laps`),
+    gaps: (year: number, round: number) => fetchApi(`/seasons/${year}/races/${round}/gaps`),
+    degradation: (year: number, round: number) =>
+      fetchApi(`/seasons/${year}/races/${round}/degradation`),
   },
   champions: () => fetchApi('/champions'),
+  pointsSystems: () => fetchApi<{ systems: PointsSystem[] }>('/points-systems'),
   search: (query: string) => {
     const params = new URLSearchParams({ q: query })
     return fetchApi(`/search?${params}`)

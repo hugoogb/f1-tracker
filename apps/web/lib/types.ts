@@ -446,3 +446,150 @@ export interface ConstructorProgressionResponse {
   rounds: Record<string, number | string>[]
   constructors: ConstructorProgressionEntry[]
 }
+
+// Gap to the leader, lap by lap
+export interface DriverGap {
+  lap: number
+  /** Milliseconds behind whoever had the lowest elapsed time on that lap. */
+  gapMs: number
+}
+
+export interface DriverGaps {
+  driver: Driver
+  constructor: Constructor
+  gaps: DriverGap[]
+}
+
+export interface GapsResponse {
+  raceId: string
+  /** The race's real distance, from the results — the chart's x-axis. */
+  totalLaps: number
+  /** How far the reconstruction from lap times actually got. */
+  coveredLaps: number
+  drivers: DriverGaps[]
+}
+
+// Tyre degradation
+export interface DegradationPoint {
+  tyreLife: number
+  medianMs: number
+  sampleSize: number
+}
+
+export interface CompoundDegradation {
+  compound: string
+  /** Green-flag laps behind this compound's line, after the outlier filter. */
+  laps: number
+  /** Least-squares gradient; null when too few laps or a single tyre age. */
+  degradationMsPerLap: number | null
+  points: DegradationPoint[]
+}
+
+export interface DegradationResponse {
+  raceId: string
+  compounds: CompoundDegradation[]
+  /** Laps with a compound and an age, before the outlier filter. */
+  totalLaps: number
+  /** How many survived it. */
+  cleanLaps: number
+  /** The cutoff itself, so the UI can say what was excluded. */
+  thresholdMs: number | null
+}
+
+// Constructor lineages
+export interface LineageStats {
+  entries: number
+  wins: number
+  podiums: number
+  points: number
+  championships: number
+}
+
+export interface LineageEntry {
+  constructor: Constructor
+  yearFrom: number
+  /** Null for the name still racing. */
+  yearTo: number | null
+  /** True for the constructor whose page this is. */
+  isCurrent: boolean
+  stats: LineageStats
+}
+
+export interface LineageResponse {
+  constructor: Constructor
+  /** Null when the team never changed its name, which is most of them. */
+  lineageRef: string | null
+  entries: LineageEntry[]
+}
+
+// Title permutations
+export interface TitleContender {
+  position: number | null
+  driver: Driver
+  points: number
+  wins: number
+  maxPossible: number
+  deficit: number
+  alive: boolean
+  /** Can at best draw level, so the title would fall to a countback on wins. */
+  onlyOnCountback: boolean
+  isLeader: boolean
+}
+
+export interface PermutationsResponse {
+  year: number
+  started: boolean
+  decided: boolean
+  seasonComplete?: boolean
+  roundsRun: number
+  totalRounds: number
+  racesRemaining?: number
+  sprintsRemaining?: number
+  sprintScheduleKnown?: boolean
+  maxRemaining?: number
+  pointsSystem?: PointsSystem
+  nextRound?: { round: number; name: string } | null
+  canClinchNextRound?: boolean
+  marginToClinch?: number
+  aliveCount?: number
+  contenders: TitleContender[]
+}
+
+// Cross-era points normalisation
+export interface PointsSystem {
+  id: string
+  label: string
+  era: string
+  racePoints: number[]
+  sprintPoints: number[]
+  fastestLapPoint: boolean
+  fastestLapWithin: number
+  notes: string
+}
+
+export interface PointsSystemsResponse {
+  systems: PointsSystem[]
+}
+
+export interface NormalisedStanding {
+  position: number
+  driver: Driver
+  points: number
+  wins: number
+  podiums: number
+  officialPosition: number | null
+  officialPoints: number | null
+  /** Places gained against the official table; positive is a promotion. */
+  positionDelta: number | null
+}
+
+export interface NormalisedStandingsResponse {
+  year: number
+  system: PointsSystem
+  /** What the season was actually scored under. */
+  actualSystem: PointsSystem
+  isActualSystem: boolean
+  championChanged: boolean
+  sprintsCounted: number
+  standings: NormalisedStanding[]
+}

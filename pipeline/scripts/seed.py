@@ -101,6 +101,7 @@ INGESTOR_FLAGS = [
     "base",
     "layouts",
     "colors",
+    "lineages",
     "results",
     "qualifying",
     "sprints",

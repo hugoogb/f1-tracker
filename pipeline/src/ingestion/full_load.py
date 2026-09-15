@@ -16,6 +16,7 @@ from src.db.models import Driver, QualifyingResult, Race, RaceResult
 from src.ingestion.colors import ConstructorColorIngestor
 from src.ingestion.drivers import ConstructorIngestor, DriverIngestor, StatusIngestor
 from src.ingestion.lap_times import LapTimeIngestor
+from src.ingestion.lineages import ConstructorLineageIngestor
 from src.ingestion.pit_stops import PitStopIngestor
 from src.ingestion.qualifying_sectors import QualifyingSectorIngestor
 from src.ingestion.races import RaceIngestor
@@ -255,6 +256,10 @@ def run_full_load(
         if _should_run(targets, "colors"):
             logger.info("\n--- Constructor colors ---")
             ConstructorColorIngestor(db).ingest()
+
+        if _should_run(targets, "lineages"):
+            logger.info("\n--- Constructor lineages ---")
+            ConstructorLineageIngestor(db).ingest()
 
         if _should_run(targets, "results"):
             logger.info("\n--- Race results ---")
