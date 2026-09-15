@@ -81,7 +81,7 @@ dump_verify_gzip "$PARTIAL"
 mv "$PARTIAL" "$DEST"
 trap - EXIT
 
-SIZE=$(du -h "$DEST" | cut -f1)
+SIZE=$(human_size "$DEST")
 echo "Seed dump saved: $DEST ($SIZE)"
 echo ""
 echo "Contents:"

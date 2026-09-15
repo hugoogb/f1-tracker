@@ -147,8 +147,9 @@ dump_row_counts() {
 # --- Seed release ------------------------------------------------------------
 # Where the seed dump lives now that it is no longer committed. It is a release
 # asset rather than a tracked file because gzip does not delta-compress: every
-# refresh used to add its full size to the pack permanently, and nine
-# superseded copies had grown the clone to ~49 MB for a ~5 MB artifact.
+# refresh used to add its full size to the pack permanently, and sixteen
+# versions had grown a ~5 MB artifact into ~49 MB of history a clone could
+# never shed.
 #
 # One rolling tag rather than a dated one, so the download URL is a constant
 # that bootstrap.sh can hard-code — no API call, no token, no release lookup on
@@ -157,6 +158,18 @@ SEED_REPO="${SEED_REPO:-hugoogb/f1-tracker}"
 SEED_TAG="${SEED_TAG:-seed}"
 SEED_ASSET="${SEED_ASSET:-latest.sql.gz}"
 SEED_URL="${SEED_URL:-https://github.com/${SEED_REPO}/releases/download/${SEED_TAG}/${SEED_ASSET}}"
+
+# A file's real size, not its size on disk. `du -h` reports allocated blocks,
+# which depends on the filesystem — it called a 5,460,785-byte dump "6.1M" on
+# one machine and "5.3M" on another, and the published release notes quote this
+# at people deciding whether to download it. `ls -l` field 5 is the byte count
+# on both GNU and BSD.
+human_size() {
+  ls -l "$1" | awk '{
+    if ($5 >= 1048576) printf "%.1f MB", $5 / 1048576
+    else printf "%.1f KB", $5 / 1024
+  }'
+}
 
 # Release notes for the seed asset. The tag is rolling, so the notes are the
 # only record of what the current asset actually contains — which matters most
@@ -168,7 +181,7 @@ Complete PostgreSQL dump used by \`scripts/bootstrap.sh\`. Not tracked in git �
 fetch it with \`./scripts/seed-fetch.sh\`, replace it with
 \`./scripts/db-backup.sh --remote --publish\`.
 
-Taken from production on $(date -u +%Y-%m-%d) ($(du -h "$file" | cut -f1) gzipped).
+Taken from production on $(date -u +%Y-%m-%d) ($(human_size "$file") gzipped).
 
 \`\`\`
 $(dump_row_counts "$file")

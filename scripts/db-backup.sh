@@ -139,7 +139,7 @@ trap - EXIT
 # file at this path, and its basename is the published asset's name.
 cp "$BACKUP_FILE" "$LATEST_COPY"
 
-SIZE=$(du -h "$BACKUP_FILE" | cut -f1)
+SIZE=$(human_size "$BACKUP_FILE")
 echo "Backup saved: $BACKUP_FILE ($SIZE)"
 echo "              also copied to $LATEST_COPY"
 echo ""
