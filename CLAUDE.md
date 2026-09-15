@@ -198,6 +198,16 @@ Two f1db quirks the UI is built around:
   via `teamColorOf()` in `lib/utils.ts`. Never key a colour off a driver ref, and
   never reintroduce a second palette in the frontend — refs are f1db's
   (`red-bull`), not Ergast's (`red_bull`), and a mismatched map fails silently
+- The palette has two tiers. `CONSTRUCTOR_COLORS` is a hand-curated livery and
+  is the only tier claiming to describe a real car; everything else gets a
+  stable shade of its national racing colour from `derive_color()`, keyed off
+  `constructors.country_code`, so none of f1db's 187 constructors renders grey.
+  Only a constructor f1db gives no country stays uncoloured, and the ingest logs
+  it. Derived shades are hashed from the ref, never randomised — a colour that
+  moved between ingests would churn the table weekly and change what a reader
+  saw last week. Add a curated entry rather than tuning the derivation when a
+  specific team looks wrong, and keep `tests/test_constructor_colors.py`'s
+  current-grid and champions lists passing: those teams must stay curated
 - Anything whose output depends on the viewer's clock, locale or timezone goes
   through `useHydrated()`/`useNow()` in `lib/client-only.ts` (and the
   `LocalDate`/`LocalDateTime`/`LocalTime` components) so the server pass and the
@@ -215,6 +225,16 @@ Two f1db quirks the UI is built around:
   `apple-icon.png` and the `public/icon-*.png` set means re-rendering from it
   rather than editing the binaries
 - Client components (`'use client'`) only for interactive pieces (charts, filters, tabs, search)
+- Pages are cached, not re-rendered per request. Nothing sets
+  `dynamic = 'force-dynamic'`: freshness comes from the fetch-level
+  `revalidate`/`tags` in `lib/api.ts`, which Next infers as the route's own
+  revalidate, and from the ingest purging the `f1-data` tag. The `[ref]`/`[year]`
+  detail routes each export an empty `generateStaticParams()` — without one a
+  dynamic segment never enters the full route cache, and with one returning `[]`
+  nothing is prerendered at build while the first request for a path still
+  caches it. The routes that stay server-rendered are exactly the six reading
+  `searchParams`. `/` is the one page with its own `revalidate` (5 minutes),
+  because it splits the calendar on the render-time clock rather than on data
 - Pre-commit: Husky runs lint-staged (prettier) + ruff check/format on staged `.py` files
 - CI: GitHub Actions `ci.yml` — frontend (audit, format, lint, typecheck, build) + backend (ruff, pip-audit, pytest) + backend image (docker build + smoke test)
 - CD: GitHub Actions `deploy.yml` — on push to `master` touching `pipeline|docker/compose.prod.yml|scripts/vps`, builds and pushes `ghcr.io/hugoogb/f1_api:<sha>`, joins the tailnet as `tag:ci`, then over Tailscale SSH ships `docker-compose.yml`+`ingest.sh`+`fastf1.sh`+`purge-cache.sh`, pulls, migrates, `up -d --wait` and checks `/api/health/db`. Secrets are `VPS_HOST`/`TS_OAUTH_CLIENT_ID`/`TS_OAUTH_SECRET` — there is no SSH key (Tailscale SSH authenticates by tailnet identity), and no DB credentials leave the server

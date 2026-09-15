@@ -102,6 +102,12 @@ Driver and constructor identity is rendered as initials on the team colour
 palette in `pipeline/src/ingestion/colors.py` is curated in-repo; colour values
 are facts about liveries, not creative expression.
 
+Most of f1db's 187 constructors are privateers nobody holds a livery record for,
+and those are coloured from the FIA national racing colours instead — the shade
+a country's cars were painted before commercial liveries were permitted in 1968,
+varied per constructor so two entries in one grid stay apart. Both tiers are
+ours and neither is sourced from a third party, so neither adds an obligation.
+
 **On team logos specifically:** there is no free source. Wikimedia Commons
 rejects fair-use uploads, so copyrighted team badges are simply not there;
 English Wikipedia hosts them under article-specific non-free rationales that do
