@@ -10,8 +10,8 @@
 #
 # The database itself belongs to the platform's shared PostgreSQL, and so do its
 # scheduled backups. This is not a replacement for those: it is the app-level
-# export that produces docker/backups/latest.sql.gz in the repository, so a
-# clone can restore the whole thing without fetching anything.
+# export behind the published seed dump, so a fresh clone can restore the whole
+# thing in one command rather than re-fetching the Fast-F1 half.
 #
 # pg_dump does not exist in the app image (it carries Python, not the PostgreSQL
 # client), so it runs from a throwaway postgres container on the shared network

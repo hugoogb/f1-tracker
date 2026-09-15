@@ -19,7 +19,7 @@ Deployment: frontend on Vercel; the API runs as a Docker container (`f1_api`) on
 - `apps/web/` - Next.js frontend (15 routes, 36+ components)
 - `pipeline/` - Python data pipeline + FastAPI backend (11 routers, 38 endpoints); `Dockerfile` builds the API/migrate/ingest image
 - `docker/` - `docker-compose.yml` (local dev DB), `compose.prod.yml` (the VPS stack — shipped to `/srv/apps/f1_api/docker-compose.yml` by the deploy), `.env.prod.example`, backups
-- `scripts/` - `bootstrap.sh`, `db-backup.sh`, `db-restore.sh`, `fastf1-sync.sh` (laptop-side Fast-F1 fetch), `lib/db.sh` (shared container resolution + dump inspection), `vps/ingest.sh`, `vps/fastf1.sh`, `vps/backup.sh`, `vps/purge-cache.sh` (copied to the VPS by the deploy)
+- `scripts/` - `bootstrap.sh`, `db-backup.sh`, `db-restore.sh`, `seed-fetch.sh` (download the seed dump from its release), `fastf1-sync.sh` (laptop-side Fast-F1 fetch), `lib/db.sh` (shared container resolution + dump inspection + seed release location), `vps/ingest.sh`, `vps/fastf1.sh`, `vps/backup.sh`, `vps/purge-cache.sh` (copied to the VPS by the deploy)
 
 ### Frontend Routes
 
@@ -102,7 +102,7 @@ daily and on the `f1-data` tag purge), `robots.ts`, `manifest.ts`,
 ## Commands
 
 ### Local setup (from root)
-- `./scripts/bootstrap.sh` - One-command setup: `.env` + DB + migrations + restore backup + frontend deps
+- `./scripts/bootstrap.sh` - One-command setup: `.env` + DB + migrations + fetch and restore the seed dump + frontend deps
 - `pnpm fastf1` - Fetch the Fast-F1 data the VPS is blocked from and load it there (status -> fetch -> import). Reads `VPS_HOST` from `.env`; flags: `--all`, `--limit`, `--need`, `--year-range`, `--oldest-first`, `--dry-run`, `--probe`, `--host`/`--user`. The script is `scripts/fastf1-sync.sh`
 
 ### Frontend (from root)
@@ -175,7 +175,8 @@ Two f1db quirks the UI is built around:
 - `F1DB_VERSION` (env) - f1db release to ingest; `latest` by default, pin a tag for reproducible seeds
 
 ### Database
-- `pnpm db:backup` / `pnpm db:backup:prod` - Full dump (schema + every table + Alembic stamp + materialized views) of the local dev container, or of production over Tailscale SSH. Use `:prod` for the committed `docker/backups/latest.sql.gz` — Fast-F1 payloads go straight into production, so the server is the only host with the complete dataset
+- `pnpm db:backup` / `pnpm db:backup:prod` - Full dump (schema + every table + Alembic stamp + materialized views) of the local dev container, or of production over Tailscale SSH. Use `:prod` for the published seed — Fast-F1 payloads go straight into production, so the server is the only host with the complete dataset
+- `pnpm db:seed:fetch` / `pnpm db:seed:publish` - Download the seed dump, or dump production and upload it. **The dump is not tracked by git**: it is an asset on one rolling release tag (`seed`), so the download URL is a constant and a refresh never grows the pack. `db:seed:publish` is `db-backup.sh --remote --publish` and needs `gh` authenticated; it refuses to publish a dump with no lap times
 - `pnpm db:restore` - Restore a dump. Detects full vs legacy data-only dumps and orders the migrate/load/refresh steps accordingly; `SKIP_MIGRATE=1 SKIP_VIEWS=1` restores a full dump with nothing but `psql`
 - `docker compose -f docker/docker-compose.yml up -d` - Start PostgreSQL (container `f1-tracker-db`)
 - `docker compose -f docker/docker-compose.yml down` - Stop PostgreSQL
@@ -266,4 +267,6 @@ Rules to preserve when changing code:
   ```
   The majors have to match in this direction specifically: `pg_dump` output is only guaranteed to load into a server of the same or a later version, and `latest.sql.gz` now comes from production. A 17 dump fails on a 16 server at `SET transaction_timeout`, which does not exist before 17
 - **Formula 1 blocks datacentre IPs for Fast-F1 — the VPS's and GitHub's runners alike** (403 from `livetiming.formula1.com`; the control host answers 200, so it is a block, not an outage). Lap times and qualifying sectors therefore cannot be ingested on the server or in CI: they are fetched from a laptop with `pnpm fastf1` (`scripts/fastf1-sync.sh`) and imported as a payload. `scripts/fastf1_fetch.py --probe` re-checks any host in about a second. Fast-F1 does not raise when it is refused — it warns per source and returns an empty session — so three empty sessions in a row abort with the blocked-host message rather than grinding through the calendar at 45 s each.
-- `docker/backups/latest.sql.gz` is a **full** dump and is meant to carry the Fast-F1 data (`lap_times`, qualifying sector columns) so a restore never means re-fetching it at ~45 s/session. It only does so when it was taken from production (`pnpm db:backup:prod`) — a local dump carries whatever lap times that database happens to hold, and `db-backup.sh` warns when there are none. Until it is regenerated from production, race pages' lap-time, tyre-strategy and position charts stay empty after a restore
+- The seed dump is a **full** dump and carries the Fast-F1 data (`lap_times`, qualifying sector columns) so a restore never means re-fetching it at ~45 s/session. It only does so when it was taken from production (`pnpm db:seed:publish`) — a local dump carries whatever lap times that database happens to hold, `db-backup.sh` warns when there are none, and `--publish` refuses outright. A seed without them leaves race pages' lap-time, tyre-strategy and position charts empty after a restore
+- **The seed dump is no longer committed** — it is an asset on the rolling `seed` release, fetched by `scripts/seed-fetch.sh` (which `bootstrap.sh` calls when `docker/backups/latest.sql.gz` is absent). gzip does not delta-compress, so each committed refresh added its full ~5 MB to the pack forever rather than a diff; sixteen versions had made a ~5 MB artifact into ~49 MB of unshakeable history. Do not re-add it to git — `.gitignore` covers `docker/backups/*`. Publishing replaces the asset in place, so the URL in `lib/db.sh` stays valid
+- **Driver headshots and team logos were purged from git history**, not just deleted — `4cb10e1` removed them from the tree for licensing reasons, but every clone still carried them until the history rewrite. Do not reintroduce an image source without the `ATTRIBUTIONS.md` row the Licensing section requires
