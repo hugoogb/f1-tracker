@@ -25,7 +25,11 @@ import { NextRaceCountdown } from '@/components/ui/next-race-countdown'
 import type { Metadata } from 'next'
 import { SITE_DESCRIPTION, SITE_NAME, absoluteUrl } from '@/lib/seo'
 
-export const dynamic = 'force-dynamic'
+// Shorter than the site-wide backstop because this page splits the calendar on
+// the render-time clock (`now` below), not just on the data. Five minutes keeps
+// "next race" honest without re-rendering the busiest page for every visitor;
+// an ingest still purges it immediately through the `f1-data` tag.
+export const revalidate = 300
 
 export const metadata: Metadata = {
   // `absolute` opts out of the root layout's `%s | F1 Tracker` template, which
@@ -86,9 +90,10 @@ export default async function Home() {
   const races = seasonDetail.status === 'fulfilled' ? (seasonDetail.value.races ?? []) : []
   const recentChampions = champions.slice(0, 5)
 
-  // This is a server component rendered per request (`force-dynamic`), so
-  // reading the clock here is the point — the lint rule is aimed at client
-  // components, where an impure read would drift between renders.
+  // Reading the clock in a server component is the point here — the lint rule
+  // is aimed at client components, where an impure read would drift between
+  // renders. It does make this page's output time-dependent, which is what the
+  // five-minute `revalidate` above bounds.
   // eslint-disable-next-line react-hooks/purity
   const now = Date.now()
   // A race counts as done once its start time has passed. Seasons f1db does not

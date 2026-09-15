@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { Flag, Trophy, Medal, TrendingUp } from 'lucide-react'
 import { api, isNotFound } from '@/lib/api'
-import type { Constructor, ConstructorSeasonSummary, Driver } from '@/lib/types'
+import type { Constructor, ConstructorSeasonSummary, Driver, LineageResponse } from '@/lib/types'
 import { teamColorOf } from '@/lib/utils'
 import { CountryFlag } from '@/components/ui/country-flag'
 import { DriverAvatar } from '@/components/ui/driver-avatar'
@@ -12,11 +12,10 @@ import { StatCard } from '@/components/ui/stat-card'
 import { ConstructorSeasonHistoryTable } from '@/components/constructors/season-history-table'
 import { CareerPointsChart } from '@/components/charts/career-points-chart'
 import { FadeIn, StaggerList, StaggerItem, MotionCard } from '@/components/ui/motion'
+import { LineageTimeline } from '@/components/constructors/lineage-timeline'
 import { JsonLd } from '@/components/seo/json-ld'
 import { organizationSchema } from '@/lib/structured-data'
 import { buildMetadata, SITE_DESCRIPTION } from '@/lib/seo'
-
-export const dynamic = 'force-dynamic'
 
 interface ConstructorDetail extends Constructor {
   stats: {
@@ -25,6 +24,17 @@ interface ConstructorDetail extends Constructor {
     podiums: number
     total_points: number
   }
+}
+
+/**
+ * Nothing is prerendered at build time: there are thousands of these pages and
+ * the set changes with the data, so a build should not have to walk it. The
+ * empty list still opts the route into the full route cache — the first request
+ * for a path renders it, everything after is served from the cache until the
+ * `f1-data` tag is purged by an ingest.
+ */
+export function generateStaticParams() {
+  return []
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ ref: string }> }) {
@@ -61,10 +71,11 @@ export default async function ConstructorDetailPage({
 }) {
   const { ref } = await params
 
-  const [constructorResult, seasonsResult, rosterResult] = await Promise.allSettled([
+  const [constructorResult, seasonsResult, rosterResult, lineageResult] = await Promise.allSettled([
     api.constructors.get(ref) as Promise<ConstructorDetail>,
     api.constructors.seasons(ref) as Promise<{ seasons: ConstructorSeasonSummary[] }>,
     api.constructors.roster(ref) as Promise<{ year: number | null; drivers: Driver[] }>,
+    api.constructors.lineage(ref) as Promise<LineageResponse>,
   ])
 
   // An unknown ref must answer 404, not 500 — but only when the API actually
@@ -76,6 +87,7 @@ export default async function ConstructorDetailPage({
   const constructor = constructorResult.value
   const seasons = seasonsResult.status === 'fulfilled' ? seasonsResult.value.seasons : []
   const roster = rosterResult.status === 'fulfilled' ? rosterResult.value : null
+  const lineage = lineageResult.status === 'fulfilled' ? lineageResult.value : null
 
   const teamColor = teamColorOf(constructor.color, '#E8002D')!
 
@@ -154,6 +166,12 @@ export default async function ConstructorDetailPage({
           />
         </StaggerItem>
       </StaggerList>
+
+      {lineage && lineage.entries.length > 1 && (
+        <FadeIn>
+          <LineageTimeline entries={lineage.entries} />
+        </FadeIn>
+      )}
 
       {roster && roster.year && roster.drivers.length > 0 && (
         <FadeIn>

@@ -9,6 +9,10 @@ import type {
   StandingsProgressionResponse,
   ConstructorProgressionResponse,
   SeasonHeatmapResponse,
+  PermutationsResponse,
+  PointsSystemsResponse,
+  NormalisedStandingsResponse,
+  SeasonScoring,
 } from '@/lib/types'
 import { CountryFlag } from '@/components/ui/country-flag'
 import { Breadcrumbs } from '@/components/layout/breadcrumbs'
@@ -28,15 +32,17 @@ import { ConstructorPointsChart } from '@/components/charts/constructor-points-c
 import { ChampionshipProgressionChart } from '@/components/charts/championship-progression-chart'
 import { SeasonHeatmap } from '@/components/charts/season-heatmap'
 import { SeasonTabs } from './season-tabs'
+import { ScoringNote } from '@/components/seasons/scoring-note'
+import { TitlePermutations } from '@/components/seasons/title-permutations'
+import { NormalisedStandings } from '@/components/seasons/normalised-standings'
 import { FadeIn } from '@/components/ui/motion'
 import { buildMetadata } from '@/lib/seo'
 import { LocalDate } from '@/components/ui/local-date'
 
-export const dynamic = 'force-dynamic'
-
 interface SeasonDetailResponse {
   year: number
   races: Race[]
+  scoring?: SeasonScoring
 }
 
 interface DriverStandingsResponse {
@@ -47,6 +53,20 @@ interface DriverStandingsResponse {
 interface ConstructorStandingsResponse {
   year: number
   standings: ConstructorStanding[]
+}
+
+/**
+ * Nothing is prerendered at build time: there are thousands of these pages and
+ * the set changes with the data, so a build should not have to walk it. The
+ * empty list still opts the route into the full route cache — the first request
+ * for a path renders it, everything after is served from the cache until the
+ * `f1-data` tag is purged by an ingest.
+ */
+/** Rows kept per re-scored table — the championship, not the whole entry list. */
+const NORMALISED_ROWS = 20
+
+export function generateStaticParams() {
+  return []
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ year: string }> }) {
@@ -73,6 +93,8 @@ export default async function SeasonDetailPage({ params }: { params: Promise<{ y
     progressionResult,
     constructorProgressionResult,
     heatmapResult,
+    permutationsResult,
+    pointsSystemsResult,
   ] = await Promise.allSettled([
     api.seasons.get(year) as Promise<SeasonDetailResponse>,
     api.seasons.driverStandings(year) as Promise<DriverStandingsResponse>,
@@ -80,6 +102,8 @@ export default async function SeasonDetailPage({ params }: { params: Promise<{ y
     api.seasons.standingsProgression(year) as Promise<StandingsProgressionResponse>,
     api.seasons.constructorProgression(year) as Promise<ConstructorProgressionResponse>,
     api.seasons.heatmap(year) as Promise<SeasonHeatmapResponse>,
+    api.seasons.permutations(year) as Promise<PermutationsResponse>,
+    api.pointsSystems(),
   ])
 
   // A year with no data must answer 404 — but an API outage has to surface as
@@ -100,6 +124,34 @@ export default async function SeasonDetailPage({ params }: { params: Promise<{ y
   const constructorProgression =
     constructorProgressionResult.status === 'fulfilled' ? constructorProgressionResult.value : null
   const heatmap = heatmapResult.status === 'fulfilled' ? heatmapResult.value : null
+  const permutations = permutationsResult.status === 'fulfilled' ? permutationsResult.value : null
+
+  // Every era's re-scored table, rendered up front so switching between them is
+  // instant and the route stays cacheable — a query parameter for one control
+  // would make the whole season page dynamic.
+  const pointsSystems: PointsSystemsResponse | null =
+    pointsSystemsResult.status === 'fulfilled' ? pointsSystemsResult.value : null
+  const normalisedResults = pointsSystems
+    ? (
+        await Promise.allSettled(
+          pointsSystems.systems.map(
+            (system) =>
+              api.seasons.normalisedStandings(
+                year,
+                system.id,
+              ) as Promise<NormalisedStandingsResponse>,
+          ),
+        )
+      )
+        .filter((r) => r.status === 'fulfilled')
+        // Only the rows the table shows travel to the client. A 1950s season
+        // can carry eighty entrants, and eight copies of that tail is a lot of
+        // payload for rows nobody scrolls to.
+        .map((r) => ({
+          ...r.value,
+          standings: r.value.standings.slice(0, NORMALISED_ROWS),
+        }))
+    : []
 
   return (
     <div className="space-y-6">
@@ -140,6 +192,18 @@ export default async function SeasonDetailPage({ params }: { params: Promise<{ y
         </div>
       </FadeIn>
 
+      {seasonData.scoring && (
+        <FadeIn>
+          <ScoringNote scoring={seasonData.scoring} year={year} />
+        </FadeIn>
+      )}
+
+      {permutations && (
+        <FadeIn>
+          <TitlePermutations data={permutations} />
+        </FadeIn>
+      )}
+
       <SeasonTabs
         racesContent={<RacesTable races={seasonData.races} year={year} />}
         heatmapContent={
@@ -168,6 +232,11 @@ export default async function SeasonDetailPage({ params }: { params: Promise<{ y
             <ConstructorPointsChart standings={constructorStandingsData.standings} />
             <ConstructorStandingsTable standings={constructorStandingsData.standings} />
           </>
+        }
+        whatIfContent={
+          normalisedResults.length > 0 ? (
+            <NormalisedStandings results={normalisedResults} year={year} />
+          ) : undefined
         }
       />
     </div>

@@ -11,6 +11,8 @@ import type {
   FastestSectors,
   PitStopAnalysis,
   PositionsResponse,
+  GapsResponse,
+  DegradationResponse,
 } from '@/lib/types'
 import { CountryFlag } from '@/components/ui/country-flag'
 import { Breadcrumbs } from '@/components/layout/breadcrumbs'
@@ -25,14 +27,14 @@ import { PitStopAnalysisView } from '@/components/races/pit-stop-analysis'
 import { LapTimesChart } from '@/components/races/lap-times-chart'
 import { TyreStrategyChart } from '@/components/races/tyre-strategy-chart'
 import { PositionChart } from '@/components/races/position-chart'
+import { GapChart } from '@/components/races/gap-chart'
+import { TyreDegradationChart } from '@/components/races/tyre-degradation-chart'
 import { RaceTabs } from './race-tabs'
 import { FadeIn } from '@/components/ui/motion'
 import { JsonLd } from '@/components/seo/json-ld'
 import { raceSchema } from '@/lib/structured-data'
 import { buildMetadata, SITE_DESCRIPTION } from '@/lib/seo'
 import { LocalDate, LocalDateTime } from '@/components/ui/local-date'
-
-export const dynamic = 'force-dynamic'
 
 interface RaceDetailResponse extends Race {
   fastestLap: FastestLap | null
@@ -55,6 +57,17 @@ interface PitStopsResponse {
   /** The race's quickest pit lane time, in seconds. */
   benchmark: string | null
   pitStops: PitStop[]
+}
+
+/**
+ * Nothing is prerendered at build time: there are thousands of these pages and
+ * the set changes with the data, so a build should not have to walk it. The
+ * empty list still opts the route into the full route cache — the first request
+ * for a path renders it, everything after is served from the cache until the
+ * `f1-data` tag is purged by an ingest.
+ */
+export function generateStaticParams() {
+  return []
 }
 
 export async function generateMetadata({
@@ -115,6 +128,8 @@ export default async function RaceDetailPage({
   let pitStopAnalysis: PitStopAnalysis | null = null
   let positions: PositionsResponse | null = null
   let laps: LapsResponse | null = null
+  let gaps: GapsResponse | null = null
+  let degradation: DegradationResponse | null = null
 
   const [
     raceResult,
@@ -124,6 +139,8 @@ export default async function RaceDetailPage({
     pitStopAnalysisResult,
     positionsResult,
     lapsResult,
+    gapsResult,
+    degradationResult,
   ] = await Promise.allSettled([
     api.races.get(year, round) as Promise<RaceDetailResponse>,
     api.races.qualifying(year, round) as Promise<QualifyingResponse>,
@@ -141,6 +158,12 @@ export default async function RaceDetailPage({
       : Promise.reject('not applicable'),
     year >= 2018
       ? (api.races.laps(year, round) as Promise<LapsResponse>)
+      : Promise.reject('not applicable'),
+    year >= 2018
+      ? (api.races.gaps(year, round) as Promise<GapsResponse>)
+      : Promise.reject('not applicable'),
+    year >= 2018
+      ? (api.races.degradation(year, round) as Promise<DegradationResponse>)
       : Promise.reject('not applicable'),
   ])
 
@@ -169,6 +192,12 @@ export default async function RaceDetailPage({
   }
   if (lapsResult.status === 'fulfilled' && lapsResult.value.drivers?.length > 0) {
     laps = lapsResult.value
+  }
+  if (gapsResult.status === 'fulfilled' && gapsResult.value.drivers?.length > 0) {
+    gaps = gapsResult.value
+  }
+  if (degradationResult.status === 'fulfilled' && degradationResult.value.compounds?.length > 0) {
+    degradation = degradationResult.value
   }
 
   const podium = race.results
@@ -287,6 +316,12 @@ export default async function RaceDetailPage({
                             <TyreStrategyChart drivers={laps.drivers} />
                           </div>
                         )}
+                        {degradation && (
+                          <div>
+                            <h3 className="mb-3 text-sm font-medium">Tyre Degradation</h3>
+                            <TyreDegradationChart data={degradation} />
+                          </div>
+                        )}
                         {pitStopAnalysis && <PitStopAnalysisView analysis={pitStopAnalysis} />}
                         {pitStops && (
                           <div>
@@ -317,6 +352,21 @@ export default async function RaceDetailPage({
                     <p className="text-muted-foreground text-sm">
                       No lap time data available for this race.
                     </p>
+                  ),
+                },
+              ]
+            : []),
+          ...(gaps
+            ? [
+                {
+                  id: 'gaps',
+                  label: 'Gaps',
+                  content: (
+                    <GapChart
+                      drivers={gaps.drivers}
+                      totalLaps={gaps.totalLaps}
+                      coveredLaps={gaps.coveredLaps}
+                    />
                   ),
                 },
               ]

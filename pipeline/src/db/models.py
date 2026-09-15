@@ -85,6 +85,41 @@ class Constructor(Base):
     color: Mapped[str | None] = mapped_column(String(7))
 
 
+class ConstructorLineage(Base):
+    """One constructor's place in a chain of renames and takeovers.
+
+    f1db treats a team that rebrands as a new constructor and keeps the old id
+    for the seasons it raced under, so Tyrrell, BAR, Honda, Brawn and Mercedes
+    are five rows describing one continuous entry. Its `chronology` field spells
+    those chains out, and every member of a chain carries the whole thing — so
+    one row here per (chain, member), keyed by `lineage_ref`, which is the id of
+    the chain's first member and therefore stable as long as the chain's history
+    is.
+
+    A chain is a lineage of *entries*, not a claim that the teams are the same
+    outfit: Red Bull is the far end of Stewart's chain and has nothing in common
+    with it. Present it as a timeline, and never quietly merge one member's
+    record into another's.
+
+    A constructor can hold more than one slot in its own chain — Sauber raced as
+    itself, became BMW Sauber, and went back to Sauber before becoming Audi — so
+    the unique key is the slot, not the constructor.
+    """
+
+    __tablename__ = "constructor_lineages"
+    __table_args__ = (UniqueConstraint("lineage_ref", "position"),)
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=new_uuid)
+    lineage_ref: Mapped[str] = mapped_column(String, index=True)
+    constructor_id: Mapped[str] = mapped_column(ForeignKey("constructors.id"), index=True)
+    position: Mapped[int] = mapped_column(Integer)
+    year_from: Mapped[int] = mapped_column(Integer)
+    # Open-ended for the member still racing.
+    year_to: Mapped[int | None] = mapped_column(Integer)
+
+    constructor: Mapped["Constructor"] = relationship()
+
+
 class Status(Base):
     __tablename__ = "statuses"
 
