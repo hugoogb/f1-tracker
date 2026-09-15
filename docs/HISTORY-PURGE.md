@@ -49,7 +49,13 @@ request — is stranded on commits that no longer exist.
 **1. Publish the seed.** The rewrite removes the dump from history, so the
 release asset has to exist before anyone clones the rewritten repository.
 
+This does not need the scripts to be merged — only checked out. `--publish`
+talks to the release API and the VPS; it reads nothing from `master`, and a
+release is not part of git history at all. So run it straight from the branch
+that adds it:
+
 ```bash
+git checkout feat/eloquent-ride-n9c1nq
 ./scripts/db-backup.sh --remote --publish
 ```
 
@@ -61,10 +67,11 @@ mv docker/backups/latest.sql.gz /tmp/seed-backup.sql.gz   # keep a copy
 ./scripts/seed-fetch.sh && ./scripts/db-restore.sh
 ```
 
-**2. Merge the branch that untracks it.** The commit removing
-`docker/backups/latest.sql.gz` from the index and adding `seed-fetch.sh` has to
-be on `master` first. Rewriting first and merging afterwards would rebase the
-pull request onto history that no longer exists.
+**2. Merge the branch.** Not a prerequisite for publishing — a prerequisite for
+the *rewrite*. Step 3 gives every commit a new SHA, and force-pushing that under
+an open pull request leaves GitHub diffing two branches whose commits all
+changed identity; it copes badly. Merging first means there is no open PR to
+strand.
 
 **3. Rewrite**, on a **fresh mirror** rather than a working clone — a mirror has
 no working tree to clobber and carries every ref, so nothing is left pointing at
@@ -89,14 +96,30 @@ git -C /tmp/f1-purge ls-tree -r master --name-only | wc -l    # expect 430
 git -C /tmp/f1-purge fsck
 ```
 
-**5. Publish:**
+**5. Publish.** Dry-run it first — it prints exactly which refs move:
 
 ```bash
-git -C /tmp/f1-purge push --force --mirror origin
+git -C /tmp/f1-purge push --force --dry-run \
+    git@github.com:hugoogb/f1-tracker.git 'refs/heads/*:refs/heads/*'
+git -C /tmp/f1-purge push --force \
+    git@github.com:hugoogb/f1-tracker.git 'refs/heads/*:refs/heads/*'
 ```
 
-`--mirror` pushes every ref, so branches that are not `master` move to their
-rewritten equivalents too rather than being left behind on old history.
+The URL is spelled out rather than `origin` because **git-filter-repo deletes
+the origin remote** once it has rewritten the repository — deliberately, so a
+rewrite cannot be pushed back by reflex. `purge-history.sh` reads the URL before
+the rewrite and prints the exact command.
+
+`refs/heads/*` moves every branch, not just `master`, so none is left behind on
+old history.
+
+**Not `git push --mirror`**, despite it being the usual advice for this. A
+mirror clone of a GitHub repository carries `refs/pull/*` — 20 of them here —
+which GitHub refuses to accept, so the push fails partway through. And
+`--mirror` makes the remote match the clone *exactly*, deleting anything the
+clone does not have: the `seed` tag that `gh release create` made in step 1
+exists only on the remote, so a mirror taken before it would delete that tag and
+strand the seed release. `refs/heads/*` touches branches only.
 
 ## What changes
 

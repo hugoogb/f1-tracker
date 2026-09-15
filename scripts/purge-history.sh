@@ -59,6 +59,11 @@ fi
 
 BEFORE=$(git -C "$TARGET" count-objects -vH | awk '/size-pack/{print $2, $3}')
 
+# git-filter-repo deletes the origin remote on purpose, so that a rewritten
+# repository cannot be pushed back by reflex. Capture the URL first so the
+# command printed at the end is one that actually runs.
+ORIGIN_URL=$(git -C "$TARGET" remote get-url origin 2>/dev/null || echo "<repo-url>")
+
 git -C "$TARGET" filter-repo --force --invert-paths \
   --path docker/backups/latest.sql.gz \
   --path-glob 'docker/backups/f1tracker_*.sql.gz' \
@@ -83,7 +88,19 @@ fi
 echo "Verified: no dump or removed-image blob remains in any ref."
 echo ""
 echo "Inspect it, then publish with:"
-echo "    git -C $TARGET push --force --mirror origin"
+echo "    git -C $TARGET push --force $ORIGIN_URL 'refs/heads/*:refs/heads/*'"
+echo ""
+echo "The URL is spelled out because filter-repo removes the origin remote, so"
+echo "a rewritten repo cannot be pushed back by reflex."
+echo ""
+# Deliberately not --mirror. A mirror clone of a GitHub repo carries
+# refs/pull/*, which GitHub refuses to accept, so the push fails partway. Worse,
+# --mirror makes the remote match this clone exactly: the 'seed' tag created by
+# `gh release create` lives only on the remote, so a mirror taken before it
+# existed would delete that tag — and the seed release with it. Pushing
+# refs/heads/* moves every branch and leaves tags and PR refs alone.
+echo "Not --mirror: that would push refs/pull/* (which GitHub rejects) and"
+echo "delete any tag this clone predates, including the seed release's own."
 echo ""
 echo "Every existing clone must be re-cloned afterwards — old history cannot"
 echo "be fast-forwarded onto the new one."
