@@ -17,7 +17,7 @@ Deployment: frontend on Vercel; the API runs as a Docker container (`f1_api`) on
 ## Project Structure
 
 - `apps/web/` - Next.js frontend (15 routes, 36+ components)
-- `pipeline/` - Python data pipeline + FastAPI backend (11 routers, 38 endpoints); `Dockerfile` builds the API/migrate/ingest image
+- `pipeline/` - Python data pipeline + FastAPI backend (11 routers, 44 endpoints); `Dockerfile` builds the API/migrate/ingest image
 - `docker/` - `docker-compose.yml` (local dev DB), `compose.prod.yml` (the VPS stack — shipped to `/srv/apps/f1_api/docker-compose.yml` by the deploy), `.env.prod.example`, backups
 - `scripts/` - `bootstrap.sh`, `db-backup.sh`, `db-restore.sh`, `seed-fetch.sh` (download the seed dump from its release), `fastf1-sync.sh` (laptop-side Fast-F1 fetch), `lib/db.sh` (shared container resolution + dump inspection + seed release location), `vps/ingest.sh`, `vps/fastf1.sh`, `vps/backup.sh`, `vps/purge-cache.sh` (copied to the VPS by the deploy)
 
@@ -27,12 +27,12 @@ Deployment: frontend on Vercel; the API runs as a Docker container (`f1_api`) on
 |-------|-------------|
 | `/` | Home dashboard (stats, standings, race calendar, next race countdown) |
 | `/seasons` | Season list |
-| `/seasons/[year]` | Season detail (standings + charts + championship progression) |
-| `/seasons/[year]/races/[round]` | Race detail (results, qualifying, sprint, pit stops) |
+| `/seasons/[year]` | Season detail (standings + charts + championship progression, title permutations, cross-era "what if" scoring) |
+| `/seasons/[year]/races/[round]` | Race detail (results, qualifying, sprint, pit stops, gaps, tyre degradation) |
 | `/drivers` | Driver list (filterable by nationality) |
 | `/drivers/[ref]` | Driver profile (stats incl. poles/fastest laps/championships, career chart, season history) |
 | `/constructors` | Constructor list (filterable by nationality) |
-| `/constructors/[ref]` | Constructor profile (stats, career chart, season history, roster) |
+| `/constructors/[ref]` | Constructor profile (stats, career chart, season history, roster, team lineage) |
 | `/circuits` | Circuit list (filterable by country) |
 | `/circuits/[ref]` | Circuit detail (location, race history) |
 | `/champions` | All-time champions |
@@ -53,10 +53,11 @@ daily and on the `f1-data` tag purge), `robots.ts`, `manifest.ts`,
 - `components/ui/` - shadcn/ui base components (badge, button, card, table, tabs, sheet, dialog, dropdown-menu, country-flag, driver-avatar, constructor-logo, empty-state, motion, page-header, position-badge, sonner, stat-card, next-race-countdown)
 - `components/layout/` - Header, footer, mobile nav, breadcrumbs, search dialog, theme toggle, nav link
 - `components/charts/` - Recharts visualizations (points bar, constructor points, career line, comparison line, championship progression, season heatmap, quali-vs-race, driver radar)
-- `components/races/` - Race result tables (results with position change indicators, qualifying, sprint, pit stops, lap-times-chart, tyre-strategy-chart, position-chart, pit-stop-analysis, podium-card, fastest-lap-card)
+- `components/races/` - Race result tables (results with position change indicators, qualifying, sprint, pit stops, lap-times-chart, tyre-strategy-chart, tyre-degradation-chart, position-chart, gap-chart, pit-stop-analysis, podium-card, fastest-lap-card)
 - `components/standings/` - Driver + constructor standings tables
+- `components/seasons/` - Title permutations card, cross-era normalised standings
 - `components/drivers/` - Driver season history table
-- `components/constructors/` - Constructor season history table
+- `components/constructors/` - Constructor season history table, lineage timeline
 - `components/circuits/` - Track layout, world map, world map wrapper
 - `components/compare/` - Driver select, constructor select, head-to-head-card, career-stats-table
 - `components/providers/` - Theme provider
@@ -77,6 +78,8 @@ daily and on the `f1-data` tag purge), `robots.ts`, `manifest.ts`,
 - `GET /api/seasons/{year}/races/{round}/pitstops/analysis` - Pit stop analysis (1994+)
 - `GET /api/seasons/{year}/races/{round}/positions` - Lap-by-lap positions (2018+)
 - `GET /api/seasons/{year}/races/{round}/laps` - Lap times + tyre strategy (2018+)
+- `GET /api/seasons/{year}/races/{round}/gaps` - Gap to the leader, lap by lap (2018+)
+- `GET /api/seasons/{year}/races/{round}/degradation` - Lap time vs tyre age per compound (2018+)
 - `GET /api/drivers` - Drivers (pagination + nationality filter)
 - `GET /api/drivers/nationalities` - Distinct nationalities
 - `GET /api/drivers/{ref}` - Driver detail with career stats
@@ -87,6 +90,7 @@ daily and on the `f1-data` tag purge), `robots.ts`, `manifest.ts`,
 - `GET /api/constructors/{ref}` - Constructor detail with career stats
 - `GET /api/constructors/{ref}/seasons` - Constructor season-by-season history
 - `GET /api/constructors/{ref}/roster` - Driver roster (optional year param)
+- `GET /api/constructors/{ref}/lineage` - The chain of renames this entry belongs to
 - `GET /api/circuits` - Circuits (pagination + country filter)
 - `GET /api/circuits/countries` - Distinct countries
 - `GET /api/circuits/{ref}` - Circuit detail with race history
@@ -98,6 +102,9 @@ daily and on the `f1-data` tag purge), `robots.ts`, `manifest.ts`,
 - `GET /api/records` - All-time records (most wins, poles, podiums, championships, etc.)
 - `GET /api/seasons/{year}/standings/progression` - Round-by-round championship progression
 - `GET /api/seasons/{year}/heatmap` - Season results heatmap (driver × round grid)
+- `GET /api/seasons/{year}/permutations` - Who can still win the drivers' title
+- `GET /api/seasons/{year}/standings/normalised?system={id}` - The season re-scored under another era
+- `GET /api/points-systems` - Every points system the championship has used
 
 ## Commands
 
@@ -119,8 +126,9 @@ daily and on the `f1-data` tag purge), `robots.ts`, `manifest.ts`,
 - `uv run python scripts/fastf1_fetch.py --targets targets.json --out payload.ndjson.gz` - Fetch Fast-F1 sessions into a payload (no DB needed)
 - `uv run python scripts/fastf1_status.py` - List races still missing Fast-F1 data, as JSON (DB, no network)
 - `uv run python scripts/fastf1_import.py --payload payload.ndjson.gz` - Load a payload into PostgreSQL (DB, no network)
+- `uv run python scripts/seed.py --lineages` - Rebuild constructor lineages only (one of the `--<target>` flags in `seed.py`)
 - `uv run python scripts/refresh_views.py` - Rebuild the computed-stats materialized views (`driver_career_stats`, `constructor_career_stats`, `season_champions`); `db-restore.sh` calls this after migrating
-- `uv run pytest -v` - Run backend tests (120 tests)
+- `uv run pytest -v` - Run backend tests (272 tests)
 - `uv run ruff check . && uv run ruff format --check .` - Lint + format check
 
 ### VPS (production backend)
@@ -187,7 +195,7 @@ Two f1db quirks the UI is built around:
 - Use conventional commits (feat:, fix:, docs:, refactor:, test:, chore:)
 - Frontend: shadcn/ui components in `components/ui/`, feature components in `components/<feature>/`
 - Backend: FastAPI routers in `src/api/routers/`, SQLAlchemy models in `src/db/models.py`
-- Backend shared helpers: `src/api/constants.py` (magic numbers), `src/api/serializers.py` (driver/constructor dict builders), `src/api/pagination.py` (generic paginator)
+- Backend shared helpers: `src/api/constants.py` (magic numbers), `src/api/serializers.py` (driver/constructor dict builders), `src/api/pagination.py` (generic paginator), `src/scoring.py` (historical points systems)
 - Fast-F1 code is split by what it needs: `src/ingestion/fastf1_sessions.py` is network-only (no DB import, so it runs on a host with no database), `src/ingestion/fastf1_payload.py` is the NDJSON wire format between the two hosts, and the writers (`write_lap_rows`, `write_quali_sectors`) are shared by the direct ingestors and the payload importer — keep it that way so the off-box path cannot drift from the local one
 - All API endpoints prefixed with `/api/`
 - Next.js frontend calls FastAPI at `NEXT_PUBLIC_API_URL` (default: http://localhost:8000/api)
@@ -225,6 +233,20 @@ Two f1db quirks the UI is built around:
   `apple-icon.png` and the `public/icon-*.png` set means re-rendering from it
   rather than editing the binaries
 - Client components (`'use client'`) only for interactive pieces (charts, filters, tabs, search)
+- Anything derived from Fast-F1 lap times (`/positions`, `/gaps`) shares
+  `_cumulative_lap_times()` in the races router. A cumulative total needs an
+  unbroken chain from lap 1, so it stops at a driver's first missing lap rather
+  than adding across the hole; both endpoints report `totalLaps` (the race) and
+  `coveredLaps` (how far the data reaches) so the UI can say so
+- Tyre degradation filters before it fits: lap 1 and anything slower than 107%
+  of the race's median are dropped, because a pit or safety-car lap is seconds
+  off the pace and the wear being measured is tenths. Report `cleanLaps` against
+  `totalLaps` wherever the slope is shown
+- Constructor lineages come from f1db's `chronology` and are a chain of
+  *entries*, not of teams — Red Bull is the far end of Stewart's chain. Never
+  merge one member's record into another's or inherit a colour along a chain; a
+  constructor can also hold several slots in its own chain (Sauber), so slot
+  stats are scoped to that slot's years
 - Pages are cached, not re-rendered per request. Nothing sets
   `dynamic = 'force-dynamic'`: freshness comes from the fetch-level
   `revalidate`/`tags` in `lib/api.ts`, which Next infers as the route's own
@@ -263,6 +285,9 @@ Rules to preserve when changing code:
   fetch runs, CI included. f1db is a single release download, so it needs no throttling.
 - **Standings** must keep using f1db's official points (`StandingsIngestor._apply_official`).
   Summing raw race points crowns the wrong champion in the pre-1991 "best N results" seasons.
+  `src/scoring.py` re-derives points on purpose, but only ever for the hypothetical
+  `/standings/normalised` table and the permutations arithmetic — never for the
+  standings the site publishes, and every surface that shows it says it is a what-if.
 - New data sources need a row in `ATTRIBUTIONS.md` and an entry in `DATA_SOURCES` on the
   attributions page before they ship.
 
@@ -271,8 +296,6 @@ Rules to preserve when changing code:
 ### Phase 3 — Advanced Features
 - **Weather data** (2018+): Air/track temp, humidity, wind, rainfall from Fast-F1 — new `RaceWeather` model
 - **Race control events** (2018+): Safety cars, flags, penalties — timeline overlay on lap times chart
-- **Tyre degradation analysis**: Lap time vs tyre age per compound, derived from existing lap data
-- **Gap analysis chart**: Time gaps between drivers throughout a race, computed from lap times
 - **Telemetry visualization** (2018+): Speed/throttle/brake traces — on-demand from Fast-F1 cache (not stored in DB)
 - **OpenF1 live data** (2023+): Real-time positions, intervals, team radio — WebSocket/SSE architecture
 
