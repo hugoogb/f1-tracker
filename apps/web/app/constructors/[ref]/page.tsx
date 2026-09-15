@@ -16,8 +16,6 @@ import { JsonLd } from '@/components/seo/json-ld'
 import { organizationSchema } from '@/lib/structured-data'
 import { buildMetadata, SITE_DESCRIPTION } from '@/lib/seo'
 
-export const dynamic = 'force-dynamic'
-
 interface ConstructorDetail extends Constructor {
   stats: {
     total_entries: number
@@ -25,6 +23,17 @@ interface ConstructorDetail extends Constructor {
     podiums: number
     total_points: number
   }
+}
+
+/**
+ * Nothing is prerendered at build time: there are thousands of these pages and
+ * the set changes with the data, so a build should not have to walk it. The
+ * empty list still opts the route into the full route cache — the first request
+ * for a path renders it, everything after is served from the cache until the
+ * `f1-data` tag is purged by an ingest.
+ */
+export function generateStaticParams() {
+  return []
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ ref: string }> }) {

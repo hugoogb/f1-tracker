@@ -18,8 +18,6 @@ import { WorldMapWrapper } from '@/components/circuits/world-map-wrapper'
 import { FadeIn } from '@/components/ui/motion'
 import { buildMetadata } from '@/lib/seo'
 
-export const dynamic = 'force-dynamic'
-
 export const metadata = buildMetadata({
   title: 'Circuits',
   description:

@@ -6,8 +6,6 @@ import { PageHeader } from '@/components/ui/page-header'
 import { FadeIn, StaggerList, StaggerItem, MotionCard } from '@/components/ui/motion'
 import { buildMetadata } from '@/lib/seo'
 
-export const dynamic = 'force-dynamic'
-
 export const metadata = buildMetadata({
   title: 'Seasons',
   description:

@@ -19,8 +19,6 @@ import { ListFilter } from '@/components/list-filter'
 import { FadeIn } from '@/components/ui/motion'
 import { buildMetadata } from '@/lib/seo'
 
-export const dynamic = 'force-dynamic'
-
 export const metadata = buildMetadata({
   title: 'Drivers',
   description:

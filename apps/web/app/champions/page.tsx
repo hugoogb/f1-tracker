@@ -9,8 +9,6 @@ import { ChampionsTabs } from './champions-tabs'
 import { FadeIn, StaggerList, StaggerItem } from '@/components/ui/motion'
 import { buildMetadata } from '@/lib/seo'
 
-export const dynamic = 'force-dynamic'
-
 export const metadata = buildMetadata({
   title: 'Champions',
   description:

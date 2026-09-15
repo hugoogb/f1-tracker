@@ -19,8 +19,6 @@ import { FadeIn, StaggerList, StaggerItem } from '@/components/ui/motion'
 import { RecordsTabs } from './records-tabs'
 import { buildMetadata } from '@/lib/seo'
 
-export const dynamic = 'force-dynamic'
-
 export const metadata = buildMetadata({
   title: 'Records',
   description:

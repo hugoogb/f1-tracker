@@ -10,8 +10,6 @@ import { ComparisonChart } from '@/components/charts/comparison-chart'
 import { FadeIn } from '@/components/ui/motion'
 import { buildMetadata } from '@/lib/seo'
 
-export const dynamic = 'force-dynamic'
-
 interface ConstructorStats {
   total_entries: number
   wins: number

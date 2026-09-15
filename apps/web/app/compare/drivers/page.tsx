@@ -14,8 +14,6 @@ import { CareerStatsTable } from '@/components/compare/career-stats-table'
 import { FadeIn } from '@/components/ui/motion'
 import { buildMetadata } from '@/lib/seo'
 
-export const dynamic = 'force-dynamic'
-
 interface DriverStats {
   total_races: number
   wins: number
