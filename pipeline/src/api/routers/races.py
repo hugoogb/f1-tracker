@@ -17,6 +17,61 @@ def _seconds(milliseconds: float) -> str:
     return f"{milliseconds / 1000:.3f}"
 
 
+def _cumulative_lap_times(race_id: str):
+    """Elapsed race time per driver per lap, as a subquery.
+
+    Shared by the positions reconstruction and the gap chart, which both need
+    the same thing: how long each driver had been racing at the end of each lap.
+
+    Fast-F1 leaves `time_millis` empty more often than it leaves the sectors
+    empty, so the sum of the three stands in when it does. That matters: a
+    cumulative total needs an unbroken chain from lap 1, so a single gap ends
+    the driver's line there — without the fallback one missing lap early on
+    could cut the whole field off within the first handful of laps. Laps past
+    the first hole are dropped rather than silently added up across it, which
+    would put the driver minutes ahead of where they really were.
+    """
+    lt = LapTime.__table__
+    lap_ms = func.coalesce(
+        lt.c.time_millis,
+        lt.c.sector1_ms + lt.c.sector2_ms + lt.c.sector3_ms,
+    )
+
+    # The last lap each driver has an unbroken chain of times up to.
+    max_valid_lap = (
+        select(
+            lt.c.driver_id,
+            func.coalesce(
+                func.min(lt.c.lap_number).filter(lap_ms.is_(None)) - 1,
+                func.max(lt.c.lap_number),
+            ).label("max_valid"),
+        )
+        .where(lt.c.race_id == race_id)
+        .group_by(lt.c.driver_id)
+        .subquery()
+    )
+
+    return (
+        select(
+            lt.c.driver_id,
+            lt.c.lap_number,
+            func.sum(lap_ms)
+            .over(partition_by=lt.c.driver_id, order_by=lt.c.lap_number)
+            .label("cumulative_ms"),
+        )
+        .where(
+            lt.c.race_id == race_id,
+            lap_ms.isnot(None),
+            lt.c.lap_number
+            <= select(max_valid_lap.c.max_valid)
+            .where(max_valid_lap.c.driver_id == lt.c.driver_id)
+            .correlate_except(max_valid_lap)
+            .scalar_subquery(),
+        )
+        .subquery()
+    )
+
+
 @router.get("/seasons/{year}/races/{round}")
 def get_race(year: int, round: int, db: Session = Depends(get_db)):
     race = db.execute(
@@ -362,59 +417,14 @@ def get_positions(year: int, round: int, db: Session = Depends(get_db)):
     # Otherwise fall back to reconstructing them: rank drivers each lap by
     # elapsed race time. Races ingested before the position was stored have only
     # lap times, and re-fetching a session costs ~45s, so this stays.
-    #
-    # Fast-F1 leaves LapTime empty more often than it leaves the sectors empty,
-    # so the sum of the three stands in when it does. That matters: a cumulative
-    # total needs an unbroken chain from lap 1, so a single gap ends the driver's
-    # line there — without this fallback one missing lap early on could cut the
-    # whole field off within the first handful of laps.
-    lap_ms = func.coalesce(
-        lt.c.time_millis,
-        lt.c.sector1_ms + lt.c.sector2_ms + lt.c.sector3_ms,
-    )
+    cumulative = _cumulative_lap_times(race.id)
 
-    # Step 1: the last lap each driver has an unbroken chain of times up to
-    max_valid_lap = (
-        select(
-            lt.c.driver_id,
-            func.coalesce(
-                func.min(lt.c.lap_number).filter(lap_ms.is_(None)) - 1,
-                func.max(lt.c.lap_number),
-            ).label("max_valid"),
-        )
-        .where(lt.c.race_id == race.id)
-        .group_by(lt.c.driver_id)
-        .subquery()
-    )
-
-    # Step 2: Cumulative times via window function
-    cumulative_cte = (
-        select(
-            lt.c.driver_id,
-            lt.c.lap_number,
-            func.sum(lap_ms)
-            .over(partition_by=lt.c.driver_id, order_by=lt.c.lap_number)
-            .label("cumulative_ms"),
-        )
-        .where(
-            lt.c.race_id == race.id,
-            lap_ms.isnot(None),
-            lt.c.lap_number
-            <= select(max_valid_lap.c.max_valid)
-            .where(max_valid_lap.c.driver_id == lt.c.driver_id)
-            .correlate_except(max_valid_lap)
-            .scalar_subquery(),
-        )
-        .subquery()
-    )
-
-    # Step 3: Rank drivers per lap by cumulative time
     ranked_rows = db.execute(
         select(
-            cumulative_cte.c.driver_id,
-            cumulative_cte.c.lap_number,
+            cumulative.c.driver_id,
+            cumulative.c.lap_number,
             func.rank()
-            .over(partition_by=cumulative_cte.c.lap_number, order_by=cumulative_cte.c.cumulative_ms)
+            .over(partition_by=cumulative.c.lap_number, order_by=cumulative.c.cumulative_ms)
             .label("position"),
         )
     ).all()
@@ -423,6 +433,206 @@ def get_positions(year: int, round: int, db: Session = Depends(get_db)):
         return {"raceId": race.id, "totalLaps": 0, "coveredLaps": 0, "drivers": []}
 
     return _positions_response(db, race, results, race_laps, ranked_rows)
+
+
+@router.get("/seasons/{year}/races/{round}/gaps")
+def get_gaps(year: int, round: int, db: Session = Depends(get_db)):
+    """Every driver's gap to the race leader, lap by lap (2018+).
+
+    The position chart says who was ahead; this says by how much, which is where
+    a race is actually decided — an undercut opening up, a safety car erasing a
+    twenty-second lead, a stint quietly falling apart.
+
+    The leader on a given lap is whoever has the lowest elapsed time at the end
+    of it, which is not always the driver classified first: someone a lap down
+    has a lower elapsed total at their own lap 40 than the leader does. So gaps
+    are only comparable between drivers still on the lead lap, and the payload
+    marks the lap each driver's data reaches (`coveredLaps`) rather than
+    pretending the line continues.
+
+    Gaps are milliseconds behind the leader, so the leader's own line sits at
+    zero and every other line is positive — the chart reads downwards as "time
+    lost", which is the way people talk about it.
+    """
+    race = db.execute(
+        select(Race).where(Race.season_year == year, Race.round == round)
+    ).scalar_one_or_none()
+    if not race:
+        raise HTTPException(status_code=404, detail="Race not found")
+
+    results = db.execute(select(RaceResult).where(RaceResult.race_id == race.id)).scalars().all()
+    if not results:
+        return {"raceId": race.id, "totalLaps": 0, "coveredLaps": 0, "drivers": []}
+
+    race_laps = max((r.laps or 0) for r in results)
+
+    cumulative = _cumulative_lap_times(race.id)
+    rows = db.execute(
+        select(
+            cumulative.c.driver_id,
+            cumulative.c.lap_number,
+            cumulative.c.cumulative_ms,
+        ).order_by(cumulative.c.lap_number)
+    ).all()
+
+    if not rows:
+        return {"raceId": race.id, "totalLaps": 0, "coveredLaps": 0, "drivers": []}
+
+    leader_ms: dict[int, int] = {}
+    for _driver_id, lap_number, cumulative_ms in rows:
+        current = leader_ms.get(lap_number)
+        if current is None or cumulative_ms < current:
+            leader_ms[lap_number] = cumulative_ms
+
+    gaps_by_driver: dict[str, list[dict]] = defaultdict(list)
+    max_lap = 0
+    for driver_id, lap_number, cumulative_ms in rows:
+        gaps_by_driver[driver_id].append(
+            {"lap": lap_number, "gapMs": int(cumulative_ms - leader_ms[lap_number])}
+        )
+        max_lap = max(max_lap, lap_number)
+
+    driver_constructor = {r.driver_id: r.constructor for r in results}
+    driver_final_pos = {r.driver_id: r.position for r in results}
+    drivers = db.execute(select(Driver).where(Driver.id.in_(gaps_by_driver.keys()))).scalars().all()
+    driver_map = {d.id: d for d in drivers}
+
+    ordered = sorted(gaps_by_driver, key=lambda did: driver_final_pos.get(did) or 999)
+
+    return {
+        "raceId": race.id,
+        "totalLaps": max(race_laps, max_lap),
+        "coveredLaps": max_lap,
+        "drivers": [
+            {
+                "driver": driver_summary(driver_map[driver_id]),
+                "constructor": constructor_compact(c)
+                if (c := driver_constructor.get(driver_id))
+                else {},
+                "gaps": gaps_by_driver[driver_id],
+            }
+            for driver_id in ordered
+            if driver_id in driver_map
+        ],
+    }
+
+
+# A lap slower than this much of the race's median is not a representative
+# green-flag lap: it is a pit stop, a safety car, or traffic. Degradation is a
+# tyre effect and those laps drown it out completely.
+_CLEAN_LAP_THRESHOLD = 1.07
+
+
+@router.get("/seasons/{year}/races/{round}/degradation")
+def get_degradation(year: int, round: int, db: Session = Depends(get_db)):
+    """How lap time decays with tyre age, per compound (2018+).
+
+    Fast-F1 gives each lap a compound and a `tyre_life`, which is all this
+    needs: group the race's green-flag laps by compound and tyre age, take the
+    median at each age, and fit a straight line through them for a headline
+    "seconds lost per lap of tyre age".
+
+    The filtering matters more than the maths. A pit lap, a safety-car lap or a
+    lap stuck behind a backmarker is several seconds off the pace, which is an
+    order of magnitude more than the degradation being measured, so anything
+    slower than 107% of the race's median lap is dropped — along with lap 1,
+    which starts from a standstill. What is left is close enough to
+    representative green-flag running to compare compounds against each other.
+    The payload reports how many laps survived that filter so the UI can say
+    when a compound's line rests on almost nothing.
+    """
+    race = db.execute(
+        select(Race).where(Race.season_year == year, Race.round == round)
+    ).scalar_one_or_none()
+    if not race:
+        raise HTTPException(status_code=404, detail="Race not found")
+
+    laps = db.execute(
+        select(LapTime.compound, LapTime.tyre_life, LapTime.time_millis).where(
+            LapTime.race_id == race.id,
+            LapTime.time_millis.isnot(None),
+            LapTime.compound.isnot(None),
+            LapTime.tyre_life.isnot(None),
+            # Lap 1 is a standing start and a first-corner scramble, not a
+            # measurement of a one-lap-old tyre.
+            LapTime.lap_number > 1,
+        )
+    ).all()
+
+    if not laps:
+        return {
+            "raceId": race.id,
+            "compounds": [],
+            "totalLaps": 0,
+            "cleanLaps": 0,
+            "thresholdMs": None,
+        }
+
+    median_ms = statistics.median(lap.time_millis for lap in laps)
+    threshold = median_ms * _CLEAN_LAP_THRESHOLD
+    clean = [lap for lap in laps if lap.time_millis <= threshold]
+
+    by_compound: dict[str, list] = defaultdict(list)
+    for lap in clean:
+        by_compound[lap.compound.upper()].append(lap)
+
+    compounds = []
+    for compound, compound_laps in by_compound.items():
+        by_age: dict[int, list[int]] = defaultdict(list)
+        for lap in compound_laps:
+            by_age[lap.tyre_life].append(lap.time_millis)
+
+        points = [
+            {
+                "tyreLife": age,
+                "medianMs": int(statistics.median(times)),
+                "sampleSize": len(times),
+            }
+            for age, times in sorted(by_age.items())
+        ]
+
+        compounds.append(
+            {
+                "compound": compound,
+                "laps": len(compound_laps),
+                "degradationMsPerLap": _slope(
+                    [(lap.tyre_life, lap.time_millis) for lap in compound_laps]
+                ),
+                "points": points,
+            }
+        )
+
+    # Most-used compound first: that is the one the race was run on.
+    compounds.sort(key=lambda c: -c["laps"])
+
+    return {
+        "raceId": race.id,
+        "compounds": compounds,
+        "totalLaps": len(laps),
+        "cleanLaps": len(clean),
+        "thresholdMs": int(threshold),
+    }
+
+
+def _slope(points: list[tuple[int, int]]) -> float | None:
+    """Least-squares gradient in ms per lap of tyre age, or None if undefined.
+
+    Undefined covers the two cases a fit cannot say anything about: fewer than
+    two laps, and every lap at the same tyre age (one long stint sampled once),
+    where the line would be vertical.
+    """
+    if len(points) < 2:
+        return None
+
+    n = len(points)
+    mean_x = sum(x for x, _ in points) / n
+    mean_y = sum(y for _, y in points) / n
+    variance = sum((x - mean_x) ** 2 for x, _ in points)
+    if variance == 0:
+        return None
+
+    covariance = sum((x - mean_x) * (y - mean_y) for x, y in points)
+    return round(covariance / variance, 1)
 
 
 @router.get("/seasons/{year}/races/{round}/pitstops/analysis")
