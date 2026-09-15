@@ -129,7 +129,7 @@ daily and on the `f1-data` tag purge), `robots.ts`, `manifest.ts`,
 - `uv run python scripts/fastf1_import.py --payload payload.ndjson.gz` - Load a payload into PostgreSQL (DB, no network)
 - `uv run python scripts/seed.py --lineages` - Rebuild constructor lineages only (one of the `--<target>` flags in `seed.py`)
 - `uv run python scripts/refresh_views.py` - Rebuild the computed-stats materialized views (`driver_career_stats`, `constructor_career_stats`, `season_champions`); `db-restore.sh` calls this after migrating
-- `uv run pytest -v` - Run backend tests (284 tests)
+- `uv run pytest -v` - Run backend tests (296 tests)
 - `uv run ruff check . && uv run ruff format --check .` - Lint + format check
 
 ### VPS (production backend)
