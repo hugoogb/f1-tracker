@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "NODE_ENV=production next build",
+    "build:compile": "NODE_ENV=production next build --experimental-build-mode compile",
     "start": "next start",
     "lint": "eslint",
     "icons": "node scripts/generate-icons.mjs",

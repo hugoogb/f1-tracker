@@ -38,8 +38,12 @@ jobs:
       - name: Type check
         run: pnpm typecheck
 
+      # Compile and bundle without static generation. The prerendered routes
+      # fetch from the API, and this job has none — Vercel's own build is what
+      # exercises prerendering, with NEXT_PUBLIC_API_URL set and the backend
+      # reachable, and it gates the deploy if that fails.
       - name: Build
-        run: pnpm build
+        run: pnpm build:compile
 
   backend:
     name: Backend
