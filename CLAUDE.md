@@ -26,8 +26,8 @@ Deployment: frontend on Vercel; the API runs as a Docker container (`f1_api`) on
 | Route | Description |
 |-------|-------------|
 | `/` | Home dashboard (stats, standings, race calendar, next race countdown) |
-| `/seasons` | Season list |
-| `/seasons/[year]` | Season detail (standings + charts + championship progression, title permutations, cross-era "what if" scoring) |
+| `/seasons` | Season list (one tile per year with its champion) |
+| `/seasons/[year]` | Season detail (scoring note, standings + charts + championship progression, title permutations, cross-era "what if" scoring) |
 | `/seasons/[year]/races/[round]` | Race detail (results, qualifying, sprint, pit stops, gaps, tyre degradation) |
 | `/drivers` | Driver list (filterable by nationality) |
 | `/drivers/[ref]` | Driver profile (stats incl. poles/fastest laps/championships, career chart, season history) |
@@ -55,7 +55,7 @@ daily and on the `f1-data` tag purge), `robots.ts`, `manifest.ts`,
 - `components/charts/` - Recharts visualizations (points bar, constructor points, career line, comparison line, championship progression, season heatmap, quali-vs-race, driver radar)
 - `components/races/` - Race result tables (results with position change indicators, qualifying, sprint, pit stops, lap-times-chart, tyre-strategy-chart, tyre-degradation-chart, position-chart, gap-chart, pit-stop-analysis, podium-card, fastest-lap-card)
 - `components/standings/` - Driver + constructor standings tables
-- `components/seasons/` - Title permutations card, cross-era normalised standings
+- `components/seasons/` - Scoring note, title permutations card, cross-era normalised standings
 - `components/drivers/` - Driver season history table
 - `components/constructors/` - Constructor season history table, lineage timeline
 - `components/circuits/` - Track layout, world map, world map wrapper
@@ -69,7 +69,8 @@ daily and on the `f1-data` tag purge), `robots.ts`, `manifest.ts`,
 - `GET /api/health` - Liveness check (used by the container HEALTHCHECK)
 - `GET /api/health/db` - Readiness check (verifies PostgreSQL connectivity; 503 when unreachable)
 - `GET /api/stats` - DB statistics (counts of seasons, drivers, constructors, races, circuits)
-- `GET /api/seasons` / `GET /api/seasons/{year}` - Seasons
+- `GET /api/seasons` / `GET /api/seasons/{year}` - Seasons; the detail carries `scoring`
+  (the year's points system, whether every result counted, and any points a driver dropped)
 - `GET /api/seasons/{year}/standings/drivers` / `constructors` - Standings
 - `GET /api/seasons/{year}/races/{round}` - Race results
 - `GET /api/seasons/{year}/races/{round}/qualifying` - Qualifying
@@ -128,7 +129,7 @@ daily and on the `f1-data` tag purge), `robots.ts`, `manifest.ts`,
 - `uv run python scripts/fastf1_import.py --payload payload.ndjson.gz` - Load a payload into PostgreSQL (DB, no network)
 - `uv run python scripts/seed.py --lineages` - Rebuild constructor lineages only (one of the `--<target>` flags in `seed.py`)
 - `uv run python scripts/refresh_views.py` - Rebuild the computed-stats materialized views (`driver_career_stats`, `constructor_career_stats`, `season_champions`); `db-restore.sh` calls this after migrating
-- `uv run pytest -v` - Run backend tests (272 tests)
+- `uv run pytest -v` - Run backend tests (284 tests)
 - `uv run ruff check . && uv run ruff format --check .` - Lint + format check
 
 ### VPS (production backend)
@@ -242,6 +243,14 @@ Two f1db quirks the UI is built around:
   of the race's median are dropped, because a pit or safety-car lap is seconds
   off the pace and the wear being measured is tenths. Report `cleanLaps` against
   `totalLaps` wherever the slope is shown
+- A season's scoring context makes two claims from two sources, and the wording
+  has to keep them apart. The points system is a fact about the year, from
+  `src/scoring.py`. Whether results were dropped is read off the results — a
+  championship total below what a driver scored — because some form of "best N
+  results" applied from 1950 to 1990 but the N changed almost every season, some
+  years split the calendar into halves scored separately, and none of that is in
+  f1db. State the era rule generally and let the data supply the example; never
+  assert a specific N
 - Constructor lineages come from f1db's `chronology` and are a chain of
   *entries*, not of teams — Red Bull is the far end of Stewart's chain. Never
   merge one member's record into another's or inherit a colour along a chain; a

@@ -154,6 +154,24 @@ _ERAS: tuple[tuple[int, int | None, str], ...] = (
 )
 
 
+# The last season in which only part of a driver's record counted towards the
+# championship. From 1950 to 1990 some form of "best N results" rule was in
+# force — the exact N, and whether the season was split into halves scored
+# separately, changed almost every year and is not in the f1db dataset. From
+# 1991 every result counts.
+#
+# So the rule is stated at era level, and the specifics are read back off the
+# data instead: a driver whose championship total is lower than the points they
+# actually scored dropped the difference, which is a fact the results already
+# carry. See `dropped_points` in the seasons router.
+LAST_DROPPED_SCORES_SEASON = 1990
+
+
+def counts_every_result(year: int) -> bool:
+    """True when a season's championship is simply the sum of its races."""
+    return year > LAST_DROPPED_SCORES_SEASON
+
+
 def system_for_year(year: int) -> PointsSystem:
     """The points system a season was actually scored under."""
     for start, end, system_id in _ERAS:

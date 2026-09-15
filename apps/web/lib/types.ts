@@ -593,3 +593,32 @@ export interface NormalisedStandingsResponse {
   sprintsCounted: number
   standings: NormalisedStanding[]
 }
+
+// How a season was scored
+export interface SeasonPointsSystem {
+  id: string
+  label: string
+  era: string
+  notes: string
+  fastestLapPoint: boolean
+}
+
+export interface DroppedPoints {
+  driversAffected: number
+  largest: {
+    driver: Driver | null
+    /** What the driver actually scored across the season. */
+    scored: number
+    /** What the championship kept. */
+    counted: number
+    dropped: number
+  }
+}
+
+export interface SeasonScoring {
+  system: SeasonPointsSystem
+  /** False for 1950-1990, when only a driver's best results counted. */
+  everyResultCounts: boolean
+  /** Read off the results, not from a table of rules. Null when nothing dropped. */
+  droppedPoints: DroppedPoints | null
+}

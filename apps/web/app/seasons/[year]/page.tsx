@@ -12,6 +12,7 @@ import type {
   PermutationsResponse,
   PointsSystemsResponse,
   NormalisedStandingsResponse,
+  SeasonScoring,
 } from '@/lib/types'
 import { CountryFlag } from '@/components/ui/country-flag'
 import { Breadcrumbs } from '@/components/layout/breadcrumbs'
@@ -31,6 +32,7 @@ import { ConstructorPointsChart } from '@/components/charts/constructor-points-c
 import { ChampionshipProgressionChart } from '@/components/charts/championship-progression-chart'
 import { SeasonHeatmap } from '@/components/charts/season-heatmap'
 import { SeasonTabs } from './season-tabs'
+import { ScoringNote } from '@/components/seasons/scoring-note'
 import { TitlePermutations } from '@/components/seasons/title-permutations'
 import { NormalisedStandings } from '@/components/seasons/normalised-standings'
 import { FadeIn } from '@/components/ui/motion'
@@ -40,6 +42,7 @@ import { LocalDate } from '@/components/ui/local-date'
 interface SeasonDetailResponse {
   year: number
   races: Race[]
+  scoring?: SeasonScoring
 }
 
 interface DriverStandingsResponse {
@@ -188,6 +191,12 @@ export default async function SeasonDetailPage({ params }: { params: Promise<{ y
           <div className="accent-line" />
         </div>
       </FadeIn>
+
+      {seasonData.scoring && (
+        <FadeIn>
+          <ScoringNote scoring={seasonData.scoring} year={year} />
+        </FadeIn>
+      )}
 
       {permutations && (
         <FadeIn>
