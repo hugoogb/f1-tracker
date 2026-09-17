@@ -5,6 +5,10 @@ export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost
 export const REVALIDATE_SECONDS = 86400
 export const F1_DATA_TAG = 'f1-data'
 
+// The status page is the one place where a stale answer is worse than a slow
+// one: day-old data cannot tell you the weekly ingest stopped firing.
+export const OPS_REVALIDATE_SECONDS = 60
+
 export const TYRE_COLORS: Record<string, string> = {
   SOFT: '#FF3333',
   MEDIUM: '#FFC906',

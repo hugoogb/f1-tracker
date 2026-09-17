@@ -77,6 +77,8 @@ export async function generateMetadata({ params }: { params: Promise<{ year: str
       `The ${year} Formula 1 season: full race calendar and results, final driver and constructor ` +
       'standings, round-by-round championship progression and a season results heatmap.',
     path: `/seasons/${year}`,
+    image: `/seasons/${year}/opengraph-image`,
+    imageAlt: `The ${year} Formula 1 season — champion, standings and calendar`,
   })
 }
 

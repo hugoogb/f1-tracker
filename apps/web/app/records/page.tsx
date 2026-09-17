@@ -1,7 +1,15 @@
+import { Suspense } from 'react'
 import Link from 'next/link'
 import { Trophy, Medal, Timer, Flag, Zap, Award } from 'lucide-react'
 import { api } from '@/lib/api'
-import type { RecordsResponse, DriverRecordEntry, ConstructorRecordEntry } from '@/lib/types'
+import type {
+  RecordsResponse,
+  DriverRecordEntry,
+  ConstructorRecordEntry,
+  PointsSystem,
+} from '@/lib/types'
+import { Skeleton } from '@/components/ui/skeleton'
+import { RecordsExplorer, type ExplorerEra } from '@/components/records/records-explorer'
 import { DriverAvatar } from '@/components/ui/driver-avatar'
 import { Breadcrumbs } from '@/components/layout/breadcrumbs'
 import { PageHeader } from '@/components/ui/page-header'
@@ -144,8 +152,26 @@ function ConstructorRecordTable({
   )
 }
 
+/** `[]` when a lookup fails, so one flaky list never takes the page down. */
+function settledOr<T>(result: PromiseSettledResult<T>, fallback: T): T {
+  return result.status === 'fulfilled' ? result.value : fallback
+}
+
 export default async function RecordsPage() {
   const records = (await api.records()) as RecordsResponse
+
+  // The explorer's dropdown options. Fetched here so they ride the page's own
+  // cache instead of costing the browser three extra round trips, and settled
+  // rather than awaited outright — a missing list just hides one filter.
+  const [systems, driverNationalities, constructorNationalities] = await Promise.allSettled([
+    api.pointsSystems(),
+    api.drivers.nationalities(),
+    api.constructors.nationalities(),
+  ])
+
+  const eras: ExplorerEra[] = settledOr(systems, { systems: [] as PointsSystem[] }).systems.map(
+    (system) => ({ id: system.id, label: system.label, era: system.era }),
+  )
 
   return (
     <div className="space-y-6">
@@ -230,6 +256,22 @@ export default async function RecordsPage() {
               />
             </StaggerItem>
           </StaggerList>
+        }
+        exploreContent={
+          // `useSearchParams` inside the explorer needs a boundary. Keeping it
+          // this tight means only the explorer is client-rendered; the curated
+          // tables above stay in the prerendered HTML.
+          <Suspense fallback={<Skeleton className="h-96 w-full" />}>
+            <RecordsExplorer
+              eras={eras}
+              driverNationalities={
+                settledOr(driverNationalities, { nationalities: [] }).nationalities
+              }
+              constructorNationalities={
+                settledOr(constructorNationalities, { nationalities: [] }).nationalities
+              }
+            />
+          </Suspense>
         }
       />
     </div>

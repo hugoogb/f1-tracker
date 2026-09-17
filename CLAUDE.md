@@ -41,6 +41,8 @@ Deployment: frontend on Vercel; the API runs as a Docker container (`f1_api`) on
 | `/compare/drivers` | Side-by-side driver comparison |
 | `/compare/constructors` | Side-by-side constructor comparison |
 | `/attributions` | Data sources, licences, trademark notice (compliance) |
+| `/favourites` | Starred drivers, constructors and circuits (localStorage only, noindex) |
+| `/status` | Data freshness, ingest run log, Fast-F1 backlog, row counts (public, noindex) |
 
 Metadata routes (Next file conventions, all under `apps/web/app/`): `sitemap.ts`
 (static routes + every season, driver, constructor, circuit and race, rebuilt
@@ -60,8 +62,11 @@ daily and on the `f1-data` tag purge), `robots.ts`, `manifest.ts`,
 - `components/constructors/` - Constructor season history table, lineage timeline
 - `components/circuits/` - Track layout, world map, world map wrapper
 - `components/compare/` - Driver select, constructor select, head-to-head-card, career-stats-table
+- `components/records/` - Records explorer (client-side filters, URL-synced via `history.replaceState`)
 - `components/providers/` - Theme provider
-- `components/seo/` - `json-ld.tsx` (renders a schema.org graph into a `<script type="application/ld+json">`)
+- `components/favourites/` - Star toggle, favourites view, home-page summary, stale-refresh hook
+- `components/ops/` - `time-ago.tsx` (relative timestamps on `/status`, via `useNow()`)
+- `components/seo/` - `json-ld.tsx` (schema.org graph) and `og-card.tsx` (shared card chrome for every `opengraph-image` route)
 - Root: pagination, list-filter, error-boundary
 
 ### Backend Endpoints
@@ -101,11 +106,19 @@ daily and on the `f1-data` tag purge), `robots.ts`, `manifest.ts`,
 - `GET /api/compare/drivers?d1={ref}&d2={ref}&teammate=bool` - Driver comparison with H2H, quali H2H, radar stats
 - `GET /api/compare/constructors?c1={ref}&c2={ref}` - Constructor comparison with head-to-head
 - `GET /api/records` - All-time records (most wins, poles, podiums, championships, etc.)
+- `GET /api/records/explore?entity=&category=&era=|year_from=&year_to=&nationality=|country=&min_starts=&sort=&page=&limit=`
+  - The same records, filtered and paginated. Eras are the points-system ids from
+    `/api/points-systems` (a shorthand for that system's seasons, so never both an era and a
+    year range); the rate categories carry a non-zero `min_starts` floor; championships come
+    from the official final-round standings, never from summed race points
 - `GET /api/seasons/{year}/standings/progression` - Round-by-round championship progression
 - `GET /api/seasons/{year}/heatmap` - Season results heatmap (driver × round grid)
 - `GET /api/seasons/{year}/permutations` - Who can still win the drivers' title
 - `GET /api/seasons/{year}/standings/normalised?system={id}` - The season re-scored under another era
 - `GET /api/points-systems` - Every points system the championship has used
+- `GET /api/ops/status` - Data coverage, Fast-F1 backlog, row counts, Alembic revision and the
+  latest `ingest_runs` rows, behind `/status`. Public, so it serves only counts, timestamps and
+  revision ids — never a hostname, path, env value or error message
 
 ## Commands
 
@@ -180,6 +193,12 @@ Two f1db quirks the UI is built around:
 ### Data Updates
 - **Automated (f1db)**: `.github/workflows/ingest.yml` runs Mondays 06:00 UTC — joins the tailnet and runs `/srv/apps/f1_api/ingest.sh` on the box, calendar-gated, straight into PostgreSQL, then purges the Vercel cache. The f1db ingestors upsert from one release download, so they can bootstrap an empty DB as well as update one.
 - **Manual (Fast-F1)**: `pnpm fastf1` from a machine on a residential connection (`VPS_HOST` in `.env`) — asks the box what is missing (`fastf1.sh status`), fetches those sessions locally (`pipeline/scripts/fastf1_fetch.py`, ~45 s each), ships the payload back and loads it (`fastf1.sh import`). This cannot be automated in CI: `livetiming.formula1.com` returns 403 to the VPS *and* to GitHub's runners (measured — see `docs/DEPLOYMENT.md`). The Monday ingest run reports how many races are waiting, since nothing else will remind you.
+- Every run of `run_full_load` writes an `ingest_runs` row (target, start/finish, status,
+  `f1db_version`, truncated error) from its **own** session — the ingest's session is unusable
+  after a failed statement, so a shared one could only ever log failures that did not involve
+  the database. Logging is best-effort: a missing table warns and the ingest continues. This is
+  what answers "did Monday's ingest run?", which no amount of derived data can — a successful
+  ingest in a mid-season break writes no rows and looks exactly like a silently broken workflow
 - `uv run python scripts/should_ingest.py --days 3 [--exit-code]` - Calendar gate; `--exit-code` makes the decision the exit status for shell callers
 - `F1DB_VERSION` (env) - f1db release to ingest; `latest` by default, pin a tag for reproducible seeds
 
@@ -197,7 +216,7 @@ Two f1db quirks the UI is built around:
 - Frontend: shadcn/ui components in `components/ui/`, feature components in `components/<feature>/`
 - Backend: FastAPI routers in `src/api/routers/`, SQLAlchemy models in `src/db/models.py`
 - Backend shared helpers: `src/api/constants.py` (magic numbers), `src/api/serializers.py` (driver/constructor dict builders), `src/api/pagination.py` (generic paginator), `src/scoring.py` (historical points systems)
-- Fast-F1 code is split by what it needs: `src/ingestion/fastf1_sessions.py` is network-only (no DB import, so it runs on a host with no database), `src/ingestion/fastf1_payload.py` is the NDJSON wire format between the two hosts, and the writers (`write_lap_rows`, `write_quali_sectors`) are shared by the direct ingestors and the payload importer — keep it that way so the off-box path cannot drift from the local one
+- Fast-F1 code is split by what it needs: `src/ingestion/fastf1_sessions.py` is network-only (no DB import, so it runs on a host with no database), `src/ingestion/fastf1_targets.py` holds `find_targets()` — the one definition of what is outstanding, shared by `scripts/fastf1_status.py` and `/api/ops/status` so the page and `pnpm fastf1` can never disagree, `src/ingestion/fastf1_payload.py` is the NDJSON wire format between the two hosts, and the writers (`write_lap_rows`, `write_quali_sectors`) are shared by the direct ingestors and the payload importer — keep it that way so the off-box path cannot drift from the local one
 - All API endpoints prefixed with `/api/`
 - Next.js frontend calls FastAPI at `NEXT_PUBLIC_API_URL` (default: http://localhost:8000/api)
 - Dark-mode-first UI with F1 team colors
@@ -224,7 +243,13 @@ Two f1db quirks the UI is built around:
 - Page metadata goes through `buildMetadata()` in `lib/seo.ts` — it fills in the
   canonical URL, Open Graph and Twitter cards from one title/description, and
   the root layout's `%s | F1 Tracker` template appends the suffix, so a page
-  title must never carry it itself
+  title must never carry it itself. Pass `image` (and `imageAlt`) to opt a page into its own
+  `opengraph-image` route — `buildMetadata` otherwise pins the site-wide card, because Next
+  only folds the file convention in for pages that do not declare `openGraph` themselves
+- Satori drops any lowercase word that is a key of `Object.prototype` — `constructor` above
+  all, half the vocabulary of the sport — rendering it as blank space of the right width. Run
+  every dynamic string through `satoriText()` in `components/seo/og-card.tsx`; fixed copy can
+  dodge it by being uppercase or plural
 - `NEXT_PUBLIC_SITE_URL` is the canonical origin behind every canonical tag,
   Open Graph URL and sitemap entry; nothing else should hardcode the host
 - `fetchApi` throws `ApiError` with the upstream status. Detail pages call
@@ -264,8 +289,12 @@ Two f1db quirks the UI is built around:
   dynamic segment never enters the full route cache, and with one returning `[]`
   nothing is prerendered at build while the first request for a path still
   caches it. The routes that stay server-rendered are exactly the six reading
-  `searchParams`. `/` is the one page with its own `revalidate` (5 minutes),
-  because it splits the calendar on the render-time clock rather than on data
+  `searchParams`. Two pages set their own `revalidate`: `/` (5 minutes), because it
+  splits the calendar on the render-time clock rather than on data, and `/status`
+  (1 minute), because a day-old cache entry cannot say whether the data is current.
+  A segment config export must be a **literal** — Next reads it by static analysis
+  without evaluating the module, so `export const revalidate = SOME_CONSTANT` fails
+  the build with "Invalid segment configuration export detected"
 - Pre-commit: Husky runs lint-staged (prettier) + ruff check/format on staged `.py` files
 - CI: GitHub Actions `ci.yml` — frontend (audit, format, lint, typecheck, build) + backend (ruff, pip-audit, pytest) + backend image (docker build + smoke test)
 - CD: GitHub Actions `deploy.yml` — on push to `master` touching `pipeline|docker/compose.prod.yml|scripts/vps`, builds and pushes `ghcr.io/hugoogb/f1_api:<sha>`, joins the tailnet as `tag:ci`, then over Tailscale SSH ships `docker-compose.yml`+`ingest.sh`+`fastf1.sh`+`purge-cache.sh`, pulls, migrates, `up -d --wait` and checks `/api/health/db`. Secrets are `VPS_HOST`/`TS_OAUTH_CLIENT_ID`/`TS_OAUTH_SECRET` — there is no SSH key (Tailscale SSH authenticates by tailnet identity), and no DB credentials leave the server
@@ -311,6 +340,9 @@ Rules to preserve when changing code:
 ## Known Issues
 
 - Next.js 16 build requires `NODE_ENV=production` to avoid `_global-error` prerender bug
+- "Invalid segment configuration export detected" names no file under Turbopack. Re-run with
+  `NEXT_COMPILER_NAME=server` to get the offending route. The cause is always a non-literal
+  `revalidate`/`dynamic`/`runtime` export
 - Renaming the local dev DB container (`docker-db-1` → `f1-tracker-db`) orphans the old `docker_pgdata` volume; re-run `./scripts/bootstrap.sh`, then `docker volume rm docker_pgdata`
 - **The local dev database moved from PostgreSQL 16 to 17** to match the VPS's shared cluster. A PostgreSQL 16 data directory will not start under 17 (`database files are incompatible with server`), so an existing volume has to go — it holds nothing that is not in the backup:
   ```bash

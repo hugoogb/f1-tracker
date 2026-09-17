@@ -7,8 +7,10 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKey,
+    Index,
     Integer,
     String,
+    Text,
     Time,
     UniqueConstraint,
 )
@@ -330,3 +332,47 @@ class SprintResult(Base):
     driver: Mapped["Driver"] = relationship()
     constructor: Mapped["Constructor"] = relationship()
     status: Mapped["Status | None"] = relationship()
+
+
+class IngestRun(Base):
+    """One row per ingest attempt, so a quiet week reads differently from a broken one.
+
+    Nothing else in the schema records that an ingest *happened*. The f1db
+    ingestors upsert, so a successful run during a mid-season break writes no
+    new rows and leaves the database byte-identical — indistinguishable from a
+    workflow that silently stopped firing. Derived data cannot answer "did
+    Monday's ingest run?", so the run itself is the record.
+
+    `finished_at` stays NULL while a run is in flight, which is also what a run
+    killed mid-flight leaves behind: a `running` row that never got an outcome
+    is a crash, not a success.
+
+    `error` is for whoever opens a psql prompt on the box. It is deliberately
+    *not* served by the API — a SQLAlchemy exception string can carry the SQL it
+    failed on, and a driver-level connection error can carry the DSN, password
+    and all. The public status endpoint reports that a run failed and when, and
+    stops there.
+    """
+
+    __tablename__ = "ingest_runs"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=new_uuid)
+    # Which ingestor ran: one of seed.py's target flags ("base", "results",
+    # "laptimes", ...), a comma-joined set of them, or "full" for a whole run.
+    target: Mapped[str] = mapped_column(String)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # "running" | "ok" | "error"
+    status: Mapped[str] = mapped_column(String)
+    # Only the callers that genuinely count what they wrote fill this in; the
+    # f1db ingestors merge row by row and report no total, so theirs stays NULL.
+    rows_written: Mapped[int | None] = mapped_column(Integer)
+    # The F1DB_VERSION actually used, so "latest" can be told apart from a pin.
+    f1db_version: Mapped[str | None] = mapped_column(String)
+    error: Mapped[str | None] = mapped_column(Text)
+
+
+# Every read of this table is "the most recent N runs", so the index is ordered
+# the way that query is. Declared out here because the expression needs the
+# mapped attribute, which does not exist until the class body has run.
+Index("ix_ingest_runs_started_at_desc", IngestRun.started_at.desc())

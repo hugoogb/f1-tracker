@@ -16,6 +16,7 @@ import { LineageTimeline } from '@/components/constructors/lineage-timeline'
 import { JsonLd } from '@/components/seo/json-ld'
 import { organizationSchema } from '@/lib/structured-data'
 import { buildMetadata, SITE_DESCRIPTION } from '@/lib/seo'
+import { FavouriteButton } from '@/components/favourites/favourite-button'
 
 interface ConstructorDetail extends Constructor {
   stats: {
@@ -61,6 +62,8 @@ export async function generateMetadata({ params }: { params: Promise<{ ref: stri
       `${constructor.name}'s complete Formula 1 record: ${entries} race entries, ${wins} wins, ` +
       `${podiums} podiums and ${points} championship points, season by season with the full driver roster.`,
     path: `/constructors/${ref}`,
+    image: `/constructors/${ref}/opengraph-image`,
+    imageAlt: `${constructor.name} — Formula 1 record`,
   })
 }
 
@@ -123,7 +126,18 @@ export default async function ConstructorDetailPage({
               {constructor.name[0]}
             </div>
             <div>
-              <h1>{constructor.name}</h1>
+              <div className="flex items-center gap-2">
+                <h1>{constructor.name}</h1>
+                <FavouriteButton
+                  type="constructor"
+                  entityRef={ref}
+                  name={constructor.name}
+                  detail={constructor.nationality}
+                  countryCode={constructor.countryCode}
+                  color={constructor.color}
+                  size="icon"
+                />
+              </div>
               {constructor.nationality && (
                 <p className="text-muted-foreground inline-flex items-center gap-1.5">
                   <CountryFlag code={constructor.countryCode} />

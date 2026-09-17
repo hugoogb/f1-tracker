@@ -45,6 +45,20 @@ interface SeoInput {
   noindex?: boolean
   /** Open Graph type; `article` suits dated content such as a race result. */
   type?: 'website' | 'article' | 'profile'
+  /**
+   * Site-relative path of a card built for this page — a detail route's own
+   * `opengraph-image`, e.g. `/drivers/ayrton-senna/opengraph-image`. Omit it and
+   * the page keeps the site-wide card. The same file convention would attach it
+   * automatically if the page did not declare `openGraph`, which is exactly the
+   * problem `OG_IMAGE` exists to work around.
+   */
+  image?: string
+  /**
+   * Alt text for that card. Defaults to the page title with the site name,
+   * because an entity's card describes the entity — leaving it on the generic
+   * site blurb would caption every driver with the same sentence.
+   */
+  imageAlt?: string
 }
 
 /**
@@ -58,8 +72,18 @@ export function buildMetadata({
   path,
   noindex = false,
   type = 'website',
+  image,
+  imageAlt,
 }: SeoInput): Metadata {
   const url = absoluteUrl(path)
+  const ogImage = image
+    ? {
+        url: absoluteUrl(image),
+        width: OG_IMAGE.width,
+        height: OG_IMAGE.height,
+        alt: imageAlt ?? `${title} — ${SITE_NAME}`,
+      }
+    : OG_IMAGE
   return {
     title,
     description,
@@ -71,13 +95,13 @@ export function buildMetadata({
       siteName: SITE_NAME,
       type,
       locale: 'en_US',
-      images: [OG_IMAGE],
+      images: [ogImage],
     },
     twitter: {
       card: 'summary_large_image',
       title: `${title} | ${SITE_NAME}`,
       description,
-      images: [OG_IMAGE.url],
+      images: [ogImage.url],
     },
     ...(noindex ? { robots: { index: false, follow: true } } : {}),
   }

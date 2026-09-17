@@ -23,6 +23,7 @@ import { JsonLd } from '@/components/seo/json-ld'
 import { placeSchema } from '@/lib/structured-data'
 import { buildMetadata, SITE_DESCRIPTION } from '@/lib/seo'
 import { LocalDate } from '@/components/ui/local-date'
+import { FavouriteButton } from '@/components/favourites/favourite-button'
 
 interface CircuitRace {
   id: string
@@ -78,6 +79,8 @@ export async function generateMetadata({ params }: { params: Promise<{ ref: stri
       `${circuit.name}${where ? ` in ${where}` : ''} — track layout, lap record and every Formula 1 ` +
       `Grand Prix held there${span}, with the drivers and constructors that won them.`,
     path: `/circuits/${ref}`,
+    image: `/circuits/${ref}/opengraph-image`,
+    imageAlt: `${circuit.name}${where ? ` in ${where}` : ''} — Formula 1 race history`,
   })
 }
 
@@ -132,7 +135,17 @@ export default async function CircuitDetailPage({ params }: { params: Promise<{ 
 
       <FadeIn>
         <div className="space-y-4">
-          <h1 className="text-gradient">{circuit.name}</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-gradient">{circuit.name}</h1>
+            <FavouriteButton
+              type="circuit"
+              entityRef={ref}
+              name={circuit.name}
+              detail={circuit.location ?? circuit.country}
+              countryCode={circuit.countryCode}
+              size="icon"
+            />
+          </div>
           <div className="glass rounded-xl px-5 py-4">
             <p className="text-foreground flex items-center gap-2 font-medium">
               <MapPin className="text-primary h-4 w-4" />

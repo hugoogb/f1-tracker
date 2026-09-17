@@ -1,5 +1,5 @@
-import { API_BASE_URL, REVALIDATE_SECONDS, F1_DATA_TAG } from './constants'
-import type { PointsSystem } from './types'
+import { API_BASE_URL, REVALIDATE_SECONDS, OPS_REVALIDATE_SECONDS, F1_DATA_TAG } from './constants'
+import type { OpsStatus, PointsSystem, RecordsExploreParams, RecordsExploreResponse } from './types'
 
 /**
  * Carries the upstream status so callers can tell "this driver does not exist"
@@ -35,6 +35,46 @@ async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> 
   }
 
   return res.json() as Promise<T>
+}
+
+/**
+ * Serialises explorer filters into the query string the FastAPI endpoint takes.
+ *
+ * Shared by the browser (which sends it to our own route handler) and that route
+ * handler (which sends it on to FastAPI), so the two can never disagree about
+ * how a filter is spelled — `nationality` and `country` are the same control in
+ * the UI but different parameters upstream, which is exactly the kind of detail
+ * that drifts when it is written twice.
+ */
+export function recordsExploreQuery(params: RecordsExploreParams): URLSearchParams {
+  const query = new URLSearchParams({ entity: params.entity, category: params.category })
+  if (params.era) query.set('era', params.era)
+  if (params.yearFrom !== undefined) query.set('year_from', String(params.yearFrom))
+  if (params.yearTo !== undefined) query.set('year_to', String(params.yearTo))
+  if (params.nationality) {
+    query.set(params.entity === 'driver' ? 'nationality' : 'country', params.nationality)
+  }
+  if (params.minStarts !== undefined) query.set('min_starts', String(params.minStarts))
+  if (params.sort) query.set('sort', params.sort)
+  if (params.page) query.set('page', String(params.page))
+  if (params.limit) query.set('limit', String(params.limit))
+  return query
+}
+
+/**
+ * The browser's half of the explorer fetch: same origin, no CORS, and an
+ * `ApiError` on failure so callers can tell a rejected filter combination (4xx)
+ * from an API that is down (5xx) exactly as they can server-side.
+ */
+export async function fetchRecordsExplore(
+  params: RecordsExploreParams,
+  signal?: AbortSignal,
+): Promise<RecordsExploreResponse> {
+  const res = await fetch(`/api/records/explore?${recordsExploreQuery(params)}`, { signal })
+  if (!res.ok) {
+    throw new ApiError(res.status, `API error: ${res.status} ${res.statusText}`)
+  }
+  return res.json() as Promise<RecordsExploreResponse>
 }
 
 export const api = {
@@ -125,7 +165,23 @@ export const api = {
       races: number
       circuits: number
     }>('/stats'),
-  records: () => fetchApi('/records'),
+  records: Object.assign(() => fetchApi('/records'), {
+    /**
+     * The filterable explorer, called server-side like every other endpoint.
+     *
+     * The explorer's filters change without a navigation, so the request has to
+     * happen after the page is in the browser — which would make this the only
+     * endpoint the browser talks to directly, and the only one whose failure
+     * mode is a CORS rejection. It goes through the same-origin route handler at
+     * `app/api/records/explore` instead: the browser calls its own origin and
+     * Next calls FastAPI from the server, so `NEXT_PUBLIC_API_URL` never has to
+     * be reachable from a visitor's machine.
+     */
+    explore: (params: RecordsExploreParams, signal?: AbortSignal) =>
+      fetchApi<RecordsExploreResponse>(`/records/explore?${recordsExploreQuery(params)}`, {
+        signal,
+      }),
+  }),
   compare: {
     drivers: (d1: string, d2: string, teammate?: boolean) => {
       const params = new URLSearchParams({ d1, d2 })
@@ -136,5 +192,17 @@ export const api = {
       const params = new URLSearchParams({ c1, c2 })
       return fetchApi(`/compare/constructors?${params}`)
     },
+  },
+  ops: {
+    /**
+     * Counts, timestamps and the ingest run log behind `/status`.
+     *
+     * Overrides the shared TTL with a much shorter one: the page exists to say
+     * whether the data is current, which a day-old cache entry cannot do. It
+     * keeps the `f1-data` tag, so an ingest purge still refreshes it the moment
+     * one finishes.
+     */
+    status: () =>
+      fetchApi<OpsStatus>('/ops/status', { next: { revalidate: OPS_REVALIDATE_SECONDS } }),
   },
 }

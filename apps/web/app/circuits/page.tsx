@@ -16,6 +16,7 @@ import { Pagination } from '@/components/pagination'
 import { ListFilter } from '@/components/list-filter'
 import { WorldMapWrapper } from '@/components/circuits/world-map-wrapper'
 import { FadeIn } from '@/components/ui/motion'
+import { FavouriteButton } from '@/components/favourites/favourite-button'
 import { buildMetadata } from '@/lib/seo'
 
 export const metadata = buildMetadata({
@@ -85,6 +86,9 @@ export default async function CircuitsPage({
               <TableHead>Circuit</TableHead>
               <TableHead className="hidden sm:table-cell">Location</TableHead>
               <TableHead>Country</TableHead>
+              <TableHead className="w-12 text-right">
+                <span className="sr-only">Favourite</span>
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -106,6 +110,15 @@ export default async function CircuitsPage({
                     {circuit.country && <CountryFlag code={circuit.countryCode} />}
                     {circuit.country ?? '—'}
                   </span>
+                </TableCell>
+                <TableCell className="text-right">
+                  <FavouriteButton
+                    type="circuit"
+                    entityRef={circuit.ref}
+                    name={circuit.name}
+                    detail={circuit.location ?? circuit.country}
+                    countryCode={circuit.countryCode}
+                  />
                 </TableCell>
               </TableRow>
             ))}
