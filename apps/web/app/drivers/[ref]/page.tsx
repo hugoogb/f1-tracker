@@ -17,6 +17,7 @@ import { JsonLd } from '@/components/seo/json-ld'
 import { personSchema } from '@/lib/structured-data'
 import { buildMetadata, SITE_DESCRIPTION } from '@/lib/seo'
 import { LocalDate } from '@/components/ui/local-date'
+import { FavouriteButton } from '@/components/favourites/favourite-button'
 
 interface DriverDetail extends Driver {
   stats: {
@@ -70,6 +71,8 @@ export async function generateMetadata({ params }: { params: Promise<{ ref: stri
       `${podiums} podiums and ${titles}, with points by season and qualifying vs race pace.`,
     path: `/drivers/${ref}`,
     type: 'profile',
+    image: `/drivers/${ref}/opengraph-image`,
+    imageAlt: `${name} — Formula 1 career record`,
   })
 }
 
@@ -124,9 +127,19 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ r
             className="rounded-2xl"
           />
           <div className="space-y-2">
-            <h1>
-              {driverData.firstName} {driverData.lastName}
-            </h1>
+            <div className="flex items-center gap-2">
+              <h1>
+                {driverData.firstName} {driverData.lastName}
+              </h1>
+              <FavouriteButton
+                type="driver"
+                entityRef={ref}
+                name={`${driverData.firstName} ${driverData.lastName}`}
+                detail={driverData.nationality}
+                countryCode={driverData.countryCode}
+                size="icon"
+              />
+            </div>
             <div className="flex flex-wrap items-center gap-2">
               {driverData.nationality && (
                 <span className="text-muted-foreground inline-flex items-center gap-1.5">

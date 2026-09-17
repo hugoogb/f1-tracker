@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import { Plus_Jakarta_Sans, Orbitron, JetBrains_Mono } from 'next/font/google'
 import { Header } from '@/components/layout/header'
 import { Footer } from '@/components/layout/footer'
+import { Toaster } from '@/components/ui/sonner'
 import { JsonLd } from '@/components/seo/json-ld'
 import { websiteSchema } from '@/lib/structured-data'
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL, THEME_COLOR, absoluteUrl } from '@/lib/seo'
@@ -106,6 +107,9 @@ export default function RootLayout({
           {children}
         </main>
         <Footer />
+        {/* The one surface that needs it so far is the favourites cap; the
+            component has always been here, nothing had mounted it. */}
+        <Toaster />
       </body>
     </html>
   )

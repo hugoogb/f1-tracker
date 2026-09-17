@@ -63,6 +63,10 @@ htmlcov/
 .pytest_cache/
 .coverage
 
+# Playwright MCP scratch output — page snapshots written into the repo root
+# by browser-driven checks. Throwaway diagnostics, never project output.
+.playwright-mcp/
+
 # Misc
 *.log
 .turbo/

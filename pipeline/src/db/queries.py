@@ -1,3 +1,5 @@
+from datetime import date
+
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -12,6 +14,20 @@ from src.db.models import (
     RaceResult,
     Season,
 )
+
+
+def race_has_happened(race: Race, today: date) -> bool:
+    """Whether a round on the calendar has actually been run.
+
+    A running season lists every remaining round, so anything that walks the
+    calendar has to tell "scheduled" from "raced": a title is not decided by a
+    race that has not happened, a progression line must not run flat to the end
+    of the year, and an unraced weekend has no session to report as missing.
+
+    A race with no date at all counts as run — that is a gap in f1db's record of
+    a historic round, not a fixture in the future.
+    """
+    return race.date is None or race.date <= today
 
 
 def get_all_seasons(db: Session) -> list[Season]:
@@ -214,9 +230,7 @@ def get_constructor_career_stats(db: Session, constructor_id: str) -> dict:
 
 
 def get_season_champions(db: Session) -> list[dict]:
-    import datetime
-
-    today = datetime.date.today()
+    today = date.today()
 
     # Subquery: last race per season
     last_rounds = (
@@ -242,7 +256,7 @@ def get_season_champions(db: Session) -> list[dict]:
     )
 
     # Filter out ongoing seasons
-    completed_races = [r for r in last_races if not r.date or r.date <= today]
+    completed_races = [r for r in last_races if race_has_happened(r, today)]
     race_ids = [r.id for r in completed_races]
     race_year_map = {r.id: r.season_year for r in completed_races}
 

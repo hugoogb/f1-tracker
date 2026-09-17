@@ -108,6 +108,8 @@ export async function generateMetadata({
       'Qualifying, grid, pit stops and lap-by-lap analysis.',
     path,
     type: 'article',
+    image: `${path}/opengraph-image`,
+    imageAlt: `${race.name} ${year} — result and podium`,
   })
 }
 

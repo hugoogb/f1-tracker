@@ -17,6 +17,7 @@ import {
 import { Pagination } from '@/components/pagination'
 import { ListFilter } from '@/components/list-filter'
 import { FadeIn } from '@/components/ui/motion'
+import { FavouriteButton } from '@/components/favourites/favourite-button'
 import { buildMetadata } from '@/lib/seo'
 
 export const metadata = buildMetadata({
@@ -67,6 +68,9 @@ export default async function DriversPage({
               <TableHead>Name</TableHead>
               <TableHead className="hidden sm:table-cell">Code</TableHead>
               <TableHead>Nationality</TableHead>
+              <TableHead className="w-12 text-right">
+                <span className="sr-only">Favourite</span>
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -93,6 +97,15 @@ export default async function DriversPage({
                     {driver.nationality && <CountryFlag code={driver.countryCode} />}
                     {driver.nationality ?? '—'}
                   </span>
+                </TableCell>
+                <TableCell className="text-right">
+                  <FavouriteButton
+                    type="driver"
+                    entityRef={driver.ref}
+                    name={`${driver.firstName} ${driver.lastName}`}
+                    detail={driver.nationality}
+                    countryCode={driver.countryCode}
+                  />
                 </TableCell>
               </TableRow>
             ))}

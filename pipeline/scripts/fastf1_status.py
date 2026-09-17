@@ -25,20 +25,12 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from sqlalchemy import select  # noqa: E402
-
 from src.db.database import SessionLocal  # noqa: E402
-from src.db.models import Race  # noqa: E402
-from src.ingestion.fastf1_payload import KIND_LAPS, KIND_QUALI_SECTORS, KINDS  # noqa: E402
-from src.ingestion.lap_times import (  # noqa: E402
-    FIRST_LAP_DATA_YEAR,
-    races_with_lap_positions,
-    races_with_lap_times,
-)
-from src.ingestion.qualifying_sectors import (  # noqa: E402
-    races_with_quali_results,
-    races_with_quali_sectors,
-)
+from src.ingestion.fastf1_payload import KINDS  # noqa: E402
+
+# The backlog query itself lives under src/ so /api/ops/status can share it —
+# the status page and this script must never disagree about what is missing.
+from src.ingestion.fastf1_targets import find_targets  # noqa: E402
 
 
 def parse_year_range(value: str | None) -> tuple[int, int] | None:
@@ -50,68 +42,6 @@ def parse_year_range(value: str | None) -> tuple[int, int] | None:
         return (int(start), int(end))
     year = int(value)
     return (year, year)
-
-
-def find_targets(
-    db,
-    need: set[str],
-    year_range: tuple[int, int] | None = None,
-    limit: int | None = None,
-    oldest_first: bool = False,
-    refresh_positions: bool = False,
-) -> list[dict]:
-    """List races missing the requested Fast-F1 data, newest first by default.
-
-    `refresh_positions` also claims races whose lap rows predate storing
-    Fast-F1's per-lap position. Their laps are already loaded, so nothing else
-    would ever ask for them again, and only re-fetching the session fills the
-    column in. Off by default: it is a one-off backfill at ~45s a session, and
-    the weekly run has no business dragging it along.
-    """
-    have_laps = races_with_lap_times(db) if KIND_LAPS in need else set()
-    if refresh_positions and KIND_LAPS in need:
-        have_laps &= races_with_lap_positions(db)
-    have_sectors = races_with_quali_sectors(db) if KIND_QUALI_SECTORS in need else set()
-    have_quali = races_with_quali_results(db) if KIND_QUALI_SECTORS in need else set()
-
-    min_year = max(FIRST_LAP_DATA_YEAR, year_range[0]) if year_range else FIRST_LAP_DATA_YEAR
-    query = select(Race).where(Race.season_year >= min_year)
-    if year_range:
-        query = query.where(Race.season_year <= year_range[1])
-    query = query.order_by(Race.season_year.desc(), Race.round.desc())
-    if oldest_first:
-        query = query.order_by(None).order_by(Race.season_year, Race.round)
-
-    today = date.today()
-    targets: list[dict] = []
-    for race in db.execute(query).scalars():
-        # A race that has not happened yet has no session to fetch.
-        if race.date and race.date > today:
-            continue
-
-        missing = []
-        if KIND_LAPS in need and race.id not in have_laps:
-            missing.append(KIND_LAPS)
-        # Sector times fill in existing qualifying rows, so a race without them
-        # has nothing to attach to.
-        if KIND_QUALI_SECTORS in need and race.id in have_quali and race.id not in have_sectors:
-            missing.append(KIND_QUALI_SECTORS)
-        if not missing:
-            continue
-
-        targets.append(
-            {
-                "race_id": race.id,
-                "year": race.season_year,
-                "round": race.round,
-                "date": race.date.isoformat() if race.date else None,
-                "need": missing,
-            }
-        )
-        if limit is not None and len(targets) >= limit:
-            break
-
-    return targets
 
 
 def parse_args() -> argparse.Namespace:

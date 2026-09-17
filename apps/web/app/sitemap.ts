@@ -46,6 +46,11 @@ const STATIC_ROUTES: {
   { path: '/records', priority: 0.7, changeFrequency: 'weekly' },
   { path: '/compare', priority: 0.6, changeFrequency: 'monthly' },
   { path: '/attributions', priority: 0.3, changeFrequency: 'yearly' },
+  // `/favourites` is deliberately absent: it renders one viewer's `localStorage`
+  // and is empty for everyone else, including a crawler. It is `noindex` too.
+  // `/status` is deliberately absent for the same reason: it is an operations
+  // page about the deployment rather than about Formula 1, it changes by the
+  // minute, and it is `noindex` via `buildMetadata`.
 ]
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {

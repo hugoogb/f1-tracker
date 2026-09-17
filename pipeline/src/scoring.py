@@ -182,6 +182,20 @@ def system_for_year(year: int) -> PointsSystem:
     return SYSTEMS["1950"]
 
 
+def era_bounds(system_id: str) -> tuple[int, int | None]:
+    """The inclusive season range a points system was actually in force for.
+
+    The scoring changes are the one seam in the sport's history that the data
+    itself defines, so they are what the records explorer offers as named eras
+    instead of an invented "golden age". `None` as the upper bound means the
+    era is still running.
+    """
+    for start, end, sid in _ERAS:
+        if sid == system_id:
+            return start, end
+    raise KeyError(system_id)
+
+
 def sprint_system_for_year(year: int) -> tuple[float, ...]:
     """Sprint points for a season, independent of the race-points era.
 

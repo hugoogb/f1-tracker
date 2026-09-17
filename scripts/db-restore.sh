@@ -21,6 +21,9 @@
 #   SKIP_MIGRATE=1  don't run `alembic upgrade head` (the VPS stack has a
 #                   dedicated `migrate` service, and uv isn't installed there)
 #   SKIP_VIEWS=1    don't rebuild the materialized views
+#   SKIP_SCHEMA_RESET=1
+#                   don't drop and recreate `public` before loading a full dump.
+#                   Leaves behind any object the dump does not own — see below.
 set -euo pipefail
 
 # `set -e` aborts without printing anything, which once turned a missing .env
@@ -69,19 +72,48 @@ run_migrations() {
   (cd "$PROJECT_DIR/pipeline" && uv run alembic upgrade head)
 }
 
+# Emitted ahead of a full dump so the load starts from an empty schema.
+#
+# A full dump is `pg_dump --clean --if-exists`, so it drops every object *it*
+# owns — but it has never heard of anything a newer migration added, and those
+# survive the load as orphans. The dump then stamps `alembic_version` back to
+# its own revision, so the `alembic upgrade head` below replays that migration
+# and dies on the table it thinks it is creating for the first time
+# (`relation "ingest_runs" already exists`). Restoring the published seed into a
+# checkout ahead of production is the ordinary case, not a corner one.
+#
+# Recreating the schema makes a restore depend only on the dump, never on what
+# the database happened to hold first. It is part of the same transaction as the
+# load, so a failure still leaves the database exactly as it was.
+schema_reset_sql() {
+  if [ "${SKIP_SCHEMA_RESET:-0}" = "1" ]; then
+    return
+  fi
+  # Ownership of `public` is required. Where the connecting role does not have
+  # it, this fails the transaction and the restore aborts with the data intact —
+  # which is the right outcome: the alternative is a silent partial restore.
+  printf 'DROP SCHEMA IF EXISTS public CASCADE;\nCREATE SCHEMA public;\n'
+}
+
 load_dump() {
   # ON_ERROR_STOP so a failed statement fails the restore. Without it psql
   # reports success having skipped whatever did not apply, which is the one
   # thing a restore must never do. --single-transaction makes it all-or-nothing:
   # DDL is transactional in PostgreSQL, so a full dump either lands completely
   # or leaves the database as it was.
-  gunzip -c "$BACKUP_FILE" | db_psql --single-transaction -v ON_ERROR_STOP=1 -q
+  local reset=""
+  if [ "$FLAVOUR" = "full" ]; then
+    reset="$(schema_reset_sql)"
+  fi
+  { [ -n "$reset" ] && printf '%s' "$reset"; gunzip -c "$BACKUP_FILE"; } \
+    | db_psql --single-transaction -v ON_ERROR_STOP=1 -q
 }
 
 if [ "$FLAVOUR" = "full" ]; then
-  # The dump drops and recreates every object it owns (--clean --if-exists), so
-  # it does not care what is in the database already, and it carries its own
-  # alembic_version — which is why Alembic runs after it rather than before.
+  # `public` is recreated first (see schema_reset_sql), so the load starts from
+  # nothing and cannot inherit an object the dump does not know about. The dump
+  # carries its own alembic_version, which is why Alembic runs after it rather
+  # than before.
   echo "Restoring schema, data and materialized views..."
   load_dump
 

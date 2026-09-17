@@ -292,6 +292,65 @@ export interface RecordsResponse {
   }
 }
 
+// Records explorer — the filterable view of the same data the tables above show.
+
+export type RecordsExploreEntity = 'driver' | 'constructor'
+
+export type RecordsExploreCategory =
+  | 'wins'
+  | 'poles'
+  | 'podiums'
+  | 'fastest_laps'
+  | 'starts'
+  | 'championships'
+  | 'points'
+  | 'win_rate'
+  | 'podium_rate'
+
+export interface RecordsExploreParams {
+  entity: RecordsExploreEntity
+  category: RecordsExploreCategory
+  /** A points-system id; shorthand for the seasons it was in force. */
+  era?: string
+  yearFrom?: number
+  yearTo?: number
+  /** Driver nationality, or constructor nationality — whichever the entity is. */
+  nationality?: string
+  minStarts?: number
+  sort?: 'asc' | 'desc'
+  page?: number
+  limit?: number
+}
+
+export interface RecordsExploreRow {
+  rank: number
+  driver?: Driver
+  constructor?: Constructor
+  /** Counts as integers, points as a decimal, rates as a 0-1 fraction. */
+  value: number
+  /** Starts (drivers) or car entries (constructors), within the year range. */
+  starts: number
+}
+
+export interface RecordsExploreResponse {
+  entity: RecordsExploreEntity
+  category: RecordsExploreCategory
+  label: string
+  format: 'integer' | 'decimal' | 'percent'
+  era: { id: string; label: string; era: string } | null
+  yearFrom: number | null
+  yearTo: number | null
+  nationality: string | null
+  minStarts: number
+  sort: 'asc' | 'desc'
+  /** What the column means, written by the API so the UI cannot misstate it. */
+  note: string
+  data: RecordsExploreRow[]
+  total: number
+  page: number
+  pageSize: number
+}
+
 // Driver Comparison
 export interface RadarStats {
   winRate: number
@@ -621,4 +680,75 @@ export interface SeasonScoring {
   everyResultCounts: boolean
   /** Read off the results, not from a table of rules. Null when nothing dropped. */
   droppedPoints: DroppedPoints | null
+}
+
+// Operational status (/api/ops/status, rendered by /status)
+
+export interface OpsCoverage {
+  firstSeason: number | null
+  lastSeason: number | null
+  totalRaces: number
+  racesWithResults: number
+  /** The most recent round that has actually been raced, not the last on the calendar. */
+  latestResult: { year: number; round: number; date: string | null } | null
+  currentSeason: {
+    year: number
+    totalRounds: number
+    roundsRun: number
+    roundsRemaining: number
+  } | null
+  seasonInProgress: boolean
+}
+
+export interface OpsBacklogEntry {
+  year: number
+  round: number
+  date: string | null
+  /** Which Fast-F1 data is missing: `laps`, `quali_sectors`, or both. */
+  need: string[]
+}
+
+export interface OpsFastF1 {
+  backlog: number
+  /** The oldest few outstanding races, as examples rather than the whole list. */
+  oldest: OpsBacklogEntry[]
+}
+
+export type IngestRunStatus = 'running' | 'ok' | 'error'
+
+export interface OpsIngestRun {
+  target: string
+  status: IngestRunStatus
+  startedAt: string | null
+  finishedAt: string | null
+  rowsWritten: number | null
+  f1dbVersion: string | null
+  /**
+   * A flag, never the message. The API deliberately withholds the exception
+   * text — it can carry a connection string — so this is all there is to show.
+   */
+  failed: boolean
+}
+
+export interface OpsIngest {
+  /** False on a database that predates the `ingest_runs` migration. */
+  available: boolean
+  runs: OpsIngestRun[]
+  lastSuccessAt: string | null
+}
+
+export interface OpsStatus {
+  generatedAt: string
+  coverage: OpsCoverage
+  fastf1: OpsFastF1
+  rowCounts: Record<string, number>
+  /**
+   * Keys of `rowCounts` that are Postgres' `reltuples` statistic rather than a
+   * real COUNT(*) — big tables where an exact scan is not worth its cost. The
+   * page marks these, because a number that is sometimes exact and sometimes
+   * approximate with nothing saying which is worse than either alone.
+   */
+  estimatedCounts: string[]
+  ingest: OpsIngest
+  schemaVersion: string | null
 }

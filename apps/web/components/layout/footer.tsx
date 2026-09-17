@@ -7,6 +7,7 @@ const footerLinks = [
   { label: 'Circuits', href: '/circuits' },
   { label: 'Champions', href: '/champions' },
   { label: 'Attributions', href: '/attributions' },
+  { label: 'Status', href: '/status' },
 ]
 
 export function Footer() {

@@ -1,13 +1,12 @@
 import { ImageResponse } from 'next/og'
 import { SITE_NAME } from '@/lib/seo'
+import { MARK_SRC } from '@/components/seo/og-card'
 
 export const alt = `${SITE_NAME} — Formula 1 history, stats and analytics`
+// Next reads these by static analysis at build time, so they have to be
+// literals here rather than constants imported from the shared card.
 export const size = { width: 1200, height: 630 }
 export const contentType = 'image/png'
-
-// Inlined rather than fetched from /icon.svg: the image is rendered during the
-// build, when the site is not yet serving requests.
-const MARK = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="112" fill="#E10600"/><g transform="translate(167.5,150) skewX(-12)" fill="#fff"><path d="M0 0h118v46H46v38h96v42H46v86H0z"/><path d="M222 212h-46V52l-36 18V26L186 0h36z"/></g></svg>`
 
 const SECTIONS = ['Seasons', 'Drivers', 'Constructors', 'Circuits', 'Records', 'Compare']
 
@@ -28,12 +27,7 @@ export default function OpengraphImage() {
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 26 }}>
-        <img
-          width={92}
-          height={92}
-          alt=""
-          src={`data:image/svg+xml;base64,${Buffer.from(MARK).toString('base64')}`}
-        />
+        <img width={92} height={92} alt="" src={MARK_SRC} />
         <div style={{ display: 'flex', fontSize: 52, fontWeight: 700, letterSpacing: 5 }}>
           <span style={{ color: '#E10600' }}>F1</span>
           <span>{' TRACKER'}</span>

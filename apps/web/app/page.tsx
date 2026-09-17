@@ -22,6 +22,7 @@ import { DriverStandingsTable } from '@/components/standings/driver-standings-ta
 import { ConstructorStandingsTable } from '@/components/standings/constructor-standings-table'
 import { FadeIn, StaggerList, StaggerItem, HeroGlow } from '@/components/ui/motion'
 import { NextRaceCountdown } from '@/components/ui/next-race-countdown'
+import { FavouritesSummary } from '@/components/favourites/favourites-summary'
 import type { Metadata } from 'next'
 import { SITE_DESCRIPTION, SITE_NAME, absoluteUrl } from '@/lib/seo'
 
@@ -203,6 +204,9 @@ export default async function Home() {
           </StaggerItem>
         </StaggerList>
       )}
+
+      {/* Favourites — client-only, and renders nothing until there are some */}
+      <FavouritesSummary />
 
       {/* Current Standings */}
       <FadeIn>
