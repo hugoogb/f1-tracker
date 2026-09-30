@@ -43,12 +43,21 @@ fi
 
 body="$(mktemp)"
 trap 'rm -f "$body"' EXIT
-code="$(curl -sS --max-time 30 -o "$body" -w '%{http_code}' -X POST "$REVALIDATE_URL" \
-          -H "Authorization: Bearer ${REVALIDATE_SECRET}")" || code="000"
+# No -L: a redirect means REVALIDATE_URL is wrong (http://, a trailing slash),
+# and following it would downgrade the POST or leak the bearer token to
+# wherever it points. Report it instead — the old `curl -f` counted a 308 as
+# success, which is how every purge silently did nothing.
+out="$(curl -sS --max-time 30 -o "$body" -w '%{http_code} %{redirect_url}' -X POST "$REVALIDATE_URL" \
+          -H "Authorization: Bearer ${REVALIDATE_SECRET}")" || out="000"
+code="${out%% *}"
+redirect="${out#* }"
 
 case "$code" in
   200)
     echo "    Frontend cache purged (f1-data tag): $(cat "$body")"
+    ;;
+  3??)
+    fail "REVALIDATE_URL redirects (HTTP $code), so the purge never reached the frontend. Set REVALIDATE_URL=${redirect:-<the redirect target>} in $APP_DIR/.env."
     ;;
   401)
     fail "Purge rejected (401): REVALIDATE_SECRET in $APP_DIR/.env does not match the Vercel project's REVALIDATE_SECRET."
