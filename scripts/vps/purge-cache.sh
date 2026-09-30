@@ -5,33 +5,67 @@
 # cached pages, and neither should carry its own copy of the bearer-token dance.
 # The deploy copies this to /srv/apps/f1_api/purge-cache.sh.
 #
-# Deliberately non-fatal: by the time this runs the data is already live, and
-# the frontend's own TTL refreshes it anyway. It always exits 0 so a caller can
-# run it without `|| true` swallowing a real failure elsewhere.
+# Exit status: 0 when the frontend confirmed the purge, 1 otherwise (not
+# configured, rejected, unreachable). Callers treat that as a warning, not a
+# failure — the data is already live by the time this runs — but they must not
+# hide it: until the purge lands, pages cached before the import keep serving
+# the old data for up to a day (REVALIDATE_SECONDS). That is exactly how a race
+# page kept saying "no lap time data" after a successful `pnpm fastf1`.
+#
+# A failure also prints a `::warning::` line. It is inert in a terminal, but
+# GitHub Actions parses workflow commands out of any step's stdout — ssh output
+# included — so the ingest run gets an annotation instead of a line buried in
+# the log.
 #
 # Usage (on the VPS):
 #   /srv/apps/f1_api/purge-cache.sh
 set -uo pipefail
 
 APP_DIR="${APP_DIR:-/srv/apps/f1_api}"
-cd "$APP_DIR" || exit 0
+cd "$APP_DIR" || exit 1
+
+fail() {
+  echo "    $1"
+  echo "::warning title=Frontend cache not purged::$1"
+  exit 1
+}
 
 echo "==> Purging frontend cache..."
 REVALIDATE_URL="${REVALIDATE_URL:-$(grep -E '^REVALIDATE_URL=' .env | cut -d= -f2- || true)}"
 REVALIDATE_SECRET="${REVALIDATE_SECRET:-$(grep -E '^REVALIDATE_SECRET=' .env | cut -d= -f2- || true)}"
 
 if [ -z "$REVALIDATE_URL" ]; then
-  echo "    REVALIDATE_URL not set in .env — skipping frontend cache purge."
-  exit 0
+  fail "REVALIDATE_URL is not set in $APP_DIR/.env, so cached pages keep the old data for up to a day."
+fi
+if [ -z "$REVALIDATE_SECRET" ]; then
+  fail "REVALIDATE_SECRET is not set in $APP_DIR/.env, so the frontend will refuse the purge."
 fi
 
-if curl -fsS --max-time 30 -X POST "$REVALIDATE_URL" \
-     -H "Authorization: Bearer ${REVALIDATE_SECRET}"; then
-  echo ""
-  echo "    Frontend cache purged (f1-data tag)."
-else
-  echo ""
-  echo "    Warning: cache purge failed — data is live; the TTL will refresh the frontend."
-fi
+body="$(mktemp)"
+trap 'rm -f "$body"' EXIT
+# No -L: a redirect means REVALIDATE_URL is wrong (http://, a trailing slash),
+# and following it would downgrade the POST or leak the bearer token to
+# wherever it points. Report it instead — the old `curl -f` counted a 308 as
+# success, which is how every purge silently did nothing.
+out="$(curl -sS --max-time 30 -o "$body" -w '%{http_code} %{redirect_url}' -X POST "$REVALIDATE_URL" \
+          -H "Authorization: Bearer ${REVALIDATE_SECRET}")" || out="000"
+code="${out%% *}"
+redirect="${out#* }"
 
-exit 0
+case "$code" in
+  200)
+    echo "    Frontend cache purged (f1-data tag): $(cat "$body")"
+    ;;
+  3??)
+    fail "REVALIDATE_URL redirects (HTTP $code), so the purge never reached the frontend. Set REVALIDATE_URL=${redirect:-<the redirect target>} in $APP_DIR/.env."
+    ;;
+  401)
+    fail "Purge rejected (401): REVALIDATE_SECRET in $APP_DIR/.env does not match the Vercel project's REVALIDATE_SECRET."
+    ;;
+  000)
+    fail "Could not reach $REVALIDATE_URL (network error or timeout)."
+    ;;
+  *)
+    fail "Purge failed with HTTP $code from $REVALIDATE_URL: $(head -c 300 "$body")"
+    ;;
+esac

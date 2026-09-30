@@ -124,7 +124,7 @@ daily and on the `f1-data` tag purge), `robots.ts`, `manifest.ts`,
 
 ### Local setup (from root)
 - `./scripts/bootstrap.sh` - One-command setup: `.env` + DB + migrations + fetch and restore the seed dump + frontend deps
-- `pnpm fastf1` - Fetch the Fast-F1 data the VPS is blocked from and load it there (status -> fetch -> import). Reads `VPS_HOST` from `.env`; flags: `--all`, `--limit`, `--need`, `--year-range`, `--oldest-first`, `--dry-run`, `--probe`, `--host`/`--user`. The script is `scripts/fastf1-sync.sh`
+- `pnpm fastf1` - Fetch the Fast-F1 data the VPS is blocked from and load it there (status -> fetch -> import). Reads `VPS_HOST` from `.env`; flags: `--all`, `--limit`, `--need`, `--year-range`, `--oldest-first`, `--dry-run`, `--probe`, `--purge` (cache purge only), `--host`/`--user`. The script is `scripts/fastf1-sync.sh`. It exits 3 when the data loaded but the frontend purge failed — the site keeps the old pages until `pnpm fastf1 --purge` succeeds
 
 ### Frontend (from root)
 - `pnpm dev` - Start Next.js dev server
@@ -284,7 +284,11 @@ Two f1db quirks the UI is built around:
 - Pages are cached, not re-rendered per request. Nothing sets
   `dynamic = 'force-dynamic'`: freshness comes from the fetch-level
   `revalidate`/`tags` in `lib/api.ts`, which Next infers as the route's own
-  revalidate, and from the ingest purging the `f1-data` tag. The `[ref]`/`[year]`
+  revalidate, and from the ingest purging the `f1-data` tag. The purge
+  (`app/api/revalidate`) calls `revalidateTag(tag, { expire: 0 })`, never `'max'`: `'max'` is
+  stale-while-revalidate, so the next visitor would still get the page rendered before the import.
+  `purge-cache.sh` exits non-zero and prints a `::warning::` when the purge does not land (unset
+  URL/secret, 401 from a mismatched `REVALIDATE_SECRET`), and its callers report it. The `[ref]`/`[year]`
   detail routes each export an empty `generateStaticParams()` — without one a
   dynamic segment never enters the full route cache, and with one returning `[]`
   nothing is prerendered at build while the first request for a path still

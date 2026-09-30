@@ -366,7 +366,12 @@ runs `/srv/apps/f1_api/ingest.sh` (placed there by the deploy), which:
    `--current-year --no-restore --no-backup`) against `DIRECT_URL`, bypassing
    PgBouncer. The ingestors are idempotent (`db.merge`), so re-runs are safe.
 3. **Validate** — `scripts/validate.py`, informational.
-4. **Purge** — POSTs to `REVALIDATE_URL` so Vercel drops its cached pages.
+4. **Purge** — POSTs to `REVALIDATE_URL` so Vercel expires its cached pages
+   (`revalidateTag(..., { expire: 0 })`: the next request renders fresh). A
+   purge that does not land — unset URL/secret, or a 401 because the VPS's
+   `REVALIDATE_SECRET` differs from Vercel's — does not fail the run but adds a
+   warning annotation to it. `pnpm fastf1` exits 3 in the same case; re-run the
+   purge alone with `pnpm fastf1 --purge`.
 5. **Report** — prints how many races are still missing Fast-F1 data into the
    run's job summary. Nothing schedules that fetch, so this is the reminder.
 
