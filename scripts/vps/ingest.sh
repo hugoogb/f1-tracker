@@ -75,12 +75,20 @@ dc run --rm -T --entrypoint python ingest scripts/validate.py </dev/null || true
 
 # Cache purge against the Next.js /api/revalidate route on Vercel. Shared with
 # fastf1.sh, which changes the same data; both get it from purge-cache.sh, also
-# shipped by the deploy.
+# shipped by the deploy. A failed purge does not fail the ingest — the data is
+# in — but purge-cache.sh annotates the Actions run so it is not missed.
+PURGED=1
 if [ -x "$APP_DIR/purge-cache.sh" ]; then
-  "$APP_DIR/purge-cache.sh"
+  "$APP_DIR/purge-cache.sh" || PURGED=0
 else
-  echo "    purge-cache.sh not found — skipping frontend cache purge."
+  echo "::warning title=Frontend cache not purged::purge-cache.sh not found in $APP_DIR — redeploy."
+  PURGED=0
 fi
 
 echo ""
-echo "==> Ingest complete."
+if [ "$PURGED" = "1" ]; then
+  echo "==> Ingest complete."
+else
+  echo "==> Ingest complete, but the frontend cache was NOT purged — pages may show"
+  echo "    the old data for up to a day. Re-run $APP_DIR/purge-cache.sh once fixed."
+fi

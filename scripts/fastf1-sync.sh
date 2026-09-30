@@ -24,6 +24,8 @@
 #                                    # stored before per-lap positions were kept
 #   pnpm fastf1 --dry-run            # fetch, but write nothing to the database
 #   pnpm fastf1 --probe              # can this machine reach Fast-F1 at all?
+#   pnpm fastf1 --purge              # only purge the frontend cache (after an
+#                                    # import whose purge failed)
 #
 # `./scripts/fastf1-sync.sh` works the same if you would rather not go through
 # pnpm.
@@ -64,9 +66,10 @@ ORDER=""
 REFRESH_POSITIONS=""
 DRY_RUN=0
 PROBE=0
+PURGE=0
 
 usage() {
-  sed -n '2,40p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+  sed -n '2,43p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
   exit "${1:-2}"
 }
 
@@ -82,6 +85,7 @@ while [ $# -gt 0 ]; do
     --refresh-positions) REFRESH_POSITIONS="--refresh-positions"; shift ;;
     --dry-run) DRY_RUN=1; shift ;;
     --probe) PROBE=1; shift ;;
+    --purge) PURGE=1; shift ;;
     -h|--help) usage 0 ;;
     *) echo "Unknown argument: $1" >&2; usage ;;
   esac
@@ -111,6 +115,11 @@ case "$HOST" in
   *@*) TARGET="$HOST" ;;
   *) TARGET="${USER_NAME:-hugo}@$HOST" ;;
 esac
+
+if [ "$PURGE" = "1" ]; then
+  echo "==> Purging the frontend cache from $TARGET..."
+  exec ssh "${SSH_OPTS[@]}" "$TARGET" "$APP_DIR/fastf1.sh purge"
+fi
 
 status_args=(--need "$NEED")
 [ -n "$LIMIT" ] && status_args+=(--limit "$LIMIT")
@@ -153,7 +162,22 @@ import_args=""
 [ "$DRY_RUN" = "1" ] && import_args="--dry-run"
 
 echo "==> Loading it on $TARGET..."
-ssh "${SSH_OPTS[@]}" "$TARGET" "$APP_DIR/fastf1.sh import $import_args" < "$payload"
+import_status=0
+ssh "${SSH_OPTS[@]}" "$TARGET" "$APP_DIR/fastf1.sh import $import_args" < "$payload" \
+  || import_status=$?
+
+# 3 is fastf1.sh's "data loaded, cache not purged": the import itself worked,
+# but the site will not show it until the purge does, so say so and fail.
+if [ "$import_status" = "3" ]; then
+  echo ""
+  echo "==> The data is loaded, but the frontend cache was NOT purged — race pages"
+  echo "    rendered before this run will keep showing the old data for up to a day."
+  echo "    Fix the cause printed above, then: pnpm fastf1 --purge"
+  exit 3
+elif [ "$import_status" != "0" ]; then
+  echo "==> Import failed (exit $import_status). The payload is kept at $payload." >&2
+  exit "$import_status"
+fi
 
 echo ""
 if [ "$DRY_RUN" = "1" ]; then

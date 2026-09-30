@@ -22,7 +22,12 @@ export async function POST(request: Request) {
   }
 
   try {
-    revalidateTag(F1_DATA_TAG, 'max')
+    // `{ expire: 0 }`, not 'max': this is called after new data has landed, and
+    // 'max' is stale-while-revalidate — the next visitor would still be served
+    // the old page while a background render ran, so a race page cached before
+    // `pnpm fastf1` kept saying it had no lap times. Expiring makes that next
+    // request render fresh, which is what an ingest webhook is for.
+    revalidateTag(F1_DATA_TAG, { expire: 0 })
   } catch (err) {
     console.error('[revalidate] revalidateTag failed', err)
     return NextResponse.json(

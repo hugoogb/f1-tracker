@@ -9,6 +9,8 @@
 #
 #   status   print the races still missing Fast-F1 data, as JSON on stdout
 #   import   load a payload arriving on stdin, then purge the frontend cache
+#            (exit 3: loaded, but the purge failed)
+#   purge    purge the frontend cache on its own
 #
 # The deploy copies this to /srv/apps/f1_api/fastf1.sh on every run, so it needs
 # no repo checkout here — only the app directory, its .env and its .tag.
@@ -46,6 +48,7 @@ dc() { docker compose --env-file .env --env-file .tag "$@"; }
 usage() {
   say "Usage: $(basename "$0") status [status flags]   # JSON on stdout"
   say "       $(basename "$0") import [import flags] < payload.ndjson.gz"
+  say "       $(basename "$0") purge"
   exit 2
 }
 
@@ -71,14 +74,39 @@ case "$COMMAND" in
     say "==> Validating (informational)..."
     dc run --rm -T --entrypoint python ingest scripts/validate.py </dev/null >&2 || true
 
+    # A dry run wrote nothing, so there is nothing to purge.
+    case " $* " in
+      *" --dry-run "*)
+        say ""
+        say "==> Dry run complete (nothing written, cache left alone)."
+        exit 0
+        ;;
+    esac
+
+    # Without this, race pages rendered before the import keep saying there is
+    # no lap time data until their day-long TTL runs out.
+    PURGED=1
     if [ -x "$APP_DIR/purge-cache.sh" ]; then
-      "$APP_DIR/purge-cache.sh" >&2
+      "$APP_DIR/purge-cache.sh" >&2 || PURGED=0
     else
-      say "    purge-cache.sh not found — skipping frontend cache purge."
+      say "    purge-cache.sh not found in $APP_DIR — redeploy."
+      PURGED=0
     fi
 
     say ""
-    say "==> Import complete."
+    if [ "$PURGED" = "1" ]; then
+      say "==> Import complete."
+    else
+      say "==> Import complete, but the frontend cache was NOT purged (see above)."
+      say "    Race pages may show the old data for up to a day. Once fixed:"
+      say "      pnpm fastf1 --purge"
+      exit 3
+    fi
+    ;;
+
+  purge)
+    # The purge on its own, for when an import's purge failed.
+    "$APP_DIR/purge-cache.sh" >&2
     ;;
 
   *)

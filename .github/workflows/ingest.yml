@@ -66,6 +66,11 @@ jobs:
             exit 1
           fi
 
+      # ingest.sh ends by purging the Vercel cache. A failed purge does not fail
+      # this step (the data is in), but purge-cache.sh prints a `::warning::`
+      # workflow command, which Actions picks up from the ssh output and shows as
+      # an annotation on the run — so an unset or mismatched REVALIDATE_SECRET is
+      # visible here rather than as pages that quietly stay a day behind.
       - name: Ingest
         id: ingest
         env:
