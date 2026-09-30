@@ -9,8 +9,7 @@
 #
 #   status   print the races still missing Fast-F1 data, as JSON on stdout
 #   import   load a payload arriving on stdin, then purge the frontend cache
-#            (exit 3: loaded, but the purge failed)
-#   purge    purge the frontend cache on its own
+#            (exit 3: loaded, but the purge failed; retry with purge-cache.sh)
 #
 # The deploy copies this to /srv/apps/f1_api/fastf1.sh on every run, so it needs
 # no repo checkout here — only the app directory, its .env and its .tag.
@@ -48,7 +47,6 @@ dc() { docker compose --env-file .env --env-file .tag "$@"; }
 usage() {
   say "Usage: $(basename "$0") status [status flags]   # JSON on stdout"
   say "       $(basename "$0") import [import flags] < payload.ndjson.gz"
-  say "       $(basename "$0") purge"
   exit 2
 }
 
@@ -102,11 +100,6 @@ case "$COMMAND" in
       say "      pnpm fastf1 --purge"
       exit 3
     fi
-    ;;
-
-  purge)
-    # The purge on its own, for when an import's purge failed.
-    "$APP_DIR/purge-cache.sh" >&2
     ;;
 
   *)

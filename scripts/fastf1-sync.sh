@@ -117,8 +117,10 @@ case "$HOST" in
 esac
 
 if [ "$PURGE" = "1" ]; then
+  # Straight to purge-cache.sh rather than through fastf1.sh: it has been on
+  # the box longer, so this works even before a deploy ships a newer fastf1.sh.
   echo "==> Purging the frontend cache from $TARGET..."
-  exec ssh "${SSH_OPTS[@]}" "$TARGET" "$APP_DIR/fastf1.sh purge"
+  exec ssh "${SSH_OPTS[@]}" "$TARGET" "$APP_DIR/purge-cache.sh"
 fi
 
 status_args=(--need "$NEED")
