@@ -17,8 +17,16 @@ from src.db.models import (
 from src.db.queries import (
     get_constructor_standings_for_season,
     get_driver_standings_for_season,
+    official_running_totals,
 )
-from src.scoring import SYSTEMS, PointsSystem, sprint_system_for_year, system_for_year
+from src.scoring import (
+    SYSTEMS,
+    PointsSystem,
+    max_points_remaining,
+    sprint_system_for_year,
+    still_in_contention,
+    system_for_year,
+)
 
 router = APIRouter()
 
@@ -210,21 +218,29 @@ def standings_progression(
         race_points[race_id][driver_id] += pts
 
     # Build cumulative round-by-round data, stopping at the last round actually
-    # run so an in-progress season does not trail off into a flat line.
+    # run so an in-progress season does not trail off into a flat line. The
+    # official table after each round wins where every round has one: before
+    # 1991 that is points counted, not scored, and only it ends on the
+    # published total. The sum of race and sprint points is the fallback.
+    raced = _raced(races, race_points)
+    official = official_running_totals(db, raced)
     cumulative: dict[str, float] = {did: 0.0 for did in top_driver_ids}
     rounds = []
-    for race in _raced(races, race_points):
+    for race in raced:
         round_pts = race_points.get(race.id, {})
         round_data: dict = {"round": race.round, "raceName": race.name}
         for did in top_driver_ids:
             cumulative[did] += round_pts.get(did, 0)
             info = driver_info.get(did)
             if info:
-                round_data[info["ref"]] = cumulative[did]
+                round_data[info["ref"]] = (
+                    official[race.id].get(did, 0.0) if official else cumulative[did]
+                )
         rounds.append(round_data)
 
     return {
         "year": year,
+        "pointsSource": "official" if official else "scored",
         "rounds": rounds,
         "drivers": [driver_info[did] for did in top_driver_ids if did in driver_info],
     }
@@ -293,20 +309,27 @@ def constructor_standings_progression(
         race_points.setdefault(race_id, {}).setdefault(cid, 0)
         race_points[race_id][cid] += pts
 
+    raced = _raced(races, race_points)
+    # Before 1958 there was no constructors' title; f1db has no round tables
+    # then, so those seasons fall back to the sum on their own.
+    official = official_running_totals(db, raced, constructors=True)
     cumulative: dict[str, float] = {cid: 0.0 for cid in top_constructor_ids}
     rounds = []
-    for race in _raced(races, race_points):
+    for race in raced:
         round_pts = race_points.get(race.id, {})
         round_data: dict = {"round": race.round, "raceName": race.name}
         for cid in top_constructor_ids:
             cumulative[cid] += round_pts.get(cid, 0)
             info = constructor_info.get(cid)
             if info:
-                round_data[info["ref"]] = cumulative[cid]
+                round_data[info["ref"]] = (
+                    official[race.id].get(cid, 0.0) if official else cumulative[cid]
+                )
         rounds.append(round_data)
 
     return {
         "year": year,
+        "pointsSource": "official" if official else "scored",
         "rounds": rounds,
         "constructors": [
             constructor_info[cid] for cid in top_constructor_ids if cid in constructor_info
@@ -512,7 +535,7 @@ def title_permutations(year: int, db: Session = Depends(get_db)):
     sprint_scale = sprint_system_for_year(year)
     sprint_win = sprint_scale[0] if sprint_scale else 0.0
 
-    max_remaining = len(remaining_races) * system.max_per_round + sprints_remaining * sprint_win
+    max_remaining = max_points_remaining(system, len(remaining_races), sprints_remaining, year)
 
     standings = get_driver_standings_for_season(db, year)
     if not standings:
@@ -536,7 +559,7 @@ def title_permutations(year: int, db: Session = Depends(get_db)):
         if standing.driver_id == leader.driver_id:
             alive, only_on_countback = True, False
         else:
-            alive = max_possible >= leader.points
+            alive = still_in_contention(standing.points, leader.points, max_remaining)
             only_on_countback = max_possible == leader.points
         contenders.append(
             {

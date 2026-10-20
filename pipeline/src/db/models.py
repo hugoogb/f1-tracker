@@ -3,6 +3,7 @@ from datetime import datetime
 
 from sqlalchemy import (
     BigInteger,
+    Boolean,
     Date,
     DateTime,
     Float,
@@ -13,6 +14,7 @@ from sqlalchemy import (
     Text,
     Time,
     UniqueConstraint,
+    false,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -139,6 +141,16 @@ class Race(Base):
     circuit_id: Mapped[str] = mapped_column(ForeignKey("circuits.id"), index=True)
     date: Mapped[str | None] = mapped_column(Date)
     time: Mapped[str | None] = mapped_column(Time)
+
+    # f1db's flag for the race at which each title was mathematically settled.
+    # Exact even under the pre-1991 "best N results" rules, which the visible
+    # running totals cannot reproduce.
+    drivers_title_decider: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default=false()
+    )
+    constructors_title_decider: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default=false()
+    )
 
     # Weekend schedule, UTC. f1db only carries these for the seasons around the
     # present day, and always as a date/time pair, so each session is one

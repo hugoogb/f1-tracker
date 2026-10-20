@@ -1,7 +1,13 @@
 import Link from 'next/link'
 import { Calendar, Users, Building2, MapPin, Flag, Trophy } from 'lucide-react'
 import { api } from '@/lib/api'
-import type { DriverStanding, ConstructorStanding, Race, SeasonChampion } from '@/lib/types'
+import type {
+  DriverStanding,
+  ConstructorStanding,
+  Race,
+  SeasonCalendarResponse,
+  SeasonChampion,
+} from '@/lib/types'
 import { raceStart } from '@/lib/schedule'
 import { cn } from '@/lib/utils'
 import { LocalDate, LocalDateTime } from '@/components/ui/local-date'
@@ -23,6 +29,7 @@ import { ConstructorStandingsTable } from '@/components/standings/constructor-st
 import { FadeIn, StaggerList, StaggerItem, HeroGlow } from '@/components/ui/motion'
 import { NextRaceCountdown } from '@/components/ui/next-race-countdown'
 import { FavouritesSummary } from '@/components/favourites/favourites-summary'
+import { SeasonCalendarMapWrapper } from '@/components/seasons/season-calendar-map-wrapper'
 import type { Metadata } from 'next'
 import { SITE_DESCRIPTION, SITE_NAME, absoluteUrl } from '@/lib/seo'
 
@@ -64,7 +71,7 @@ export default async function Home() {
 
   // Settled, not all: a season whose calendar is published before its first
   // race has no standings yet, and that must not take the whole page down.
-  const [driverStandingsResponse, constructorStandingsResponse, seasonDetail] =
+  const [driverStandingsResponse, constructorStandingsResponse, seasonDetail, calendarResult] =
     await Promise.allSettled([
       api.seasons.driverStandings(latestYear) as Promise<{
         year: number
@@ -78,6 +85,7 @@ export default async function Home() {
         year: number
         races: Race[]
       }>,
+      api.seasons.calendar(latestYear) as Promise<SeasonCalendarResponse>,
     ])
 
   const driverStandings =
@@ -90,6 +98,7 @@ export default async function Home() {
       : []
   const races = seasonDetail.status === 'fulfilled' ? (seasonDetail.value.races ?? []) : []
   const recentChampions = champions.slice(0, 5)
+  const calendarRounds = calendarResult.status === 'fulfilled' ? calendarResult.value.rounds : []
 
   // Reading the clock in a server component is the point here — the lint rule
   // is aimed at client components, where an impure read would drift between
@@ -177,6 +186,27 @@ export default async function Home() {
         <FadeIn>
           <NextRaceCountdown race={nextRace} seasonYear={latestYear} />
         </FadeIn>
+      )}
+
+      {/* The season on the map — the client works out which race is next */}
+      {calendarRounds.length > 0 && (
+        <section className="space-y-4" aria-labelledby="season-map-heading">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div className="space-y-1">
+              <p className="text-muted-foreground text-xs font-medium tracking-widest uppercase">
+                The season on the map
+              </p>
+              <h2 id="season-map-heading">{latestYear} World Tour</h2>
+            </div>
+            <Link
+              href={`/seasons/${latestYear}#calendar`}
+              className="text-primary hover:text-primary/80 text-sm font-medium transition-colors"
+            >
+              Full season map &rarr;
+            </Link>
+          </div>
+          <SeasonCalendarMapWrapper year={latestYear} rounds={calendarRounds} variant="home" />
+        </section>
       )}
 
       {/* Stat Cards */}

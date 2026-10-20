@@ -11,12 +11,23 @@ export function HeadToHeadCard({
   h2h,
   driver1LastName,
   driver2LastName,
+  color1,
+  color2,
+  totalLabel = 'shared races',
 }: {
   title: string
   h2h: HeadToHead
   driver1LastName: string
   driver2LastName: string
+  /** Team colours for each side; without them the card keeps its default red/blue. */
+  color1?: string
+  color2?: string
+  totalLabel?: string
 }) {
+  const c1 = color1 ? { color: color1 } : undefined
+  const c2 = color2 ? { color: color2 } : undefined
+  const bg1 = color1 ? { backgroundColor: color1 } : {}
+  const bg2 = color2 ? { backgroundColor: color2 } : {}
   return (
     <Card>
       <CardHeader>
@@ -25,16 +36,20 @@ export function HeadToHeadCard({
       <CardContent>
         <div className="flex items-center gap-4">
           <div className="flex-1 text-right">
-            <p className="text-primary text-3xl font-bold tabular-nums">{h2h.driver1Wins}</p>
+            <p className="text-primary text-3xl font-bold tabular-nums" style={c1}>
+              {h2h.driver1Wins}
+            </p>
             <p className="text-muted-foreground text-sm font-medium">{driver1LastName}</p>
           </div>
           <div className="flex flex-col items-center">
             <p className="text-muted-foreground text-sm">from</p>
             <p className="text-lg font-semibold">{h2h.totalRaces}</p>
-            <p className="text-muted-foreground text-sm">shared races</p>
+            <p className="text-muted-foreground text-sm">{totalLabel}</p>
           </div>
           <div className="flex-1">
-            <p className="text-3xl font-bold text-blue-500 tabular-nums">{h2h.driver2Wins}</p>
+            <p className="text-3xl font-bold text-blue-500 tabular-nums" style={c2}>
+              {h2h.driver2Wins}
+            </p>
             <p className="text-muted-foreground text-sm font-medium">{driver2LastName}</p>
           </div>
         </div>
@@ -44,6 +59,7 @@ export function HeadToHeadCard({
               className="bg-primary flex items-center justify-center rounded-l-full text-[10px] font-bold text-white transition-all duration-500"
               style={{
                 width: `${(h2h.driver1Wins / h2h.totalRaces) * 100}%`,
+                ...bg1,
               }}
             >
               {h2h.driver1Wins > 0 && `${Math.round((h2h.driver1Wins / h2h.totalRaces) * 100)}%`}
@@ -52,6 +68,7 @@ export function HeadToHeadCard({
               className="flex items-center justify-center rounded-r-full bg-blue-500 text-[10px] font-bold text-white transition-all duration-500"
               style={{
                 width: `${(h2h.driver2Wins / h2h.totalRaces) * 100}%`,
+                ...bg2,
               }}
             >
               {h2h.driver2Wins > 0 && `${Math.round((h2h.driver2Wins / h2h.totalRaces) * 100)}%`}

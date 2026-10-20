@@ -1,5 +1,15 @@
 import { API_BASE_URL, REVALIDATE_SECONDS, OPS_REVALIDATE_SECONDS, F1_DATA_TAG } from './constants'
-import type { OpsStatus, PointsSystem, RecordsExploreParams, RecordsExploreResponse } from './types'
+import type {
+  BestSeasonResponse,
+  BestSeasonsResponse,
+  OpsStatus,
+  PointsSystem,
+  RecordsExploreParams,
+  RecordsExploreResponse,
+  SeasonCompareEntrants,
+  SeasonCompareResponse,
+  SeasonCalendarResponse,
+} from './types'
 
 /**
  * Carries the upstream status so callers can tell "this driver does not exist"
@@ -97,6 +107,7 @@ export const api = {
       const params = new URLSearchParams({ system })
       return fetchApi(`/seasons/${year}/standings/normalised?${params}`)
     },
+    calendar: (year: number) => fetchApi<SeasonCalendarResponse>(`/seasons/${year}/calendar`),
   },
   drivers: {
     list: (page = 1, pageSize = 50, nationality?: string) => {
@@ -152,6 +163,11 @@ export const api = {
       fetchApi(`/seasons/${year}/races/${round}/degradation`),
   },
   champions: () => fetchApi('/champions'),
+  bestSeasons: {
+    /** Every completed season with its competitiveness metrics, best first. */
+    list: () => fetchApi<BestSeasonsResponse>('/best-seasons'),
+    season: (year: number) => fetchApi<BestSeasonResponse>(`/best-seasons/${year}`),
+  },
   pointsSystems: () => fetchApi<{ systems: PointsSystem[] }>('/points-systems'),
   search: (query: string) => {
     const params = new URLSearchParams({ q: query })
@@ -192,6 +208,19 @@ export const api = {
       const params = new URLSearchParams({ c1, c2 })
       return fetchApi(`/compare/constructors?${params}`)
     },
+  },
+  /** Two drivers or two constructors within one season (`/seasons/[year]/compare`). */
+  seasonCompare: {
+    entrants: (year: number) =>
+      fetchApi<SeasonCompareEntrants>(`/seasons/${year}/compare/entrants`),
+    constructors: (year: number, c1: string, c2: string) =>
+      fetchApi<SeasonCompareResponse>(
+        `/seasons/${year}/compare/constructors?${new URLSearchParams({ c1, c2 })}`,
+      ),
+    drivers: (year: number, d1: string, d2: string) =>
+      fetchApi<SeasonCompareResponse>(
+        `/seasons/${year}/compare/drivers?${new URLSearchParams({ d1, d2 })}`,
+      ),
   },
   ops: {
     /**

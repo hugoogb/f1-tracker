@@ -12,6 +12,7 @@ import {
   Trophy,
   Award,
   GitCompareArrows,
+  Gauge,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
@@ -24,6 +25,7 @@ const navItems = [
   { href: '/circuits', label: 'Circuits', icon: MapPin },
   { href: '/champions', label: 'Champions', icon: Trophy },
   { href: '/records', label: 'Records', icon: Award },
+  { href: '/best-seasons', label: 'Best Seasons', icon: Gauge },
   { href: '/compare', label: 'Compare', icon: GitCompareArrows },
 ]
 
@@ -33,7 +35,7 @@ export function MobileNav() {
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
-      <SheetTrigger render={<Button variant="ghost" size="icon" className="md:hidden" />}>
+      <SheetTrigger render={<Button variant="ghost" size="icon" className="xl:hidden" />}>
         <Menu className="h-5 w-5" />
         <span className="sr-only">Toggle menu</span>
       </SheetTrigger>

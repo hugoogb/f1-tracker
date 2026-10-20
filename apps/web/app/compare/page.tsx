@@ -162,6 +162,60 @@ function ConstructorCompareForm() {
   )
 }
 
+// Title fights worth replaying round by round. Any season has the same view
+// behind the Compare button on its own page.
+const suggestedSeasonComparisons = [
+  {
+    href: '/seasons/2021/compare?type=drivers&a=max-verstappen&b=lewis-hamilton',
+    label: '2021: Verstappen vs Hamilton',
+  },
+  {
+    href: '/seasons/2016/compare?type=drivers&a=nico-rosberg&b=lewis-hamilton',
+    label: '2016: Rosberg vs Hamilton',
+  },
+  {
+    href: '/seasons/2007/compare?type=constructors&a=ferrari&b=mclaren',
+    label: '2007: Ferrari vs McLaren',
+  },
+  {
+    href: '/seasons/1988/compare?type=drivers&a=ayrton-senna&b=alain-prost',
+    label: '1988: Senna vs Prost',
+  },
+]
+
+function SeasonCompareLinks() {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Within a Season</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <p className="text-muted-foreground text-sm">
+          Follow two drivers or constructors through one season: the points gap round by round,
+          finishes, grids and qualifying gaps. Open any season and press Compare, or start here.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {suggestedSeasonComparisons.map((comp) => (
+            <Link
+              key={comp.href}
+              href={comp.href}
+              className="glass hover:border-primary/30 hover:bg-accent/50 rounded-lg px-3 py-1.5 text-sm transition-colors"
+            >
+              {comp.label}
+            </Link>
+          ))}
+          <Link
+            href="/seasons"
+            className="text-primary rounded-lg px-3 py-1.5 text-sm hover:underline"
+          >
+            Pick a season →
+          </Link>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
 export default function ComparePage() {
   const searchParams = useSearchParams()
   const prefillD1 = searchParams.get('d1') ?? ''
@@ -193,6 +247,8 @@ export default function ComparePage() {
           </FadeIn>
         </TabsContent>
       </Tabs>
+
+      <SeasonCompareLinks />
     </div>
   )
 }

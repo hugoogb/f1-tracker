@@ -88,6 +88,7 @@ class RaceIngestor(BaseIngestor):
         self.log(f"Ingesting {len(races)} races...")
 
         known_years = {s.year for s in self.db.execute(select(Season)).scalars()}
+        known_circuits = {c["id"] for c in data.circuits}
         canonical_by_year: dict[int, list[dict]] = {}
 
         for race in races:
@@ -106,6 +107,8 @@ class RaceIngestor(BaseIngestor):
                     "circuit_id": race["circuitId"],
                     "date": _parse_date(race.get("date")),
                     "time": _parse_time(race.get("time")),
+                    "drivers_title_decider": bool(race.get("driversChampionshipDecider")),
+                    "constructors_title_decider": bool(race.get("constructorsChampionshipDecider")),
                     **{
                         column: _parse_session(race, prefix) for prefix, column in _SESSIONS.items()
                     },
@@ -115,7 +118,7 @@ class RaceIngestor(BaseIngestor):
         total = 0
         for year, canonical in sorted(canonical_by_year.items()):
             existing = list(self.db.execute(select(Race).where(Race.season_year == year)).scalars())
-            removed = self._reconcile(year, existing, canonical)
+            removed = self._reconcile(year, existing, canonical, known_circuits)
             for entry in canonical:
                 self.db.merge(Race(**entry))
             self.db.commit()
@@ -128,12 +131,23 @@ class RaceIngestor(BaseIngestor):
 
         self.log(f"Ingested {total} races total")
 
-    def _reconcile(self, year: int, existing: list[Race], canonical: list[dict]) -> int:
+    def _reconcile(
+        self,
+        year: int,
+        existing: list[Race],
+        canonical: list[dict],
+        known_circuits: set[str] | None = None,
+    ) -> int:
         """Purge a season when the stored schedule diverges from the source.
 
         Divergence means a stored round vanished or now maps to a different
         circuit. Race ids then no longer line up with the source, so the season
         is rebuilt from scratch. Pure additions are handled by the upsert.
+
+        A round whose stored circuit f1db no longer has at all is a rename of
+        that circuit (`sochi` became `sirius`), not a reshuffled calendar: the
+        upsert repoints it in place. Purging for one would delete the season's
+        Fast-F1 lap times, which this host may be unable to fetch again.
         """
         if not existing:
             return 0
@@ -141,7 +155,12 @@ class RaceIngestor(BaseIngestor):
         db_map = {r.round: r.circuit_id for r in existing}
         can_map = {c["round"]: c["circuit_id"] for c in canonical}
 
-        diverged = any(rnd not in can_map or can_map[rnd] != circ for rnd, circ in db_map.items())
+        def moved(rnd: int, circuit: str) -> bool:
+            if can_map[rnd] == circuit:
+                return False
+            return not known_circuits or circuit in known_circuits
+
+        diverged = any(rnd not in can_map or moved(rnd, circ) for rnd, circ in db_map.items())
         if not diverged:
             return 0
 

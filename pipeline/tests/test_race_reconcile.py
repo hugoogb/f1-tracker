@@ -185,3 +185,44 @@ def test_race_names_come_from_grand_prix(db, circuits):
     race = db.query(Race).filter(Race.season_year == 2026).one()
     assert race.name == "Albert_Park GP"
     assert race.date == date(2026, 3, 8)
+
+
+def test_title_decider_flags_come_from_f1db(db, circuits):
+    """The race f1db marks as settling each title carries the flag; the rest do not."""
+    data = _f1db([(2026, 1, "albert_park", "2026-03-08"), (2026, 2, "shanghai", "2026-03-15")])
+    data.races[1]["driversChampionshipDecider"] = True
+    data.races[0]["constructorsChampionshipDecider"] = True
+    _ingest(db, data, (2026, 2026))
+
+    flags = {
+        r.round: (r.drivers_title_decider, r.constructors_title_decider)
+        for r in db.query(Race).filter(Race.season_year == 2026)
+    }
+    assert flags == {1: (False, True), 2: (True, False)}
+
+
+def test_a_renamed_circuit_does_not_purge_the_season(db, circuits):
+    """f1db renaming a circuit (sochi -> sirius) repoints the round; results survive."""
+    db.add(Circuit(id="sirius", ref="sirius", name="Sirius", country="X"))
+    db.add(Circuit(id="sochi", ref="sochi", name="Sochi", country="X"))
+    db.commit()
+    _add_race(db, 2026, 1, "albert_park", date(2026, 3, 8), with_result=True)
+    _add_race(db, 2026, 2, "sochi", date(2026, 3, 15), with_result=True)
+
+    data = _f1db([(2026, 1, "albert_park", "2026-03-08"), (2026, 2, "sirius", "2026-03-15")])
+    data.circuits = [{"id": "albert_park"}, {"id": "sirius"}]
+    _ingest(db, data, (2026, 2026))
+
+    assert db.get(Race, "2026_02").circuit_id == "sirius"
+    assert db.query(RaceResult).count() == 2
+
+
+def test_a_round_moved_to_another_known_circuit_still_purges(db, circuits):
+    _add_race(db, 2026, 1, "albert_park", date(2026, 3, 8), with_result=True)
+
+    data = _f1db([(2026, 1, "shanghai", "2026-03-15")])
+    data.circuits = [{"id": "albert_park"}, {"id": "shanghai"}]
+    _ingest(db, data, (2026, 2026))
+
+    assert db.get(Race, "2026_01").circuit_id == "shanghai"
+    assert db.query(RaceResult).count() == 0

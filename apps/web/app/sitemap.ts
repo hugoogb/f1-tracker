@@ -44,6 +44,7 @@ const STATIC_ROUTES: {
   { path: '/circuits', priority: 0.8, changeFrequency: 'monthly' },
   { path: '/champions', priority: 0.7, changeFrequency: 'yearly' },
   { path: '/records', priority: 0.7, changeFrequency: 'weekly' },
+  { path: '/best-seasons', priority: 0.7, changeFrequency: 'weekly' },
   { path: '/compare', priority: 0.6, changeFrequency: 'monthly' },
   { path: '/attributions', priority: 0.3, changeFrequency: 'yearly' },
   // `/favourites` is deliberately absent: it renders one viewer's `localStorage`

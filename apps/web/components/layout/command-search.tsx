@@ -110,7 +110,7 @@ export function CommandSearch() {
     <>
       <Button
         variant="outline"
-        className="glass text-muted-foreground hidden h-8 w-56 justify-start gap-2 border-[var(--glass-border)] px-3 text-sm md:flex"
+        className="glass text-muted-foreground hidden h-8 w-56 justify-start gap-2 border-[var(--glass-border)] px-3 text-sm md:flex xl:w-44 2xl:w-56"
         onClick={() => setOpen(true)}
       >
         <Search className="h-3.5 w-3.5" />

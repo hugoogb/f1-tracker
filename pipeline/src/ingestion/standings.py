@@ -7,12 +7,23 @@ than Prost. Summing raw race points gets those seasons wrong.
 
 Wins are counted locally from race_results, since f1db's standings omit them.
 Seasons f1db has no standings for fall back to the local computation.
+
+Every earlier round gets f1db's official table as it stood after that race as
+well — the only source for the running championship under the pre-1991 rules,
+where a driver's counted total is not the sum of their results so far. Those
+rows are official or absent: a round f1db has no table for is left empty rather
+than filled with a sum, so nothing downstream mistakes one for the other.
+Consumers that want the final table keep reading the season's last round.
 """
+
+from collections import defaultdict
 
 from sqlalchemy import delete, func, select
 
 from src.db.models import (
+    Constructor,
     ConstructorStanding,
+    Driver,
     DriverStanding,
     Race,
     RaceResult,
@@ -21,6 +32,7 @@ from src.db.models import (
 )
 from src.ingestion import f1db
 from src.ingestion.base import BaseIngestor
+from src.ingestion.races import race_id
 
 
 class StandingsIngestor(BaseIngestor):
@@ -30,7 +42,11 @@ class StandingsIngestor(BaseIngestor):
         self.log("Building standings...")
         data = f1db.load()
         official = {int(s["year"]): s for s in data.seasons}
+        official_rounds = {
+            race_id(int(r["year"]), int(r["round"])): r for r in data.races if "year" in r
+        }
         applied = 0
+        round_tables = 0
 
         query = select(Season).order_by(Season.year)
         if year_range:
@@ -69,11 +85,90 @@ class StandingsIngestor(BaseIngestor):
 
             if self._apply_official(official.get(season.year), last_race.id):
                 applied += 1
+            round_tables += self._apply_rounds(season.year, last_race, official_rounds)
 
         self.log(
             f"Built {driver_total} driver standings, {constructor_total} constructor standings "
-            f"({applied} seasons using f1db official points)"
+            f"({applied} seasons using f1db official points, "
+            f"{round_tables} official tables after earlier rounds)"
         )
+
+    def _apply_rounds(self, year: int, last_race: Race, official_rounds: dict[str, dict]) -> int:
+        """Write f1db's official table after every round before the season's last.
+
+        The last round is left to `_compute_*` + `_apply_official`, which also
+        cover seasons f1db has no standings for. Wins are the races won up to
+        and including each round, counted locally as they are for the final
+        table. Returns how many rounds got a table.
+        """
+        raced = (
+            self.db.execute(
+                select(Race)
+                .where(
+                    Race.season_year == year,
+                    Race.round < last_race.round,
+                    Race.id.in_(select(RaceResult.race_id)),
+                )
+                .order_by(Race.round)
+            )
+            .scalars()
+            .all()
+        )
+        if not raced:
+            return 0
+
+        winners: dict[str, tuple[str, str]] = {}
+        for rid, driver_id, constructor_id in self.db.execute(
+            select(RaceResult.race_id, RaceResult.driver_id, RaceResult.constructor_id).where(
+                RaceResult.race_id.in_([r.id for r in raced]), RaceResult.position == 1
+            )
+        ).all():
+            # Shared drives (1950s) can list two winners; the first one stands.
+            winners.setdefault(rid, (driver_id, constructor_id))
+
+        known_drivers = set(self.db.execute(select(Driver.id)).scalars().all())
+        known_constructors = set(self.db.execute(select(Constructor.id)).scalars().all())
+
+        wins: dict[str, dict[str, int]] = {"DS": defaultdict(int), "CS": defaultdict(int)}
+        written = 0
+        for race in raced:
+            if race.id in winners:
+                driver_id, constructor_id = winners[race.id]
+                wins["DS"][driver_id] += 1
+                wins["CS"][constructor_id] += 1
+
+            source = official_rounds.get(race.id) or {}
+            tables = (
+                (source.get("driverStandings") or [], DriverStanding, "driverId", "DS"),
+                (
+                    source.get("constructorStandings") or [],
+                    ConstructorStanding,
+                    "constructorId",
+                    "CS",
+                ),
+            )
+            wrote_any = False
+            for rows, model, key, prefix in tables:
+                known = known_drivers if prefix == "DS" else known_constructors
+                for row in rows:
+                    entity_id = row.get(key)
+                    position = row.get("positionNumber")
+                    if not entity_id or entity_id not in known:
+                        continue
+                    fields = {
+                        "id": f"{race.id}_{prefix}_{entity_id}",
+                        "race_id": race.id,
+                        "points": float(row.get("points") or 0),
+                        "position": int(position) if position is not None else None,
+                        "wins": wins[prefix][entity_id],
+                    }
+                    fields["driver_id" if prefix == "DS" else "constructor_id"] = entity_id
+                    self.db.merge(model(**fields))
+                    wrote_any = True
+            written += wrote_any
+
+        self.db.commit()
+        return written
 
     def _apply_official(self, season: dict | None, last_race_id: str) -> bool:
         """Overlay f1db's official points and positions onto the computed rows.

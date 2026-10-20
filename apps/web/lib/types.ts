@@ -490,6 +490,12 @@ export interface StandingsProgressionDriver {
 
 export interface StandingsProgressionResponse {
   year: number
+  /**
+   * `official`: the championship table after each round, which before 1991 is
+   * points counted under the best-results rules. `scored`: race and sprint
+   * points summed, the fallback when a round has no official table.
+   */
+  pointsSource?: 'official' | 'scored'
   rounds: Record<string, number | string>[]
   drivers: StandingsProgressionDriver[]
 }
@@ -502,6 +508,7 @@ export interface ConstructorProgressionEntry {
 
 export interface ConstructorProgressionResponse {
   year: number
+  pointsSource?: 'official' | 'scored'
   rounds: Record<string, number | string>[]
   constructors: ConstructorProgressionEntry[]
 }
@@ -751,4 +758,303 @@ export interface OpsStatus {
   estimatedCounts: string[]
   ingest: OpsIngest
   schemaVersion: string | null
+}
+
+// ── In-season comparison (`/seasons/[year]/compare`) ────────────────────────
+// Every delta is A minus B. For points that favours A when positive; for
+// positions and lap times (lower is better) it favours A when negative.
+
+export type SeasonCompareType = 'constructors' | 'drivers'
+
+export interface SeasonCompareTeam {
+  id: string
+  ref: string
+  name: string
+  color: string | null
+}
+
+export interface SeasonComparePair {
+  a: number | null
+  b: number | null
+  delta: number | null
+}
+
+export interface SeasonCompareHeadToHead {
+  a: number
+  b: number
+  ties: number
+  total: number
+}
+
+export interface SeasonCompareQualifyingGap {
+  session: 'Q1' | 'Q2' | 'Q3'
+  aMs: number
+  bMs: number
+  deltaMs: number
+  deltaPct: number
+}
+
+export interface SeasonCompareRacePace {
+  aMedianMs: number
+  bMedianMs: number
+  deltaMs: number
+  deltaPct: number
+  aCleanLaps: number
+  bCleanLaps: number
+}
+
+export interface SeasonCompareCarResult {
+  ref: string
+  code: string | null
+  lastName: string
+  position: number | null
+  positionText: string | null
+  grid: number | null
+}
+
+export interface SeasonCompareRoundSide {
+  entered: boolean
+  points: number
+  cumulativePoints: number
+  lapsLed: number | null
+  // Drivers
+  finish?: number | null
+  positionText?: string | null
+  grid?: number | null
+  qualifying?: number | null
+  constructor?: SeasonCompareTeam | null
+  // Constructors
+  bestFinish?: number | null
+  bestGrid?: number | null
+  bestQualifying?: number | null
+  drivers?: SeasonCompareCarResult[]
+}
+
+export interface SeasonCompareRound {
+  round: number
+  raceName: string
+  a: SeasonCompareRoundSide
+  b: SeasonCompareRoundSide
+  pointsDelta: number | null
+  cumulativeDelta: number | null
+  finishDelta: number | null
+  gridDelta: number | null
+  qualifyingGap: SeasonCompareQualifyingGap | null
+  racePace: SeasonCompareRacePace | null
+  lapsLedCoverage: { coveredLaps: number; totalLaps: number } | null
+}
+
+export type SeasonCompareAggregateKey =
+  | 'points'
+  | 'starts'
+  | 'wins'
+  | 'podiums'
+  | 'poles'
+  | 'fastestLaps'
+  | 'dnfs'
+  | 'pointsFinishes'
+  | 'averageGrid'
+  | 'averageFinish'
+  | 'lapsLed'
+
+export interface SeasonCompareEntity {
+  id: string
+  ref: string
+  name?: string
+  firstName?: string
+  lastName?: string
+  code?: string | null
+  color?: string | null
+  constructor?: SeasonCompareTeam
+  constructors?: SeasonCompareTeam[]
+}
+
+export interface SeasonCompareResponse {
+  type: SeasonCompareType
+  year: number
+  a: SeasonCompareEntity
+  b: SeasonCompareEntity
+  pointsSource: 'official' | 'results'
+  /** What `rounds[].cumulativePoints` follows: the official table after each round, or a sum. */
+  cumulativeSource: 'official' | 'scored'
+  /**
+   * `championship` is the official total (or the summed one when there is no
+   * official table); `scored` is every point awarded, which is what the
+   * round-by-round line adds up; `dropped` is the difference, null without an
+   * official table.
+   */
+  points: {
+    championship: SeasonComparePair
+    scored: SeasonComparePair
+    dropped: SeasonComparePair | null
+  }
+  roundsRaced: number
+  roundsShared: number
+  rounds: SeasonCompareRound[]
+  aggregates: Record<SeasonCompareAggregateKey, SeasonComparePair>
+  headToHead: { race: SeasonCompareHeadToHead; qualifying: SeasonCompareHeadToHead }
+  lapsLedCoverage: { roundsCovered: number; roundsRaced: number }
+  qualifyingGap: {
+    averageDeltaMs: number
+    averageDeltaPct: number
+    medianDeltaPct: number
+    roundsCovered: number
+    roundsShared: number
+  } | null
+  racePace: {
+    averageDeltaMs: number
+    averageDeltaPct: number
+    roundsCovered: number
+    roundsShared: number
+    minCleanLaps: number
+  } | null
+  teammates?: {
+    sameTeam: boolean
+    sharedRounds: number
+    constructor: SeasonCompareTeam | null
+  }
+}
+
+export interface SeasonCompareEntrants {
+  year: number
+  drivers: {
+    ref: string
+    code: string | null
+    firstName: string
+    lastName: string
+    position: number | null
+    constructor: SeasonCompareTeam
+  }[]
+  constructors: (SeasonCompareTeam & { position: number | null })[]
+}
+
+/** One round of `/api/seasons/{year}/calendar`: where the circus went, and who won there. */
+export interface CalendarRound {
+  round: number
+  name: string
+  /** Calendar date (YYYY-MM-DD); null only for a malformed row. */
+  date: string | null
+  schedule: RaceSchedule
+  circuit: {
+    ref: string
+    name: string
+    location: string | null
+    country: string | null
+    countryCode: string | null
+    /** Null when f1db has no coordinates — such a round is left off the map. */
+    latitude: number | null
+    longitude: number | null
+    /** The `/tracks/<id>.svg` layout in use that year, if one is known. */
+    layoutSvgId: string | null
+  }
+  /** Classified P1; null for a race not yet run. */
+  winner: {
+    driver: { ref: string; code: string | null; firstName: string; lastName: string }
+    constructor: { id: string; ref: string; name: string; color: string | null } | null
+  } | null
+  /** Great-circle km from the previous round's circuit; null for round 1. */
+  legKm: number | null
+}
+
+export interface SeasonCalendarResponse {
+  year: number
+  /** Sum of every `legKm` — the season's travel as the crow flies. */
+  totalKm: number
+  rounds: CalendarRound[]
+}
+
+// --- Best seasons (`/api/best-seasons`) -------------------------------------
+
+export interface BestSeasonComponentInfo {
+  id: string
+  label: string
+  /** Out of 100 across all components. */
+  weight: number
+  description: string
+}
+
+export interface BestSeasonComponent {
+  id: string
+  label: string
+  weight: number
+  /** 0-1, how fully the season met this component. */
+  value: number
+  /** `value * weight`: this component's share of the 0-100 total. */
+  points: number
+}
+
+export interface BestSeasonTeam {
+  id: string
+  ref: string
+  name: string
+  color: string | null
+}
+
+export interface BestSeasonContender {
+  driver: Pick<
+    Driver,
+    'id' | 'ref' | 'code' | 'firstName' | 'lastName' | 'nationality' | 'countryCode'
+  >
+  /** The team they raced for most that season, which is where their colour comes from. */
+  constructor: BestSeasonTeam | null
+  /** Official championship points. */
+  points: number
+}
+
+export interface BestSeason {
+  year: number
+  /** Place by score among every completed season; null for the running one. */
+  rank: number | null
+  inProgress: boolean
+  totalRounds: number
+  roundsRun: number
+  pointsSystem: { id: string; label: string; era: string }
+  everyResultCounts: boolean
+  /**
+   * True only when a round had no official table and the walk fell back to
+   * points scored — which, before 1991, is not the championship table.
+   */
+  progressionApproximate: boolean
+  champion: BestSeasonContender | null
+  runnerUp: BestSeasonContender | null
+  titleMargin: number | null
+  titleMarginShare: number | null
+  titleMarginInWins: number | null
+  decidedAtRound: number | null
+  decidedAtRace: string | null
+  decidedRoundsFromEnd: number | null
+  wentToFinalRound: boolean | null
+  contendersAtFinale: number | null
+  distinctWinners: number
+  distinctPoleSitters: number | null
+  polesKnown: number
+  leadChanges: number
+  distinctLeaders: number
+  constructors: {
+    champion: BestSeasonTeam | null
+    runnerUp: BestSeasonTeam | null
+    championPoints: number
+    runnerUpPoints: number
+    margin: number
+    marginShare: number | null
+  } | null
+  score: { total: number; components: BestSeasonComponent[] }
+}
+
+export interface BestSeasonsResponse {
+  sort: string
+  order: 'asc' | 'desc'
+  era: { id: string; label: string; era: string } | null
+  yearFrom: number | null
+  yearTo: number | null
+  total: number
+  components: BestSeasonComponentInfo[]
+  notes: string[]
+  seasons: BestSeason[]
+}
+
+export interface BestSeasonResponse {
+  rankedSeasons: number
+  components: BestSeasonComponentInfo[]
+  season: BestSeason
 }
