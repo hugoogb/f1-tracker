@@ -1,7 +1,6 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { GitCompareArrows } from 'lucide-react'
+import { ChevronLeft, ChevronRight, GitCompareArrows } from 'lucide-react'
 import { api, isNotFound } from '@/lib/api'
 import type {
   Race,
@@ -13,6 +12,7 @@ import type {
   PermutationsResponse,
   PointsSystemsResponse,
   NormalisedStandingsResponse,
+  SeasonCalendarResponse,
   SeasonScoring,
 } from '@/lib/types'
 import { CountryFlag } from '@/components/ui/country-flag'
@@ -36,6 +36,7 @@ import { SeasonTabs } from './season-tabs'
 import { ScoringNote } from '@/components/seasons/scoring-note'
 import { TitlePermutations } from '@/components/seasons/title-permutations'
 import { NormalisedStandings } from '@/components/seasons/normalised-standings'
+import { SeasonCalendarMapWrapper } from '@/components/seasons/season-calendar-map-wrapper'
 import { FadeIn } from '@/components/ui/motion'
 import { buildMetadata } from '@/lib/seo'
 import { LocalDate } from '@/components/ui/local-date'
@@ -98,6 +99,7 @@ export default async function SeasonDetailPage({ params }: { params: Promise<{ y
     heatmapResult,
     permutationsResult,
     pointsSystemsResult,
+    calendarResult,
   ] = await Promise.allSettled([
     api.seasons.get(year) as Promise<SeasonDetailResponse>,
     api.seasons.driverStandings(year) as Promise<DriverStandingsResponse>,
@@ -107,6 +109,7 @@ export default async function SeasonDetailPage({ params }: { params: Promise<{ y
     api.seasons.heatmap(year) as Promise<SeasonHeatmapResponse>,
     api.seasons.permutations(year) as Promise<PermutationsResponse>,
     api.pointsSystems(),
+    api.seasons.calendar(year) as Promise<SeasonCalendarResponse>,
   ])
 
   // A year with no data must answer 404 — but an API outage has to surface as
@@ -128,6 +131,7 @@ export default async function SeasonDetailPage({ params }: { params: Promise<{ y
     constructorProgressionResult.status === 'fulfilled' ? constructorProgressionResult.value : null
   const heatmap = heatmapResult.status === 'fulfilled' ? heatmapResult.value : null
   const permutations = permutationsResult.status === 'fulfilled' ? permutationsResult.value : null
+  const calendar = calendarResult.status === 'fulfilled' ? calendarResult.value : null
 
   // Every era's re-scored table, rendered up front so switching between them is
   // instant and the route stays cacheable — a query parameter for one control
@@ -213,6 +217,23 @@ export default async function SeasonDetailPage({ params }: { params: Promise<{ y
         <FadeIn>
           <TitlePermutations data={permutations} />
         </FadeIn>
+      )}
+
+      {calendar && calendar.rounds.length > 0 && (
+        <section
+          id="calendar"
+          className="scroll-mt-24 space-y-3"
+          aria-labelledby="calendar-heading"
+        >
+          <div>
+            <h2 id="calendar-heading">Calendar</h2>
+            <p className="text-muted-foreground text-sm">
+              Every round on the map in calendar order, joined by the great-circle legs between
+              them. Press play to fly the season.
+            </p>
+          </div>
+          <SeasonCalendarMapWrapper year={year} rounds={calendar.rounds} variant="season" />
+        </section>
       )}
 
       <SeasonTabs

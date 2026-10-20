@@ -59,6 +59,13 @@ daily and on the `f1-data` tag purge), `robots.ts`, `manifest.ts`,
 - `components/races/` - Race result tables (results with position change indicators, qualifying, sprint, pit stops, lap-times-chart, tyre-strategy-chart, tyre-degradation-chart, position-chart, gap-chart, pit-stop-analysis, podium-card, fastest-lap-card)
 - `components/standings/` - Driver + constructor standings tables
 - `components/seasons/` - Scoring note, title permutations card, cross-era normalised standings
+- `components/seasons/season-calendar-*` - Cinematic calendar world map (the `Calendar` section on
+  `/seasons/[year]`, and the "World Tour" section on `/` centred on the next race with a once-per-session
+  intro flight from the previous one). `season-calendar-map-wrapper.tsx` is the only entry point: it
+  imports the rest with `ssr: false`, mounts it after hydration and once near the viewport.
+  `season-calendar-map.tsx` is the playback shell (play/pause, prev/next, scrubbable timeline,
+  speed, live km counter, round card), `season-calendar-canvas.tsx` the Leaflet layer,
+  `season-calendar-model.ts` the Leaflet-free data model (statuses, legs, `Playhead` store)
 - `components/drivers/` - Driver season history table
 - `components/constructors/` - Constructor season history table, lineage timeline
 - `components/circuits/` - Track layout, world map, world map wrapper
@@ -132,6 +139,8 @@ daily and on the `f1-data` tag purge), `robots.ts`, `manifest.ts`,
     from the official final-round standings, never from summed race points
 - `GET /api/seasons/{year}/standings/progression` - Round-by-round championship progression
 - `GET /api/seasons/{year}/heatmap` - Season results heatmap (driver × round grid)
+- `GET /api/seasons/{year}/calendar` - Every round with its circuit's coordinates, the layout SVG in
+  use that year, the winner (null if not raced) and `legKm` from the previous round; `totalKm` sums them
 - `GET /api/seasons/{year}/permutations` - Who can still win the drivers' title
 - `GET /api/seasons/{year}/standings/normalised?system={id}` - The season re-scored under another era
 - `GET /api/points-systems` - Every points system the championship has used
@@ -278,6 +287,13 @@ Two f1db quirks the UI is built around:
   `apple-icon.png` and the `public/icon-*.png` set means re-rendering from it
   rather than editing the binaries
 - Client components (`'use client'`) only for interactive pieces (charts, filters, tabs, search)
+- The calendar map's great-circle maths exists twice on purpose — `pipeline/src/geo.py` (the API's
+  `legKm`/`totalKm`) and `apps/web/lib/geo.ts` (the arcs it draws) — with the same haversine and
+  mean radius; change both or neither. Its "next race" comes from `useNow()` + `raceStart()` and is
+  only ever computed in the client-mounted component, so there is no server render to disagree
+  with. Per-frame playback goes through the `Playhead` external store and imperative Leaflet
+  updates, never React state; `prefers-reduced-motion` turns every flight into an instant jump and
+  skips the home intro
 - Anything derived from Fast-F1 lap times (`/positions`, `/gaps`) shares
   `_cumulative_lap_times()` in the races router. A cumulative total needs an
   unbroken chain from lap 1, so it stops at a driver's first missing lap rather

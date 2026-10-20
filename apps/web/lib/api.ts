@@ -6,6 +6,7 @@ import type {
   RecordsExploreResponse,
   SeasonCompareEntrants,
   SeasonCompareResponse,
+  SeasonCalendarResponse,
 } from './types'
 
 /**
@@ -104,6 +105,7 @@ export const api = {
       const params = new URLSearchParams({ system })
       return fetchApi(`/seasons/${year}/standings/normalised?${params}`)
     },
+    calendar: (year: number) => fetchApi<SeasonCalendarResponse>(`/seasons/${year}/calendar`),
   },
   drivers: {
     list: (page = 1, pageSize = 50, nationality?: string) => {
