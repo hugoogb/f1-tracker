@@ -340,3 +340,9 @@ def test_single_season_endpoint(client, two_seasons):
 
 def test_does_not_shadow_season_routes(client, two_seasons):
     assert client.get("/api/seasons/2010/standings/drivers").json()["year"] == 2010
+
+
+def test_no_constructors_title_before_1958(client, db, base):
+    """A constructor table before 1958 is a local total, not a championship."""
+    build(db, 1957, CLOSE, constructors={"team-a": 100.0, "team-b": 90.0})
+    assert by_year(client.get(URL).json())[1957]["constructors"] is None

@@ -108,6 +108,10 @@ MARGIN_SHARE_CEILING = 0.4
 WINNERS_FOR_FULL_MARKS = 8
 # Lead changes needed for full marks.
 LEAD_CHANGES_FOR_FULL_MARKS = 4
+# The constructors' championship was first awarded in 1958. The database can
+# hold constructor tables for earlier seasons (the ingest totals them where
+# f1db has none), but there was no title to win, so they are not shown as one.
+FIRST_CONSTRUCTORS_SEASON = 1958
 
 NOTES = (
     "The champion, the runner-up and the title margin come from the official final "
@@ -327,7 +331,7 @@ def _analyse(season: _Season, sprint_ids: set[str], today: date) -> dict | None:
     )
 
     constructors = None
-    if len(season.constructor_final) >= 2:
+    if year >= FIRST_CONSTRUCTORS_SEASON and len(season.constructor_final) >= 2:
         c_champ, c_second = season.constructor_final[0], season.constructor_final[1]
         c_margin = c_champ[1] - c_second[1]
         constructors = {
