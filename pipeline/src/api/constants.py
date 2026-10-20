@@ -14,3 +14,7 @@ DEFAULT_EXPLORE_LIMIT = 25
 # rate categories therefore carry a denominator floor unless the caller sets
 # their own; it is never allowed to reach zero.
 DEFAULT_EXPLORE_MIN_STARTS = 20
+
+# The season comparison's race-pace delta compares each side's median clean lap.
+# Below this many clean laps a side's median is one or two laps, not a pace.
+SEASON_COMPARE_MIN_CLEAN_LAPS = 5
