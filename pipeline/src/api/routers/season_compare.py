@@ -10,13 +10,15 @@ Conventions every number here follows:
   positive favours A; for positions and lap times (lower is better) negative
   favours A. The frontend knows which way each stat points; the API never
   flips a sign to make a delta "read nicely".
-- **Points are the official championship totals** from f1db's standings, never
+- **The championship total is the official one** from f1db's standings, never
   summed race points. In the pre-1991 "best N results" seasons a driver could
-  score and have it not count, and only the standings know that. Per-round
-  points are the step in the official cumulative total, so a dropped result
-  shows as the zero it was. The one exception is a season with no official
-  table at all — there was no constructors' championship before 1958 — where
-  the totals are summed from results and `pointsSource` says so.
+  score and have it not count, and only the standings know that. f1db carries
+  the table as it stood after the last round run, not after every round, so the
+  round-by-round line is the points each side was *awarded* (race + sprint),
+  summed — the same thing the championship progression chart draws — and
+  `points.dropped` is how far that sum sits above the official total. A season
+  with no official table at all (there was no constructors' championship
+  before 1958) falls back to the summed total, and `pointsSource` says so.
 - **Timing data is reported with its coverage.** Qualifying times, Fast-F1 lap
   positions and lap times all have gaps, so every derived figure says how many
   rounds (or laps) it rests on and is null, not zero, when there is nothing.
@@ -30,7 +32,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from src.api.constants import SEASON_COMPARE_MIN_CLEAN_LAPS
+from src.api.constants import FIRST_CONSTRUCTORS_CHAMPIONSHIP, SEASON_COMPARE_MIN_CLEAN_LAPS
 from src.api.routers.races import _CLEAN_LAP_THRESHOLD, _cumulative_lap_times
 from src.api.serializers import constructor_compact, constructor_summary, driver_summary
 from src.db.database import get_db
@@ -41,6 +43,7 @@ from src.db.models import (
     DriverStanding,
     LapTime,
     QualifyingResult,
+    Race,
     RaceResult,
     SprintResult,
 )
@@ -156,19 +159,15 @@ class _Side:
         return [r for r in rows if self.member(r)]
 
 
-def _official_cumulative(
-    db: Session, model, key_column, entity_id: str, race_ids: list[str]
-) -> dict[str, float]:
-    rows = db.execute(
-        select(model.race_id, model.points).where(
-            model.race_id.in_(race_ids), key_column == entity_id
-        )
-    ).all()
-    return {race_id: float(points or 0) for race_id, points in rows}
-
-
-def _season_has_standings(db: Session, model, race_ids: list[str]) -> bool:
-    return (db.execute(select(func.count()).where(model.race_id.in_(race_ids))).scalar() or 0) > 0
+def _official_total(db: Session, model, key_column, entity_id: str, race_ids: list[str]):
+    """The entity's official championship points as the table last stood, or None."""
+    return db.execute(
+        select(model.points)
+        .join(Race, Race.id == model.race_id)
+        .where(model.race_id.in_(race_ids), key_column == entity_id)
+        .order_by(Race.round.desc())
+        .limit(1)
+    ).scalar_one_or_none()
 
 
 def _laps_led(db: Session, data: _SeasonData) -> dict[str, dict]:
@@ -325,14 +324,15 @@ def _compare(
     standings_model,
     standings_key,
     per_car: bool,
+    has_championship: bool = True,
 ) -> dict:
     """The shared body of both endpoints; `per_car` marks the constructor case."""
     raced_ids = [r.id for r in data.raced]
-    official = _season_has_standings(db, standings_model, raced_ids)
-    official_cum = {
-        side: _official_cumulative(db, standings_model, standings_key, side.entity.id, raced_ids)
+    official_total = {
+        side: _official_total(db, standings_model, standings_key, side.entity.id, raced_ids)
         for side in (a, b)
     }
+    official = has_championship and all(v is not None for v in official_total.values())
     laps_led = _laps_led(db, data)
     race_laps = _race_laps(db, data)
 
@@ -355,13 +355,10 @@ def _compare(
             q_rows = side.rows(quali)
             started = [r for r in rows if _started(r)]
 
-            scored = sum(r.points or 0 for r in rows) + sum(r.points or 0 for r in sprint_rows)
-            previous = cumulative[side]
-            if official:
-                cumulative[side] = official_cum[side].get(race.id, previous)
-            else:
-                cumulative[side] = previous + scored
-            points = round(cumulative[side] - previous, 2)
+            points = round(
+                sum(r.points or 0 for r in rows) + sum(r.points or 0 for r in sprint_rows), 2
+            )
+            cumulative[side] += points
 
             finishes = [r.position for r in rows if r.position is not None]
             grids = [r.grid for r in started if r.grid]
@@ -474,8 +471,10 @@ def _compare(
 
     ta, tb = totals[a], totals[b]
     count_keys = ("starts", "wins", "podiums", "poles", "fastestLaps", "dnfs", "pointsFinishes")
+    scored = (round(cumulative[a], 2), round(cumulative[b], 2))
+    championship = (float(official_total[a]), float(official_total[b])) if official else scored
     aggregates = {
-        "points": _pair(round(cumulative[a], 2), round(cumulative[b], 2), 2),
+        "points": _pair(*championship, 2),
         **{k: _pair(int(ta[k]), int(tb[k]), 0) for k in count_keys},
         "averageGrid": _pair(_mean(ta["grids"]), _mean(tb["grids"])),
         "averageFinish": _pair(_mean(ta["finishes"]), _mean(tb["finishes"])),
@@ -485,6 +484,18 @@ def _compare(
     return {
         "year": data.year,
         "pointsSource": "official" if official else "results",
+        "points": {
+            "championship": _pair(*championship, 2),
+            "scored": _pair(*scored, 2),
+            # Awarded but not counted: the best-N rule at work, read off the data.
+            "dropped": (
+                _pair(
+                    round(scored[0] - championship[0], 2), round(scored[1] - championship[1], 2), 2
+                )
+                if official
+                else None
+            ),
+        },
         "roundsRaced": len(data.raced),
         "roundsShared": shared_rounds,
         "rounds": rounds,
@@ -610,6 +621,8 @@ def season_compare_constructors(year: int, c1: str, c2: str, db: Session = Depen
         standings_model=ConstructorStanding,
         standings_key=ConstructorStanding.constructor_id,
         per_car=True,
+        # Earlier tables are sums the ingest computed, not a championship anyone won.
+        has_championship=year >= FIRST_CONSTRUCTORS_CHAMPIONSHIP,
     )
     return {
         "type": "constructors",

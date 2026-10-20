@@ -4,6 +4,9 @@ The fixture is a three-round season with two teams of two. Round 3 has no
 qualifying times and no laps, so every timing figure has to report the two
 rounds it covers rather than averaging a zero in. Round 1 carries Fast-F1
 positions; round 2 has lap times only, which is the cumulative fallback.
+
+Standings are written for the final round only, as f1db supplies them: the
+table as it stood at the end, not after every round.
 """
 
 import datetime
@@ -125,16 +128,19 @@ def season(db):
             cumulative_driver["ver"] += 8
             cumulative_team["red-bull"] += 8
 
-        for did, total in cumulative_driver.items():
-            db.add(
-                DriverStanding(id=f"ds{rnd}-{did}", race_id=race_id, driver_id=did, points=total)
-            )
-        for cid, total in cumulative_team.items():
-            db.add(
-                ConstructorStanding(
-                    id=f"cs{rnd}-{cid}", race_id=race_id, constructor_id=cid, points=total
+        if rnd == max(RESULTS):
+            for did, total in cumulative_driver.items():
+                db.add(
+                    DriverStanding(
+                        id=f"ds{rnd}-{did}", race_id=race_id, driver_id=did, points=total
+                    )
                 )
-            )
+            for cid, total in cumulative_team.items():
+                db.add(
+                    ConstructorStanding(
+                        id=f"cs{rnd}-{cid}", race_id=race_id, constructor_id=cid, points=total
+                    )
+                )
 
         quali_times = QUALI_MS.get(rnd)
         order = sorted(results, key=lambda d: results[d][0])
@@ -182,7 +188,7 @@ def test_constructors_official_points_and_cumulative_delta(client, season):
     r1, r2, r3 = data["rounds"]
     assert r1["a"]["points"] == 40 and r1["b"]["points"] == 18
     assert r1["cumulativeDelta"] == 22
-    # The sprint arrives through the official standings.
+    # Awarded points per round include the sprint.
     assert r2["a"]["points"] == 38 and r2["b"]["points"] == 40
     assert r2["cumulativeDelta"] == 20
     assert r3["cumulativeDelta"] == 36
@@ -300,19 +306,63 @@ def test_entrants_follow_the_standings(client, season, db):
     assert [c["ref"] for c in data["constructors"]] == ["red-bull", "ferrari"]
 
 
-def test_dropped_result_scores_zero_officially(client, season, db):
-    """A best-N season: a result that scored on the day but did not count."""
+def test_dropped_result_counts_as_awarded_but_not_in_the_total(client, season, db):
+    """A best-N season: a result that scored on the day but did not count.
+
+    The round still shows what was awarded; the championship total is the
+    official one, and the difference is reported rather than hidden.
+    """
     db.get(DriverStanding, "ds3-per").points = 27  # 18 scored in round 3, none counted
     db.commit()
     data = client.get(f"/api/seasons/{YEAR}/compare/drivers?d1=ver&d2=per").json()
-    assert data["rounds"][2]["b"]["points"] == 0
-    assert data["aggregates"]["points"]["b"] == 27
+    assert data["rounds"][2]["b"]["points"] == 18
+    assert data["rounds"][2]["b"]["cumulativePoints"] == 45
+    assert data["aggregates"]["points"] == {"a": 76, "b": 27, "delta": 49}
+    assert data["points"]["scored"]["b"] == 45
+    assert data["points"]["dropped"] == {"a": 0, "b": 18, "delta": -18}
 
 
 def test_season_without_constructor_standings_sums_results(client, season, db):
-    """No constructors' championship before 1958: totals come from results, flagged."""
+    """No official table to read: totals come from results, flagged."""
     db.query(ConstructorStanding).delete()
     db.commit()
     data = client.get(f"/api/seasons/{YEAR}/compare/constructors?c1=red-bull&c2=ferrari").json()
     assert data["pointsSource"] == "results"
     assert data["aggregates"]["points"]["a"] == 121
+    assert data["points"]["dropped"] is None
+
+
+def test_constructor_tables_before_1958_are_not_official(client, db):
+    """The ingest computes constructor standings for every season, but there was
+    no constructors' championship to be official about before 1958."""
+    db.add_all(
+        [
+            Season(year=1955),
+            Constructor(id="mercedes", ref="mercedes", name="Mercedes", color="#00D7B6"),
+            Constructor(id="ferrari", ref="ferrari", name="Ferrari", color="#ED1131"),
+            Driver(id="fangio", ref="fangio", first_name="Juan", last_name="Fangio"),
+            Driver(id="castellotti", ref="castellotti", first_name="E", last_name="Castellotti"),
+            Race(id="r55", season_year=1955, round=1, name="Argentine GP", circuit_id="c1"),
+        ]
+    )
+    for did, cid, pos, pts in (("fangio", "mercedes", 1, 8), ("castellotti", "ferrari", 2, 6)):
+        db.add(
+            RaceResult(
+                id=f"r55-{did}",
+                race_id="r55",
+                driver_id=did,
+                constructor_id=cid,
+                grid=pos,
+                position=pos,
+                position_text=str(pos),
+                points=pts,
+                laps=96,
+            )
+        )
+        db.add(ConstructorStanding(id=f"cs55-{cid}", race_id="r55", constructor_id=cid, points=99))
+    db.commit()
+
+    data = client.get("/api/seasons/1955/compare/constructors?c1=mercedes&c2=ferrari").json()
+    assert data["pointsSource"] == "results"
+    assert data["aggregates"]["points"] == {"a": 8, "b": 6, "delta": 2}
+    assert data["points"]["dropped"] is None
