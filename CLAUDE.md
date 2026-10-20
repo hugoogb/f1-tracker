@@ -16,8 +16,8 @@ Deployment: frontend on Vercel; the API runs as a Docker container (`f1_api`) on
 
 ## Project Structure
 
-- `apps/web/` - Next.js frontend (15 routes, 36+ components)
-- `pipeline/` - Python data pipeline + FastAPI backend (11 routers, 44 endpoints); `Dockerfile` builds the API/migrate/ingest image
+- `apps/web/` - Next.js frontend (20 routes, 36+ components)
+- `pipeline/` - Python data pipeline + FastAPI backend (14 routers, 50 endpoints); `Dockerfile` builds the API/migrate/ingest image
 - `docker/` - `docker-compose.yml` (local dev DB), `compose.prod.yml` (the VPS stack — shipped to `/srv/apps/f1_api/docker-compose.yml` by the deploy), `.env.prod.example`, backups
 - `scripts/` - `bootstrap.sh`, `db-backup.sh`, `db-restore.sh`, `seed-fetch.sh` (download the seed dump from its release), `fastf1-sync.sh` (laptop-side Fast-F1 fetch), `lib/db.sh` (shared container resolution + dump inspection + seed release location), `vps/ingest.sh`, `vps/fastf1.sh`, `vps/backup.sh`, `vps/purge-cache.sh` (copied to the VPS by the deploy)
 
@@ -177,7 +177,7 @@ daily and on the `f1-data` tag purge), `robots.ts`, `manifest.ts`,
 - `uv run python scripts/fastf1_import.py --payload payload.ndjson.gz` - Load a payload into PostgreSQL (DB, no network)
 - `uv run python scripts/seed.py --lineages` - Rebuild constructor lineages only (one of the `--<target>` flags in `seed.py`)
 - `uv run python scripts/refresh_views.py` - Rebuild the computed-stats materialized views (`driver_career_stats`, `constructor_career_stats`, `season_champions`); `db-restore.sh` calls this after migrating
-- `uv run pytest -v` - Run backend tests (296 tests)
+- `uv run pytest -v` - Run backend tests (402 tests)
 - `uv run ruff check . && uv run ruff format --check .` - Lint + format check
 
 ### VPS (production backend)
