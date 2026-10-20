@@ -1,5 +1,11 @@
 import { API_BASE_URL, REVALIDATE_SECONDS, OPS_REVALIDATE_SECONDS, F1_DATA_TAG } from './constants'
-import type { OpsStatus, PointsSystem, RecordsExploreParams, RecordsExploreResponse } from './types'
+import type {
+  OpsStatus,
+  PointsSystem,
+  RecordsExploreParams,
+  RecordsExploreResponse,
+  SeasonCalendarResponse,
+} from './types'
 
 /**
  * Carries the upstream status so callers can tell "this driver does not exist"
@@ -97,6 +103,7 @@ export const api = {
       const params = new URLSearchParams({ system })
       return fetchApi(`/seasons/${year}/standings/normalised?${params}`)
     },
+    calendar: (year: number) => fetchApi<SeasonCalendarResponse>(`/seasons/${year}/calendar`),
   },
   drivers: {
     list: (page = 1, pageSize = 50, nationality?: string) => {

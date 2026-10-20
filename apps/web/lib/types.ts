@@ -752,3 +752,38 @@ export interface OpsStatus {
   ingest: OpsIngest
   schemaVersion: string | null
 }
+
+/** One round of `/api/seasons/{year}/calendar`: where the circus went, and who won there. */
+export interface CalendarRound {
+  round: number
+  name: string
+  /** Calendar date (YYYY-MM-DD); null only for a malformed row. */
+  date: string | null
+  schedule: RaceSchedule
+  circuit: {
+    ref: string
+    name: string
+    location: string | null
+    country: string | null
+    countryCode: string | null
+    /** Null when f1db has no coordinates — such a round is left off the map. */
+    latitude: number | null
+    longitude: number | null
+    /** The `/tracks/<id>.svg` layout in use that year, if one is known. */
+    layoutSvgId: string | null
+  }
+  /** Classified P1; null for a race not yet run. */
+  winner: {
+    driver: { ref: string; code: string | null; firstName: string; lastName: string }
+    constructor: { id: string; ref: string; name: string; color: string | null } | null
+  } | null
+  /** Great-circle km from the previous round's circuit; null for round 1. */
+  legKm: number | null
+}
+
+export interface SeasonCalendarResponse {
+  year: number
+  /** Sum of every `legKm` — the season's travel as the crow flies. */
+  totalKm: number
+  rounds: CalendarRound[]
+}
