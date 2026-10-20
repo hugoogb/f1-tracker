@@ -9,15 +9,15 @@ Two sources, kept apart:
   never from summed race points. Until 1990 only part of a driver's record
   counted, and a sum of races crowns the wrong champion in those seasons (1988).
 * **How the fight unfolded** — who led after each round, when the title was
-  settled, who could still win it entering the finale — needs a table after
-  every round, and the database keeps official standings only for the end of a
-  season. Those metrics follow the running totals of race and sprint points,
-  the same ones `/standings/progression` draws. From 1991 every result counts,
-  so those totals are the championship table after each round. Before that they
-  are points scored rather than points counted, so the round-by-round metrics
-  for 1950-1990 are approximate and flagged `progressionApproximate`. The final
-  round is always read off the official standings, so a season never ends with
-  the wrong driver in the lead.
+  settled, who could still win it entering the finale — walks f1db's official
+  table after every round, the same one `/standings/progression` draws. Before
+  1991 that is points counted under the "best N results" rules, not points
+  scored, so the lead is the real championship lead. The round at which the
+  title was settled is f1db's own `drivers_title_decider` flag: under those
+  rules a lead can be unassailable before the arithmetic on the visible totals
+  says so, and the N changed from season to season. A season missing a round's
+  table falls back to running totals of race and sprint points and is flagged
+  `progressionApproximate`.
 
 The composite score is a transparent weighted sum. Every component is a number
 between 0 and 1 computed from one metric, its weight is in `COMPONENTS`, and the
@@ -116,15 +116,18 @@ FIRST_CONSTRUCTORS_SEASON = 1958
 NOTES = (
     "The champion, the runner-up and the title margin come from the official final "
     "standings, never from a sum of race points.",
-    "The lead, the deciding round and the finale contenders follow the running totals of "
-    "race and sprint points after each round — the same totals the season page's "
-    "championship progression draws. From 1991 every result counts, so those totals are the "
-    "championship table. From 1950 to 1990 only part of a driver's results counted, under a "
-    "best-results rule whose details changed from season to season, so for those seasons "
-    "the running totals are points scored rather than points counted and these metrics are "
-    "approximate.",
-    "A title counts as settled once nobody could catch the leader even if the leader never "
-    "scored again — the strict test the title permutations use.",
+    "The lead and the finale contenders follow the official championship table after each "
+    "round — the one the season page's championship progression draws. From 1950 to 1990 "
+    "only part of a driver's results counted, under a best-results rule whose details "
+    "changed from season to season, and that table already applies it.",
+    "The round at which the title was settled is the one the official record marks as the "
+    "decider. Where it has none, a title counts as settled once nobody could catch the "
+    "leader even if the leader never scored again — the strict test the title permutations "
+    "use.",
+    "Finale contenders are the drivers who could still have caught the leader on the official "
+    "table entering the last round. Before 1991 a result in that round could also have been "
+    "one a driver had to drop, so for those seasons the count is an upper bound — it never "
+    "leaves out a driver who was in the fight.",
     "The Indianapolis 500 counted towards the championship from 1950 to 1960, and its "
     "winners count among those seasons' different winners.",
     "The constructors' championship began in 1958, so earlier seasons have no constructors' "
@@ -153,6 +156,8 @@ class _Season:
     races: list[Race] = field(default_factory=list)
     # race_id -> {driver_id: race + sprint points that round}; a key per round run.
     round_points: dict[str, dict[str, float]] = field(default_factory=dict)
+    # race_id -> {driver_id: (official points, position)} as the table stood after it.
+    official_tables: dict[str, dict[str, tuple[float, int | None]]] = field(default_factory=dict)
     driver_final: list[Standing] = field(default_factory=list)
     constructor_final: list[Standing] = field(default_factory=list)
     winners: set[str] = field(default_factory=set)
@@ -211,18 +216,20 @@ def _load(db: Session) -> dict[int, _Season]:
         scored = seasons[race_year[race_id]].round_points.setdefault(race_id, {})
         scored[driver_id] = scored.get(driver_id, 0.0) + float(points or 0)
 
-    drivers = _final_standings(
-        db.execute(
-            select(
-                DriverStanding.race_id,
-                DriverStanding.driver_id,
-                DriverStanding.points,
-                DriverStanding.position,
-            )
-        ).all(),
-        race_year,
-        race_round,
-    )
+    driver_rows = db.execute(
+        select(
+            DriverStanding.race_id,
+            DriverStanding.driver_id,
+            DriverStanding.points,
+            DriverStanding.position,
+        )
+    ).all()
+    for race_id, driver_id, points, position in driver_rows:
+        seasons[race_year[race_id]].official_tables.setdefault(race_id, {})[driver_id] = (
+            float(points or 0),
+            position,
+        )
+    drivers = _final_standings(driver_rows, race_year, race_round)
     constructors = _final_standings(
         db.execute(
             select(
@@ -269,6 +276,14 @@ def _leader(totals: dict[str, float], previous: str | None) -> str:
     return previous if previous in tied else tied[0]
 
 
+def _official_leader(table: dict[str, tuple[float, int | None]], previous: str | None) -> str:
+    """The official P1, which already applies the countback on a tie on points."""
+    leaders = sorted(d for d, (_, position) in table.items() if position == 1)
+    if leaders:
+        return previous if previous in leaders else leaders[0]
+    return _leader({d: p for d, (p, _) in table.items()}, previous)
+
+
 def _analyse(season: _Season, sprint_ids: set[str], today: date) -> dict | None:
     run = [r for r in season.races if r.id in season.round_points]
     if not run or not season.driver_final:
@@ -284,25 +299,34 @@ def _analyse(season: _Season, sprint_ids: set[str], today: date) -> dict | None:
     champion = season.driver_final[0]
     runner_up = season.driver_final[1] if len(season.driver_final) > 1 else None
 
-    # Walk the season round by round on running totals (see the module note).
-    # The title is settled at the first round after which nobody could catch
-    # the leader, and that leader has to be the official champion: a pre-1991
-    # points-scored lead must not settle a title that was won on points counted.
+    # Walk the season round by round on the official table (see the module
+    # note), or on running totals of points scored where a round has none. The
+    # title is settled at the round f1db flags as the decider; without a flag,
+    # at the first round after which nobody could catch the leader, and that
+    # leader has to be the official champion.
+    official = all(r.id in season.official_tables for r in run)
+    flagged = next((r for r in run if r.drivers_title_decider), None)
     decided_at: Race | None = None
     contenders_at_finale: int | None = None
     leaders: list[str] = []
     totals: dict[str, float] = defaultdict(float)
     for index, race in enumerate(run):
-        for driver_id, points in season.round_points[race.id].items():
-            totals[driver_id] += points
+        if official:
+            table = season.official_tables[race.id]
+            totals.update({d: p for d, (p, _) in table.items()})
+        else:
+            for driver_id, points in season.round_points[race.id].items():
+                totals[driver_id] += points
         if not any(totals.values()):
             continue
         last_round = index == len(run) - 1
-        leader_id = (
-            champion[0]
-            if last_round and not in_progress
-            else _leader(totals, leaders[-1] if leaders else None)
-        )
+        previous = leaders[-1] if leaders else None
+        if last_round and not in_progress:
+            leader_id = champion[0]
+        elif official:
+            leader_id = _official_leader(table, previous)
+        else:
+            leader_id = _leader(totals, previous)
         later = season.races[season.races.index(race) + 1 :]
         remaining = max_points_remaining(
             system, len(later), sum(1 for r in later if r.id in sprint_ids), year
@@ -319,6 +343,12 @@ def _analyse(season: _Season, sprint_ids: set[str], today: date) -> dict | None:
             if len(later) == 1:
                 contenders_at_finale = alive
         leaders.append(leader_id)
+    if not in_progress and flagged is not None:
+        decided_at = flagged
+        # Settled before the finale: whatever the visible totals allowed, the
+        # official record says nobody could still win it.
+        if flagged.round < run[-1].round and contenders_at_finale is not None:
+            contenders_at_finale = 1
     if not in_progress and decided_at is None:
         decided_at = run[-1]
 
@@ -377,8 +407,8 @@ def _analyse(season: _Season, sprint_ids: set[str], today: date) -> dict | None:
         "roundsRun": len(run),
         "pointsSystem": {"id": system.id, "label": system.label, "era": system.era},
         "everyResultCounts": counts_every_result(year),
-        # Pre-1991 running totals are points scored, not points counted.
-        "progressionApproximate": not counts_every_result(year),
+        # Only where a round had no official table and points scored stood in.
+        "progressionApproximate": not official and not counts_every_result(year),
         "_champion": champion,
         "_runnerUp": runner_up,
         "titleMargin": round(margin, 2) if margin is not None else None,

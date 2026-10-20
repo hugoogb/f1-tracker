@@ -30,6 +30,41 @@ def race_has_happened(race: Race, today: date) -> bool:
     return race.date is None or race.date <= today
 
 
+def official_running_totals(
+    db: Session, races: list[Race], *, constructors: bool = False
+) -> dict[str, dict[str, float]] | None:
+    """The official championship total of every entity after each race, or None.
+
+    Read off the standings stored for every round (see `StandingsIngestor`), so
+    under the pre-1991 "best N results" rules it is points *counted* — a total
+    that can stall while a driver keeps scoring. f1db lists an entity only once
+    it has scored, and a counted total never falls, so an entity missing from a
+    round's table carries its last total (0 before its first points).
+
+    Returns None unless every race given has a table: a chart that mixed
+    official rounds with summed ones would show a jump where the sources meet.
+    The caller then falls back to summing race and sprint points.
+    """
+    if not races:
+        return None
+    model = ConstructorStanding if constructors else DriverStanding
+    key = model.constructor_id if constructors else model.driver_id
+    tables: dict[str, dict[str, float]] = {}
+    for race_id, entity_id, points in db.execute(
+        select(model.race_id, key, model.points).where(model.race_id.in_([r.id for r in races]))
+    ).all():
+        tables.setdefault(race_id, {})[entity_id] = float(points or 0)
+    if any(r.id not in tables for r in races):
+        return None
+
+    running: dict[str, float] = {}
+    out: dict[str, dict[str, float]] = {}
+    for race in races:
+        running.update(tables[race.id])
+        out[race.id] = dict(running)
+    return out
+
+
 def get_all_seasons(db: Session) -> list[Season]:
     return db.execute(select(Season).order_by(Season.year.desc())).scalars().all()
 

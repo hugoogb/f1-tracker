@@ -490,6 +490,12 @@ export interface StandingsProgressionDriver {
 
 export interface StandingsProgressionResponse {
   year: number
+  /**
+   * `official`: the championship table after each round, which before 1991 is
+   * points counted under the best-results rules. `scored`: race and sprint
+   * points summed, the fallback when a round has no official table.
+   */
+  pointsSource?: 'official' | 'scored'
   rounds: Record<string, number | string>[]
   drivers: StandingsProgressionDriver[]
 }
@@ -502,6 +508,7 @@ export interface ConstructorProgressionEntry {
 
 export interface ConstructorProgressionResponse {
   year: number
+  pointsSource?: 'official' | 'scored'
   rounds: Record<string, number | string>[]
   constructors: ConstructorProgressionEntry[]
 }
@@ -868,6 +875,8 @@ export interface SeasonCompareResponse {
   a: SeasonCompareEntity
   b: SeasonCompareEntity
   pointsSource: 'official' | 'results'
+  /** What `rounds[].cumulativePoints` follows: the official table after each round, or a sum. */
+  cumulativeSource: 'official' | 'scored'
   /**
    * `championship` is the official total (or the summed one when there is no
    * official table); `scored` is every point awarded, which is what the
@@ -1001,7 +1010,10 @@ export interface BestSeason {
   roundsRun: number
   pointsSystem: { id: string; label: string; era: string }
   everyResultCounts: boolean
-  /** Pre-1991 the running totals are points scored, not points counted. */
+  /**
+   * True only when a round had no official table and the walk fell back to
+   * points scored — which, before 1991, is not the championship table.
+   */
   progressionApproximate: boolean
   champion: BestSeasonContender | null
   runnerUp: BestSeasonContender | null

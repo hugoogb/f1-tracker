@@ -12,13 +12,15 @@ Conventions every number here follows:
   flips a sign to make a delta "read nicely".
 - **The championship total is the official one** from f1db's standings, never
   summed race points. In the pre-1991 "best N results" seasons a driver could
-  score and have it not count, and only the standings know that. f1db carries
-  the table as it stood after the last round run, not after every round, so the
-  round-by-round line is the points each side was *awarded* (race + sprint),
-  summed — the same thing the championship progression chart draws — and
-  `points.dropped` is how far that sum sits above the official total. A season
-  with no official table at all (there was no constructors' championship
-  before 1958) falls back to the summed total, and `pointsSource` says so.
+  score and have it not count, and only the standings know that. The
+  round-by-round line is the official table after each round — the same one
+  the championship progression chart draws — so a dropped result shows up as a
+  round where a side scored and its total did not move. `points.scored` is
+  what each side was *awarded* (race + sprint) and `points.dropped` how far
+  that sits above the official total. Where a round has no official table the
+  line falls back to the awarded points summed (`cumulativeSource: "scored"`),
+  and a season with no official table at all (there was no constructors'
+  championship before 1958) uses the summed total, as `pointsSource` says.
 - **Timing data is reported with its coverage.** Qualifying times, Fast-F1 lap
   positions and lap times all have gaps, so every derived figure says how many
   rounds (or laps) it rests on and is null, not zero, when there is nothing.
@@ -53,6 +55,7 @@ from src.db.queries import (
     get_driver_by_ref,
     get_driver_standings_for_season,
     get_season_races,
+    official_running_totals,
 )
 
 router = APIRouter()
@@ -333,6 +336,7 @@ def _compare(
         for side in (a, b)
     }
     official = has_championship and all(v is not None for v in official_total.values())
+    running = official_running_totals(db, data.raced, constructors=per_car) if official else None
     laps_led = _laps_led(db, data)
     race_laps = _race_laps(db, data)
 
@@ -394,7 +398,9 @@ def _compare(
             entry = {
                 "entered": bool(rows),
                 "points": points,
-                "cumulativePoints": round(cumulative[side], 2),
+                "cumulativePoints": round(
+                    running[race.id].get(side.entity.id, 0.0) if running else cumulative[side], 2
+                ),
                 "lapsLed": led,
             }
             if per_car:
@@ -484,6 +490,7 @@ def _compare(
     return {
         "year": data.year,
         "pointsSource": "official" if official else "results",
+        "cumulativeSource": "official" if running else "scored",
         "points": {
             "championship": _pair(*championship, 2),
             "scored": _pair(*scored, 2),

@@ -172,15 +172,19 @@ export default async function SeasonComparePage({
               <CardHeader>
                 <CardTitle>Points, Round by Round</CardTitle>
                 <p className="text-muted-foreground text-xs">
-                  Race and sprint points as they were awarded, added up after each round.
+                  {data.cumulativeSource === 'official'
+                    ? 'The official championship table after each round.'
+                    : 'Race and sprint points as they were awarded, added up after each round.'}
                   {data.pointsSource === 'results'
                     ? ` There was no official ${type === 'constructors' ? "constructors' " : ''}championship table in ${year}, so these sums are also the totals above.`
                     : ' The totals above are the official championship standings.'}
                 </p>
                 {dropped && (
                   <p className="text-muted-foreground text-xs">
-                    Not every result counted in {year}: {dropped}. That is why the line ends above
-                    the official totals.
+                    Not every result counted in {year}: {dropped}.{' '}
+                    {data.cumulativeSource === 'official'
+                      ? 'A round where a side scored and its line did not rise is a result it had to drop.'
+                      : 'That is why the line ends above the official totals.'}
                   </p>
                 )}
               </CardHeader>

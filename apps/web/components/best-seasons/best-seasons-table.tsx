@@ -268,7 +268,7 @@ export function BestSeasonsTable({ seasons, eras }: { seasons: BestSeason[]; era
                 {s.progressionApproximate && (
                   <span
                     className="text-muted-foreground ml-0.5"
-                    title="Approximate: before 1991 only part of a driver's results counted"
+                    title="Approximate: a round of this season has no official table"
                   >
                     *
                   </span>
@@ -314,11 +314,13 @@ export function BestSeasonsTable({ seasons, eras }: { seasons: BestSeason[]; era
           ))}
         </TableBody>
       </Table>
-      <p className="text-muted-foreground text-xs">
-        * Before 1991 only part of a driver&apos;s results counted, so the round-by-round figures
-        for those seasons follow points scored rather than points counted and are approximate.
-        Champions and margins are always the official ones.
-      </p>
+      {rows.some((s) => s.progressionApproximate) && (
+        <p className="text-muted-foreground text-xs">
+          * A round of this season has no official championship table, so its round-by-round figures
+          follow points scored rather than points counted and are approximate. Champions and margins
+          are always the official ones.
+        </p>
+      )}
     </div>
   )
 }

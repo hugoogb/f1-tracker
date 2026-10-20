@@ -107,6 +107,8 @@ class RaceIngestor(BaseIngestor):
                     "circuit_id": race["circuitId"],
                     "date": _parse_date(race.get("date")),
                     "time": _parse_time(race.get("time")),
+                    "drivers_title_decider": bool(race.get("driversChampionshipDecider")),
+                    "constructors_title_decider": bool(race.get("constructorsChampionshipDecider")),
                     **{
                         column: _parse_session(race, prefix) for prefix, column in _SESSIONS.items()
                     },

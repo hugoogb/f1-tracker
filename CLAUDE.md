@@ -120,13 +120,14 @@ daily and on the `f1-data` tag purge), `robots.ts`, `manifest.ts`,
 - `GET /api/seasons/{year}/compare/constructors?c1=&c2=` / `GET /api/seasons/{year}/compare/drivers?d1=&d2=`
   - One season, two sides; 404 if either did not race that year, 400 for the same ref twice.
     Every delta is A minus B (positive favours A for points, negative for positions and times).
-    Per round: awarded points (race + sprint), their running sum, finish/grid (best car for a
+    Per round: awarded points (race + sprint), the running championship total, finish/grid (best car for a
     constructor), laps led, qualifying gap and clean-lap race pace. Season: the **official**
     championship total from the standings (`points.championship`; `points.dropped` is what the
     best-N rule took off), wins, podiums, poles, fastest laps, DNFs, average grid/finish, points
-    finishes, laps led, race and qualifying head-to-heads. f1db only carries the table as it stood
-    after the last round, so the round-by-round line is the awarded sum, never a per-round
-    official total. Constructor tables before 1958 are not official (`pointsSource: "results"`).
+    finishes, laps led, race and qualifying head-to-heads. The round-by-round line is the official
+    table after each round (`cumulativeSource: "official"`), so a dropped result shows as a round
+    where a side scored and its line stayed flat; it falls back to the awarded sum only where a
+    round has no table. Constructor tables before 1958 are not official (`pointsSource: "results"`).
     Qualifying gap is the best lap in the deepest session both reached (f1db times, so it goes
     back well before 2018); race pace is the median clean lap (lap 1 and anything over 107% of the
     race median dropped, the degradation filter) and needs `SEASON_COMPARE_MIN_CLEAN_LAPS` per
@@ -177,7 +178,7 @@ daily and on the `f1-data` tag purge), `robots.ts`, `manifest.ts`,
 - `uv run python scripts/fastf1_import.py --payload payload.ndjson.gz` - Load a payload into PostgreSQL (DB, no network)
 - `uv run python scripts/seed.py --lineages` - Rebuild constructor lineages only (one of the `--<target>` flags in `seed.py`)
 - `uv run python scripts/refresh_views.py` - Rebuild the computed-stats materialized views (`driver_career_stats`, `constructor_career_stats`, `season_champions`); `db-restore.sh` calls this after migrating
-- `uv run pytest -v` - Run backend tests (402 tests)
+- `uv run pytest -v` - Run backend tests (416 tests)
 - `uv run ruff check . && uv run ruff format --check .` - Lint + format check
 
 ### VPS (production backend)
@@ -318,14 +319,27 @@ Two f1db quirks the UI is built around:
   years split the calendar into halves scored separately, and none of that is in
   f1db. State the era rule generally and let the data supply the example; never
   assert a specific N
-- Best seasons keep two sources apart. Champion, runner-up and margins come from the official
-  final standings. The round-by-round metrics (lead changes, deciding round, finale contenders)
-  need a table after every round, and the database keeps official standings only at a season's
-  end, so they follow running race + sprint points like `/standings/progression`, with the last
-  round pinned to the official champion. That is exact from 1991 and approximate before (points
-  scored, not counted), flagged `progressionApproximate`. The decider reuses the permutations'
-  `max_points_remaining()`/`still_in_contention()` from `src/scoring.py`. Score weights live in
-  `COMPONENTS` in `routers/best_seasons.py` and travel in the response, so the UI never restates them
+- Best seasons: champion, runner-up and margins come from the official final standings; the
+  round-by-round metrics (lead changes, finale contenders) walk the official table after every
+  round, the same one `/standings/progression` draws. The deciding round is f1db's flag
+  (`races.drivers_title_decider`), because under the best-N rules a title can be settled before
+  the arithmetic on the visible totals says so; only a season without a flag falls back to the
+  permutations' `max_points_remaining()`/`still_in_contention()`. Pre-1991 finale contenders are an
+  upper bound (a final-round result could have been one a driver had to drop) — the notes say so.
+  `progressionApproximate` now means only "a round had no official table, so points scored stood
+  in". Score weights live in `COMPONENTS` in `routers/best_seasons.py` and travel in the response
+- **Standings are stored after every round**, not just the last. `StandingsIngestor` keeps the
+  final round on its own path (local sum, then `_apply_official`, so a season f1db has no table for
+  still gets one) and writes f1db's official per-race table for every earlier round
+  (`_apply_rounds`); those rows are official or absent, never a sum. f1db lists a driver only
+  once they have scored, so `official_running_totals()` in `src/db/queries.py` carries an absent
+  entity's last total and returns None unless every round has a table. Anything that wants the
+  final table must keep picking the season's last round (`MAX(round)`), as every existing reader
+  does — never "any row for this season"
+- Race reconciliation purges a season only when a round vanished or moved to another circuit
+  f1db still knows. A stored circuit f1db no longer has at all is a rename (`sochi` -> `sirius`)
+  and is repointed in place: a purge deletes the season's Fast-F1 lap times, which the VPS cannot
+  fetch again
 - Constructor lineages come from f1db's `chronology` and are a chain of
   *entries*, not of teams — Red Bull is the far end of Stewart's chain. Never
   merge one member's record into another's or inherit a colour along a chain; a

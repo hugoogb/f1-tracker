@@ -187,6 +187,20 @@ def test_race_names_come_from_grand_prix(db, circuits):
     assert race.date == date(2026, 3, 8)
 
 
+def test_title_decider_flags_come_from_f1db(db, circuits):
+    """The race f1db marks as settling each title carries the flag; the rest do not."""
+    data = _f1db([(2026, 1, "albert_park", "2026-03-08"), (2026, 2, "shanghai", "2026-03-15")])
+    data.races[1]["driversChampionshipDecider"] = True
+    data.races[0]["constructorsChampionshipDecider"] = True
+    _ingest(db, data, (2026, 2026))
+
+    flags = {
+        r.round: (r.drivers_title_decider, r.constructors_title_decider)
+        for r in db.query(Race).filter(Race.season_year == 2026)
+    }
+    assert flags == {1: (False, True), 2: (True, False)}
+
+
 def test_a_renamed_circuit_does_not_purge_the_season(db, circuits):
     """f1db renaming a circuit (sochi -> sirius) repoints the round; results survive."""
     db.add(Circuit(id="sirius", ref="sirius", name="Sirius", country="X"))
