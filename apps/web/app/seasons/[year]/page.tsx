@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { GitCompareArrows } from 'lucide-react'
 import { api, isNotFound } from '@/lib/api'
 import type {
   Race,
@@ -188,6 +189,14 @@ export default async function SeasonDetailPage({ params }: { params: Promise<{ y
               title={`${year + 1} Season`}
             >
               <ChevronRight className="h-4 w-4" />
+            </Link>
+            <Link
+              href={`/seasons/${year}/compare`}
+              className="border-border ml-auto inline-flex h-8 items-center gap-1.5 rounded-lg border bg-[var(--surface-1)] px-2.5 text-sm font-medium transition-all hover:bg-[var(--surface-2)]"
+              title={`Compare two drivers or constructors through ${year}`}
+            >
+              <GitCompareArrows className="h-3.5 w-3.5" />
+              Compare
             </Link>
           </div>
           <div className="accent-line" />

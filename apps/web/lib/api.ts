@@ -1,5 +1,12 @@
 import { API_BASE_URL, REVALIDATE_SECONDS, OPS_REVALIDATE_SECONDS, F1_DATA_TAG } from './constants'
-import type { OpsStatus, PointsSystem, RecordsExploreParams, RecordsExploreResponse } from './types'
+import type {
+  OpsStatus,
+  PointsSystem,
+  RecordsExploreParams,
+  RecordsExploreResponse,
+  SeasonCompareEntrants,
+  SeasonCompareResponse,
+} from './types'
 
 /**
  * Carries the upstream status so callers can tell "this driver does not exist"
@@ -192,6 +199,19 @@ export const api = {
       const params = new URLSearchParams({ c1, c2 })
       return fetchApi(`/compare/constructors?${params}`)
     },
+  },
+  /** Two drivers or two constructors within one season (`/seasons/[year]/compare`). */
+  seasonCompare: {
+    entrants: (year: number) =>
+      fetchApi<SeasonCompareEntrants>(`/seasons/${year}/compare/entrants`),
+    constructors: (year: number, c1: string, c2: string) =>
+      fetchApi<SeasonCompareResponse>(
+        `/seasons/${year}/compare/constructors?${new URLSearchParams({ c1, c2 })}`,
+      ),
+    drivers: (year: number, d1: string, d2: string) =>
+      fetchApi<SeasonCompareResponse>(
+        `/seasons/${year}/compare/drivers?${new URLSearchParams({ d1, d2 })}`,
+      ),
   },
   ops: {
     /**

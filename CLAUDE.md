@@ -28,6 +28,7 @@ Deployment: frontend on Vercel; the API runs as a Docker container (`f1_api`) on
 | `/` | Home dashboard (stats, standings, race calendar, next race countdown) |
 | `/seasons` | Season list (one tile per year with its champion) |
 | `/seasons/[year]` | Season detail (scoring note, standings + charts + championship progression, title permutations, cross-era "what if" scoring) |
+| `/seasons/[year]/compare` | In-season comparison of two constructors or two drivers (`?type=constructors\|drivers&a=&b=`, defaults to the top two of the standings): points-gap header, cumulative points + gap chart, stat rows with A − B delta chips, head-to-heads, qualifying gap by round, round-by-round table. Server-rendered from `searchParams`, `noindex`, not in the sitemap |
 | `/seasons/[year]/races/[round]` | Race detail (results, qualifying, sprint, pit stops, gaps, tyre degradation) |
 | `/drivers` | Driver list (filterable by nationality) |
 | `/drivers/[ref]` | Driver profile (stats incl. poles/fastest laps/championships, career chart, season history) |
@@ -54,14 +55,15 @@ daily and on the `f1-data` tag purge), `robots.ts`, `manifest.ts`,
 
 - `components/ui/` - shadcn/ui base components (badge, button, card, table, tabs, sheet, dialog, dropdown-menu, country-flag, driver-avatar, constructor-logo, empty-state, motion, page-header, position-badge, sonner, stat-card, next-race-countdown)
 - `components/layout/` - Header, footer, mobile nav, breadcrumbs, search dialog, theme toggle, nav link
-- `components/charts/` - Recharts visualizations (points bar, constructor points, career line, comparison line, championship progression, season heatmap, quali-vs-race, driver radar)
+- `components/charts/` - Recharts visualizations (points bar, constructor points, career line, comparison line, championship progression, season heatmap, quali-vs-race, driver radar, season points + gap, qualifying gap by round)
 - `components/races/` - Race result tables (results with position change indicators, qualifying, sprint, pit stops, lap-times-chart, tyre-strategy-chart, tyre-degradation-chart, position-chart, gap-chart, pit-stop-analysis, podium-card, fastest-lap-card)
 - `components/standings/` - Driver + constructor standings tables
 - `components/seasons/` - Scoring note, title permutations card, cross-era normalised standings
 - `components/drivers/` - Driver season history table
 - `components/constructors/` - Constructor season history table, lineage timeline
 - `components/circuits/` - Track layout, world map, world map wrapper
-- `components/compare/` - Driver select, constructor select, head-to-head-card, career-stats-table
+- `components/compare/` - Driver select, constructor select, head-to-head-card (optional team colours), career-stats-table
+- `components/season-compare/` - In-season comparison: URL-driven pickers, delta header, stat rows, delta chip, round-by-round table, `sides.ts` (names + colours; teammates' shared livery is tinted lighter for side B)
 - `components/records/` - Records explorer (client-side filters, URL-synced via `history.replaceState`)
 - `components/providers/` - Theme provider
 - `components/favourites/` - Star toggle, favourites view, home-page summary, stale-refresh hook
@@ -105,6 +107,23 @@ daily and on the `f1-data` tag purge), `robots.ts`, `manifest.ts`,
 - `GET /api/search?q={query}` - Search drivers, constructors, circuits
 - `GET /api/compare/drivers?d1={ref}&d2={ref}&teammate=bool` - Driver comparison with H2H, quali H2H, radar stats
 - `GET /api/compare/constructors?c1={ref}&c2={ref}` - Constructor comparison with head-to-head
+- `GET /api/seasons/{year}/compare/entrants` - That season's drivers and constructors, final-standings order (the in-season pickers)
+- `GET /api/seasons/{year}/compare/constructors?c1=&c2=` / `GET /api/seasons/{year}/compare/drivers?d1=&d2=`
+  - One season, two sides; 404 if either did not race that year, 400 for the same ref twice.
+    Every delta is A minus B (positive favours A for points, negative for positions and times).
+    Per round: awarded points (race + sprint), their running sum, finish/grid (best car for a
+    constructor), laps led, qualifying gap and clean-lap race pace. Season: the **official**
+    championship total from the standings (`points.championship`; `points.dropped` is what the
+    best-N rule took off), wins, podiums, poles, fastest laps, DNFs, average grid/finish, points
+    finishes, laps led, race and qualifying head-to-heads. f1db only carries the table as it stood
+    after the last round, so the round-by-round line is the awarded sum, never a per-round
+    official total. Constructor tables before 1958 are not official (`pointsSource: "results"`).
+    Qualifying gap is the best lap in the deepest session both reached (f1db times, so it goes
+    back well before 2018); race pace is the median clean lap (lap 1 and anything over 107% of the
+    race median dropped, the degradation filter) and needs `SEASON_COMPARE_MIN_CLEAN_LAPS` per
+    side; laps led reads Fast-F1 `Position`, falling back to `_cumulative_lap_times()` only on laps
+    where every running driver has an unbroken chain. Each carries its coverage and is null with
+    no data. Drivers also get `teammates` (`sameTeam`, `sharedRounds`, `constructor`)
 - `GET /api/records` - All-time records (most wins, poles, podiums, championships, etc.)
 - `GET /api/records/explore?entity=&category=&era=|year_from=&year_to=&nationality=|country=&min_starts=&sort=&page=&limit=`
   - The same records, filtered and paginated. Eras are the points-system ids from
@@ -292,8 +311,8 @@ Two f1db quirks the UI is built around:
   detail routes each export an empty `generateStaticParams()` — without one a
   dynamic segment never enters the full route cache, and with one returning `[]`
   nothing is prerendered at build while the first request for a path still
-  caches it. The routes that stay server-rendered are exactly the six reading
-  `searchParams`. Two pages set their own `revalidate`: `/` (5 minutes), because it
+  caches it. The routes that stay server-rendered are exactly the seven reading
+  `searchParams` (`/seasons/[year]/compare` is the seventh). Two pages set their own `revalidate`: `/` (5 minutes), because it
   splits the calendar on the render-time clock rather than on data, and `/status`
   (1 minute), because a day-old cache entry cannot say whether the data is current.
   A segment config export must be a **literal** — Next reads it by static analysis

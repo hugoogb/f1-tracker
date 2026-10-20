@@ -752,3 +752,169 @@ export interface OpsStatus {
   ingest: OpsIngest
   schemaVersion: string | null
 }
+
+// ── In-season comparison (`/seasons/[year]/compare`) ────────────────────────
+// Every delta is A minus B. For points that favours A when positive; for
+// positions and lap times (lower is better) it favours A when negative.
+
+export type SeasonCompareType = 'constructors' | 'drivers'
+
+export interface SeasonCompareTeam {
+  id: string
+  ref: string
+  name: string
+  color: string | null
+}
+
+export interface SeasonComparePair {
+  a: number | null
+  b: number | null
+  delta: number | null
+}
+
+export interface SeasonCompareHeadToHead {
+  a: number
+  b: number
+  ties: number
+  total: number
+}
+
+export interface SeasonCompareQualifyingGap {
+  session: 'Q1' | 'Q2' | 'Q3'
+  aMs: number
+  bMs: number
+  deltaMs: number
+  deltaPct: number
+}
+
+export interface SeasonCompareRacePace {
+  aMedianMs: number
+  bMedianMs: number
+  deltaMs: number
+  deltaPct: number
+  aCleanLaps: number
+  bCleanLaps: number
+}
+
+export interface SeasonCompareCarResult {
+  ref: string
+  code: string | null
+  lastName: string
+  position: number | null
+  positionText: string | null
+  grid: number | null
+}
+
+export interface SeasonCompareRoundSide {
+  entered: boolean
+  points: number
+  cumulativePoints: number
+  lapsLed: number | null
+  // Drivers
+  finish?: number | null
+  positionText?: string | null
+  grid?: number | null
+  qualifying?: number | null
+  constructor?: SeasonCompareTeam | null
+  // Constructors
+  bestFinish?: number | null
+  bestGrid?: number | null
+  bestQualifying?: number | null
+  drivers?: SeasonCompareCarResult[]
+}
+
+export interface SeasonCompareRound {
+  round: number
+  raceName: string
+  a: SeasonCompareRoundSide
+  b: SeasonCompareRoundSide
+  pointsDelta: number | null
+  cumulativeDelta: number | null
+  finishDelta: number | null
+  gridDelta: number | null
+  qualifyingGap: SeasonCompareQualifyingGap | null
+  racePace: SeasonCompareRacePace | null
+  lapsLedCoverage: { coveredLaps: number; totalLaps: number } | null
+}
+
+export type SeasonCompareAggregateKey =
+  | 'points'
+  | 'starts'
+  | 'wins'
+  | 'podiums'
+  | 'poles'
+  | 'fastestLaps'
+  | 'dnfs'
+  | 'pointsFinishes'
+  | 'averageGrid'
+  | 'averageFinish'
+  | 'lapsLed'
+
+export interface SeasonCompareEntity {
+  id: string
+  ref: string
+  name?: string
+  firstName?: string
+  lastName?: string
+  code?: string | null
+  color?: string | null
+  constructor?: SeasonCompareTeam
+  constructors?: SeasonCompareTeam[]
+}
+
+export interface SeasonCompareResponse {
+  type: SeasonCompareType
+  year: number
+  a: SeasonCompareEntity
+  b: SeasonCompareEntity
+  pointsSource: 'official' | 'results'
+  /**
+   * `championship` is the official total (or the summed one when there is no
+   * official table); `scored` is every point awarded, which is what the
+   * round-by-round line adds up; `dropped` is the difference, null without an
+   * official table.
+   */
+  points: {
+    championship: SeasonComparePair
+    scored: SeasonComparePair
+    dropped: SeasonComparePair | null
+  }
+  roundsRaced: number
+  roundsShared: number
+  rounds: SeasonCompareRound[]
+  aggregates: Record<SeasonCompareAggregateKey, SeasonComparePair>
+  headToHead: { race: SeasonCompareHeadToHead; qualifying: SeasonCompareHeadToHead }
+  lapsLedCoverage: { roundsCovered: number; roundsRaced: number }
+  qualifyingGap: {
+    averageDeltaMs: number
+    averageDeltaPct: number
+    medianDeltaPct: number
+    roundsCovered: number
+    roundsShared: number
+  } | null
+  racePace: {
+    averageDeltaMs: number
+    averageDeltaPct: number
+    roundsCovered: number
+    roundsShared: number
+    minCleanLaps: number
+  } | null
+  teammates?: {
+    sameTeam: boolean
+    sharedRounds: number
+    constructor: SeasonCompareTeam | null
+  }
+}
+
+export interface SeasonCompareEntrants {
+  year: number
+  drivers: {
+    ref: string
+    code: string | null
+    firstName: string
+    lastName: string
+    position: number | null
+    constructor: SeasonCompareTeam
+  }[]
+  constructors: (SeasonCompareTeam & { position: number | null })[]
+}
