@@ -1,5 +1,7 @@
 import { API_BASE_URL, REVALIDATE_SECONDS, OPS_REVALIDATE_SECONDS, F1_DATA_TAG } from './constants'
 import type {
+  BestSeasonResponse,
+  BestSeasonsResponse,
   OpsStatus,
   PointsSystem,
   RecordsExploreParams,
@@ -161,6 +163,11 @@ export const api = {
       fetchApi(`/seasons/${year}/races/${round}/degradation`),
   },
   champions: () => fetchApi('/champions'),
+  bestSeasons: {
+    /** Every completed season with its competitiveness metrics, best first. */
+    list: () => fetchApi<BestSeasonsResponse>('/best-seasons'),
+    season: (year: number) => fetchApi<BestSeasonResponse>(`/best-seasons/${year}`),
+  },
   pointsSystems: () => fetchApi<{ systems: PointsSystem[] }>('/points-systems'),
   search: (query: string) => {
     const params = new URLSearchParams({ q: query })

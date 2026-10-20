@@ -208,6 +208,31 @@ def sprint_system_for_year(year: int) -> tuple[float, ...]:
     return _SPRINT_2022
 
 
+def max_points_remaining(
+    system: PointsSystem, races_remaining: int, sprints_remaining: int, year: int
+) -> float:
+    """The most one driver could still add to their total this season.
+
+    Every remaining race paid at its maximum (the win, plus the fastest-lap
+    point where the era had one) and every remaining sprint at its win. Under
+    the pre-1991 "best N results" rules a new result could only replace a
+    dropped one, so this is an upper bound there rather than the exact ceiling.
+    """
+    sprint_scale = sprint_system_for_year(year)
+    sprint_win = sprint_scale[0] if sprint_scale else 0.0
+    return races_remaining * system.max_per_round + sprints_remaining * sprint_win
+
+
+def still_in_contention(points: float, leader_points: float, max_remaining: float) -> bool:
+    """The strict test behind "mathematically alive".
+
+    A driver is out only when everything still on the table would not take them
+    to the leader's total *now* — as if the leader never scored again. Drawing
+    level counts as alive, because that title goes to a countback of wins.
+    """
+    return points + max_remaining >= leader_points
+
+
 @dataclass
 class SeasonEntrant:
     """One competitor's re-scored season, built up race by race."""

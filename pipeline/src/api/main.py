@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from src.api.routers import (
+    best_seasons,
     champions,
     circuits,
     compare,
@@ -52,3 +53,4 @@ app.include_router(compare.router, prefix="/api", tags=["compare"])
 app.include_router(season_compare.router, prefix="/api", tags=["compare"])
 app.include_router(records.router, prefix="/api", tags=["records"])
 app.include_router(ops.router, prefix="/api", tags=["ops"])
+app.include_router(best_seasons.router, prefix="/api", tags=["best-seasons"])
