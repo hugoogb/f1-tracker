@@ -37,6 +37,7 @@ Deployment: frontend on Vercel; the API runs as a Docker container (`f1_api`) on
 | `/circuits/[ref]` | Circuit detail (location, race history) |
 | `/champions` | All-time champions |
 | `/records` | All-time records (most wins, poles, podiums, championships, fastest laps, starts) |
+| `/best-seasons` | Every completed season ranked by title-fight competitiveness (podium, score-over-time chart, sortable table, score methodology) |
 | `/compare` | Driver and constructor comparison selector |
 | `/compare/drivers` | Side-by-side driver comparison |
 | `/compare/constructors` | Side-by-side constructor comparison |
@@ -63,6 +64,7 @@ daily and on the `f1-data` tag purge), `robots.ts`, `manifest.ts`,
 - `components/circuits/` - Track layout, world map, world map wrapper
 - `components/compare/` - Driver select, constructor select, head-to-head-card, career-stats-table
 - `components/records/` - Records explorer (client-side filters, URL-synced via `history.replaceState`)
+- `components/best-seasons/` - Season podium, competitiveness chart, ranking table (client-side sort/filter, URL-synced), score breakdown bar, `SeasonRankBadge` (the rank on `/seasons/[year]`)
 - `components/providers/` - Theme provider
 - `components/favourites/` - Star toggle, favourites view, home-page summary, stale-refresh hook
 - `components/ops/` - `time-ago.tsx` (relative timestamps on `/status`, via `useNow()`)
@@ -116,6 +118,11 @@ daily and on the `f1-data` tag purge), `robots.ts`, `manifest.ts`,
 - `GET /api/seasons/{year}/permutations` - Who can still win the drivers' title
 - `GET /api/seasons/{year}/standings/normalised?system={id}` - The season re-scored under another era
 - `GET /api/points-systems` - Every points system the championship has used
+- `GET /api/best-seasons?sort=&order=&era=|year_from=&year_to=&include_in_progress=` - Every completed
+  season's title margin, deciding round, finale contenders, distinct winners/pole sitters, lead
+  changes, constructors' margin (1958+) and a 0-100 score with each weighted component exposed.
+  `rank` is by score across all completed seasons whatever the filter. Mounted outside
+  `/seasons/{year}` so it cannot be shadowed. `GET /api/best-seasons/{year}` is one season plus its rank
 - `GET /api/ops/status` - Data coverage, Fast-F1 backlog, row counts, Alembic revision and the
   latest `ingest_runs` rows, behind `/status`. Public, so it serves only counts, timestamps and
   revision ids — never a hostname, path, env value or error message
@@ -276,6 +283,14 @@ Two f1db quirks the UI is built around:
   years split the calendar into halves scored separately, and none of that is in
   f1db. State the era rule generally and let the data supply the example; never
   assert a specific N
+- Best seasons keep two sources apart. Champion, runner-up and margins come from the official
+  final standings. The round-by-round metrics (lead changes, deciding round, finale contenders)
+  need a table after every round, and the database keeps official standings only at a season's
+  end, so they follow running race + sprint points like `/standings/progression`, with the last
+  round pinned to the official champion. That is exact from 1991 and approximate before (points
+  scored, not counted), flagged `progressionApproximate`. The decider reuses the permutations'
+  `max_points_remaining()`/`still_in_contention()` from `src/scoring.py`. Score weights live in
+  `COMPONENTS` in `routers/best_seasons.py` and travel in the response, so the UI never restates them
 - Constructor lineages come from f1db's `chronology` and are a chain of
   *entries*, not of teams — Red Bull is the far end of Stewart's chain. Never
   merge one member's record into another's or inherit a colour along a chain; a

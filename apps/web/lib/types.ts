@@ -752,3 +752,96 @@ export interface OpsStatus {
   ingest: OpsIngest
   schemaVersion: string | null
 }
+
+// --- Best seasons (`/api/best-seasons`) -------------------------------------
+
+export interface BestSeasonComponentInfo {
+  id: string
+  label: string
+  /** Out of 100 across all components. */
+  weight: number
+  description: string
+}
+
+export interface BestSeasonComponent {
+  id: string
+  label: string
+  weight: number
+  /** 0-1, how fully the season met this component. */
+  value: number
+  /** `value * weight`: this component's share of the 0-100 total. */
+  points: number
+}
+
+export interface BestSeasonTeam {
+  id: string
+  ref: string
+  name: string
+  color: string | null
+}
+
+export interface BestSeasonContender {
+  driver: Pick<
+    Driver,
+    'id' | 'ref' | 'code' | 'firstName' | 'lastName' | 'nationality' | 'countryCode'
+  >
+  /** The team they raced for most that season, which is where their colour comes from. */
+  constructor: BestSeasonTeam | null
+  /** Official championship points. */
+  points: number
+}
+
+export interface BestSeason {
+  year: number
+  /** Place by score among every completed season; null for the running one. */
+  rank: number | null
+  inProgress: boolean
+  totalRounds: number
+  roundsRun: number
+  pointsSystem: { id: string; label: string; era: string }
+  everyResultCounts: boolean
+  /** Pre-1991 the running totals are points scored, not points counted. */
+  progressionApproximate: boolean
+  champion: BestSeasonContender | null
+  runnerUp: BestSeasonContender | null
+  titleMargin: number | null
+  titleMarginShare: number | null
+  titleMarginInWins: number | null
+  decidedAtRound: number | null
+  decidedAtRace: string | null
+  decidedRoundsFromEnd: number | null
+  wentToFinalRound: boolean | null
+  contendersAtFinale: number | null
+  distinctWinners: number
+  distinctPoleSitters: number | null
+  polesKnown: number
+  leadChanges: number
+  distinctLeaders: number
+  constructors: {
+    champion: BestSeasonTeam | null
+    runnerUp: BestSeasonTeam | null
+    championPoints: number
+    runnerUpPoints: number
+    margin: number
+    marginShare: number | null
+  } | null
+  score: { total: number; components: BestSeasonComponent[] }
+}
+
+export interface BestSeasonsResponse {
+  sort: string
+  order: 'asc' | 'desc'
+  era: { id: string; label: string; era: string } | null
+  yearFrom: number | null
+  yearTo: number | null
+  total: number
+  components: BestSeasonComponentInfo[]
+  notes: string[]
+  seasons: BestSeason[]
+}
+
+export interface BestSeasonResponse {
+  rankedSeasons: number
+  components: BestSeasonComponentInfo[]
+  season: BestSeason
+}

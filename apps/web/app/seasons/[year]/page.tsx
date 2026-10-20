@@ -38,6 +38,7 @@ import { NormalisedStandings } from '@/components/seasons/normalised-standings'
 import { FadeIn } from '@/components/ui/motion'
 import { buildMetadata } from '@/lib/seo'
 import { LocalDate } from '@/components/ui/local-date'
+import { SeasonRankBadge } from '@/components/best-seasons/season-rank-badge'
 
 interface SeasonDetailResponse {
   year: number
@@ -181,6 +182,7 @@ export default async function SeasonDetailPage({ params }: { params: Promise<{ y
                 <span className="text-foreground">Season</span>
               </h1>
               <p className="text-muted-foreground">{seasonData.races.length} races</p>
+              <SeasonRankBadge year={year} />
             </div>
             <Link
               href={`/seasons/${year + 1}`}
