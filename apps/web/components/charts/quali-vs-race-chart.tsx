@@ -110,7 +110,10 @@ export function QualiVsRaceChart({ seasons, color = SERIES[0] }: QualiVsRaceChar
             dataKey="quali"
             stroke="none"
             fill="url(#qualiRaceGradient)"
-            name="Qualifying"
+            // Decoration under the qualifying line: it must not show up as a
+            // second "Qualifying" in the legend or the tooltip.
+            legendType="none"
+            tooltipType="none"
           />
           <Line
             type="monotone"
