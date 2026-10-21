@@ -4,6 +4,7 @@ import {
   HISTORICAL_REVALIDATE_SECONDS,
   F1_DATA_TAG,
   F1_GLOBAL_TAG,
+  F1_REFERENCE_TAG,
   entityTag,
   seasonTag,
 } from './constants'
@@ -43,6 +44,8 @@ const SEASON_PATH = /^\/(?:seasons|best-seasons)\/(\d{4})(?:[/?]|$)/
 /** Second path segments of the entity routers that are lists, not one entity. */
 const ENTITY_LISTS = new Set(['nationalities', 'countries'])
 const ENTITY_KIND = { drivers: 'driver', constructors: 'constructor', circuits: 'circuit' } as const
+/** Endpoints whose data no import changes; see `F1_REFERENCE_TAG`. */
+const REFERENCE_ENDPOINTS = new Set(['/points-systems'])
 
 /**
  * The cache scope of one endpoint: the tags its response is stored under and
@@ -79,6 +82,9 @@ export function cacheScopeFor(endpoint: string): { tags: string[]; revalidate: n
       tags: [F1_DATA_TAG, entityTag(kind, decodeURIComponent(entity[2]))],
       revalidate: REVALIDATE_SECONDS,
     }
+  }
+  if (REFERENCE_ENDPOINTS.has(endpoint)) {
+    return { tags: [F1_DATA_TAG, F1_REFERENCE_TAG], revalidate: HISTORICAL_REVALIDATE_SECONDS }
   }
   return { tags: [F1_DATA_TAG, F1_GLOBAL_TAG], revalidate: REVALIDATE_SECONDS }
 }
