@@ -176,7 +176,7 @@ export default async function Home() {
           {
             eyebrow: 'Champions',
             title: `${latestChampion.year}`,
-            teaser: `${latestChampion.driver.firstName} ${latestChampion.driver.lastName} is the latest of every world champion since 1950.`,
+            teaser: `${latestChampion.driver.firstName} ${latestChampion.driver.lastName} is the reigning champion. Every title since 1950.`,
             href: '/champions',
             accent: latestChampion.driverConstructor?.color ?? null,
           },

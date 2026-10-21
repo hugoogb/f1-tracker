@@ -113,7 +113,7 @@ daily and on any purge, since it reads `f1-global`), `robots.ts`, `manifest.ts`,
 - `GET /api/circuits/countries` - Distinct countries
 - `GET /api/circuits/{ref}` - Circuit detail with race history
 - `GET /api/circuits/{ref}/stats` - Circuit performance stats (most wins, poles, history)
-- `GET /api/champions` - All championship winners
+- `GET /api/champions` - All championship winners: the drivers' champion with `driverConstructor` (the team they raced for most that season, `main_constructors()` in `src/db/queries.py`) and, separately, the constructors' champion as `constructor` — never pair the two
 - `GET /api/search?q={query}` - Search drivers, constructors, circuits, plus `seasons` and `races`. A standalone year ("monaco 2021") is split off: it finds that season and filters races to it; without a year races match on the race name only (a circuit substring like "ham" in Francorchamps would flood them). `%`/`_` are matched literally
 - `GET /api/compare/drivers?d1={ref}&d2={ref}&teammate=bool` - Driver comparison with H2H, quali H2H, radar stats
 - `GET /api/compare/constructors?c1={ref}&c2={ref}` - Constructor comparison with head-to-head
@@ -180,7 +180,7 @@ daily and on any purge, since it reads `f1-global`), `robots.ts`, `manifest.ts`,
 - `uv run python scripts/fastf1_import.py --payload payload.ndjson.gz` - Load a payload into PostgreSQL (DB, no network)
 - `uv run python scripts/seed.py --lineages` - Rebuild constructor lineages only (one of the `--<target>` flags in `seed.py`)
 - `uv run python scripts/refresh_views.py` - Rebuild the computed-stats materialized views (`driver_career_stats`, `constructor_career_stats`, `season_champions`); `db-restore.sh` calls this after migrating
-- `uv run pytest -v` - Run backend tests (416 tests)
+- `uv run pytest -v` - Run backend tests (425 tests)
 - `uv run ruff check . && uv run ruff format --check .` - Lint + format check
 
 ### VPS (production backend)
