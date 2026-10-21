@@ -178,7 +178,7 @@ export default async function Home() {
             title: `${latestChampion.year}`,
             teaser: `${latestChampion.driver.firstName} ${latestChampion.driver.lastName} is the latest of every world champion since 1950.`,
             href: '/champions',
-            accent: latestChampion.constructor?.color ?? null,
+            accent: latestChampion.driverConstructor?.color ?? null,
           },
         ]
       : []),

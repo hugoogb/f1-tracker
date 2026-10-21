@@ -97,7 +97,8 @@ function SeasonCard({
   // No champion for the season still being raced, and none recorded for a few
   // early seasons; both get a status line rather than an empty one.
   const inProgress = isLatest && !champion
-  const accent = teamColorOf(champion?.constructor?.color, null)
+  // The champion's own team, not the constructors' champion.
+  const accent = teamColorOf(champion?.driverConstructor?.color, null)
 
   return (
     <Link href={`/seasons/${year}`} prefetch={false} className="block">
@@ -132,8 +133,8 @@ function SeasonCard({
             ) : champion ? (
               <>
                 {champion.driver.lastName}
-                {champion.constructor && (
-                  <span className="opacity-60"> · {champion.constructor.name}</span>
+                {champion.driverConstructor && (
+                  <span className="opacity-60"> · {champion.driverConstructor.name}</span>
                 )}
               </>
             ) : (

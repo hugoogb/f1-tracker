@@ -1,3 +1,4 @@
+from collections import Counter, defaultdict
 from datetime import date
 
 from sqlalchemy import func, select
@@ -311,6 +312,49 @@ def get_constructor_career_stats(db: Session, constructor_id: str) -> dict:
     }
 
 
+def main_constructors(
+    db: Session, pairs: set[tuple[int, str]]
+) -> dict[tuple[int, str], Constructor]:
+    """The team each (season, driver) raced for most often; on a tie, the one they ended with.
+
+    Used wherever a driver is shown with "their" team for a season: a driver
+    can change teams mid-year, and the constructors' champion is a different
+    question altogether.
+    """
+    if not pairs:
+        return {}
+    driver_ids = {d for _, d in pairs}
+    years = {y for y, _ in pairs}
+    counts: dict[tuple[int, str], Counter] = defaultdict(Counter)
+    last: dict[tuple[int, str], tuple[int, str]] = {}
+    for year, rnd, driver_id, constructor_id in db.execute(
+        select(Race.season_year, Race.round, RaceResult.driver_id, RaceResult.constructor_id)
+        .join(Race, RaceResult.race_id == Race.id)
+        .where(RaceResult.driver_id.in_(driver_ids), Race.season_year.in_(years))
+    ).all():
+        key = (year, driver_id)
+        if key not in pairs:
+            continue
+        counts[key][constructor_id] += 1
+        if key not in last or rnd > last[key][0]:
+            last[key] = (rnd, constructor_id)
+
+    chosen: dict[tuple[int, str], str] = {}
+    for key, counter in counts.items():
+        best = max(counter.values())
+        tied = [cid for cid, n in counter.items() if n == best]
+        # On a tie, the team they finished the season with.
+        chosen[key] = last[key][1] if last[key][1] in tied else sorted(tied)[0]
+
+    constructors = {
+        c.id: c
+        for c in db.execute(select(Constructor).where(Constructor.id.in_(set(chosen.values()))))
+        .scalars()
+        .all()
+    }
+    return {key: constructors[cid] for key, cid in chosen.items() if cid in constructors}
+
+
 def get_season_champions(db: Session) -> list[dict]:
     today = date.today()
 
@@ -389,6 +433,12 @@ def get_season_champions(db: Session) -> list[dict]:
         )
         constructor_map = {c.id: c for c in constructors}
 
+    # The champion's own team, which is not necessarily the constructors'
+    # champion (2024: Verstappen at Red Bull, McLaren won the constructors').
+    driver_teams = main_constructors(
+        db, {(race_year_map[ds.race_id], ds.driver_id) for ds in driver_standings}
+    )
+
     # Build results
     champions = []
     for race in completed_races:
@@ -399,6 +449,7 @@ def get_season_champions(db: Session) -> list[dict]:
         driver = driver_map.get(ds.driver_id)
         cs = cs_by_race.get(race.id)
         constructor = constructor_map.get(cs.constructor_id) if cs else None
+        driver_team = driver_teams.get((race_year_map[race.id], ds.driver_id))
 
         champions.append(
             {
@@ -421,6 +472,14 @@ def get_season_champions(db: Session) -> list[dict]:
                 if constructor
                 else None,
                 "constructorPoints": cs.points if cs else None,
+                "driverConstructor": {
+                    "id": driver_team.id,
+                    "ref": driver_team.ref,
+                    "name": driver_team.name,
+                    "color": driver_team.color,
+                }
+                if driver_team
+                else None,
             }
         )
 

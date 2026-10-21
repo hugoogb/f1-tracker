@@ -79,13 +79,13 @@ export default async function ChampionsPage() {
                   <StaggerList className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     {entries.map((champion) => {
                       const titles = driverTitleCounts[champion.driver.ref] ?? 0
-                      const teamColor = champion.constructor?.color ?? null
+                      const teamColor = champion.driverConstructor?.color ?? null
                       return (
                         <StaggerItem key={champion.year}>
-                          <Panel className="relative overflow-hidden transition-colors duration-200">
+                          <Panel className="relative transition-colors duration-200">
                             {teamColor && (
                               <div
-                                className="absolute top-0 left-0 h-full w-1 rounded-l-2xl"
+                                className="absolute top-0 left-0 h-full w-1"
                                 style={{ backgroundColor: teamColor }}
                               />
                             )}
@@ -114,18 +114,20 @@ export default async function ChampionsPage() {
                                   )}
                                 </div>
                                 <div className="flex items-center justify-between">
-                                  {champion.constructor ? (
+                                  {champion.driverConstructor ? (
                                     <Link
-                                      href={`/constructors/${champion.constructor.ref}`}
+                                      href={`/constructors/${champion.driverConstructor.ref}`}
                                       className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 text-sm transition-colors"
                                     >
-                                      {champion.constructor.color && (
+                                      {champion.driverConstructor.color && (
                                         <span
-                                          className="inline-block size-2.5 rounded-full"
-                                          style={{ backgroundColor: champion.constructor.color }}
+                                          className="inline-block size-2.5"
+                                          style={{
+                                            backgroundColor: champion.driverConstructor.color,
+                                          }}
                                         />
                                       )}
-                                      {champion.constructor.name}
+                                      {champion.driverConstructor.name}
                                     </Link>
                                   ) : (
                                     <span className="text-muted-foreground text-sm">—</span>
@@ -163,10 +165,10 @@ export default async function ChampionsPage() {
                       const teamColor = champion.constructor!.color ?? null
                       return (
                         <StaggerItem key={champion.year}>
-                          <Panel className="relative overflow-hidden transition-colors duration-200">
+                          <Panel className="relative transition-colors duration-200">
                             {teamColor && (
                               <div
-                                className="absolute top-0 left-0 h-full w-1 rounded-l-2xl"
+                                className="absolute top-0 left-0 h-full w-1"
                                 style={{ backgroundColor: teamColor }}
                               />
                             )}
