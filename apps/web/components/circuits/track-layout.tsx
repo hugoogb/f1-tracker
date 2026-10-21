@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
+import { TrackOutline } from '@/components/circuits/track-outline'
 import type { CircuitLayout } from '@/lib/types'
 
 interface TrackLayoutProps {
@@ -19,24 +20,20 @@ export function TrackLayout({ layouts, name, className }: TrackLayoutProps) {
   const current = layouts[selectedIdx]
 
   return (
-    <div
-      className={cn(
-        'overflow-hidden rounded-xl border border-[var(--glass-border)] bg-[var(--surface-1)]',
-        className,
-      )}
-    >
+    <div className={cn('brackets bg-surface-1 border-hairline border', className)}>
       {/* Layout selector (only show if multiple variants) */}
       {layouts.length > 1 && (
-        <div className="flex flex-wrap gap-2 border-b border-[var(--glass-border)] px-4 py-3">
+        <div className="border-hairline flex flex-wrap gap-2 border-b px-4 py-3">
           {layouts.map((layout, idx) => (
             <button
               key={layout.svgId}
               onClick={() => setSelectedIdx(idx)}
+              aria-pressed={idx === selectedIdx}
               className={cn(
-                'rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
+                'font-data focus-ring px-3 py-1.5 text-xs font-semibold transition-colors',
                 idx === selectedIdx
                   ? 'bg-primary text-primary-foreground'
-                  : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                  : 'text-muted-foreground hover:bg-surface-2 hover:text-foreground',
               )}
             >
               {layout.seasonsActive}
@@ -45,16 +42,12 @@ export function TrackLayout({ layouts, name, className }: TrackLayoutProps) {
         </div>
       )}
 
-      {/* Track SVG — plain <img> since SVGs don't benefit from next/image optimization */}
-      <div className="flex items-center justify-center p-8">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={`/tracks/${current.svgId}.svg`}
-          alt={name ? `Track layout of ${name}` : 'Track layout'}
-          width={500}
-          height={500}
-          className="h-auto max-h-[400px] w-auto max-w-full"
-          loading="lazy"
+      {/* The layout drawn in the page accent (an SVG mask, see TrackOutline). */}
+      <div className="p-8">
+        <TrackOutline
+          svgId={current.svgId}
+          name={name ? `Track layout of ${name}` : 'Track'}
+          className="mx-auto h-72 w-full max-w-xl md:h-96"
         />
       </div>
     </div>

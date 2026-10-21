@@ -97,7 +97,7 @@ export function CircuitStatsView({ stats }: CircuitStatsViewProps) {
                       </span>
                     )}
                   </div>
-                  <span className="font-heading text-sm font-bold tabular-nums">{entry.count}</span>
+                  <span className="display text-xl tabular-nums">{entry.count}</span>
                 </div>
               ))}
             </div>
@@ -131,7 +131,7 @@ export function CircuitStatsView({ stats }: CircuitStatsViewProps) {
                       </span>
                     )}
                   </div>
-                  <span className="font-heading text-sm font-bold tabular-nums">{entry.count}</span>
+                  <span className="display text-xl tabular-nums">{entry.count}</span>
                 </div>
               ))}
             </div>

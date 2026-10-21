@@ -44,7 +44,7 @@ export function LineageTimeline({ entries }: LineageTimelineProps) {
                 {/* Rail: a dot per name, joined by a line that stops at the end. */}
                 <div className="flex flex-col items-center">
                   <span
-                    className="mt-1.5 size-3 shrink-0 rounded-full ring-2 ring-[var(--surface-1)]"
+                    className="ring-surface-1 mt-1.5 size-3 shrink-0 rounded-full ring-2"
                     style={{ backgroundColor: color }}
                     aria-hidden
                   />
