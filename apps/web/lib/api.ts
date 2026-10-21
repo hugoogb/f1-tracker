@@ -159,6 +159,8 @@ export async function fetchRecordsExplore(
 export const api = {
   seasons: {
     list: () => fetchApi<{ data: { year: number }[] }>('/seasons'),
+    /** The same list, uncached — for `/seasons/current`, whose redirect the CDN caches. */
+    listUncached: () => fetchApi<{ data: { year: number }[] }>('/seasons', { cache: 'no-store' }),
     get: (year: number) => fetchApi(`/seasons/${year}`),
     driverStandings: (year: number) => fetchApi(`/seasons/${year}/standings/drivers`),
     constructorStandings: (year: number) => fetchApi(`/seasons/${year}/standings/constructors`),

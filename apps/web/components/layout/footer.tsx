@@ -1,40 +1,59 @@
 import Link from 'next/link'
 
-const footerLinks = [
-  { label: 'Seasons', href: '/seasons' },
-  { label: 'Drivers', href: '/drivers' },
-  { label: 'Constructors', href: '/constructors' },
-  { label: 'Circuits', href: '/circuits' },
-  { label: 'Champions', href: '/champions' },
-  { label: 'Attributions', href: '/attributions' },
-  { label: 'Status', href: '/status' },
+import { Container } from '@/components/ui/container'
+import { NAV_GROUPS } from '@/lib/nav'
+
+// Every destination in the header, plus the pages only the footer carries.
+const sections = [
+  ...NAV_GROUPS.map((group) => ({
+    label: group.label,
+    links: group.items ?? [{ label: group.label, href: group.href! }],
+  })),
+  {
+    label: 'Site',
+    links: [
+      { label: 'Favourites', href: '/favourites' },
+      { label: 'Data status', href: '/status' },
+      { label: 'Attributions', href: '/attributions' },
+    ],
+  },
 ]
 
 export function Footer() {
   return (
-    <footer className="mt-auto">
-      <div className="accent-line" />
-      <div className="mx-auto max-w-[1400px] px-4 py-8 md:px-8">
-        <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
-          <div className="space-y-2">
-            <p className="font-heading font-bold tracking-wider uppercase">
-              <span className="text-primary">F1</span> Tracker
-            </p>
+    <footer className="bg-surface-0 border-hairline mt-16 border-t">
+      <Container className="py-10">
+        <div className="grid gap-8 md:grid-cols-[1.2fr_3fr]">
+          <div className="space-y-3">
+            <Link
+              href="/"
+              className="skew-tag bg-primary text-primary-foreground focus-ring inline-block px-3 py-0.5"
+            >
+              <span className="display text-xl tracking-wide">F1 Tracker</span>
+            </Link>
             <p className="text-muted-foreground text-sm">Complete Formula 1 history & analytics</p>
           </div>
-          <nav className="flex flex-wrap gap-x-6 gap-y-2">
-            {footerLinks.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className="text-muted-foreground hover:text-foreground text-xs font-semibold tracking-wider uppercase transition-colors"
-              >
-                {link.label}
-              </Link>
+          <nav aria-label="Footer" className="grid grid-cols-2 gap-6 sm:grid-cols-3 lg:grid-cols-6">
+            {sections.map((section) => (
+              <div key={section.label} className="space-y-2">
+                <p className="label">{section.label}</p>
+                <ul className="space-y-1.5">
+                  {section.links.map((link) => (
+                    <li key={link.href}>
+                      <Link
+                        href={link.href}
+                        className="text-muted-foreground hover:text-foreground focus-ring text-sm transition-colors"
+                      >
+                        {link.label}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             ))}
           </nav>
         </div>
-        <div className="accent-line mt-6" />
+        <div className="border-hairline mt-8 border-t" />
         <div className="text-muted-foreground space-y-3 pt-6 text-xs leading-relaxed">
           <p>
             Formula 1 data from{' '}
@@ -80,7 +99,7 @@ export function Footer() {
             project.
           </p>
         </div>
-      </div>
+      </Container>
     </footer>
   )
 }
