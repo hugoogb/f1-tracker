@@ -38,7 +38,9 @@ export default async function CircuitsPage({
 
   const [circuitsResponse, allCircuitsResponse, countriesResult] = await Promise.allSettled([
     api.circuits.list(page, pageSize, country) as Promise<PaginatedResponse<Circuit>>,
-    api.circuits.list(1, 1000) as Promise<PaginatedResponse<Circuit>>,
+    // Every circuit for the map. 200 is the API's page-size ceiling (a larger
+    // value is a 422, which left the map empty); f1db has well under that.
+    api.circuits.list(1, 200) as Promise<PaginatedResponse<Circuit>>,
     api.circuits.countries(),
   ])
 

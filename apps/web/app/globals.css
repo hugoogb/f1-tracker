@@ -254,6 +254,33 @@
   }
 }
 
+/* Leaflet chrome for every map, in the telemetry look. */
+@layer components {
+  .leaflet-container .leaflet-control-zoom {
+    border: 1px solid var(--hairline-strong);
+    border-radius: 0;
+    box-shadow: none;
+  }
+  .leaflet-container .leaflet-control-zoom a {
+    background: var(--surface-1);
+    color: var(--foreground);
+    border-bottom-color: var(--hairline-strong);
+  }
+  .leaflet-container .leaflet-control-zoom a:hover {
+    background: var(--surface-2);
+  }
+  .leaflet-container .leaflet-tooltip {
+    background: var(--surface-1);
+    color: var(--foreground);
+    border: 1px solid var(--hairline-strong);
+    border-radius: 0;
+    box-shadow: none;
+  }
+  .leaflet-container .leaflet-tooltip-top::before {
+    border-top-color: var(--hairline-strong);
+  }
+}
+
 /* LEGACY — removed in Task 14 */
 @layer components {
   /* Text gradient */
