@@ -18,6 +18,7 @@ import { personSchema } from '@/lib/structured-data'
 import { buildMetadata, SITE_DESCRIPTION } from '@/lib/seo'
 import { LocalDate } from '@/components/ui/local-date'
 import { FavouriteButton } from '@/components/favourites/favourite-button'
+import { buttonVariants } from '@/components/ui/button-variants'
 
 interface DriverDetail extends Driver {
   stats: {
@@ -219,7 +220,7 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ r
       <div className="flex">
         <Link
           href={`/compare?d1=${ref}`}
-          className="bg-primary hover:bg-primary/90 text-primary-foreground glow-red inline-flex h-9 items-center gap-2 rounded-lg px-4 text-sm font-medium transition-all"
+          className={buttonVariants({ variant: 'livery', size: 'lg' })}
         >
           <GitCompareArrows className="h-3.5 w-3.5" />
           Compare with...

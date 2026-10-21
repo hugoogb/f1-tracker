@@ -41,6 +41,8 @@ import { FadeIn } from '@/components/ui/motion'
 import { buildMetadata } from '@/lib/seo'
 import { LocalDate } from '@/components/ui/local-date'
 import { SeasonRankBadge } from '@/components/best-seasons/season-rank-badge'
+import { buttonVariants } from '@/components/ui/button-variants'
+import { cn } from '@/lib/utils'
 
 interface SeasonDetailResponse {
   year: number
@@ -176,7 +178,7 @@ export default async function SeasonDetailPage({ params }: { params: Promise<{ y
           <div className="flex items-center gap-4">
             <Link
               href={`/seasons/${year - 1}`}
-              className="border-border inline-flex size-8 items-center justify-center rounded-lg border bg-[var(--surface-1)] text-sm font-medium transition-all hover:bg-[var(--surface-2)]"
+              className={buttonVariants({ variant: 'outline', size: 'icon' })}
               title={`${year - 1} Season`}
             >
               <ChevronLeft className="h-4 w-4" />
@@ -191,14 +193,14 @@ export default async function SeasonDetailPage({ params }: { params: Promise<{ y
             </div>
             <Link
               href={`/seasons/${year + 1}`}
-              className="border-border inline-flex size-8 items-center justify-center rounded-lg border bg-[var(--surface-1)] text-sm font-medium transition-all hover:bg-[var(--surface-2)]"
+              className={buttonVariants({ variant: 'outline', size: 'icon' })}
               title={`${year + 1} Season`}
             >
               <ChevronRight className="h-4 w-4" />
             </Link>
             <Link
               href={`/seasons/${year}/compare`}
-              className="border-border ml-auto inline-flex h-8 items-center gap-1.5 rounded-lg border bg-[var(--surface-1)] px-2.5 text-sm font-medium transition-all hover:bg-[var(--surface-2)]"
+              className={cn(buttonVariants({ variant: 'outline' }), 'ml-auto')}
               title={`Compare two drivers or constructors through ${year}`}
             >
               <GitCompareArrows className="h-3.5 w-3.5" />

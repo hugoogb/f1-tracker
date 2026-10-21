@@ -1,6 +1,8 @@
 import type { LucideIcon } from 'lucide-react'
 import Link from 'next/link'
 
+import { buttonVariants } from '@/components/ui/button-variants'
+
 import { cn } from '@/lib/utils'
 
 interface EmptyStateProps {
@@ -15,17 +17,14 @@ export function EmptyState({ icon: Icon, title, description, action, className }
   return (
     <div className={cn('flex flex-col items-center justify-center py-16 text-center', className)}>
       {Icon && (
-        <div className="text-muted-foreground/40 mb-4">
-          <Icon className="h-16 w-16" strokeWidth={1} />
+        <div className="text-label mb-4">
+          <Icon className="h-12 w-12" strokeWidth={1.25} aria-hidden />
         </div>
       )}
-      <h3 className="text-lg font-semibold">{title}</h3>
+      <h3>{title}</h3>
       {description && <p className="text-muted-foreground mt-1 max-w-sm text-sm">{description}</p>}
       {action && (
-        <Link
-          href={action.href}
-          className="bg-primary text-primary-foreground hover:bg-primary/90 mt-4 inline-flex h-8 items-center rounded-lg px-3 text-sm font-medium transition-colors"
-        >
+        <Link href={action.href} className={cn(buttonVariants(), 'mt-4')}>
           {action.label}
         </Link>
       )}

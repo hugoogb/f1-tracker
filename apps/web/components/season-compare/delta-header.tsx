@@ -4,6 +4,7 @@ import type { SeasonCompareResponse } from '@/lib/types'
 import { AnimatedNumber } from '@/components/ui/motion'
 import { Badge } from '@/components/ui/badge'
 import { formatPoints, type SideInfo } from './sides'
+import { buttonVariants } from '@/components/ui/button-variants'
 
 /**
  * The headline: who leads on points and by how much, in the leader's colour.
@@ -70,10 +71,7 @@ export function DeltaHeader({
             Teammates at {data.teammates.constructor?.name} · {data.teammates.sharedRounds} rounds
           </Badge>
         )}
-        <Link
-          href={swapHref}
-          className="border-border inline-flex h-8 items-center gap-1.5 rounded-lg border bg-[var(--surface-1)] px-2.5 text-sm font-medium transition-all hover:bg-[var(--surface-2)]"
-        >
+        <Link href={swapHref} className={buttonVariants({ variant: 'outline' })}>
           <ArrowLeftRight className="h-3.5 w-3.5" />
           Swap sides
         </Link>

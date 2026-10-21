@@ -13,6 +13,7 @@ import { HeadToHeadCard } from '@/components/compare/head-to-head-card'
 import { CareerStatsTable } from '@/components/compare/career-stats-table'
 import { FadeIn } from '@/components/ui/motion'
 import { buildMetadata } from '@/lib/seo'
+import { buttonVariants } from '@/components/ui/button-variants'
 
 interface DriverStats {
   total_races: number
@@ -148,7 +149,7 @@ export default async function CompareDriversPage({
           <div className="mt-4 flex justify-center gap-2">
             <Link
               href={`/compare/drivers?d1=${params.d2}&d2=${params.d1}${isTeammate ? '&teammate=true' : ''}`}
-              className="border-border inline-flex h-8 items-center gap-1.5 rounded-lg border bg-[var(--surface-1)] px-2.5 text-sm font-medium transition-all hover:bg-[var(--surface-2)]"
+              className={buttonVariants({ variant: 'outline' })}
             >
               <ArrowLeftRight className="h-3.5 w-3.5" />
               Swap
@@ -157,10 +158,8 @@ export default async function CompareDriversPage({
               <Link
                 href={`/compare/drivers?d1=${params.d1}&d2=${params.d2}${isTeammate ? '' : '&teammate=true'}`}
                 className={cn(
-                  'inline-flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-sm font-medium transition-all',
-                  isTeammate
-                    ? 'border-primary/50 bg-primary/10 text-primary'
-                    : 'border-border bg-[var(--surface-1)] hover:bg-[var(--surface-2)]',
+                  buttonVariants({ variant: 'outline' }),
+                  isTeammate && 'border-primary/50 bg-primary/10 text-primary',
                 )}
               >
                 <Users className="h-3.5 w-3.5" />

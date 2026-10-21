@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils'
 import { ComparisonChart } from '@/components/charts/comparison-chart'
 import { FadeIn } from '@/components/ui/motion'
 import { buildMetadata } from '@/lib/seo'
+import { buttonVariants } from '@/components/ui/button-variants'
 
 interface ConstructorStats {
   total_entries: number
@@ -142,7 +143,7 @@ export default async function CompareConstructorsPage({
           <div className="mt-4 flex justify-center">
             <Link
               href={`/compare/constructors?c1=${params.c2}&c2=${params.c1}`}
-              className="border-border inline-flex h-8 items-center gap-1.5 rounded-lg border bg-[var(--surface-1)] px-2.5 text-sm font-medium transition-all hover:bg-[var(--surface-2)]"
+              className={buttonVariants({ variant: 'outline' })}
             >
               <ArrowLeftRight className="h-3.5 w-3.5" />
               Swap constructors

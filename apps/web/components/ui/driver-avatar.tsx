@@ -36,7 +36,7 @@ export function DriverAvatar({
     <div
       aria-label={`${firstName} ${lastName}`}
       className={cn(
-        'flex shrink-0 items-center justify-center rounded-full font-bold text-white',
+        'font-data flex shrink-0 items-center justify-center rounded-sm font-bold text-white',
         sizeMap[size],
         className,
       )}

@@ -16,12 +16,12 @@ export function PositionBadge({ position, size = 'md', className }: PositionBadg
   return (
     <span
       className={cn(
-        'inline-flex items-center justify-center rounded-md border font-mono font-semibold',
+        'font-data inline-flex items-center justify-center rounded-sm border font-semibold tabular-nums',
         sizeClasses,
-        isNumeric && pos === 1 && 'pos-1',
-        isNumeric && pos === 2 && 'pos-2',
-        isNumeric && pos === 3 && 'pos-3',
-        isNumeric && pos > 3 && 'border-border bg-muted/50 text-muted-foreground',
+        isNumeric && pos === 1 && 'border-gold/40 bg-gold/15 text-gold',
+        isNumeric && pos === 2 && 'border-silver/40 bg-silver/15 text-silver',
+        isNumeric && pos === 3 && 'border-bronze/40 bg-bronze/15 text-bronze',
+        isNumeric && pos > 3 && 'border-hairline bg-surface-2 text-muted-foreground',
         !isNumeric && 'border-destructive/30 bg-destructive/10 text-destructive',
         className,
       )}
