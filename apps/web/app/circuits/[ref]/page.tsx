@@ -5,7 +5,7 @@ import { api, isNotFound } from '@/lib/api'
 import type { Circuit, CircuitLayout, CircuitLapRecord, CircuitStats } from '@/lib/types'
 import { CountryFlag } from '@/components/ui/country-flag'
 import { Breadcrumbs } from '@/components/layout/breadcrumbs'
-import { Card, CardContent } from '@/components/ui/card'
+import { Panel, PanelContent } from '@/components/ui/panel'
 import { StatCard } from '@/components/ui/stat-card'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -184,8 +184,8 @@ export default async function CircuitDetailPage({ params }: { params: Promise<{ 
       {/* Lap Record */}
       {circuit.lapRecord && (
         <FadeIn>
-          <Card className="border border-purple-500/30 bg-purple-500/5">
-            <CardContent className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3">
+          <Panel className="border border-purple-500/30 bg-purple-500/5">
+            <PanelContent className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3">
               <p className="text-xs font-medium tracking-wider text-purple-400 uppercase">
                 Lap Record
               </p>
@@ -208,8 +208,8 @@ export default async function CircuitDetailPage({ params }: { params: Promise<{ 
                 {circuit.lapRecord.year}
                 {circuit.lapRecord.speed && ` · ${circuit.lapRecord.speed} km/h`}
               </span>
-            </CardContent>
-          </Card>
+            </PanelContent>
+          </Panel>
         </FadeIn>
       )}
 

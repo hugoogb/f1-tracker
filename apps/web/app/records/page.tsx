@@ -12,8 +12,8 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { RecordsExplorer, type ExplorerEra } from '@/components/records/records-explorer'
 import { DriverAvatar } from '@/components/ui/driver-avatar'
 import { Breadcrumbs } from '@/components/layout/breadcrumbs'
-import { PageHeader } from '@/components/ui/page-header'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { PageHero } from '@/components/ui/page-hero'
+import { Panel, PanelContent, PanelHeader, PanelTitle } from '@/components/ui/panel'
 import {
   Table,
   TableBody,
@@ -46,14 +46,14 @@ function DriverRecordTable({
   label: string
 }) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-base">
+    <Panel>
+      <PanelHeader>
+        <PanelTitle className="flex items-center gap-2 text-base">
           <Icon className="text-primary h-4 w-4" />
           {title}
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
+        </PanelTitle>
+      </PanelHeader>
+      <PanelContent>
         <Table aria-label={title}>
           <TableHeader>
             <TableRow>
@@ -87,8 +87,8 @@ function DriverRecordTable({
             ))}
           </TableBody>
         </Table>
-      </CardContent>
-    </Card>
+      </PanelContent>
+    </Panel>
   )
 }
 
@@ -104,14 +104,14 @@ function ConstructorRecordTable({
   label: string
 }) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-base">
+    <Panel>
+      <PanelHeader>
+        <PanelTitle className="flex items-center gap-2 text-base">
           <Icon className="text-primary h-4 w-4" />
           {title}
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
+        </PanelTitle>
+      </PanelHeader>
+      <PanelContent>
         <Table aria-label={title}>
           <TableHeader>
             <TableRow>
@@ -147,8 +147,8 @@ function ConstructorRecordTable({
             ))}
           </TableBody>
         </Table>
-      </CardContent>
-    </Card>
+      </PanelContent>
+    </Panel>
   )
 }
 
@@ -178,7 +178,7 @@ export default async function RecordsPage() {
       <Breadcrumbs items={[{ label: 'Home', href: '/' }, { label: 'Records' }]} />
 
       <FadeIn>
-        <PageHeader
+        <PageHero
           title="All-Time Records"
           description="The greatest achievements in Formula 1 history"
         />

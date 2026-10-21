@@ -2,8 +2,8 @@ import Link from 'next/link'
 import { Trophy } from 'lucide-react'
 import { api } from '@/lib/api'
 import type { SeasonChampion } from '@/lib/types'
-import { PageHeader } from '@/components/ui/page-header'
-import { Card, CardContent } from '@/components/ui/card'
+import { PageHero } from '@/components/ui/page-hero'
+import { Panel, PanelContent } from '@/components/ui/panel'
 import { Badge } from '@/components/ui/badge'
 import { ChampionsTabs } from './champions-tabs'
 import { FadeIn, StaggerList, StaggerItem } from '@/components/ui/motion'
@@ -57,7 +57,7 @@ export default async function ChampionsPage() {
 
   return (
     <div className="space-y-10">
-      <PageHeader
+      <PageHero
         title="Champions"
         description="F1 World Champions from every season"
         badge={
@@ -86,14 +86,14 @@ export default async function ChampionsPage() {
                       const teamColor = champion.constructor?.color ?? null
                       return (
                         <StaggerItem key={champion.year}>
-                          <Card className="relative overflow-hidden transition-colors duration-200">
+                          <Panel className="relative overflow-hidden transition-colors duration-200">
                             {teamColor && (
                               <div
                                 className="absolute top-0 left-0 h-full w-1 rounded-l-2xl"
                                 style={{ backgroundColor: teamColor }}
                               />
                             )}
-                            <CardContent className="flex items-start gap-4 px-5 py-4">
+                            <PanelContent className="flex items-start gap-4 px-5 py-4">
                               <div className="flex flex-col items-center gap-1">
                                 <Link
                                   href={`/seasons/${champion.year}`}
@@ -139,8 +139,8 @@ export default async function ChampionsPage() {
                                   </span>
                                 </div>
                               </div>
-                            </CardContent>
-                          </Card>
+                            </PanelContent>
+                          </Panel>
                         </StaggerItem>
                       )
                     })}
@@ -168,14 +168,14 @@ export default async function ChampionsPage() {
                       const teamColor = champion.constructor!.color ?? null
                       return (
                         <StaggerItem key={champion.year}>
-                          <Card className="relative overflow-hidden transition-colors duration-200">
+                          <Panel className="relative overflow-hidden transition-colors duration-200">
                             {teamColor && (
                               <div
                                 className="absolute top-0 left-0 h-full w-1 rounded-l-2xl"
                                 style={{ backgroundColor: teamColor }}
                               />
                             )}
-                            <CardContent className="flex items-start gap-4 px-5 py-4">
+                            <PanelContent className="flex items-start gap-4 px-5 py-4">
                               <div className="flex flex-col items-center gap-1">
                                 <Link
                                   href={`/seasons/${champion.year}`}
@@ -217,8 +217,8 @@ export default async function ChampionsPage() {
                                   </span>
                                 </div>
                               </div>
-                            </CardContent>
-                          </Card>
+                            </PanelContent>
+                          </Panel>
                         </StaggerItem>
                       )
                     })}

@@ -4,7 +4,7 @@ import { ArrowLeftRight, Users } from 'lucide-react'
 import { api } from '@/lib/api'
 import type { Driver, RadarStats } from '@/lib/types'
 import { Breadcrumbs } from '@/components/layout/breadcrumbs'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Panel, PanelContent, PanelHeader, PanelTitle } from '@/components/ui/panel'
 import { DriverAvatar } from '@/components/ui/driver-avatar'
 import { cn } from '@/lib/utils'
 import { ComparisonChart } from '@/components/charts/comparison-chart'
@@ -208,37 +208,37 @@ export default async function CompareDriversPage({
 
       {/* Radar Chart */}
       <FadeIn>
-        <Card>
-          <CardHeader>
-            <CardTitle>Performance Profile</CardTitle>
-          </CardHeader>
-          <CardContent>
+        <Panel>
+          <PanelHeader>
+            <PanelTitle>Performance Profile</PanelTitle>
+          </PanelHeader>
+          <PanelContent>
             <DriverRadarChart
               driver1Name={driver1.lastName}
               driver2Name={driver2.lastName}
               driver1Radar={driver1Radar}
               driver2Radar={driver2Radar}
             />
-          </CardContent>
-        </Card>
+          </PanelContent>
+        </Panel>
       </FadeIn>
 
       {/* Career Points Chart */}
       {(driver1Seasons.length > 0 || driver2Seasons.length > 0) && (
         <FadeIn>
-          <Card>
-            <CardHeader>
-              <CardTitle>Career Points per Season</CardTitle>
-            </CardHeader>
-            <CardContent>
+          <Panel>
+            <PanelHeader>
+              <PanelTitle>Career Points per Season</PanelTitle>
+            </PanelHeader>
+            <PanelContent>
               <ComparisonChart
                 driver1Name={driver1.lastName}
                 driver2Name={driver2.lastName}
                 driver1Seasons={driver1Seasons}
                 driver2Seasons={driver2Seasons}
               />
-            </CardContent>
-          </Card>
+            </PanelContent>
+          </Panel>
         </FadeIn>
       )}
     </div>

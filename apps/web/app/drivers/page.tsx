@@ -5,7 +5,7 @@ import type { Driver, PaginatedResponse } from '@/lib/types'
 import { CountryFlag } from '@/components/ui/country-flag'
 import { DriverAvatar } from '@/components/ui/driver-avatar'
 import { Badge } from '@/components/ui/badge'
-import { PageHeader } from '@/components/ui/page-header'
+import { PageHero } from '@/components/ui/page-hero'
 import {
   Table,
   TableBody,
@@ -52,7 +52,7 @@ export default async function DriversPage({
 
   return (
     <div className="space-y-6">
-      <PageHeader
+      <PageHero
         title="Drivers"
         description={`${total} drivers${nationality ? ` from ${nationality}` : ' across F1 history'}`}
       />

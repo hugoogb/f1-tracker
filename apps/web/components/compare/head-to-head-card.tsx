@@ -1,4 +1,4 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Panel, PanelContent, PanelHeader, PanelTitle } from '@/components/ui/panel'
 
 interface HeadToHead {
   driver1Wins: number
@@ -29,11 +29,11 @@ export function HeadToHeadCard({
   const bg1 = color1 ? { backgroundColor: color1 } : {}
   const bg2 = color2 ? { backgroundColor: color2 } : {}
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{title}</CardTitle>
-      </CardHeader>
-      <CardContent>
+    <Panel>
+      <PanelHeader>
+        <PanelTitle>{title}</PanelTitle>
+      </PanelHeader>
+      <PanelContent>
         <div className="flex items-center gap-4">
           <div className="flex-1 text-right">
             <p className="text-primary text-3xl font-bold tabular-nums" style={c1}>
@@ -75,7 +75,7 @@ export function HeadToHeadCard({
             </div>
           </div>
         )}
-      </CardContent>
-    </Card>
+      </PanelContent>
+    </Panel>
   )
 }

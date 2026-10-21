@@ -3,6 +3,7 @@ import { Barlow_Condensed, Chakra_Petch, Titillium_Web } from 'next/font/google'
 import { Header } from '@/components/layout/header'
 import { Footer } from '@/components/layout/footer'
 import { Toaster } from '@/components/ui/sonner'
+import { Container } from '@/components/ui/container'
 import { JsonLd } from '@/components/seo/json-ld'
 import { websiteSchema } from '@/lib/structured-data'
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL, THEME_COLOR, absoluteUrl } from '@/lib/seo'
@@ -109,9 +110,9 @@ export default function RootLayout({
           Skip to main content
         </a>
         <Header />
-        <main id="main-content" className="mx-auto w-full max-w-[1400px] flex-1 px-6 py-10 md:px-8">
+        <Container as="main" id="main-content" className="flex-1 py-8 md:py-10">
           {children}
-        </main>
+        </Container>
         <Footer />
         {/* The one surface that needs it so far is the favourites cap; the
             component has always been here, nothing had mounted it. */}

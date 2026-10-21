@@ -13,7 +13,7 @@ import { cn } from '@/lib/utils'
 import { LocalDate, LocalDateTime } from '@/components/ui/local-date'
 import { CountryFlag } from '@/components/ui/country-flag'
 import { DriverAvatar } from '@/components/ui/driver-avatar'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Panel, PanelContent, PanelHeader, PanelTitle } from '@/components/ui/panel'
 import {
   Table,
   TableBody,
@@ -243,17 +243,17 @@ export default async function Home() {
       {/* Current Standings */}
       <FadeIn>
         <div className="grid gap-6 md:grid-cols-2">
-          <Card>
-            <CardHeader className="flex-row items-center justify-between">
-              <CardTitle>Driver Standings</CardTitle>
+          <Panel>
+            <PanelHeader className="flex-row items-center justify-between">
+              <PanelTitle>Driver Standings</PanelTitle>
               <Link
                 href={`/seasons/${latestYear}`}
                 className="text-primary hover:text-primary/80 text-sm font-medium transition-colors"
               >
                 View all &rarr;
               </Link>
-            </CardHeader>
-            <CardContent>
+            </PanelHeader>
+            <PanelContent>
               {driverStandings.length > 0 ? (
                 <DriverStandingsTable standings={driverStandings} limit={5} />
               ) : (
@@ -261,20 +261,20 @@ export default async function Home() {
                   Standings data has not been loaded yet.
                 </p>
               )}
-            </CardContent>
-          </Card>
+            </PanelContent>
+          </Panel>
 
-          <Card>
-            <CardHeader className="flex-row items-center justify-between">
-              <CardTitle>Constructor Standings</CardTitle>
+          <Panel>
+            <PanelHeader className="flex-row items-center justify-between">
+              <PanelTitle>Constructor Standings</PanelTitle>
               <Link
                 href={`/seasons/${latestYear}`}
                 className="text-primary hover:text-primary/80 text-sm font-medium transition-colors"
               >
                 View all &rarr;
               </Link>
-            </CardHeader>
-            <CardContent>
+            </PanelHeader>
+            <PanelContent>
               {constructorStandings.length > 0 ? (
                 <ConstructorStandingsTable standings={constructorStandings} limit={5} />
               ) : (
@@ -282,8 +282,8 @@ export default async function Home() {
                   Standings data has not been loaded yet.
                 </p>
               )}
-            </CardContent>
-          </Card>
+            </PanelContent>
+          </Panel>
         </div>
       </FadeIn>
 
@@ -303,8 +303,8 @@ export default async function Home() {
             <StaggerList className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
               {recentChampions.map((c, i) => (
                 <StaggerItem key={c.year}>
-                  <Card className={i === 0 ? 'border-primary/30 glow-red' : ''}>
-                    <CardContent className="space-y-2 px-5 pt-1">
+                  <Panel className={i === 0 ? 'border-primary/30 glow-red' : ''}>
+                    <PanelContent className="space-y-2 px-5 pt-1">
                       <div className="flex items-center justify-between">
                         <Link
                           href={`/seasons/${c.year}`}
@@ -339,8 +339,8 @@ export default async function Home() {
                           </Link>
                         </div>
                       )}
-                    </CardContent>
-                  </Card>
+                    </PanelContent>
+                  </Panel>
                 </StaggerItem>
               ))}
             </StaggerList>
@@ -350,17 +350,17 @@ export default async function Home() {
 
       {/* Race Calendar */}
       <FadeIn>
-        <Card>
-          <CardHeader className="flex-row items-center justify-between">
-            <CardTitle>{latestYear} Race Calendar</CardTitle>
+        <Panel>
+          <PanelHeader className="flex-row items-center justify-between">
+            <PanelTitle>{latestYear} Race Calendar</PanelTitle>
             <Link
               href={`/seasons/${latestYear}`}
               className="text-primary hover:text-primary/80 text-sm font-medium transition-colors"
             >
               Season detail &rarr;
             </Link>
-          </CardHeader>
-          <CardContent>
+          </PanelHeader>
+          <PanelContent>
             {races.length > 0 ? (
               <Table aria-label="Race calendar">
                 <TableHeader>
@@ -428,8 +428,8 @@ export default async function Home() {
             ) : (
               <p className="text-muted-foreground text-sm">No races found for this season.</p>
             )}
-          </CardContent>
-        </Card>
+          </PanelContent>
+        </Panel>
       </FadeIn>
     </div>
   )

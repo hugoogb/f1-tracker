@@ -4,9 +4,9 @@ import { api } from '@/lib/api'
 import { buildMetadata } from '@/lib/seo'
 import type { OpsIngestRun, OpsStatus } from '@/lib/types'
 import { Breadcrumbs } from '@/components/layout/breadcrumbs'
-import { PageHeader } from '@/components/ui/page-header'
+import { PageHero } from '@/components/ui/page-hero'
 import { Badge } from '@/components/ui/badge'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Panel, PanelContent, PanelHeader, PanelTitle } from '@/components/ui/panel'
 import { StatCard } from '@/components/ui/stat-card'
 import { EmptyState } from '@/components/ui/empty-state'
 import { LocalDate, LocalDateTime } from '@/components/ui/local-date'
@@ -101,16 +101,16 @@ function SectionCard({
   children: React.ReactNode
 }) {
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between gap-3">
-        <CardTitle className="flex items-center gap-2 text-base">
+    <Panel>
+      <PanelHeader className="flex flex-row items-center justify-between gap-3">
+        <PanelTitle className="flex items-center gap-2 text-base">
           <Icon className="text-primary h-4 w-4" />
           {title}
-        </CardTitle>
+        </PanelTitle>
         {action}
-      </CardHeader>
-      <CardContent>{children}</CardContent>
-    </Card>
+      </PanelHeader>
+      <PanelContent>{children}</PanelContent>
+    </Panel>
   )
 }
 
@@ -128,22 +128,22 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 function Unreachable() {
   return (
     <FadeIn>
-      <Card className="border-destructive/40">
-        <CardHeader>
-          <CardTitle className="text-destructive flex items-center gap-2 text-base">
+      <Panel className="border-destructive/40">
+        <PanelHeader>
+          <PanelTitle className="text-destructive flex items-center gap-2 text-base">
             <AlertTriangle className="h-4 w-4" />
             The API is not answering
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="text-muted-foreground space-y-2 text-sm">
+          </PanelTitle>
+        </PanelHeader>
+        <PanelContent className="text-muted-foreground space-y-2 text-sm">
           <p>
             This page could not reach the backend, so there is nothing to report on the data behind
             it. That is itself the status: the rest of the site is served from cache and will keep
             working until those entries expire.
           </p>
           <p>The page re-checks on its own; reloading in a minute will pick up a recovery.</p>
-        </CardContent>
-      </Card>
+        </PanelContent>
+      </Panel>
     </FadeIn>
   )
 }
@@ -169,7 +169,7 @@ export default async function StatusPage() {
     <div className="space-y-6">
       <Breadcrumbs items={[{ label: 'Home', href: '/' }, { label: 'Status' }]} />
 
-      <PageHeader
+      <PageHero
         title="Status"
         description="What the database holds, when it was last filled, and what is still outstanding."
         badge={

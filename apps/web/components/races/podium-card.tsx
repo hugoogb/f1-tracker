@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import type { RaceResult } from '@/lib/types'
 import { teamColorOf } from '@/lib/utils'
-import { Card, CardContent } from '@/components/ui/card'
+import { Panel, PanelContent } from '@/components/ui/panel'
 import { PodiumReveal } from '@/components/ui/motion'
 
 const podiumColors = [
@@ -22,8 +22,8 @@ export function PodiumCard({ podium }: { podium: RaceResult[] }) {
         const idx = (result.position ?? 1) - 1
 
         return (
-          <Card key={result.driver.ref} className={`${podiumColors[idx]} border`}>
-            <CardContent className="space-y-1 px-4 py-3">
+          <Panel key={result.driver.ref} className={`${podiumColors[idx]} border`}>
+            <PanelContent className="space-y-1 px-4 py-3">
               <p className="text-muted-foreground text-xs font-medium tracking-wider uppercase">
                 {podiumLabels[idx]}
               </p>
@@ -47,8 +47,8 @@ export function PodiumCard({ podium }: { podium: RaceResult[] }) {
                   {result.constructor.name}
                 </Link>
               </div>
-            </CardContent>
-          </Card>
+            </PanelContent>
+          </Panel>
         )
       })}
     </PodiumReveal>

@@ -6,7 +6,7 @@ import { Building2, MapPin, Star, Trash2, Users } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Panel, PanelContent, PanelHeader, PanelTitle } from '@/components/ui/panel'
 import { ConstructorLogo } from '@/components/ui/constructor-logo'
 import { CountryFlag } from '@/components/ui/country-flag'
 import {
@@ -141,21 +141,21 @@ export function FavouritesView() {
 
       {sections.map((section) => (
         <FadeIn key={section.type}>
-          <Card>
-            <CardHeader className="flex-row items-center justify-between">
-              <CardTitle className="flex items-center gap-2">
+          <Panel>
+            <PanelHeader className="flex-row items-center justify-between">
+              <PanelTitle className="flex items-center gap-2">
                 <section.icon className="text-primary h-4 w-4" />
                 {section.title}
                 <Badge variant="secondary">{section.entries.length}</Badge>
-              </CardTitle>
+              </PanelTitle>
               <Link
                 href={section.href}
                 className="text-primary hover:text-primary/80 text-sm font-medium transition-colors"
               >
                 {section.browse} &rarr;
               </Link>
-            </CardHeader>
-            <CardContent>
+            </PanelHeader>
+            <PanelContent>
               <Table aria-label={`Favourite ${section.title.toLowerCase()}`}>
                 <TableHeader>
                   <TableRow>
@@ -198,8 +198,8 @@ export function FavouritesView() {
                   ))}
                 </TableBody>
               </Table>
-            </CardContent>
-          </Card>
+            </PanelContent>
+          </Panel>
         </FadeIn>
       ))}
 
@@ -247,16 +247,16 @@ function FavouritesSkeleton() {
   return (
     <div className="space-y-8" aria-hidden="true">
       {[0, 1].map((section) => (
-        <Card key={section}>
-          <CardHeader>
+        <Panel key={section}>
+          <PanelHeader>
             <Skeleton className="h-5 w-32" />
-          </CardHeader>
-          <CardContent className="space-y-3">
+          </PanelHeader>
+          <PanelContent className="space-y-3">
             {[0, 1, 2].map((row) => (
               <Skeleton key={row} className="h-10 w-full" />
             ))}
-          </CardContent>
-        </Card>
+          </PanelContent>
+        </Panel>
       ))}
     </div>
   )

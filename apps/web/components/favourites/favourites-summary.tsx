@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { MapPin, Star } from 'lucide-react'
 
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Panel, PanelContent, PanelHeader, PanelTitle } from '@/components/ui/panel'
 import { ConstructorLogo } from '@/components/ui/constructor-logo'
 import { DriverAvatar } from '@/components/ui/driver-avatar'
 import { nameParts, useFavourites, type Favourite } from '@/lib/favourites'
@@ -38,20 +38,20 @@ export function FavouritesSummary() {
   const remaining = items.length - preview.length
 
   return (
-    <Card>
-      <CardHeader className="flex-row items-center justify-between">
-        <CardTitle className="flex items-center gap-2">
+    <Panel>
+      <PanelHeader className="flex-row items-center justify-between">
+        <PanelTitle className="flex items-center gap-2">
           <Star className="h-4 w-4 fill-current text-amber-400" />
           Your Favourites
-        </CardTitle>
+        </PanelTitle>
         <Link
           href="/favourites"
           className="text-primary hover:text-primary/80 text-sm font-medium transition-colors"
         >
           View all &rarr;
         </Link>
-      </CardHeader>
-      <CardContent>
+      </PanelHeader>
+      <PanelContent>
         <div className="flex flex-wrap gap-2">
           {preview.map((entry) => (
             <Link
@@ -72,8 +72,8 @@ export function FavouritesSummary() {
             </Link>
           )}
         </div>
-      </CardContent>
-    </Card>
+      </PanelContent>
+    </Panel>
   )
 }
 

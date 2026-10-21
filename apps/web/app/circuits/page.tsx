@@ -3,7 +3,7 @@ import { Suspense } from 'react'
 import { api } from '@/lib/api'
 import type { Circuit, PaginatedResponse } from '@/lib/types'
 import { CountryFlag } from '@/components/ui/country-flag'
-import { PageHeader } from '@/components/ui/page-header'
+import { PageHero } from '@/components/ui/page-hero'
 import {
   Table,
   TableBody,
@@ -68,7 +68,7 @@ export default async function CircuitsPage({
 
   return (
     <div className="space-y-6">
-      <PageHeader
+      <PageHero
         title="Circuits"
         description={`${total} circuits${country ? ` in ${country}` : ' across F1 history'}`}
       />

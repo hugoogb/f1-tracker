@@ -13,7 +13,7 @@ import type {
 } from '@/lib/types'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Panel, PanelContent, PanelHeader, PanelTitle } from '@/components/ui/panel'
 import { DriverAvatar } from '@/components/ui/driver-avatar'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Input } from '@/components/ui/input'
@@ -258,15 +258,15 @@ export function RecordsExplorer({
   }, [result])
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">Explore the records</CardTitle>
+    <Panel>
+      <PanelHeader>
+        <PanelTitle className="text-base">Explore the records</PanelTitle>
         <p className="text-muted-foreground text-sm">
           The same results as the tables above, sliced by era, nationality and a minimum number of{' '}
           {isConstructor ? 'entries' : 'starts'}.
         </p>
-      </CardHeader>
-      <CardContent className="space-y-5">
+      </PanelHeader>
+      <PanelContent className="space-y-5">
         <div className="flex flex-wrap items-end gap-3">
           <FilterField label="Records for">
             <div className="flex gap-1" role="group" aria-label="Records for">
@@ -529,7 +529,7 @@ export function RecordsExplorer({
             </div>
           ) : null}
         </div>
-      </CardContent>
-    </Card>
+      </PanelContent>
+    </Panel>
   )
 }

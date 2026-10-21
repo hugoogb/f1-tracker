@@ -209,6 +209,32 @@
   }
 }
 
+/* HUD corner brackets (top-left, bottom-right) in the page accent. The host
+   must not clip overflow, or the brackets lose the pixel they sit over. */
+@utility brackets {
+  position: relative;
+  &::before,
+  &::after {
+    content: '';
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    border-color: var(--accent-livery);
+    border-style: solid;
+    pointer-events: none;
+  }
+  &::before {
+    top: -1px;
+    left: -1px;
+    border-width: 2px 0 0 2px;
+  }
+  &::after {
+    right: -1px;
+    bottom: -1px;
+    border-width: 0 2px 2px 0;
+  }
+}
+
 /* The red leader/winner slab inside a readout table. */
 @utility slab {
   background: var(--primary);

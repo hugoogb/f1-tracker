@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { api } from '@/lib/api'
 import type { SeasonChampion } from '@/lib/types'
-import { PageHeader } from '@/components/ui/page-header'
+import { PageHero } from '@/components/ui/page-hero'
 import { FadeIn, StaggerList, StaggerItem, MotionCard } from '@/components/ui/motion'
 import { teamColorOf } from '@/lib/utils'
 import { buildMetadata } from '@/lib/seo'
@@ -44,7 +44,7 @@ export default async function SeasonsPage() {
 
   return (
     <div className="space-y-10">
-      <PageHeader title="Seasons" description="Every Formula 1 season from 1950 to today." />
+      <PageHero title="Seasons" description="Every Formula 1 season from 1950 to today." />
 
       {decades.map(([decade, years], i) => (
         <FadeIn key={decade} delay={Math.min(i * 0.05, 0.2)}>

@@ -1,4 +1,4 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Panel, PanelContent, PanelHeader, PanelTitle } from '@/components/ui/panel'
 import { Badge } from '@/components/ui/badge'
 import { DriverAvatar } from '@/components/ui/driver-avatar'
 import type { PermutationsResponse } from '@/lib/types'
@@ -31,18 +31,18 @@ export function TitlePermutations({ data }: TitlePermutationsProps) {
   if (!leader) return null
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex flex-wrap items-center gap-2 text-base">
+    <Panel>
+      <PanelHeader>
+        <PanelTitle className="flex flex-wrap items-center gap-2 text-base">
           Title permutations
           {data.decided ? (
             <Badge>Mathematically decided</Badge>
           ) : (
             <Badge variant="outline">{alive.length} still in it</Badge>
           )}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
+        </PanelTitle>
+      </PanelHeader>
+      <PanelContent className="space-y-4">
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <Stat label="Rounds run" value={`${data.roundsRun} of ${data.totalRounds}`} />
           <Stat
@@ -119,8 +119,8 @@ export function TitlePermutations({ data }: TitlePermutationsProps) {
           year, so the list runs longer than the realistic one. Where two can only finish level, the
           title falls to a countback on wins, which no arithmetic here can project.
         </p>
-      </CardContent>
-    </Card>
+      </PanelContent>
+    </Panel>
   )
 }
 

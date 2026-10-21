@@ -1,5 +1,5 @@
 import { Skeleton } from '@/components/ui/skeleton'
-import { Card, CardHeader } from '@/components/ui/card'
+import { Panel, PanelHeader } from '@/components/ui/panel'
 
 export default function SeasonsLoading() {
   return (
@@ -14,11 +14,11 @@ export default function SeasonsLoading() {
           <Skeleton className="mb-4 h-7 w-16" />
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
             {Array.from({ length: 10 }).map((_, j) => (
-              <Card key={j}>
-                <CardHeader>
+              <Panel key={j}>
+                <PanelHeader>
                   <Skeleton className="mx-auto h-6 w-12" />
-                </CardHeader>
-              </Card>
+                </PanelHeader>
+              </Panel>
             ))}
           </div>
         </section>

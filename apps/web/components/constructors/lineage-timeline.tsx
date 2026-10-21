@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Panel, PanelContent, PanelHeader, PanelTitle } from '@/components/ui/panel'
 import { Badge } from '@/components/ui/badge'
 import { teamColorOf } from '@/lib/utils'
 import type { LineageEntry } from '@/lib/types'
@@ -25,11 +25,11 @@ export function LineageTimeline({ entries }: LineageTimelineProps) {
   if (entries.length < 2) return null
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">Team lineage</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
+    <Panel>
+      <PanelHeader>
+        <PanelTitle className="text-base">Team lineage</PanelTitle>
+      </PanelHeader>
+      <PanelContent className="space-y-4">
         <p className="text-muted-foreground text-sm">
           One continuous entry, under {entries.length} names. Each kept its own record — they are
           not added together.
@@ -84,7 +84,7 @@ export function LineageTimeline({ entries }: LineageTimelineProps) {
             )
           })}
         </ol>
-      </CardContent>
-    </Card>
+      </PanelContent>
+    </Panel>
   )
 }

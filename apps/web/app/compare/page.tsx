@@ -6,8 +6,8 @@ import Link from 'next/link'
 import { DriverSelect } from '@/components/compare/driver-select'
 import { ConstructorSelect } from '@/components/compare/constructor-select'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { PageHeader } from '@/components/ui/page-header'
+import { Panel, PanelContent, PanelHeader, PanelTitle } from '@/components/ui/panel'
+import { PageHero } from '@/components/ui/page-hero'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { FadeIn } from '@/components/ui/motion'
 
@@ -43,11 +43,11 @@ function DriverCompareForm({ prefillD1 }: { prefillD1: string }) {
 
   return (
     <>
-      <Card>
-        <CardHeader>
-          <CardTitle>Select Drivers</CardTitle>
-        </CardHeader>
-        <CardContent>
+      <Panel>
+        <PanelHeader>
+          <PanelTitle>Select Drivers</PanelTitle>
+        </PanelHeader>
+        <PanelContent>
           <div className="grid gap-6 md:grid-cols-[1fr_auto_1fr]">
             <DriverSelect
               label="Driver 1"
@@ -71,8 +71,8 @@ function DriverCompareForm({ prefillD1 }: { prefillD1: string }) {
           <Button className="mt-6" disabled={!canCompare} onClick={handleCompare}>
             Compare
           </Button>
-        </CardContent>
-      </Card>
+        </PanelContent>
+      </Panel>
 
       <div className="space-y-3">
         <h3 className="text-muted-foreground text-sm font-medium tracking-wider uppercase">
@@ -109,11 +109,11 @@ function ConstructorCompareForm() {
 
   return (
     <>
-      <Card>
-        <CardHeader>
-          <CardTitle>Select Constructors</CardTitle>
-        </CardHeader>
-        <CardContent>
+      <Panel>
+        <PanelHeader>
+          <PanelTitle>Select Constructors</PanelTitle>
+        </PanelHeader>
+        <PanelContent>
           <div className="grid gap-6 md:grid-cols-[1fr_auto_1fr]">
             <ConstructorSelect
               label="Constructor 1"
@@ -139,8 +139,8 @@ function ConstructorCompareForm() {
           <Button className="mt-6" disabled={!canCompare} onClick={handleCompare}>
             Compare
           </Button>
-        </CardContent>
-      </Card>
+        </PanelContent>
+      </Panel>
 
       <div className="space-y-3">
         <h3 className="text-muted-foreground text-sm font-medium tracking-wider uppercase">
@@ -185,11 +185,11 @@ const suggestedSeasonComparisons = [
 
 function SeasonCompareLinks() {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Within a Season</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
+    <Panel>
+      <PanelHeader>
+        <PanelTitle>Within a Season</PanelTitle>
+      </PanelHeader>
+      <PanelContent className="space-y-3">
         <p className="text-muted-foreground text-sm">
           Follow two drivers or constructors through one season: the points gap round by round,
           finishes, grids and qualifying gaps. Open any season and press Compare, or start here.
@@ -211,8 +211,8 @@ function SeasonCompareLinks() {
             Pick a season →
           </Link>
         </div>
-      </CardContent>
-    </Card>
+      </PanelContent>
+    </Panel>
   )
 }
 
@@ -222,7 +222,7 @@ export default function ComparePage() {
 
   return (
     <div className="space-y-8">
-      <PageHeader
+      <PageHero
         title="Compare"
         description="Select two drivers or constructors to compare their career stats and head-to-head record"
       />

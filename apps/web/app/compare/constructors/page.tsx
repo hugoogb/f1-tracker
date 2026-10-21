@@ -4,7 +4,7 @@ import { ArrowLeftRight } from 'lucide-react'
 import { api } from '@/lib/api'
 import type { Constructor } from '@/lib/types'
 import { Breadcrumbs } from '@/components/layout/breadcrumbs'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Panel, PanelContent, PanelHeader, PanelTitle } from '@/components/ui/panel'
 import { cn } from '@/lib/utils'
 import { ComparisonChart } from '@/components/charts/comparison-chart'
 import { FadeIn } from '@/components/ui/motion'
@@ -155,11 +155,11 @@ export default async function CompareConstructorsPage({
 
       {/* Head to Head */}
       <FadeIn>
-        <Card>
-          <CardHeader>
-            <CardTitle>Head to Head</CardTitle>
-          </CardHeader>
-          <CardContent>
+        <Panel>
+          <PanelHeader>
+            <PanelTitle>Head to Head</PanelTitle>
+          </PanelHeader>
+          <PanelContent>
             <div className="flex items-center gap-4">
               <div className="flex-1 text-right">
                 <p className="text-3xl font-bold tabular-nums" style={{ color: c1Color }}>
@@ -203,17 +203,17 @@ export default async function CompareConstructorsPage({
                 </div>
               </div>
             )}
-          </CardContent>
-        </Card>
+          </PanelContent>
+        </Panel>
       </FadeIn>
 
       {/* Stat-by-Stat Comparison */}
       <FadeIn>
-        <Card>
-          <CardHeader>
-            <CardTitle>Career Stats</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-0 divide-y">
+        <Panel>
+          <PanelHeader>
+            <PanelTitle>Career Stats</PanelTitle>
+          </PanelHeader>
+          <PanelContent className="space-y-0 divide-y">
             {statLabels.map(({ key, label }) => {
               const v1 = constructor1.stats[key]
               const v2 = constructor2.stats[key]
@@ -246,18 +246,18 @@ export default async function CompareConstructorsPage({
                 </div>
               )
             })}
-          </CardContent>
-        </Card>
+          </PanelContent>
+        </Panel>
       </FadeIn>
 
       {/* Career Points Chart */}
       {(constructor1Seasons.length > 0 || constructor2Seasons.length > 0) && (
         <FadeIn>
-          <Card>
-            <CardHeader>
-              <CardTitle>Career Points per Season</CardTitle>
-            </CardHeader>
-            <CardContent>
+          <Panel>
+            <PanelHeader>
+              <PanelTitle>Career Points per Season</PanelTitle>
+            </PanelHeader>
+            <PanelContent>
               <ComparisonChart
                 driver1Name={constructor1.name}
                 driver2Name={constructor2.name}
@@ -266,8 +266,8 @@ export default async function CompareConstructorsPage({
                 color1={c1Color}
                 color2={c2Color}
               />
-            </CardContent>
-          </Card>
+            </PanelContent>
+          </Panel>
         </FadeIn>
       )}
     </div>

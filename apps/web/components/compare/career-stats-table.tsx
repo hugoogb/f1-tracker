@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Panel, PanelContent, PanelHeader, PanelTitle } from '@/components/ui/panel'
 
 interface DriverStats {
   total_races: number
@@ -27,11 +27,11 @@ export function CareerStatsTable({
   driver2Stats: DriverStats
 }) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Career Stats</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-0 divide-y">
+    <Panel>
+      <PanelHeader>
+        <PanelTitle>Career Stats</PanelTitle>
+      </PanelHeader>
+      <PanelContent className="space-y-0 divide-y">
         {statLabels.map(({ key, label }) => {
           const v1 = driver1Stats[key]
           const v2 = driver2Stats[key]
@@ -62,7 +62,7 @@ export function CareerStatsTable({
             </div>
           )
         })}
-      </CardContent>
-    </Card>
+      </PanelContent>
+    </Panel>
   )
 }

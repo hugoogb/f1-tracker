@@ -5,8 +5,8 @@ import type { BestSeason, PointsSystem } from '@/lib/types'
 import { buildMetadata } from '@/lib/seo'
 import { teamColorOf } from '@/lib/utils'
 import { Breadcrumbs } from '@/components/layout/breadcrumbs'
-import { PageHeader } from '@/components/ui/page-header'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { PageHero } from '@/components/ui/page-hero'
+import { Panel, PanelContent, PanelHeader, PanelTitle } from '@/components/ui/panel'
 import { StatCard } from '@/components/ui/stat-card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { FadeIn } from '@/components/ui/motion'
@@ -79,7 +79,7 @@ export default async function BestSeasonsPage() {
     <div className="space-y-8">
       <Breadcrumbs items={[{ label: 'Home', href: '/' }, { label: 'Best Seasons' }]} />
 
-      <PageHeader
+      <PageHero
         title="Best Seasons"
         description="Every completed championship since 1950, ranked by how good a title fight it was to watch: how close it finished, how late it was settled, and how many drivers were in it."
       />
@@ -133,47 +133,47 @@ export default async function BestSeasonsPage() {
       </FadeIn>
 
       <FadeIn>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Competitiveness through the years</CardTitle>
+        <Panel>
+          <PanelHeader>
+            <PanelTitle className="text-base">Competitiveness through the years</PanelTitle>
             <p className="text-muted-foreground text-sm">
               Each dot is a season in its champion&apos;s team colour; the bands are the
               points-system eras. Click a season to open it.
             </p>
-          </CardHeader>
-          <CardContent>
+          </PanelHeader>
+          <PanelContent>
             <CompetitivenessChart seasons={seasons} eras={eras} />
-          </CardContent>
-        </Card>
+          </PanelContent>
+        </Panel>
       </FadeIn>
 
       <FadeIn>
-        <Card>
-          <CardHeader className="space-y-2">
-            <CardTitle className="text-base">The full ranking</CardTitle>
+        <Panel>
+          <PanelHeader className="space-y-2">
+            <PanelTitle className="text-base">The full ranking</PanelTitle>
             <ScoreLegend components={components} />
-          </CardHeader>
-          <CardContent>
+          </PanelHeader>
+          <PanelContent>
             {/* `useSearchParams` in the table needs a boundary; everything above
                 stays in the prerendered HTML. */}
             <Suspense fallback={<Skeleton className="h-96 w-full" />}>
               <BestSeasonsTable seasons={seasons} eras={eras} />
             </Suspense>
-          </CardContent>
-        </Card>
+          </PanelContent>
+        </Panel>
       </FadeIn>
 
       <FadeIn>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">How the score works</CardTitle>
+        <Panel>
+          <PanelHeader>
+            <PanelTitle className="text-base">How the score works</PanelTitle>
             <p className="text-muted-foreground text-sm">
               A season scores out of 100: five measures of a title fight, each worth a fixed share.
               It is an opinion about what makes a championship good to watch, written down so you
               can disagree with the weights rather than guess at them.
             </p>
-          </CardHeader>
-          <CardContent className="space-y-6">
+          </PanelHeader>
+          <PanelContent className="space-y-6">
             <ul className="grid gap-4 md:grid-cols-2">
               {components.map((c) => (
                 <li key={c.id} className="flex gap-3">
@@ -199,8 +199,8 @@ export default async function BestSeasonsPage() {
                 <li key={note}>{note}</li>
               ))}
             </ul>
-          </CardContent>
-        </Card>
+          </PanelContent>
+        </Panel>
       </FadeIn>
     </div>
   )

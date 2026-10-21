@@ -11,7 +11,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
-import { Card, CardContent } from '@/components/ui/card'
+import { Panel, PanelContent } from '@/components/ui/panel'
 import { teamColorOf } from '@/lib/utils'
 import type { PitStopAnalysis } from '@/lib/types'
 
@@ -106,15 +106,15 @@ function Stat({
   className?: string
 }) {
   return (
-    <Card className={className}>
-      <CardContent className="px-4 py-3">
+    <Panel className={className}>
+      <PanelContent className="px-4 py-3">
         <p className="text-muted-foreground text-xs font-medium tracking-wider uppercase">
           {label}
         </p>
         <p className="font-heading text-lg font-bold tabular-nums">{value}</p>
         {hint && <p className="text-muted-foreground text-xs">{hint}</p>}
-      </CardContent>
-    </Card>
+      </PanelContent>
+    </Panel>
   )
 }
 
@@ -155,8 +155,8 @@ export function PitStopAnalysisView({ analysis }: PitStopAnalysisProps) {
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         {analysis.fastestStop && (
-          <Card className="col-span-2 border border-green-500/30 bg-green-500/5 sm:col-span-1">
-            <CardContent className="px-4 py-3">
+          <Panel className="col-span-2 border border-green-500/30 bg-green-500/5 sm:col-span-1">
+            <PanelContent className="px-4 py-3">
               <p className="text-xs font-medium tracking-wider text-green-400 uppercase">
                 Quickest Stop
               </p>
@@ -169,8 +169,8 @@ export function PitStopAnalysisView({ analysis }: PitStopAnalysisProps) {
               <p className="text-muted-foreground text-xs">
                 Lap {analysis.fastestStop.lap} · Stop {analysis.fastestStop.stopNumber}
               </p>
-            </CardContent>
-          </Card>
+            </PanelContent>
+          </Panel>
         )}
 
         <Stat label="Total Stops" value={String(analysis.totalStops)} />

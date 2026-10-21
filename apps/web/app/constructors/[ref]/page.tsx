@@ -7,7 +7,7 @@ import { teamColorOf } from '@/lib/utils'
 import { CountryFlag } from '@/components/ui/country-flag'
 import { DriverAvatar } from '@/components/ui/driver-avatar'
 import { Breadcrumbs } from '@/components/layout/breadcrumbs'
-import { Card, CardContent } from '@/components/ui/card'
+import { Panel, PanelContent } from '@/components/ui/panel'
 import { StatCard } from '@/components/ui/stat-card'
 import { ConstructorSeasonHistoryTable } from '@/components/constructors/season-history-table'
 import { CareerPointsChart } from '@/components/charts/career-points-chart'
@@ -196,8 +196,8 @@ export default async function ConstructorDetailPage({
                 <StaggerItem key={d.ref}>
                   <Link href={`/drivers/${d.ref}`}>
                     <MotionCard>
-                      <Card className="hover:border-primary/30 transition-all duration-200">
-                        <CardContent className="flex items-center gap-3 px-4 py-3">
+                      <Panel className="hover:border-primary/30 transition-all duration-200">
+                        <PanelContent className="flex items-center gap-3 px-4 py-3">
                           <DriverAvatar
                             firstName={d.firstName}
                             lastName={d.lastName}
@@ -218,8 +218,8 @@ export default async function ConstructorDetailPage({
                               )}
                             </div>
                           </div>
-                        </CardContent>
-                      </Card>
+                        </PanelContent>
+                      </Panel>
                     </MotionCard>
                   </Link>
                 </StaggerItem>

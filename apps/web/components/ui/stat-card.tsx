@@ -2,7 +2,7 @@ import Link from 'next/link'
 import type { LucideIcon } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
-import { Card } from '@/components/ui/card'
+import { Panel } from '@/components/ui/panel'
 import { AnimatedNumber, MotionCard } from '@/components/ui/motion'
 
 interface StatCardProps {
@@ -25,7 +25,7 @@ export function StatCard({
   className,
 }: StatCardProps) {
   const card = (
-    <Card
+    <Panel
       className={cn(
         'glow-border relative gap-4 py-5 transition-all duration-200',
         href && 'hover:border-primary/30 card-glow cursor-pointer',
@@ -57,7 +57,7 @@ export function StatCard({
           </div>
         )}
       </div>
-    </Card>
+    </Panel>
   )
 
   if (href) {

@@ -3,7 +3,7 @@ import { Suspense } from 'react'
 import { api } from '@/lib/api'
 import type { Constructor, PaginatedResponse } from '@/lib/types'
 import { CountryFlag } from '@/components/ui/country-flag'
-import { PageHeader } from '@/components/ui/page-header'
+import { PageHero } from '@/components/ui/page-hero'
 import {
   Table,
   TableBody,
@@ -50,7 +50,7 @@ export default async function ConstructorsPage({
 
   return (
     <div className="space-y-6">
-      <PageHeader
+      <PageHero
         title="Constructors"
         description={`${total} constructors${nationality ? ` from ${nationality}` : ' across F1 history'}`}
       />

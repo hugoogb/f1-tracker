@@ -1,5 +1,5 @@
 import { Skeleton } from '@/components/ui/skeleton'
-import { Card } from '@/components/ui/card'
+import { Panel } from '@/components/ui/panel'
 
 export default function DriverDetailLoading() {
   return (
@@ -20,7 +20,7 @@ export default function DriverDetailLoading() {
 
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         {Array.from({ length: 4 }).map((_, i) => (
-          <Card key={i} className="gap-4 py-5">
+          <Panel key={i} className="gap-4 py-5">
             <div className="flex items-start justify-between px-5">
               <div className="space-y-2">
                 <Skeleton className="h-4 w-14" />
@@ -28,7 +28,7 @@ export default function DriverDetailLoading() {
               </div>
               <Skeleton className="h-9 w-9 rounded-lg" />
             </div>
-          </Card>
+          </Panel>
         ))}
       </div>
 
