@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { api } from '@/lib/api'
 import { SEARCH_DEBOUNCE_MS, SEARCH_MIN_LENGTH } from '@/lib/constants'
+import { isCurrentFor } from '@/lib/palette'
 
 export interface SearchResults {
   drivers: {
@@ -35,10 +36,20 @@ const EMPTY: SearchResults = {
  * callers used to swallow it and render an empty list — a search box that
  * silently does nothing. `failed` exists so they can say so instead.
  */
-export function useSearch(query: string): { results: SearchResults; failed: boolean } {
-  const [state, setState] = useState<{ results: SearchResults; failed: boolean }>({
+export function useSearch(query: string): {
+  results: SearchResults
+  failed: boolean
+  /** True until `results` answer this exact query (debounce + request in flight). */
+  pending: boolean
+} {
+  const [state, setState] = useState<{
+    results: SearchResults
+    failed: boolean
+    forQuery: string | null
+  }>({
     results: EMPTY,
     failed: false,
+    forQuery: null,
   })
 
   // A query too short to send is an empty result by definition, so it is
@@ -56,9 +67,9 @@ export function useSearch(query: string): { results: SearchResults; failed: bool
     const timer = setTimeout(async () => {
       try {
         const data = (await api.search(query)) as SearchResults
-        if (current) setState({ results: { ...EMPTY, ...data }, failed: false })
+        if (current) setState({ results: { ...EMPTY, ...data }, failed: false, forQuery: query })
       } catch {
-        if (current) setState({ results: EMPTY, failed: true })
+        if (current) setState({ results: EMPTY, failed: true, forQuery: query })
       }
     }, SEARCH_DEBOUNCE_MS)
 
@@ -68,5 +79,7 @@ export function useSearch(query: string): { results: SearchResults; failed: bool
     }
   }, [query, searchable])
 
-  return searchable ? state : { results: EMPTY, failed: false }
+  return searchable
+    ? { results: state.results, failed: state.failed, pending: !isCurrentFor(query, state) }
+    : { results: EMPTY, failed: false, pending: false }
 }

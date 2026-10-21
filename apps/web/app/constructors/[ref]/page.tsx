@@ -18,6 +18,7 @@ import { buildMetadata, SITE_DESCRIPTION } from '@/lib/seo'
 import { FavouriteButton } from '@/components/favourites/favourite-button'
 import { buttonVariants } from '@/components/ui/button-variants'
 import { PageHero } from '@/components/ui/page-hero'
+import { compareHref } from '@/lib/compare-prefill'
 import { RecordVisit } from '@/components/layout/record-visit'
 import { WhereNext } from '@/components/layout/where-next'
 import { liveryStyle } from '@/lib/livery'
@@ -149,7 +150,7 @@ export default async function ConstructorDetailPage({
               size="icon"
             />
             <Link
-              href={`/compare/constructors?c1=${ref}`}
+              href={compareHref('constructor', ref, constructor.name)}
               className={buttonVariants({ variant: 'livery', size: 'lg' })}
             >
               <GitCompareArrows className="size-3.5" aria-hidden />
@@ -251,7 +252,7 @@ export default async function ConstructorDetailPage({
         links={[
           {
             label: 'Compare head to head',
-            href: `/compare/constructors?c1=${ref}`,
+            href: compareHref('constructor', ref, constructor.name),
             description: `${constructor.name} against any team in history`,
           },
           ...(latestYear

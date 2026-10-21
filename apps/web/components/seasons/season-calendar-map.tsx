@@ -340,7 +340,7 @@ export function SeasonCalendarMap({ year, rounds, variant }: SeasonCalendarMapPr
         variant={variant}
       />
 
-      <div className="brackets relative [&::after]:z-[1001] [&::before]:z-[1001]">
+      <div className="brackets relative isolate [&::after]:z-[1001] [&::before]:z-[1001]">
         <div
           className="border-hairline relative h-[340px] w-full overflow-hidden border sm:h-[440px] lg:h-[520px]"
           role="region"

@@ -21,6 +21,7 @@ import { useHydrated } from '@/lib/client-only'
 import { SEARCH_MIN_LENGTH } from '@/lib/constants'
 import { isTypingTarget, shortcutLabel } from '@/lib/keyboard'
 import { useRecentlyViewed } from '@/lib/recently-viewed'
+import { paletteGroupOrder, type PaletteGroupKey } from '@/lib/palette'
 import { searchPages } from '@/lib/site-pages'
 import { useSearch, type SearchResults } from '@/lib/use-search'
 import { cn } from '@/lib/utils'
@@ -40,7 +41,8 @@ interface Group {
 }
 
 const QUICK_LINKS: Option[] = [
-  { href: '/seasons/current', label: 'Current season', sublabel: 'Standings and calendar' },
+  { href: '/', label: 'Next race', sublabel: 'Countdown and schedule' },
+  { href: '/seasons/current', label: 'Current standings', sublabel: 'This season' },
   { href: '/best-seasons', label: 'Best seasons', sublabel: 'Closest title fights' },
   { href: '/records', label: 'Records', sublabel: 'All-time leaders' },
   { href: '/compare', label: 'Compare', sublabel: 'Head to head' },
@@ -105,14 +107,15 @@ function resultGroups(query: string, results: SearchResults): Group[] {
       })),
     },
   ]
-  // A typed year means the season or a race is what's wanted; otherwise
-  // people come first, and races (matched by name) after them.
-  const order = /(?<!\d)(19|20)\d\d(?!\d)/.test(query)
-    ? ['pages', 'seasons', 'races', 'drivers', 'constructors', 'circuits']
-    : ['pages', 'drivers', 'constructors', 'circuits', 'seasons', 'races']
+  const pageTitlePrefix = searchPages(query, 1).some((p) =>
+    p.title.toLowerCase().startsWith(query.trim().toLowerCase()),
+  )
+  const order = paletteGroupOrder(query, pageTitlePrefix)
   return groups
     .filter((g) => g.options.length > 0)
-    .sort((a, b) => order.indexOf(a.key) - order.indexOf(b.key))
+    .sort(
+      (a, b) => order.indexOf(a.key as PaletteGroupKey) - order.indexOf(b.key as PaletteGroupKey),
+    )
 }
 
 /**
@@ -131,7 +134,7 @@ export function CommandSearch() {
   const listboxId = useId()
   const inputRef = useRef<HTMLInputElement>(null)
 
-  const { results, failed } = useSearch(query)
+  const { results, failed, pending } = useSearch(query)
   const searching = query.trim().length >= SEARCH_MIN_LENGTH
 
   useEffect(() => {
@@ -163,7 +166,9 @@ export function CommandSearch() {
   }
 
   const groups: Group[] = searching
-    ? resultGroups(query, results)
+    ? pending
+      ? []
+      : resultGroups(query, results)
     : [
         { key: 'quick', label: 'Jump to', icon: Zap, options: QUICK_LINKS },
         ...(recent.length > 0
@@ -315,12 +320,17 @@ export function CommandSearch() {
               )
             })}
 
-            {searching && failed && (
+            {searching && pending && (
+              <p className="text-muted-foreground py-8 text-center text-sm" aria-live="polite">
+                Searching…
+              </p>
+            )}
+            {searching && !pending && failed && (
               <p className="text-muted-foreground py-8 text-center text-sm">
                 Search is unavailable right now. Try again in a moment.
               </p>
             )}
-            {searching && !failed && groups.length === 0 && (
+            {searching && !pending && !failed && groups.length === 0 && (
               <p className="text-muted-foreground py-8 text-center text-sm">No results found.</p>
             )}
           </div>

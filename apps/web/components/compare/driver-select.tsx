@@ -8,13 +8,15 @@ import { useSearch } from '@/lib/use-search'
 interface DriverSelectProps {
   label: string
   value: string
+  /** The name to show for a `value` chosen before this picker mounted (a URL prefill). */
+  initialName?: string
   onChange: (ref: string, name: string) => void
 }
 
-export function DriverSelect({ label, value, onChange }: DriverSelectProps) {
+export function DriverSelect({ label, value, initialName, onChange }: DriverSelectProps) {
   const [query, setQuery] = useState('')
   const [open, setOpen] = useState(false)
-  const [selectedName, setSelectedName] = useState('')
+  const [selectedName, setSelectedName] = useState(value ? initialName || value : '')
   const containerRef = useRef<HTMLDivElement>(null)
   const inputId = label.toLowerCase().replace(/\s+/g, '-')
 

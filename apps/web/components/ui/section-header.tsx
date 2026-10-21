@@ -10,6 +10,7 @@ export function SectionHeader({
   href,
   linkLabel = 'View all',
   as: Heading = 'h2',
+  id,
   className,
 }: {
   eyebrow?: string
@@ -17,13 +18,15 @@ export function SectionHeader({
   href?: string
   linkLabel?: string
   as?: 'h2' | 'h3'
+  /** For a section's `aria-labelledby`. */
+  id?: string
   className?: string
 }) {
   return (
     <div className={cn('flex items-end justify-between gap-4', className)}>
       <div className="space-y-1">
         {eyebrow && <p className="label">{eyebrow}</p>}
-        <Heading>{title}</Heading>
+        <Heading id={id}>{title}</Heading>
       </div>
       {href && (
         <Link

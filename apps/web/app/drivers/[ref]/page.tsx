@@ -21,6 +21,7 @@ import { Meter } from '@/components/ui/meter'
 import { Panel } from '@/components/ui/panel'
 import { PageHero } from '@/components/ui/page-hero'
 import { Tag } from '@/components/ui/tag'
+import { compareHref } from '@/lib/compare-prefill'
 import { RecordVisit } from '@/components/layout/record-visit'
 import { WhereNext } from '@/components/layout/where-next'
 
@@ -171,7 +172,7 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ r
               size="icon"
             />
             <Link
-              href={`/compare?d1=${ref}`}
+              href={compareHref('driver', ref, fullName)}
               className={buttonVariants({ variant: 'livery', size: 'lg' })}
             >
               <GitCompareArrows className="size-3.5" aria-hidden />
@@ -289,7 +290,7 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ r
         links={[
           {
             label: 'Compare head to head',
-            href: `/compare?d1=${ref}`,
+            href: compareHref('driver', ref, fullName),
             description: `${driverData.lastName} against any driver in history`,
           },
           ...(latestSeason

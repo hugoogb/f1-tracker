@@ -10,6 +10,7 @@ import { Panel, PanelContent, PanelHeader, PanelTitle } from '@/components/ui/pa
 import { PageHero } from '@/components/ui/page-hero'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { FadeIn } from '@/components/ui/motion'
+import { comparePrefill, type PrefillSide } from '@/lib/compare-prefill'
 
 // f1db ids, which are hyphenated and use the driver's full name — not Ergast's
 // (`hamilton`, `max_verstappen`, `red_bull`). Every one of these was an Ergast
@@ -28,9 +29,9 @@ const suggestedConstructorComparisons = [
   { c1: 'ferrari', c2: 'williams', label: 'Ferrari vs Williams' },
 ]
 
-function DriverCompareForm({ prefillD1 }: { prefillD1: string }) {
+function DriverCompareForm({ prefill }: { prefill: PrefillSide }) {
   const router = useRouter()
-  const [d1, setD1] = useState({ ref: prefillD1, name: '' })
+  const [d1, setD1] = useState(prefill)
   const [d2, setD2] = useState({ ref: '', name: '' })
 
   const canCompare = d1.ref && d2.ref && d1.ref !== d2.ref
@@ -52,6 +53,7 @@ function DriverCompareForm({ prefillD1 }: { prefillD1: string }) {
             <DriverSelect
               label="Driver 1"
               value={d1.ref}
+              initialName={prefill.name}
               onChange={(ref, name) => setD1({ ref, name })}
             />
             <div className="hidden items-center md:flex">
@@ -94,9 +96,9 @@ function DriverCompareForm({ prefillD1 }: { prefillD1: string }) {
   )
 }
 
-function ConstructorCompareForm() {
+function ConstructorCompareForm({ prefill }: { prefill: PrefillSide }) {
   const router = useRouter()
-  const [c1, setC1] = useState({ ref: '', name: '' })
+  const [c1, setC1] = useState(prefill)
   const [c2, setC2] = useState({ ref: '', name: '' })
 
   const canCompare = c1.ref && c2.ref && c1.ref !== c2.ref
@@ -118,6 +120,7 @@ function ConstructorCompareForm() {
             <ConstructorSelect
               label="Constructor 1"
               value={c1.ref}
+              initialName={prefill.name}
               onChange={(ref, name) => setC1({ ref, name })}
             />
             <div className="hidden items-center md:flex">
@@ -218,7 +221,7 @@ function SeasonCompareLinks() {
 
 export default function ComparePage() {
   const searchParams = useSearchParams()
-  const prefillD1 = searchParams.get('d1') ?? ''
+  const prefill = comparePrefill(searchParams)
 
   return (
     <div className="space-y-8">
@@ -228,7 +231,7 @@ export default function ComparePage() {
         description="Select two drivers or constructors to compare their career stats and head-to-head record"
       />
 
-      <Tabs defaultValue={0}>
+      <Tabs defaultValue={prefill.tab}>
         <TabsList variant="line">
           <TabsTrigger value={0}>Drivers</TabsTrigger>
           <TabsTrigger value={1}>Constructors</TabsTrigger>
@@ -236,14 +239,14 @@ export default function ComparePage() {
         <TabsContent value={0}>
           <FadeIn>
             <div className="space-y-8">
-              <DriverCompareForm prefillD1={prefillD1} />
+              <DriverCompareForm prefill={prefill.d1} />
             </div>
           </FadeIn>
         </TabsContent>
         <TabsContent value={1}>
           <FadeIn>
             <div className="space-y-8">
-              <ConstructorCompareForm />
+              <ConstructorCompareForm prefill={prefill.c1} />
             </div>
           </FadeIn>
         </TabsContent>

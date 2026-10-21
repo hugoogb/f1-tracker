@@ -281,7 +281,7 @@ export default async function Home() {
       {/* Explore */}
       {tiles.length > 0 && (
         <section aria-labelledby="explore-heading" className="space-y-4">
-          <SectionHeader eyebrow="Beyond the standings" title="Explore" />
+          <SectionHeader id="explore-heading" eyebrow="Beyond the standings" title="Explore" />
           <ExploreGrid tiles={tiles} />
         </section>
       )}
