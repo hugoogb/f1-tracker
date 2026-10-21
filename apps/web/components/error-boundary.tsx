@@ -14,7 +14,7 @@ export function ErrorBoundary({
 }: ErrorBoundaryProps) {
   return (
     <div className="flex min-h-[50vh] flex-col items-center justify-center">
-      <div className="glass relative max-w-md rounded-xl px-8 py-10 text-center">
+      <div className="brackets bg-surface-1 border-hairline relative max-w-md border px-8 py-10 text-center">
         <div className="bg-primary/20 absolute top-0 left-0 h-full w-1 rounded-l-xl" />
         <div className="text-destructive/60 mb-4">
           <AlertTriangle className="mx-auto h-12 w-12" strokeWidth={1.5} />

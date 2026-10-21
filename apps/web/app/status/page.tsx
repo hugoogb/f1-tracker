@@ -170,13 +170,12 @@ export default async function StatusPage() {
       <Breadcrumbs items={[{ label: 'Home', href: '/' }, { label: 'Status' }]} />
 
       <PageHero
+        eyebrow="Data pipeline"
         title="Status"
         description="What the database holds, when it was last filled, and what is still outstanding."
         badge={
           status?.schemaVersion ? (
-            <Badge variant="outline" className="font-mono">
-              {status.schemaVersion}
-            </Badge>
+            <Badge variant="outline">{status.schemaVersion}</Badge>
           ) : undefined
         }
       />
@@ -332,7 +331,7 @@ export default async function StatusPage() {
                             '—'
                           )}
                         </TableCell>
-                        <TableCell className="font-mono text-xs">{run.target}</TableCell>
+                        <TableCell className="font-data text-xs">{run.target}</TableCell>
                         <TableCell>
                           <RunStatusBadge status={run.status} />
                         </TableCell>
@@ -342,7 +341,7 @@ export default async function StatusPage() {
                         <TableCell className="text-right tabular-nums">
                           {run.rowsWritten === null ? '—' : run.rowsWritten.toLocaleString('en-GB')}
                         </TableCell>
-                        <TableCell className="text-muted-foreground font-mono text-xs">
+                        <TableCell className="text-muted-foreground font-data text-xs">
                           {run.f1dbVersion ?? '—'}
                         </TableCell>
                       </TableRow>
@@ -420,13 +419,13 @@ export default async function StatusPage() {
                 {Object.entries(status.rowCounts).map(([key, count]) => (
                   <div
                     key={key}
-                    className="flex items-baseline justify-between gap-2 border-b border-[oklch(1_0_0/6%)] pb-2"
+                    className="border-hairline flex items-baseline justify-between gap-2 border-b pb-2"
                   >
                     <dt className="text-muted-foreground truncate text-xs">
                       {ROW_COUNT_LABELS[key] ?? key}
                     </dt>
                     <dd
-                      className="font-mono text-sm tabular-nums"
+                      className="font-data text-sm tabular-nums"
                       title={estimated.has(key) ? APPROXIMATE_HINT : undefined}
                     >
                       {estimated.has(key) ? '≈\u202F' : ''}

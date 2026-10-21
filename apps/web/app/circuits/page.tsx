@@ -69,6 +69,7 @@ export default async function CircuitsPage({
   return (
     <div className="space-y-6">
       <PageHero
+        eyebrow="Venues"
         title="Circuits"
         description={`${total} circuits${country ? ` in ${country}` : ' across F1 history'}`}
       />

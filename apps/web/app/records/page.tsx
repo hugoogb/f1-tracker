@@ -179,7 +179,8 @@ export default async function RecordsPage() {
 
       <FadeIn>
         <PageHero
-          title="All-Time Records"
+          eyebrow="Stats"
+          title="All-time records"
           description="The greatest achievements in Formula 1 history"
         />
       </FadeIn>

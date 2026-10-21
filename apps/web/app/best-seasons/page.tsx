@@ -80,7 +80,8 @@ export default async function BestSeasonsPage() {
       <Breadcrumbs items={[{ label: 'Home', href: '/' }, { label: 'Best Seasons' }]} />
 
       <PageHero
-        title="Best Seasons"
+        eyebrow="Stats"
+        title="Best seasons"
         description="Every completed championship since 1950, ranked by how good a title fight it was to watch: how close it finished, how late it was settled, and how many drivers were in it."
       />
 

@@ -13,7 +13,6 @@ export default function HomeLoading() {
             <Skeleton className="h-6 w-96" />
           </div>
         </div>
-        <div className="accent-line" />
       </div>
 
       {/* Stat cards skeleton */}
@@ -25,7 +24,7 @@ export default function HomeLoading() {
                 <Skeleton className="h-4 w-16" />
                 <Skeleton className="h-8 w-20" />
               </div>
-              <Skeleton className="h-9 w-9 rounded-lg" />
+              <Skeleton className="h-9 w-9" />
             </div>
           </Panel>
         ))}

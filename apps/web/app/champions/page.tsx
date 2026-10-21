@@ -58,13 +58,10 @@ export default async function ChampionsPage() {
   return (
     <div className="space-y-10">
       <PageHero
+        eyebrow="Since 1950"
         title="Champions"
         description="F1 World Champions from every season"
-        badge={
-          <Badge variant="secondary" className="font-mono">
-            {champions.length} seasons
-          </Badge>
-        }
+        badge={<Badge variant="secondary">{champions.length} seasons</Badge>}
       />
 
       <ChampionsTabs
@@ -75,10 +72,9 @@ export default async function ChampionsPage() {
                 <section>
                   <div className="mb-4 space-y-3">
                     <div className="flex items-center gap-3">
-                      <div className="bg-primary/20 h-6 w-1 rounded-full" />
+                      <span aria-hidden className="bg-primary h-5 w-1 -skew-x-12" />
                       <h2>{decade}</h2>
                     </div>
-                    <div className="accent-line" />
                   </div>
                   <StaggerList className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     {entries.map((champion) => {
@@ -97,11 +93,11 @@ export default async function ChampionsPage() {
                               <div className="flex flex-col items-center gap-1">
                                 <Link
                                   href={`/seasons/${champion.year}`}
-                                  className="font-heading hover:text-primary text-lg font-bold transition-colors"
+                                  className="display hover:text-primary focus-ring text-2xl transition-colors"
                                 >
                                   {champion.year}
                                 </Link>
-                                <Trophy className="h-4 w-4 text-amber-500/60" />
+                                <Trophy className="text-gold size-4" aria-hidden />
                               </div>
                               <div className="min-w-0 flex-1 space-y-1">
                                 <div className="flex items-center gap-2">
@@ -157,10 +153,9 @@ export default async function ChampionsPage() {
                 <section>
                   <div className="mb-4 space-y-3">
                     <div className="flex items-center gap-3">
-                      <div className="bg-primary/20 h-6 w-1 rounded-full" />
+                      <span aria-hidden className="bg-primary h-5 w-1 -skew-x-12" />
                       <h2>{decade}</h2>
                     </div>
-                    <div className="accent-line" />
                   </div>
                   <StaggerList className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     {entries.map((champion) => {
@@ -179,11 +174,11 @@ export default async function ChampionsPage() {
                               <div className="flex flex-col items-center gap-1">
                                 <Link
                                   href={`/seasons/${champion.year}`}
-                                  className="font-heading hover:text-primary text-lg font-bold transition-colors"
+                                  className="display hover:text-primary focus-ring text-2xl transition-colors"
                                 >
                                   {champion.year}
                                 </Link>
-                                <Trophy className="h-4 w-4 text-amber-500/60" />
+                                <Trophy className="text-gold size-4" aria-hidden />
                               </div>
                               <div className="min-w-0 flex-1 space-y-1">
                                 <div className="flex items-center gap-2">

@@ -6,7 +6,7 @@ export default function ConstructorDetailLoading() {
     <div className="space-y-8">
       <div className="space-y-2">
         <div className="flex items-center gap-3">
-          <Skeleton className="size-5 rounded-full" />
+          <Skeleton className="size-5" />
           <Skeleton className="h-9 w-48" />
         </div>
         <Skeleton className="h-5 w-20" />

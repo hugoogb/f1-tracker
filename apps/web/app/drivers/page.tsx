@@ -53,6 +53,7 @@ export default async function DriversPage({
   return (
     <div className="space-y-6">
       <PageHero
+        eyebrow="Archive"
         title="Drivers"
         description={`${total} drivers${nationality ? ` from ${nationality}` : ' across F1 history'}`}
       />
@@ -86,11 +87,7 @@ export default async function DriversPage({
                   </Link>
                 </TableCell>
                 <TableCell className="hidden sm:table-cell">
-                  {driver.code && (
-                    <Badge variant="secondary" className="font-mono">
-                      {driver.code}
-                    </Badge>
-                  )}
+                  {driver.code && <Badge variant="secondary">{driver.code}</Badge>}
                 </TableCell>
                 <TableCell className="text-muted-foreground">
                   <span className="inline-flex items-center gap-1.5">

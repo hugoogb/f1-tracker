@@ -223,6 +223,7 @@ export default function ComparePage() {
   return (
     <div className="space-y-8">
       <PageHero
+        eyebrow="Head to head"
         title="Compare"
         description="Select two drivers or constructors to compare their career stats and head-to-head record"
       />

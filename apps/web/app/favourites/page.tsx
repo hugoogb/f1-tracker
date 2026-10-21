@@ -23,6 +23,7 @@ export default function FavouritesPage() {
     <div className="space-y-6">
       <Breadcrumbs items={[{ label: 'Home', href: '/' }, { label: 'Favourites' }]} />
       <PageHero
+        eyebrow="On this device"
         title="Favourites"
         description="Starred drivers, constructors and circuits. They are saved in this browser only — no account, and nothing is sent anywhere."
       />

@@ -46,6 +46,7 @@ export default function AttributionsPage() {
   return (
     <div className="space-y-10">
       <PageHero
+        eyebrow="Credits"
         title="Attributions"
         description="F1 Tracker is an unofficial, non-commercial fan project. Every data source and image it uses is credited here."
       />
@@ -53,9 +54,7 @@ export default function AttributionsPage() {
       <FadeIn>
         <Panel className="border-primary/40">
           <PanelContent className="space-y-3 pt-6 text-sm leading-relaxed">
-            <h2 className="font-heading text-base font-bold tracking-wider uppercase">
-              Trademark notice
-            </h2>
+            <h2>Trademark notice</h2>
             <p className="text-muted-foreground">
               F1 Tracker is unofficial and is not associated in any way with the Formula 1
               companies. F1, FORMULA ONE, FORMULA 1, FIA FORMULA ONE WORLD CHAMPIONSHIP, GRAND PRIX
@@ -71,7 +70,7 @@ export default function AttributionsPage() {
 
       <FadeIn>
         <section className="space-y-4">
-          <h2 className="font-heading text-lg font-bold tracking-wider uppercase">Sources</h2>
+          <h2>Sources</h2>
           <div className="grid gap-4 md:grid-cols-2">
             {DATA_SOURCES.map((source) => (
               <Panel key={source.name}>
@@ -109,9 +108,7 @@ export default function AttributionsPage() {
 
       <FadeIn>
         <section className="space-y-4">
-          <h2 className="font-heading text-lg font-bold tracking-wider uppercase">
-            Data licence &amp; reuse
-          </h2>
+          <h2>Data licence &amp; reuse</h2>
           <Panel>
             <PanelContent className="text-muted-foreground space-y-3 pt-6 text-sm leading-relaxed">
               <p>
@@ -153,9 +150,7 @@ export default function AttributionsPage() {
 
       <FadeIn>
         <section className="space-y-3">
-          <h2 className="font-heading text-lg font-bold tracking-wider uppercase">
-            Rights holders
-          </h2>
+          <h2>Rights holders</h2>
           <p className="text-muted-foreground text-sm leading-relaxed">
             If you hold rights to something used here and believe it is used improperly, please open
             an issue at{' '}

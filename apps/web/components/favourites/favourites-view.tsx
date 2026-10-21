@@ -40,6 +40,7 @@ import {
   type Favourite,
   type FavouriteType,
 } from '@/lib/favourites'
+import { buttonVariants } from '@/components/ui/button-variants'
 
 const SECTIONS: {
   type: FavouriteType
@@ -109,7 +110,7 @@ export function FavouritesView() {
             <Link
               key={section.type}
               href={section.href}
-              className="glass hover:border-primary/40 hover:text-foreground text-muted-foreground inline-flex h-9 items-center gap-2 rounded-lg border border-[var(--glass-border)] px-4 text-sm font-medium transition-colors"
+              className={buttonVariants({ variant: 'outline' })}
             >
               <section.icon className="h-3.5 w-3.5" />
               {section.browse}

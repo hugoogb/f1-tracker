@@ -51,6 +51,7 @@ export default async function ConstructorsPage({
   return (
     <div className="space-y-6">
       <PageHero
+        eyebrow="Archive"
         title="Constructors"
         description={`${total} constructors${nationality ? ` from ${nationality}` : ' across F1 history'}`}
       />
@@ -80,7 +81,7 @@ export default async function ConstructorsPage({
                   >
                     {constructor.color && (
                       <span
-                        className="inline-block h-4 w-1 rounded-full"
+                        className="inline-block h-4 w-1"
                         style={{ backgroundColor: constructor.color }}
                       />
                     )}
