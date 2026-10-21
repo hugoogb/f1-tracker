@@ -366,8 +366,13 @@ runs `/srv/apps/f1_api/ingest.sh` (placed there by the deploy), which:
    `--current-year --no-restore --no-backup`) against `DIRECT_URL`, bypassing
    PgBouncer. The ingestors are idempotent (`db.merge`), so re-runs are safe.
 3. **Validate** — `scripts/validate.py`, informational.
-4. **Purge** — POSTs to `REVALIDATE_URL` so Vercel expires its cached pages
-   (`revalidateTag(..., { expire: 0 })`: the next request renders fresh). A
+4. **Purge** — POSTs `{"scope":"latest"}` to `REVALIDATE_URL` so Vercel expires
+   the cached pages the ingest can have changed — the newest season, its drivers,
+   constructors and circuits, and the global lists — and leaves finished seasons
+   alone (`revalidateTag(..., { expire: 0 })`: the next request renders fresh).
+   Custom seed flags purge everything instead; so does
+   `/srv/apps/f1_api/purge-cache.sh --all`, which is the one to run after a
+   historical backfill or an f1db correction to an old season. A
    purge that does not land — unset URL/secret, or a 401 because the VPS's
    `REVALIDATE_SECRET` differs from Vercel's — does not fail the run but adds a
    warning annotation to it. `pnpm fastf1` exits 3 in the same case; re-run the

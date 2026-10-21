@@ -83,6 +83,8 @@ case "$COMMAND" in
 
     # Without this, race pages rendered before the import keep saying there is
     # no lap time data until their day-long TTL runs out.
+    # PURGE_YEARS (set by `pnpm fastf1` to the payload's seasons) reaches
+    # purge-cache.sh through the environment and narrows the purge to them.
     PURGED=1
     if [ -x "$APP_DIR/purge-cache.sh" ]; then
       "$APP_DIR/purge-cache.sh" >&2 || PURGED=0

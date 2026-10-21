@@ -267,6 +267,7 @@ export default async function CircuitDetailPage({ params }: { params: Promise<{ 
                         <TableCell>
                           <Link
                             href={`/seasons/${race.seasonYear}/races/${race.round}`}
+                            prefetch={false}
                             className="hover:text-primary transition-colors"
                           >
                             {race.name}

@@ -247,6 +247,22 @@ export interface LapsResponse {
   drivers: DriverLaps[]
 }
 
+/**
+ * What the lap-time and tyre-strategy charts actually read from `DriverLaps`.
+ *
+ * The race page trims the `/laps` response down to this before handing it to
+ * those client components (see `chartLaps` there). Everything passed to a
+ * client component is serialised into the page twice — once in the RSC
+ * payload, once inlined in the HTML — and the page is stored that way in the
+ * ISR cache, so sector splits, stint numbers and tyre life nobody draws were
+ * the largest part of every 2018+ race page.
+ */
+export interface ChartDriverLaps {
+  driver: Pick<Driver, 'ref' | 'code' | 'lastName'>
+  constructor: Pick<Constructor, 'color'>
+  laps: Pick<LapData, 'lapNumber' | 'timeMs' | 'compound'>[]
+}
+
 export interface PaginatedResponse<T> {
   data: T[]
   total: number

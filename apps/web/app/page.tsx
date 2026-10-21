@@ -34,10 +34,12 @@ import type { Metadata } from 'next'
 import { SITE_DESCRIPTION, SITE_NAME, absoluteUrl } from '@/lib/seo'
 
 // Shorter than the site-wide backstop because this page splits the calendar on
-// the render-time clock (`now` below), not just on the data. Five minutes keeps
-// "next race" honest without re-rendering the busiest page for every visitor;
-// an ingest still purges it immediately through the `f1-data` tag.
-export const revalidate = 300
+// the render-time clock (`now` below), not just on the data. An hour is enough:
+// the split only moves when a race starts, and the result itself does not exist
+// until the ingest, which purges this page at once (it reads only `f1-global`
+// and current-season tags). Every regeneration is a function invocation, so
+// five minutes cost twelve times as many for the same page.
+export const revalidate = 3600
 
 export const metadata: Metadata = {
   // `absolute` opts out of the root layout's `%s | F1 Tracker` template, which
@@ -103,7 +105,7 @@ export default async function Home() {
   // Reading the clock in a server component is the point here — the lint rule
   // is aimed at client components, where an impure read would drift between
   // renders. It does make this page's output time-dependent, which is what the
-  // five-minute `revalidate` above bounds.
+  // one-hour `revalidate` above bounds.
   // eslint-disable-next-line react-hooks/purity
   const now = Date.now()
   // A race counts as done once its start time has passed. Seasons f1db does not
@@ -394,6 +396,7 @@ export default async function Home() {
                         <TableCell>
                           <Link
                             href={`/seasons/${latestYear}/races/${race.round}`}
+                            prefetch={false}
                             className="hover:text-primary font-medium transition-colors"
                           >
                             {race.name}

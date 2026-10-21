@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 
 import { api, ApiError } from '@/lib/api'
-import { OPS_REVALIDATE_SECONDS } from '@/lib/constants'
+import { EXPLORE_CDN_MAX_AGE_SECONDS } from '@/lib/constants'
 import type { RecordsExploreEntity, RecordsExploreCategory } from '@/lib/types'
 
 /**
@@ -57,11 +57,14 @@ export async function GET(request: Request) {
   try {
     const data = await api.records.explore(readParams(new URL(request.url)))
     return NextResponse.json(data, {
-      // Matches the upstream fetch's own TTL. The explorer is a client fetch,
-      // so this is what lets a repeated filter combination come back without a
-      // round trip to the API at all.
+      // The only cache this response gets. The upstream fetch is `no-store`
+      // (every filter combination is its own URL, and a Data Cache entry per
+      // combination is an ISR write per combination); the CDN caches by URL
+      // for free, so a repeated combination still skips the function and the
+      // API. Records move once a week, so an hour fresh plus a day of
+      // stale-while-revalidate costs nothing a reader would notice.
       headers: {
-        'Cache-Control': `public, s-maxage=${OPS_REVALIDATE_SECONDS}, stale-while-revalidate=300`,
+        'Cache-Control': `public, s-maxage=${EXPLORE_CDN_MAX_AGE_SECONDS}, stale-while-revalidate=86400`,
       },
     })
   } catch (err) {

@@ -1,4 +1,12 @@
-import { API_BASE_URL, REVALIDATE_SECONDS, OPS_REVALIDATE_SECONDS, F1_DATA_TAG } from './constants'
+import {
+  API_BASE_URL,
+  REVALIDATE_SECONDS,
+  HISTORICAL_REVALIDATE_SECONDS,
+  F1_DATA_TAG,
+  F1_GLOBAL_TAG,
+  entityTag,
+  seasonTag,
+} from './constants'
 import type {
   BestSeasonResponse,
   BestSeasonsResponse,
@@ -30,10 +38,65 @@ export function isNotFound(error: unknown): boolean {
   return error instanceof ApiError && error.status === 404
 }
 
+const ENTITY_PATH = /^\/(drivers|constructors|circuits)\/([^/?]+)/
+const SEASON_PATH = /^\/(?:seasons|best-seasons)\/(\d{4})(?:[/?]|$)/
+/** Second path segments of the entity routers that are lists, not one entity. */
+const ENTITY_LISTS = new Set(['nationalities', 'countries'])
+const ENTITY_KIND = { drivers: 'driver', constructors: 'constructor', circuits: 'circuit' } as const
+
+/**
+ * The cache scope of one endpoint: the tags its response is stored under and
+ * how long it may live.
+ *
+ * Every entry is tagged `f1-data`, so a full purge still reaches everything,
+ * plus one narrower tag the ingest webhook can expire on its own:
+ * `f1-season-<year>` for anything under one season (its races, standings,
+ * charts), `f1-driver-<ref>` / `f1-constructor-<ref>` / `f1-circuit-<ref>` for
+ * one entity's profile, and `f1-global` for everything else. A weekly ingest
+ * then only expires the current season, that season's entrants and the global
+ * lists — not seventy-odd finished seasons whose race pages are the biggest
+ * entries in the cache.
+ *
+ * Exported for the tests of the tag scheme and for `app/api/revalidate`, which
+ * must expire the same names this produces.
+ */
+export function cacheScopeFor(endpoint: string): { tags: string[]; revalidate: number } {
+  const season = SEASON_PATH.exec(endpoint)
+  if (season) {
+    const year = Number(season[1])
+    // A season before the current calendar year is over; the clock only picks
+    // the TTL here, never anything that ends up in the response.
+    const finished = year < new Date().getUTCFullYear()
+    return {
+      tags: [F1_DATA_TAG, seasonTag(year)],
+      revalidate: finished ? HISTORICAL_REVALIDATE_SECONDS : REVALIDATE_SECONDS,
+    }
+  }
+  const entity = ENTITY_PATH.exec(endpoint)
+  if (entity && !ENTITY_LISTS.has(entity[2])) {
+    const kind = ENTITY_KIND[entity[1] as keyof typeof ENTITY_KIND]
+    return {
+      tags: [F1_DATA_TAG, entityTag(kind, decodeURIComponent(entity[2]))],
+      revalidate: REVALIDATE_SECONDS,
+    }
+  }
+  return { tags: [F1_DATA_TAG, F1_GLOBAL_TAG], revalidate: REVALIDATE_SECONDS }
+}
+
+/**
+ * Fetches one FastAPI endpoint.
+ *
+ * Cached in the Data Cache by default — which on Vercel is ISR storage, billed
+ * per write. Pass `{ cache: 'no-store' }` for endpoints whose URL space is
+ * unbounded (a pair of drivers, a filter combination): each distinct URL would
+ * otherwise become its own cache entry, written once and rarely read again.
+ */
 async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> {
+  const noStore = options?.cache === 'no-store'
+  const { tags, revalidate } = cacheScopeFor(endpoint)
   const res = await fetch(`${API_BASE_URL}${endpoint}`, {
     ...options,
-    next: { revalidate: REVALIDATE_SECONDS, tags: [F1_DATA_TAG], ...options?.next },
+    ...(noStore ? {} : { next: { revalidate, tags, ...options?.next } }),
     headers: {
       'Content-Type': 'application/json',
       ...options?.headers,
@@ -196,42 +259,52 @@ export const api = {
     explore: (params: RecordsExploreParams, signal?: AbortSignal) =>
       fetchApi<RecordsExploreResponse>(`/records/explore?${recordsExploreQuery(params)}`, {
         signal,
+        // Every filter combination is its own URL; the route handler's CDN
+        // `Cache-Control` caches the popular ones for free instead.
+        cache: 'no-store',
       }),
   }),
+  /**
+   * Head-to-heads. Not cached: any pair of ~900 drivers is a valid URL, so a
+   * cache entry per pair is an unbounded number of ISR writes, almost none of
+   * which is ever read twice. The pages reading these are dynamic anyway.
+   */
   compare: {
     drivers: (d1: string, d2: string, teammate?: boolean) => {
       const params = new URLSearchParams({ d1, d2 })
       if (teammate) params.set('teammate', 'true')
-      return fetchApi(`/compare/drivers?${params}`)
+      return fetchApi(`/compare/drivers?${params}`, { cache: 'no-store' })
     },
     constructors: (c1: string, c2: string) => {
       const params = new URLSearchParams({ c1, c2 })
-      return fetchApi(`/compare/constructors?${params}`)
+      return fetchApi(`/compare/constructors?${params}`, { cache: 'no-store' })
     },
   },
   /** Two drivers or two constructors within one season (`/seasons/[year]/compare`). */
   seasonCompare: {
     entrants: (year: number) =>
       fetchApi<SeasonCompareEntrants>(`/seasons/${year}/compare/entrants`),
+    // Pairs are not cached, for the same reason as `compare` above.
     constructors: (year: number, c1: string, c2: string) =>
       fetchApi<SeasonCompareResponse>(
         `/seasons/${year}/compare/constructors?${new URLSearchParams({ c1, c2 })}`,
+        { cache: 'no-store' },
       ),
     drivers: (year: number, d1: string, d2: string) =>
       fetchApi<SeasonCompareResponse>(
         `/seasons/${year}/compare/drivers?${new URLSearchParams({ d1, d2 })}`,
+        { cache: 'no-store' },
       ),
   },
   ops: {
     /**
      * Counts, timestamps and the ingest run log behind `/status`.
      *
-     * Overrides the shared TTL with a much shorter one: the page exists to say
-     * whether the data is current, which a day-old cache entry cannot do. It
-     * keeps the `f1-data` tag, so an ingest purge still refreshes it the moment
-     * one finishes.
+     * Never cached. The response carries `generatedAt` and planner row
+     * estimates, so no two are identical: every refresh of a cached copy was a
+     * guaranteed ISR write, for a `noindex` page few people open. `/status`
+     * renders per request instead (see the page).
      */
-    status: () =>
-      fetchApi<OpsStatus>('/ops/status', { next: { revalidate: OPS_REVALIDATE_SECONDS } }),
+    status: () => fetchApi<OpsStatus>('/ops/status', { cache: 'no-store' }),
   },
 }

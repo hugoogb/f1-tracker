@@ -73,6 +73,7 @@ export function RoundsTable({
               <TableCell className="max-w-[12rem] truncate">
                 <Link
                   href={`/seasons/${year}/races/${r.round}`}
+                  prefetch={false}
                   className="hover:text-primary transition-colors"
                 >
                   {r.raceName.replace(/ Grand Prix$/, ' GP')}

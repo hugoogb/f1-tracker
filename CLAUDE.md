@@ -48,7 +48,7 @@ Deployment: frontend on Vercel; the API runs as a Docker container (`f1_api`) on
 
 Metadata routes (Next file conventions, all under `apps/web/app/`): `sitemap.ts`
 (static routes + every season, driver, constructor, circuit and race, rebuilt
-daily and on the `f1-data` tag purge), `robots.ts`, `manifest.ts`,
+daily and on any purge, since it reads `f1-global`), `robots.ts`, `manifest.ts`,
 `opengraph-image.tsx` + `twitter-image.tsx` (1200x630 card via `next/og`),
 `icon.svg`, `favicon.ico`, `apple-icon.png`.
 
@@ -184,7 +184,8 @@ daily and on the `f1-data` tag purge), `robots.ts`, `manifest.ts`,
 ### VPS (production backend)
 - App name is `f1_api` everywhere: compose project, container, database, GHCR image. It lives at `/srv/apps/f1_api` on the box
 - Deploys: push to `master`, or Actions -> deploy -> Run workflow (optional `ingest` input). CI builds the image and the server pulls it — nothing is built on the VPS and the repo is not checked out there
-- `/srv/apps/f1_api/ingest.sh [--force] [-- <seed flags>]` - Calendar-gated f1db ingest + Vercel cache purge; copied there by the deploy
+- `/srv/apps/f1_api/ingest.sh [--force] [-- <seed flags>]` - Calendar-gated f1db ingest + Vercel cache purge (newest season only; everything when custom seed flags are given; `PURGE_SCOPE=--all|--latest` overrides); copied there by the deploy
+- `/srv/apps/f1_api/purge-cache.sh [--all | --latest | --years Y,Y]` - Vercel cache purge on its own; `--all` (the default) after a historical backfill or correction
 - `/srv/apps/f1_api/fastf1.sh status|import` - The database half of the Fast-F1 path: report what is missing (JSON on stdout), or load a payload arriving on stdin. Formula 1 blocks the VPS's IP, so nothing here fetches from Fast-F1
 - `/srv/apps/f1_api/backup.sh > f1_api.sql.gz` - Dump the whole production database to stdout, from a throwaway postgres container on the shared network against `DIRECT_URL`. It asks the server its version first and pulls the matching `postgres:<major>-alpine`, because pg_dump refuses to dump a server newer than itself; `PG_IMAGE` pins one instead. Driven from a laptop by `pnpm db:backup:prod`
 - Manual deploy/rollback on the box: `echo "TAG=<sha>" > .tag`, then `docker compose --env-file .env --env-file .tag pull && ... run --rm migrate && ... up -d --wait`
@@ -345,21 +346,38 @@ Two f1db quirks the UI is built around:
   merge one member's record into another's or inherit a colour along a chain; a
   constructor can also hold several slots in its own chain (Sauber), so slot
   stats are scoped to that slot's years
-- Pages are cached, not re-rendered per request. Nothing sets
-  `dynamic = 'force-dynamic'`: freshness comes from the fetch-level
-  `revalidate`/`tags` in `lib/api.ts`, which Next infers as the route's own
-  revalidate, and from the ingest purging the `f1-data` tag. The purge
-  (`app/api/revalidate`) calls `revalidateTag(tag, { expire: 0 })`, never `'max'`: `'max'` is
-  stale-while-revalidate, so the next visitor would still get the page rendered before the import.
-  `purge-cache.sh` exits non-zero and prints a `::warning::` when the purge does not land (unset
-  URL/secret, 401 from a mismatched `REVALIDATE_SECRET`), and its callers report it. The `[ref]`/`[year]`
-  detail routes each export an empty `generateStaticParams()` — without one a
-  dynamic segment never enters the full route cache, and with one returning `[]`
-  nothing is prerendered at build while the first request for a path still
-  caches it. The routes that stay server-rendered are exactly the seven reading
-  `searchParams` (`/seasons/[year]/compare` is the seventh). Two pages set their own `revalidate`: `/` (5 minutes), because it
-  splits the calendar on the render-time clock rather than on data, and `/status`
-  (1 minute), because a day-old cache entry cannot say whether the data is current.
+- Pages are cached, not re-rendered per request, and the cache is the Hobby plan's scarcest
+  budget: every ISR/Data Cache entry written (first render, or a regeneration whose output
+  changed) is billed in 8 KB units. Freshness comes from the fetch-level `revalidate`/`tags` in
+  `lib/api.ts` (`cacheScopeFor`), which Next infers as the route's own revalidate, and from the
+  ingest purge. Every cached fetch carries `f1-data` (the full purge) plus one scoped tag:
+  `f1-season-<year>` (anything under `/seasons/{year}` or `/best-seasons/{year}`),
+  `f1-driver|constructor|circuit-<ref>` (one entity's endpoints) or `f1-global` (lists, records,
+  champions, stats). Seasons before the current year get a 30-day TTL instead of a day.
+  `app/api/revalidate` takes no body / `{"scope":"all"}` (expire `f1-data`), `{"scope":"latest"}`
+  or `{"years":[...]}` (expire those seasons, their entrants' and circuits' entity tags, and
+  `f1-global`; it falls back to everything if it cannot ask the API who took part). The weekly
+  `ingest.sh` sends `--latest`, `pnpm fastf1` sends the payload's years via `PURGE_YEARS`, and
+  `purge-cache.sh --all` is the manual full purge (after a backfill or an f1db correction to an
+  old season). Add a new endpoint under the path that matches its scope, or teach
+  `cacheScopeFor` about it. The purge calls `revalidateTag(tag, { expire: 0 })`, never `'max'`:
+  `'max'` is stale-while-revalidate, so the next visitor would still get the page rendered before
+  the import. `purge-cache.sh` exits non-zero and prints a `::warning::` when the purge does not
+  land (unset URL/secret, 401 from a mismatched `REVALIDATE_SECRET`), and its callers report it.
+  The `[ref]`/`[year]` detail routes each export an empty `generateStaticParams()` — without one a
+  dynamic segment never enters the full route cache, and with one returning `[]` nothing is
+  prerendered at build while the first request for a path still caches it. The routes that stay
+  server-rendered are the seven reading `searchParams` (`/seasons/[year]/compare` is the seventh)
+  and `/status` (`dynamic = 'force-dynamic'`: `/api/ops/status` stamps `generatedAt`, so a cached
+  copy was rewritten on every refresh). Endpoints with unbounded URL spaces — head-to-head pairs,
+  the records explorer's filter combinations — are fetched `no-store` so they never become cache
+  entries; the explorer's route handler is cached by the CDN via `Cache-Control` instead, which is
+  free. `/` sets `revalidate = 3600` because it splits the calendar on the render-time clock.
+  Keep cached output deterministic — no render-time timestamps, random ids or "x minutes ago"
+  on the server (that is what `useNow()` is for): a regeneration that changes bytes is a write,
+  one that does not is free. Pass client components only the fields they draw (the race page's
+  `chartLaps`): their props are stored twice per cached page, in the RSC payload and the HTML.
+  Links that list many heavy detail pages (race rows, season tiles) set `prefetch={false}`.
   A segment config export must be a **literal** — Next reads it by static analysis
   without evaluating the module, so `export const revalidate = SOME_CONSTANT` fails
   the build with "Invalid segment configuration export detected"

@@ -3,8 +3,8 @@ import { api } from '@/lib/api'
 import type { Circuit, Constructor, Driver, PaginatedResponse, Race } from '@/lib/types'
 import { absoluteUrl } from '@/lib/seo'
 
-// The sitemap is rebuilt on the same cadence as the data behind it. Every fetch
-// below also carries the `f1-data` tag, so an ingest purge refreshes it too.
+// The sitemap is rebuilt on the same cadence as the data behind it. The list
+// fetches below carry `f1-global`, so an ingest purge refreshes it too.
 export const revalidate = 86400
 
 const PAGE_SIZE = 500
@@ -55,11 +55,12 @@ const STATIC_ROUTES: {
 ]
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const now = new Date()
-
+  // No `lastModified` on these: it used to be the render time, which made every
+  // regeneration of this ~200 KB file differ from the last and so cost an ISR
+  // write each day even when no URL had changed. A date that is not when the
+  // page changed is also not something a crawler can use.
   const entries: MetadataRoute.Sitemap = STATIC_ROUTES.map((route) => ({
     url: absoluteUrl(route.path),
-    lastModified: now,
     changeFrequency: route.changeFrequency,
     priority: route.priority,
   }))
