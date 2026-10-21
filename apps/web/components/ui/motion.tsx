@@ -13,6 +13,12 @@ import React from 'react'
 
 import { cn } from '@/lib/utils'
 
+// Reduced motion: the server cannot know the visitor's preference, so the
+// first render (the `initial`/`hidden` styles, which are written into the HTML)
+// must be the same for everyone or hydration mismatches. The preference only
+// changes the transition, which never reaches the markup: a duration of 0, so
+// content appears in place with no movement.
+
 // ── FadeIn ──────────────────────────────────────────────────────────────────
 // Scroll-triggered fade + slide entrance. Fires once.
 
@@ -28,7 +34,7 @@ export function FadeIn({ children, delay = 0, className, y = 20 }: FadeInProps) 
 
   return (
     <motion.div
-      initial={shouldReduce ? false : { opacity: 0, y }}
+      initial={{ opacity: 0, y }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: '-60px' }}
       transition={shouldReduce ? { duration: 0 } : { duration: 0.5, delay, ease: 'easeOut' }}
@@ -80,7 +86,7 @@ export function StaggerItem({ children, className }: StaggerItemProps) {
   return (
     <motion.div
       variants={{
-        hidden: shouldReduce ? { opacity: 1, y: 0 } : { opacity: 0, y: 14 },
+        hidden: { opacity: 0, y: 14 },
         visible: {
           opacity: 1,
           y: 0,
@@ -172,7 +178,7 @@ export function PodiumReveal({ children, className }: PodiumRevealProps) {
       {React.Children.map(children, (child, i) => (
         <motion.div
           key={i}
-          initial={shouldReduce ? false : { opacity: 0, y: 24, scale: 0.95 }}
+          initial={{ opacity: 0, y: 24, scale: 0.95 }}
           whileInView={{ opacity: 1, y: 0, scale: 1 }}
           viewport={{ once: true }}
           transition={
