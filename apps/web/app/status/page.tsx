@@ -30,23 +30,21 @@ export const metadata = buildMetadata({
 })
 
 /**
- * The page's own TTL, on top of the per-fetch one in `lib/api.ts`.
+ * Rendered per request, never cached.
  *
- * Both are needed. The fetch-level revalidate is what Next normally infers the
- * route's from, but it only exists for a fetch that *succeeded* — and the one
- * moment this page has to keep refreshing is when the API is down and there is
- * no fetch to infer anything from. Without this, an outage would freeze the
- * "API unreachable" render into the route cache indefinitely.
+ * This page used to be ISR with a one-minute TTL, which made it the one route
+ * guaranteed to write to the ISR cache on every refresh: `/api/ops/status`
+ * stamps `generatedAt` and reports planner row estimates, so no two renders are
+ * byte-identical, and Vercel bills a write for every regeneration whose output
+ * changed. It is `noindex` and rarely visited, so a function invocation per
+ * view is far cheaper than a cache entry rewritten every minute — and it is
+ * always current, which is the page's whole job. The fetch in `lib/api.ts` is
+ * `no-store` for the same reason.
  *
- * It has to stay a bare literal. Route segment config exports are read off the
- * module graph at build time without evaluating it, so an imported binding —
- * `OPS_REVALIDATE_SECONDS`, even though it is a plain 60 one file away — fails
- * the whole build with "Invalid segment configuration export detected". Keep it
- * in step with `OPS_REVALIDATE_SECONDS` in `lib/constants.ts`, which is the
- * same number and is what the fetch in `lib/api.ts` uses; that one is a runtime
- * option rather than a segment config, so it imports the constant normally.
+ * It has to stay a bare literal: route segment config is read by static
+ * analysis without evaluating the module.
  */
-export const revalidate = 60
+export const dynamic = 'force-dynamic'
 
 const ROW_COUNT_LABELS: Record<string, string> = {
   seasons: 'Seasons',

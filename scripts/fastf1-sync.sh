@@ -163,9 +163,15 @@ echo "    Payload: $payload ($(du -h "$payload" | cut -f1))"
 import_args=""
 [ "$DRY_RUN" = "1" ] && import_args="--dry-run"
 
+# Only the seasons in this payload need their pages expired. The target list is
+# a superset of what was fetched (the fetch may stop early), which can only
+# over-purge. fastf1.sh hands the environment on to purge-cache.sh; an older
+# copy on the box ignores it and purges everything, as it always did.
+purge_years="$(python3 -c 'import json,sys; print(",".join(str(y) for y in sorted({t["year"] for t in json.load(open(sys.argv[1]))["targets"]})))' "$targets")"
+
 echo "==> Loading it on $TARGET..."
 import_status=0
-ssh "${SSH_OPTS[@]}" "$TARGET" "$APP_DIR/fastf1.sh import $import_args" < "$payload" \
+ssh "${SSH_OPTS[@]}" "$TARGET" "PURGE_YEARS=$purge_years $APP_DIR/fastf1.sh import $import_args" < "$payload" \
   || import_status=$?
 
 # 3 is fastf1.sh's "data loaded, cache not purged": the import itself worked,

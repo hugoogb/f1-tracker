@@ -77,9 +77,18 @@ dc run --rm -T --entrypoint python ingest scripts/validate.py </dev/null || true
 # fastf1.sh, which changes the same data; both get it from purge-cache.sh, also
 # shipped by the deploy. A failed purge does not fail the ingest — the data is
 # in — but purge-cache.sh annotates the Actions run so it is not missed.
+#
+# The scheduled run only ever lands the race that just happened, so it expires
+# the newest season (and its entrants and the global lists) rather than every
+# page on the site. Custom seed flags can mean anything — a backfill, a
+# historical correction — so those still purge everything. Override either way
+# with PURGE_SCOPE=--all|--latest.
+if [ -z "${PURGE_SCOPE:-}" ]; then
+  if [ ${#SEED_FLAGS[@]} -gt 0 ]; then PURGE_SCOPE=--all; else PURGE_SCOPE=--latest; fi
+fi
 PURGED=1
 if [ -x "$APP_DIR/purge-cache.sh" ]; then
-  "$APP_DIR/purge-cache.sh" || PURGED=0
+  "$APP_DIR/purge-cache.sh" "$PURGE_SCOPE" || PURGED=0
 else
   echo "::warning title=Frontend cache not purged::purge-cache.sh not found in $APP_DIR — redeploy."
   PURGED=0
