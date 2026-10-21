@@ -1,36 +1,30 @@
 import Link from 'next/link'
-import { Calendar, Users, Building2, MapPin, Flag, Trophy } from 'lucide-react'
+import type { Metadata } from 'next'
+
 import { api } from '@/lib/api'
 import type {
   DriverStanding,
   ConstructorStanding,
+  PermutationsResponse,
   Race,
+  RaceResult,
   SeasonCalendarResponse,
   SeasonChampion,
 } from '@/lib/types'
 import { raceStart } from '@/lib/schedule'
-import { cn } from '@/lib/utils'
-import { LocalDate, LocalDateTime } from '@/components/ui/local-date'
-import { CountryFlag } from '@/components/ui/country-flag'
-import { DriverAvatar } from '@/components/ui/driver-avatar'
-import { Panel, PanelContent, PanelHeader, PanelTitle } from '@/components/ui/panel'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
-import { Badge } from '@/components/ui/badge'
-import { StatCard } from '@/components/ui/stat-card'
-import { DriverStandingsTable } from '@/components/standings/driver-standings-table'
-import { ConstructorStandingsTable } from '@/components/standings/constructor-standings-table'
-import { FadeIn, StaggerList, StaggerItem, HeroGlow } from '@/components/ui/motion'
+import { FadeIn } from '@/components/ui/motion'
 import { NextRaceCountdown } from '@/components/ui/next-race-countdown'
+import { Panel } from '@/components/ui/panel'
+import { SectionHeader } from '@/components/ui/section-header'
+import { Tag } from '@/components/ui/tag'
+import { TrackOutline } from '@/components/circuits/track-outline'
 import { FavouritesSummary } from '@/components/favourites/favourites-summary'
 import { SeasonCalendarMapWrapper } from '@/components/seasons/season-calendar-map-wrapper'
-import type { Metadata } from 'next'
+import { TitlePermutations } from '@/components/seasons/title-permutations'
+import { StandingsPanel } from '@/components/home/standings-panel'
+import { LastRacePodium } from '@/components/home/last-race-podium'
+import { ExploreGrid, type ExploreTile } from '@/components/home/explore-grid'
+
 import { SITE_DESCRIPTION, SITE_NAME, absoluteUrl } from '@/lib/seo'
 
 // Shorter than the site-wide backstop because this page splits the calendar on
@@ -50,22 +44,26 @@ export const metadata: Metadata = {
 }
 
 export default async function Home() {
-  const [seasonsResponse, statsResult, championsResult] = await Promise.allSettled([
-    api.seasons.list(),
-    api.stats(),
-    api.champions() as Promise<{ data: SeasonChampion[] }>,
-  ])
+  const [seasonsResponse, championsResult, bestSeasonsResult, recordsResult] =
+    await Promise.allSettled([
+      api.seasons.list(),
+      api.champions() as Promise<{ data: SeasonChampion[] }>,
+      api.bestSeasons.list(),
+      api.records() as Promise<RecordsTeaserResponse>,
+    ])
 
   const seasons = seasonsResponse.status === 'fulfilled' ? seasonsResponse.value : null
-  const stats = statsResult.status === 'fulfilled' ? statsResult.value : null
   const champions = championsResult.status === 'fulfilled' ? championsResult.value.data : []
+  const bestSeasons =
+    bestSeasonsResult.status === 'fulfilled' ? bestSeasonsResult.value.seasons : []
+  const records = recordsResult.status === 'fulfilled' ? recordsResult.value : null
 
   const latestYear = seasons?.data[0]?.year
 
   if (!latestYear) {
     return (
       <div className="flex min-h-[50vh] flex-col items-center justify-center">
-        <h1 className="text-4xl font-bold">F1 Tracker</h1>
+        <h1>F1 Tracker</h1>
         <p className="text-muted-foreground mt-4">No season data available yet.</p>
       </div>
     )
@@ -73,22 +71,19 @@ export default async function Home() {
 
   // Settled, not all: a season whose calendar is published before its first
   // race has no standings yet, and that must not take the whole page down.
-  const [driverStandingsResponse, constructorStandingsResponse, seasonDetail, calendarResult] =
-    await Promise.allSettled([
-      api.seasons.driverStandings(latestYear) as Promise<{
-        year: number
-        standings: DriverStanding[]
-      }>,
-      api.seasons.constructorStandings(latestYear) as Promise<{
-        year: number
-        standings: ConstructorStanding[]
-      }>,
-      api.seasons.get(latestYear) as Promise<{
-        year: number
-        races: Race[]
-      }>,
-      api.seasons.calendar(latestYear) as Promise<SeasonCalendarResponse>,
-    ])
+  const [
+    driverStandingsResponse,
+    constructorStandingsResponse,
+    seasonDetail,
+    calendarResult,
+    permutationsResult,
+  ] = await Promise.allSettled([
+    api.seasons.driverStandings(latestYear) as Promise<{ standings: DriverStanding[] }>,
+    api.seasons.constructorStandings(latestYear) as Promise<{ standings: ConstructorStanding[] }>,
+    api.seasons.get(latestYear) as Promise<{ year: number; races: Race[] }>,
+    api.seasons.calendar(latestYear) as Promise<SeasonCalendarResponse>,
+    api.seasons.permutations(latestYear) as Promise<PermutationsResponse>,
+  ])
 
   const driverStandings =
     driverStandingsResponse.status === 'fulfilled'
@@ -99,8 +94,8 @@ export default async function Home() {
       ? (constructorStandingsResponse.value.standings ?? [])
       : []
   const races = seasonDetail.status === 'fulfilled' ? (seasonDetail.value.races ?? []) : []
-  const recentChampions = champions.slice(0, 5)
   const calendarRounds = calendarResult.status === 'fulfilled' ? calendarResult.value.rounds : []
+  const permutations = permutationsResult.status === 'fulfilled' ? permutationsResult.value : null
 
   // Reading the clock in a server component is the point here — the lint rule
   // is aimed at client components, where an impure read would drift between
@@ -113,81 +108,182 @@ export default async function Home() {
   // enough to place a race on one side of "now" or the other.
   const startOf = (race: Race) => Date.parse(raceStart(race))
   const nextRace = races.find((r) => startOf(r) > now) ?? null
-  const lastRace = [...races].reverse().find((r) => startOf(r) <= now) ?? null
-  const roundsRun = races.filter((r) => startOf(r) <= now).length
+  // The last round with a result, not the last date passed: between a race and
+  // the Monday ingest the clock is ahead of the data, and the podium would be empty.
+  const lastRaced = [...calendarRounds].reverse().find((r) => r.winner !== null) ?? null
+  const lastRace = lastRaced ? (races.find((r) => r.round === lastRaced.round) ?? null) : null
+  const nextRound = nextRace ? calendarRounds.find((r) => r.round === nextRace.round) : undefined
+
+  const lastResult = lastRace
+    ? await api.races
+        .get(latestYear, lastRace.round)
+        .then((r) => (r as { results: RaceResult[] }).results)
+        .catch(() => [] as RaceResult[])
+    : []
+  const podium = lastResult
+    .filter((r) => r.position !== null && r.position <= 3)
+    .map((r) => ({
+      position: r.position!,
+      driverName: `${r.driver.firstName} ${r.driver.lastName}`,
+      driverHref: `/drivers/${r.driver.ref}`,
+      teamName: r.constructor?.name ?? null,
+      teamColor: r.constructor?.color ?? null,
+      time: r.time,
+    }))
+
   const leader = driverStandings[0]
   const runnerUp = driverStandings[1]
-  const leadGap =
-    leader && runnerUp ? Math.round((leader.points - runnerUp.points) * 10) / 10 : null
+  const closest = bestSeasons.find((s) => s.rank === 1)
+  const mostWins = records?.drivers?.mostWins?.[0]
+  const latestChampion = champions[0]
+
+  const tiles: ExploreTile[] = [
+    ...(closest
+      ? [
+          {
+            eyebrow: 'Best seasons',
+            title: `${closest.year}`,
+            teaser: closest.champion
+              ? `The best title fight on record: ${closest.champion.driver.lastName} by ${closest.titleMargin} pts.`
+              : 'Every title fight, ranked by how close it was.',
+            href: '/best-seasons',
+          },
+        ]
+      : []),
+    ...(leader && runnerUp
+      ? [
+          {
+            eyebrow: 'Compare',
+            title: `${leader.driver.code ?? leader.driver.lastName} v ${runnerUp.driver.code ?? runnerUp.driver.lastName}`,
+            teaser: `${leader.driver.lastName} and ${runnerUp.driver.lastName}, round by round this season.`,
+            href: `/seasons/${latestYear}/compare?type=drivers`,
+            accent: leader.constructor?.color ?? null,
+          },
+        ]
+      : []),
+    ...(mostWins
+      ? [
+          {
+            eyebrow: 'Records',
+            title: `${mostWins.count} wins`,
+            teaser: `${mostWins.driver.firstName} ${mostWins.driver.lastName} leads the all-time list.`,
+            href: '/records',
+          },
+        ]
+      : []),
+    ...(latestChampion
+      ? [
+          {
+            eyebrow: 'Champions',
+            title: `${latestChampion.year}`,
+            teaser: `${latestChampion.driver.firstName} ${latestChampion.driver.lastName} is the latest of every world champion since 1950.`,
+            href: '/champions',
+            accent: latestChampion.constructor?.color ?? null,
+          },
+        ]
+      : []),
+  ]
 
   return (
-    <div className="space-y-10">
-      {/* Hero Section */}
-      <div className="relative mx-[-1.5rem] overflow-hidden md:mx-[-2rem]">
-        {/* Radial glow overlay - breathing animation */}
-        <HeroGlow className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,oklch(0.55_0.25_27/8%)_0%,transparent_70%)]" />
-        <div className="from-primary/5 via-background to-background relative bg-gradient-to-b px-6 py-16 md:px-8 md:py-20">
-          <div className="mx-auto max-w-[1400px] space-y-4">
-            <FadeIn y={12}>
-              <p className="text-muted-foreground text-sm font-medium tracking-widest uppercase">
-                Complete History & Analytics
-              </p>
-            </FadeIn>
-            <FadeIn delay={0.1} y={12}>
-              <h1>
-                <span className="text-gradient">Formula 1</span>{' '}
-                <span className="text-foreground">{latestYear}</span>
-              </h1>
-            </FadeIn>
-            <FadeIn delay={0.2} y={12}>
-              <p className="text-muted-foreground max-w-xl text-lg">
-                Explore every season, driver, constructor, and circuit from 1950 to today.
-              </p>
-            </FadeIn>
-            {races.length > 0 && (
-              <FadeIn delay={0.3} y={12}>
-                <div className="text-muted-foreground flex flex-wrap items-center gap-x-5 gap-y-1 pt-1 text-sm">
-                  <span className="text-foreground font-medium tabular-nums">
-                    Round {Math.min(roundsRun + 1, races.length)} of {races.length}
+    <div className="space-y-14">
+      {/* Right now */}
+      <section aria-labelledby="now-heading" className="space-y-6">
+        <FadeIn>
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <Tag variant="red">Formula 1 · {latestYear}</Tag>
+              {races.length > 0 && (
+                <Tag variant="outline">
+                  {lastRace ? `After round ${lastRace.round} of ${races.length}` : 'Season ahead'}
+                </Tag>
+              )}
+            </div>
+            <h1 id="now-heading">
+              {leader ? (
+                <>
+                  {leader.driver.lastName}{' '}
+                  <span className="text-primary">
+                    {runnerUp
+                      ? `+${Math.round((leader.points - runnerUp.points) * 10) / 10}`
+                      : 'leads'}
                   </span>
-                  {leader && (
-                    <span>
-                      Leading:{' '}
-                      <Link
-                        href={`/drivers/${leader.driver.ref}`}
-                        className="text-foreground hover:text-primary font-medium transition-colors"
-                      >
-                        {leader.driver.firstName} {leader.driver.lastName}
-                      </Link>
-                      {leadGap !== null && leadGap > 0 && (
-                        <span className="tabular-nums"> (+{leadGap})</span>
-                      )}
-                    </span>
-                  )}
-                  {lastRace && (
-                    <span>
-                      Last out:{' '}
-                      <Link
-                        href={`/seasons/${latestYear}/races/${lastRace.round}`}
-                        className="text-foreground hover:text-primary font-medium transition-colors"
-                      >
-                        {lastRace.name}
-                      </Link>
-                    </span>
-                  )}
-                </div>
-              </FadeIn>
+                </>
+              ) : (
+                <>Formula 1 {latestYear}</>
+              )}
+            </h1>
+            <p className="text-muted-foreground max-w-2xl">
+              {leader && runnerUp
+                ? `${leader.driver.firstName} ${leader.driver.lastName} leads ${runnerUp.driver.lastName} in the drivers' championship. Every season since 1950 is here too.`
+                : 'Every season, driver, team and circuit from 1950 to today.'}
+            </p>
+          </div>
+        </FadeIn>
+
+        {nextRace && (
+          <FadeIn>
+            <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
+              <NextRaceCountdown race={nextRace} seasonYear={latestYear} />
+              {nextRound?.circuit.layoutSvgId && (
+                <Panel className="items-center justify-center px-6">
+                  <TrackOutline
+                    svgId={nextRound.circuit.layoutSvgId}
+                    name={nextRound.circuit.name}
+                    className="h-40 w-full"
+                  />
+                  <p className="label">{nextRound.circuit.name}</p>
+                </Panel>
+              )}
+            </div>
+          </FadeIn>
+        )}
+
+        <FavouritesSummary />
+
+        <FadeIn>
+          <div className="grid gap-4 lg:grid-cols-3">
+            <StandingsPanel
+              title="Drivers' championship"
+              href={`/seasons/${latestYear}`}
+              rows={driverStandings.slice(0, 5).map((s) => ({
+                position: s.position,
+                name: s.driver.lastName,
+                sub: s.constructor?.name,
+                color: s.constructor?.color ?? null,
+                points: s.points,
+                href: `/drivers/${s.driver.ref}`,
+              }))}
+            />
+            <StandingsPanel
+              title="Constructors' championship"
+              href={`/seasons/${latestYear}`}
+              rows={constructorStandings.slice(0, 5).map((s) => ({
+                position: s.position,
+                name: s.constructor.name,
+                color: s.constructor.color ?? null,
+                points: s.points,
+                href: `/constructors/${s.constructor.ref}`,
+              }))}
+            />
+            {lastRace && podium.length > 0 && (
+              <LastRacePodium
+                raceName={lastRace.name}
+                href={`/seasons/${latestYear}/races/${lastRace.round}`}
+                podium={podium}
+              />
             )}
           </div>
-        </div>
-        <div className="accent-line" />
-      </div>
-
-      {/* Next race weekend, with the whole session schedule */}
-      {nextRace && (
-        <FadeIn>
-          <NextRaceCountdown race={nextRace} seasonYear={latestYear} />
         </FadeIn>
+
+        {permutations && <TitlePermutations data={permutations} />}
+      </section>
+
+      {/* Explore */}
+      {tiles.length > 0 && (
+        <section aria-labelledby="explore-heading" className="space-y-4">
+          <SectionHeader eyebrow="Beyond the standings" title="Explore" />
+          <ExploreGrid tiles={tiles} />
+        </section>
       )}
 
       {/* The season on the map — the client works out which race is next */}
@@ -195,242 +291,25 @@ export default async function Home() {
         <section className="space-y-4" aria-labelledby="season-map-heading">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div className="space-y-1">
-              <p className="text-muted-foreground text-xs font-medium tracking-widest uppercase">
-                The season on the map
-              </p>
+              <p className="label">The season on the map</p>
               <h2 id="season-map-heading">{latestYear} World Tour</h2>
             </div>
             <Link
               href={`/seasons/${latestYear}#calendar`}
-              className="text-primary hover:text-primary/80 text-sm font-medium transition-colors"
+              className="font-data text-primary hover:text-foreground focus-ring text-xs font-semibold tracking-wider uppercase"
             >
-              Full season map &rarr;
+              Full season map
             </Link>
           </div>
           <SeasonCalendarMapWrapper year={latestYear} rounds={calendarRounds} variant="home" />
         </section>
       )}
-
-      {/* Stat Cards */}
-      {stats && (
-        <StaggerList className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
-          <StaggerItem>
-            <StatCard label="Seasons" value={stats.seasons} icon={Calendar} href="/seasons" />
-          </StaggerItem>
-          <StaggerItem>
-            <StatCard label="Drivers" value={stats.drivers} icon={Users} href="/drivers" />
-          </StaggerItem>
-          <StaggerItem>
-            <StatCard
-              label="Constructors"
-              value={stats.constructors}
-              icon={Building2}
-              href="/constructors"
-            />
-          </StaggerItem>
-          <StaggerItem>
-            <StatCard label="Circuits" value={stats.circuits} icon={MapPin} href="/circuits" />
-          </StaggerItem>
-          <StaggerItem>
-            <StatCard label="Races" value={stats.races} icon={Flag} />
-          </StaggerItem>
-        </StaggerList>
-      )}
-
-      {/* Favourites — client-only, and renders nothing until there are some */}
-      <FavouritesSummary />
-
-      {/* Current Standings */}
-      <FadeIn>
-        <div className="grid gap-6 md:grid-cols-2">
-          <Panel>
-            <PanelHeader className="flex-row items-center justify-between">
-              <PanelTitle>Driver Standings</PanelTitle>
-              <Link
-                href={`/seasons/${latestYear}`}
-                className="text-primary hover:text-primary/80 text-sm font-medium transition-colors"
-              >
-                View all &rarr;
-              </Link>
-            </PanelHeader>
-            <PanelContent>
-              {driverStandings.length > 0 ? (
-                <DriverStandingsTable standings={driverStandings} limit={5} />
-              ) : (
-                <p className="text-muted-foreground text-sm">
-                  Standings data has not been loaded yet.
-                </p>
-              )}
-            </PanelContent>
-          </Panel>
-
-          <Panel>
-            <PanelHeader className="flex-row items-center justify-between">
-              <PanelTitle>Constructor Standings</PanelTitle>
-              <Link
-                href={`/seasons/${latestYear}`}
-                className="text-primary hover:text-primary/80 text-sm font-medium transition-colors"
-              >
-                View all &rarr;
-              </Link>
-            </PanelHeader>
-            <PanelContent>
-              {constructorStandings.length > 0 ? (
-                <ConstructorStandingsTable standings={constructorStandings} limit={5} />
-              ) : (
-                <p className="text-muted-foreground text-sm">
-                  Standings data has not been loaded yet.
-                </p>
-              )}
-            </PanelContent>
-          </Panel>
-        </div>
-      </FadeIn>
-
-      {/* Recent Champions */}
-      {recentChampions.length > 0 && (
-        <FadeIn>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2>Recent Champions</h2>
-              <Link
-                href="/champions"
-                className="text-primary hover:text-primary/80 text-sm font-medium transition-colors"
-              >
-                All champions &rarr;
-              </Link>
-            </div>
-            <StaggerList className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-              {recentChampions.map((c, i) => (
-                <StaggerItem key={c.year}>
-                  <Panel className={i === 0 ? 'border-primary/30 glow-red' : ''}>
-                    <PanelContent className="space-y-2 px-5 pt-1">
-                      <div className="flex items-center justify-between">
-                        <Link
-                          href={`/seasons/${c.year}`}
-                          className="font-heading hover:text-primary text-lg font-bold transition-colors"
-                        >
-                          {c.year}
-                        </Link>
-                        <Trophy className="h-4 w-4 text-amber-500/60" />
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <DriverAvatar firstName={c.driver.firstName} lastName={c.driver.lastName} />
-                        <Link
-                          href={`/drivers/${c.driver.ref}`}
-                          className="hover:text-primary text-sm font-medium transition-colors"
-                        >
-                          {c.driver.firstName} {c.driver.lastName}
-                        </Link>
-                      </div>
-                      {c.constructor && (
-                        <div className="flex items-center gap-1.5">
-                          {c.constructor.color && (
-                            <span
-                              className="inline-block size-2 rounded-full"
-                              style={{ backgroundColor: c.constructor.color }}
-                            />
-                          )}
-                          <Link
-                            href={`/constructors/${c.constructor.ref}`}
-                            className="text-muted-foreground hover:text-foreground text-xs transition-colors"
-                          >
-                            {c.constructor.name}
-                          </Link>
-                        </div>
-                      )}
-                    </PanelContent>
-                  </Panel>
-                </StaggerItem>
-              ))}
-            </StaggerList>
-          </div>
-        </FadeIn>
-      )}
-
-      {/* Race Calendar */}
-      <FadeIn>
-        <Panel>
-          <PanelHeader className="flex-row items-center justify-between">
-            <PanelTitle>{latestYear} Race Calendar</PanelTitle>
-            <Link
-              href={`/seasons/${latestYear}`}
-              className="text-primary hover:text-primary/80 text-sm font-medium transition-colors"
-            >
-              Season detail &rarr;
-            </Link>
-          </PanelHeader>
-          <PanelContent>
-            {races.length > 0 ? (
-              <Table aria-label="Race calendar">
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-16">Round</TableHead>
-                    <TableHead>Race</TableHead>
-                    <TableHead className="hidden md:table-cell">Circuit</TableHead>
-                    <TableHead className="hidden sm:table-cell">Country</TableHead>
-                    <TableHead className="text-right">Date</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {races.map((race) => {
-                    const isPast = startOf(race) <= now
-                    const isNext = race.id === nextRace?.id
-
-                    return (
-                      <TableRow
-                        key={race.id}
-                        className={cn(
-                          isPast && 'opacity-60',
-                          isNext && 'bg-primary/5 hover:bg-primary/10',
-                        )}
-                      >
-                        <TableCell>
-                          <Badge
-                            variant={isNext ? 'default' : 'outline'}
-                            className="font-mono text-xs"
-                          >
-                            R{race.round}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Link
-                            href={`/seasons/${latestYear}/races/${race.round}`}
-                            prefetch={false}
-                            className="hover:text-primary font-medium transition-colors"
-                          >
-                            {race.name}
-                          </Link>
-                        </TableCell>
-                        <TableCell className="text-muted-foreground hidden md:table-cell">
-                          {race.circuit.name}
-                        </TableCell>
-                        <TableCell className="hidden sm:table-cell">
-                          <span className="inline-flex items-center gap-1.5">
-                            {race.circuit.country && (
-                              <CountryFlag code={race.circuit.countryCode} />
-                            )}
-                            {race.circuit.country}
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-right text-sm whitespace-nowrap tabular-nums">
-                          {race.schedule?.race ? (
-                            <LocalDateTime value={race.schedule.race} />
-                          ) : (
-                            <LocalDate value={race.date} />
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    )
-                  })}
-                </TableBody>
-              </Table>
-            ) : (
-              <p className="text-muted-foreground text-sm">No races found for this season.</p>
-            )}
-          </PanelContent>
-        </Panel>
-      </FadeIn>
     </div>
   )
+}
+
+interface RecordsTeaserResponse {
+  drivers?: {
+    mostWins?: { driver: { firstName: string; lastName: string }; count: number }[]
+  }
 }
