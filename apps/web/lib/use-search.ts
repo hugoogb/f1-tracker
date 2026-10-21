@@ -14,9 +14,17 @@ export interface SearchResults {
   }[]
   constructors: { ref: string; name: string; nationality: string | null; color: string | null }[]
   circuits: { ref: string; name: string; location: string | null; country: string | null }[]
+  seasons: { year: number }[]
+  races: { year: number; round: number; name: string; circuitName: string; date: string | null }[]
 }
 
-const EMPTY: SearchResults = { drivers: [], constructors: [], circuits: [] }
+const EMPTY: SearchResults = {
+  drivers: [],
+  constructors: [],
+  circuits: [],
+  seasons: [],
+  races: [],
+}
 
 /**
  * Debounced site search, shared by the header dialog and the compare pickers.

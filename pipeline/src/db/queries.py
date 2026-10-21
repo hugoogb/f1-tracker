@@ -256,22 +256,27 @@ def search_seasons(db: Session, year: int) -> list[int]:
 
 
 def search_races(db: Session, text: str, year: int | None, limit: int = 5) -> list[Race]:
-    """Races whose name or circuit (name, town, country) contains `text`.
+    """Races matching `text`, newest season first.
 
-    With a `year`, only that season's races — and with a year but no text,
-    all of them, so "2021" lists the 2021 calendar. Newest season first.
+    Without a year only the race name counts: a circuit substring on its own
+    ("ham" in Francorchamps) would list every Belgian GP ahead of the driver
+    being looked for. With a year the circuit's name, town and country count
+    too ("monza 2023"), and a year with no text lists that whole calendar.
     """
     if not text and year is None:
         return []
     stmt = select(Race).join(Circuit, Race.circuit_id == Circuit.id)
     if text:
         pattern = _contains(text)
-        stmt = stmt.where(
-            (Race.name.ilike(pattern, escape="\\"))
-            | (Circuit.name.ilike(pattern, escape="\\"))
-            | (Circuit.location.ilike(pattern, escape="\\"))
-            | (Circuit.country.ilike(pattern, escape="\\"))
-        )
+        match = Race.name.ilike(pattern, escape="\\")
+        if year is not None:
+            match = (
+                match
+                | Circuit.name.ilike(pattern, escape="\\")
+                | Circuit.location.ilike(pattern, escape="\\")
+                | Circuit.country.ilike(pattern, escape="\\")
+            )
+        stmt = stmt.where(match)
     if year is not None:
         stmt = stmt.where(Race.season_year == year)
     stmt = stmt.order_by(Race.season_year.desc(), Race.round.asc()).limit(limit)
