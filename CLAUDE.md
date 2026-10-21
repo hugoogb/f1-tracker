@@ -352,8 +352,13 @@ Two f1db quirks the UI is built around:
   `lib/api.ts` (`cacheScopeFor`), which Next infers as the route's own revalidate, and from the
   ingest purge. Every cached fetch carries `f1-data` (the full purge) plus one scoped tag:
   `f1-season-<year>` (anything under `/seasons/{year}` or `/best-seasons/{year}`),
-  `f1-driver|constructor|circuit-<ref>` (one entity's endpoints) or `f1-global` (lists, records,
-  champions, stats). Seasons before the current year get a 30-day TTL instead of a day.
+  `f1-driver|constructor|circuit-<ref>` (one entity's endpoints), `f1-reference` (data no import
+  changes — `/points-systems`; 30-day TTL, reached only by a full purge) or `f1-global` (lists,
+  records, champions, stats). A fetch's tags become the tags of every page that reads it, so a
+  per-season or per-entity page must never read an `f1-global` endpoint: the season page reads
+  `/points-systems`, which is why it is `f1-reference` — under `f1-global` every weekly purge
+  expired all seventy-odd finished season pages. Seasons before the current year get a 30-day
+  TTL instead of a day.
   `app/api/revalidate` takes no body / `{"scope":"all"}` (expire `f1-data`), `{"scope":"latest"}`
   or `{"years":[...]}` (expire those seasons, their entrants' and circuits' entity tags, and
   `f1-global`; it falls back to everything if it cannot ask the API who took part). The weekly

@@ -16,6 +16,13 @@ export const HISTORICAL_REVALIDATE_SECONDS = 2592000 // 30 days
 export const F1_DATA_TAG = 'f1-data'
 /** Everything not bound to one season or one entity: lists, records, champions, stats. */
 export const F1_GLOBAL_TAG = 'f1-global'
+/**
+ * Reference data no import can change (the points systems). Kept off
+ * `F1_GLOBAL_TAG` on purpose: every season page reads it, and a fetch's tags
+ * become the page's tags, so expiring it on each ingest would re-render all
+ * seventy-odd finished season pages. Only a full purge reaches it.
+ */
+export const F1_REFERENCE_TAG = 'f1-reference'
 export const seasonTag = (year: number) => `f1-season-${year}`
 export const entityTag = (kind: 'driver' | 'constructor' | 'circuit', ref: string) =>
   `f1-${kind}-${ref}`
