@@ -137,7 +137,8 @@ export default async function SeasonComparePage({
       />
 
       <PageHero
-        title={`${year} Season Comparison`}
+        eyebrow="In-season comparison"
+        title={`${year} head to head`}
         description={`Two ${type} through the ${year} season, round by round. Every gap is the first pick minus the second.`}
       />
 

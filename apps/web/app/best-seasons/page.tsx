@@ -180,7 +180,7 @@ export default async function BestSeasonsPage() {
                 <li key={c.id} className="flex gap-3">
                   <span
                     aria-hidden
-                    className="mt-1 h-10 w-1 shrink-0 rounded-full"
+                    className="mt-1 h-10 w-1 shrink-0"
                     style={{ backgroundColor: componentColor(c.id) }}
                   />
                   <div>

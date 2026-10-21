@@ -160,7 +160,7 @@ function StatRow({
     <div className="grid grid-cols-[1fr_minmax(7rem,auto)_1fr] items-center gap-3 py-3">
       <span
         className={cn(
-          'font-heading text-right text-xl font-bold tabular-nums',
+          'display text-right text-xl tabular-nums',
           !leftColor && 'text-muted-foreground',
         )}
         style={leftColor ? { color: leftColor } : undefined}
@@ -172,13 +172,10 @@ function StatRow({
           {label}
         </span>
         {chip}
-        {note && <span className="text-muted-foreground/70 text-[10px] leading-tight">{note}</span>}
+        {note && <span className="text-muted-foreground text-2xs leading-tight">{note}</span>}
       </div>
       <span
-        className={cn(
-          'font-heading text-xl font-bold tabular-nums',
-          !rightColor && 'text-muted-foreground',
-        )}
+        className={cn('display text-xl tabular-nums', !rightColor && 'text-muted-foreground')}
         style={rightColor ? { color: rightColor } : undefined}
       >
         {right}

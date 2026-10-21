@@ -407,7 +407,7 @@ export function RecordsExplorer({
         <div aria-busy={loading} aria-live="polite">
           {error ? (
             <div className="flex flex-col items-center justify-center py-12 text-center">
-              <AlertTriangle className="text-muted-foreground/50 mb-3 size-10" strokeWidth={1} />
+              <AlertTriangle className="text-label mb-3 size-10" strokeWidth={1} />
               <h3 className="text-base font-semibold">Could not load these records</h3>
               <p className="text-muted-foreground mt-1 max-w-sm text-sm">{error}</p>
               <Button
@@ -475,7 +475,7 @@ export function RecordsExplorer({
                             >
                               {constructor.color && (
                                 <span
-                                  className="inline-block size-3 rounded-full"
+                                  className="inline-block size-3"
                                   style={{ backgroundColor: constructor.color }}
                                 />
                               )}
@@ -485,10 +485,10 @@ export function RecordsExplorer({
                             </Link>
                           ) : null}
                         </TableCell>
-                        <TableCell className="text-right font-mono tabular-nums">
+                        <TableCell className="font-data text-right tabular-nums">
                           {formatValue(row.value, result.format)}
                         </TableCell>
-                        <TableCell className="text-muted-foreground hidden text-right font-mono tabular-nums sm:table-cell">
+                        <TableCell className="text-muted-foreground font-data hidden text-right tabular-nums sm:table-cell">
                           {row.starts}
                         </TableCell>
                       </TableRow>

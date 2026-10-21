@@ -1,3 +1,4 @@
+import { sideColor } from '@/lib/chart-theme'
 import { teamColorOf } from '@/lib/utils'
 import type { SeasonCompareEntity, SeasonCompareResponse } from '@/lib/types'
 
@@ -23,10 +24,15 @@ function lighten(hex: string, amount: number): string {
   return `#${channel(16)}${channel(8)}${channel(0)}`
 }
 
-function entityColor(type: SeasonCompareResponse['type'], entity: SeasonCompareEntity): string {
-  // Drivers take their team's colour — never one keyed off the driver.
+function entityColor(
+  type: SeasonCompareResponse['type'],
+  entity: SeasonCompareEntity,
+  side: 'a' | 'b',
+): string {
+  // Drivers take their team's colour — never one keyed off the driver. A side
+  // with no colour gets its side token, so two such sides still differ.
   const color = type === 'drivers' ? entity.constructor?.color : entity.color
-  return teamColorOf(color)!
+  return teamColorOf(color, null) ?? sideColor(side)
 }
 
 /**
@@ -37,24 +43,24 @@ function entityColor(type: SeasonCompareResponse['type'], entity: SeasonCompareE
  * the team's colour — just the second car's shade of it.
  */
 export function describeSides(data: SeasonCompareResponse): [SideInfo, SideInfo] {
-  const make = (entity: SeasonCompareEntity): SideInfo =>
+  const make = (entity: SeasonCompareEntity, side: 'a' | 'b'): SideInfo =>
     data.type === 'drivers'
       ? {
           ref: entity.ref,
           name: `${entity.firstName} ${entity.lastName}`,
           short: entity.code ?? entity.lastName ?? entity.ref,
-          color: entityColor(data.type, entity),
+          color: entityColor(data.type, entity, side),
           href: `/drivers/${entity.ref}`,
         }
       : {
           ref: entity.ref,
           name: entity.name ?? entity.ref,
           short: entity.name ?? entity.ref,
-          color: entityColor(data.type, entity),
+          color: entityColor(data.type, entity, side),
           href: `/constructors/${entity.ref}`,
         }
-  const a = make(data.a)
-  const b = make(data.b)
+  const a = make(data.a, 'a')
+  const b = make(data.b, 'b')
   if (a.color.toLowerCase() === b.color.toLowerCase()) b.color = lighten(b.color, 0.45)
   return [a, b]
 }

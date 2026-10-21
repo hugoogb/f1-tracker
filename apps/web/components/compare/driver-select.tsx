@@ -92,7 +92,7 @@ export function DriverSelect({ label, value, onChange }: DriverSelectProps) {
                   }}
                 >
                   {d.code && (
-                    <span className="text-muted-foreground font-mono text-xs">{d.code}</span>
+                    <span className="text-muted-foreground font-data text-xs">{d.code}</span>
                   )}
                   <span>
                     {d.firstName} {d.lastName}

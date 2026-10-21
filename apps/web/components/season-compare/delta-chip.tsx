@@ -37,16 +37,17 @@ export function DeltaChip({
   return (
     <span
       className={cn(
-        'inline-flex h-5 items-center gap-1 rounded-full border px-2 text-xs font-semibold whitespace-nowrap tabular-nums',
-        !favoured && 'text-muted-foreground border-[oklch(1_0_0/10%)]',
+        'font-data inline-flex h-5 items-center gap-1 border px-2 text-xs font-semibold whitespace-nowrap tabular-nums',
+        !favoured && 'text-muted-foreground border-hairline-strong',
         className,
       )}
       style={
         favoured
           ? {
               color: favoured.color,
-              borderColor: `${favoured.color}66`,
-              backgroundColor: `${favoured.color}1a`,
+              // color-mix rather than a hex alpha suffix: the colour may be a CSS variable.
+              borderColor: `color-mix(in oklch, ${favoured.color} 40%, transparent)`,
+              backgroundColor: `color-mix(in oklch, ${favoured.color} 10%, transparent)`,
             }
           : undefined
       }

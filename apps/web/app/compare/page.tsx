@@ -55,7 +55,7 @@ function DriverCompareForm({ prefillD1 }: { prefillD1: string }) {
               onChange={(ref, name) => setD1({ ref, name })}
             />
             <div className="hidden items-center md:flex">
-              <span className="font-heading text-muted-foreground text-2xl font-bold">VS</span>
+              <span className="display text-muted-foreground text-2xl">VS</span>
             </div>
             <DriverSelect
               label="Driver 2"
@@ -83,7 +83,7 @@ function DriverCompareForm({ prefillD1 }: { prefillD1: string }) {
             <Link
               key={comp.label}
               href={`/compare/drivers?d1=${comp.d1}&d2=${comp.d2}`}
-              className="glass hover:border-primary/30 hover:bg-accent/50 rounded-lg px-3 py-1.5 text-sm transition-colors"
+              className="border-hairline bg-surface-1 hover:bg-surface-2 focus-ring border px-3 py-1.5 text-sm transition-colors"
             >
               {comp.label}
             </Link>
@@ -121,7 +121,7 @@ function ConstructorCompareForm() {
               onChange={(ref, name) => setC1({ ref, name })}
             />
             <div className="hidden items-center md:flex">
-              <span className="font-heading text-muted-foreground text-2xl font-bold">VS</span>
+              <span className="display text-muted-foreground text-2xl">VS</span>
             </div>
             <ConstructorSelect
               label="Constructor 2"
@@ -151,7 +151,7 @@ function ConstructorCompareForm() {
             <Link
               key={comp.label}
               href={`/compare/constructors?c1=${comp.c1}&c2=${comp.c2}`}
-              className="glass hover:border-primary/30 hover:bg-accent/50 rounded-lg px-3 py-1.5 text-sm transition-colors"
+              className="border-hairline bg-surface-1 hover:bg-surface-2 focus-ring border px-3 py-1.5 text-sm transition-colors"
             >
               {comp.label}
             </Link>
@@ -199,14 +199,14 @@ function SeasonCompareLinks() {
             <Link
               key={comp.href}
               href={comp.href}
-              className="glass hover:border-primary/30 hover:bg-accent/50 rounded-lg px-3 py-1.5 text-sm transition-colors"
+              className="border-hairline bg-surface-1 hover:bg-surface-2 focus-ring border px-3 py-1.5 text-sm transition-colors"
             >
               {comp.label}
             </Link>
           ))}
           <Link
             href="/seasons"
-            className="text-primary rounded-lg px-3 py-1.5 text-sm hover:underline"
+            className="text-primary focus-ring px-3 py-1.5 text-sm hover:underline"
           >
             Pick a season →
           </Link>

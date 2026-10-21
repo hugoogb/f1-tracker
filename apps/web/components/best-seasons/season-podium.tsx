@@ -38,10 +38,8 @@ function PodiumCard({ season, place }: { season: BestSeason; place: number }) {
       <MotionCard>
         <div
           className={cn(
-            'relative overflow-hidden rounded-2xl border bg-[var(--surface-1)] p-5 shadow-xl shadow-black/30 backdrop-blur-md transition-colors',
-            first
-              ? 'border-primary/40 card-glow md:pb-10'
-              : 'hover:border-primary/30 border-[oklch(1_0_0/6%)]',
+            'brackets bg-surface-1 relative border p-5 transition-colors',
+            first ? 'border-primary/60 md:pb-10' : 'border-hairline hover:bg-surface-2',
           )}
         >
           {/* The champion's team colour as a wash from the top edge. */}
@@ -68,7 +66,7 @@ function PodiumCard({ season, place }: { season: BestSeason; place: number }) {
               </p>
               <p
                 className={cn(
-                  'font-heading mt-1 leading-none font-bold tabular-nums',
+                  'display mt-1 leading-none tabular-nums',
                   first ? 'text-6xl' : 'text-5xl',
                 )}
               >
@@ -76,12 +74,8 @@ function PodiumCard({ season, place }: { season: BestSeason; place: number }) {
               </p>
             </div>
             <div className="text-right">
-              <p className="font-heading text-3xl font-bold tabular-nums">
-                {season.score.total.toFixed(1)}
-              </p>
-              <p className="text-muted-foreground text-[10px] tracking-wider uppercase">
-                score / 100
-              </p>
+              <p className="display text-3xl tabular-nums">{season.score.total.toFixed(1)}</p>
+              <p className="text-muted-foreground text-2xs tracking-wider uppercase">score / 100</p>
             </div>
           </div>
 
@@ -143,17 +137,17 @@ function ContenderLine({
     <div className="flex items-center gap-2.5">
       <span
         aria-hidden
-        className="h-8 w-1 shrink-0 rounded-full"
+        className="h-8 w-1 shrink-0"
         style={{ backgroundColor: color ?? undefined }}
       />
       <div className="min-w-0 flex-1">
-        <p className="text-muted-foreground text-[10px] tracking-wider uppercase">{label}</p>
+        <p className="text-muted-foreground text-2xs tracking-wider uppercase">{label}</p>
         <p className={cn('truncate', strong ? 'font-semibold' : 'text-sm')}>
           {name}
           {team && <span className="text-muted-foreground text-xs font-normal"> · {team}</span>}
         </p>
       </div>
-      <span className="font-mono text-sm tabular-nums">{formatPoints(points)}</span>
+      <span className="font-data text-sm tabular-nums">{formatPoints(points)}</span>
     </div>
   )
 }
@@ -168,12 +162,12 @@ function Fact({
   value: string
 }) {
   return (
-    <div className="rounded-lg border border-[var(--glass-border)] bg-[var(--glass-bg)] px-2 py-2">
-      <dt className="text-muted-foreground flex items-center justify-center gap-1 text-[10px] tracking-wider uppercase">
+    <div className="bg-surface-2 border-hairline border px-2 py-2">
+      <dt className="label flex items-center justify-center gap-1">
         <Icon className="h-3 w-3" />
         {label}
       </dt>
-      <dd className="font-heading mt-0.5 text-lg font-bold tabular-nums">{value}</dd>
+      <dd className="display mt-0.5 text-lg tabular-nums">{value}</dd>
     </div>
   )
 }

@@ -10,6 +10,7 @@ import { ComparisonChart } from '@/components/charts/comparison-chart'
 import { FadeIn } from '@/components/ui/motion'
 import { buildMetadata } from '@/lib/seo'
 import { buttonVariants } from '@/components/ui/button-variants'
+import { sideColor } from '@/lib/chart-theme'
 
 interface ConstructorStats {
   total_entries: number
@@ -87,8 +88,8 @@ export default async function CompareConstructorsPage({
   }
 
   const { constructor1, constructor2, headToHead, constructor1Seasons, constructor2Seasons } = data
-  const c1Color = constructor1.color ?? '#E8002D'
-  const c2Color = constructor2.color ?? '#3671C6'
+  const c1Color = constructor1.color ?? sideColor('a')
+  const c2Color = constructor2.color ?? sideColor('b')
 
   return (
     <div className="space-y-8">
@@ -101,12 +102,12 @@ export default async function CompareConstructorsPage({
       />
 
       <FadeIn>
-        <div className="glass rounded-xl px-6 py-8">
+        <div className="brackets bg-surface-1 border-hairline border px-6 py-8">
           <div className="flex items-center gap-4">
             <div className="flex flex-1 items-center justify-end gap-3">
               {constructor1.color && (
                 <span
-                  className="inline-block size-4 rounded-full"
+                  className="inline-block size-4"
                   style={{ backgroundColor: constructor1.color }}
                 />
               )}
@@ -119,9 +120,7 @@ export default async function CompareConstructorsPage({
                 </Link>
               </h1>
             </div>
-            <span className="text-muted-foreground font-heading shrink-0 text-xl font-bold">
-              vs
-            </span>
+            <span className="text-muted-foreground display shrink-0 text-xl">vs</span>
             <div className="flex flex-1 items-center gap-3">
               <h1>
                 <Link
@@ -133,7 +132,7 @@ export default async function CompareConstructorsPage({
               </h1>
               {constructor2.color && (
                 <span
-                  className="inline-block size-4 rounded-full"
+                  className="inline-block size-4"
                   style={{ backgroundColor: constructor2.color }}
                 />
               )}
@@ -151,8 +150,6 @@ export default async function CompareConstructorsPage({
           </div>
         </div>
       </FadeIn>
-
-      <div className="accent-line" />
 
       {/* Head to Head */}
       <FadeIn>
@@ -181,9 +178,9 @@ export default async function CompareConstructorsPage({
               </div>
             </div>
             {headToHead.totalRaces > 0 && (
-              <div className="bg-muted mt-4 flex h-4 overflow-hidden rounded-full">
+              <div className="bg-surface-3 mt-4 flex h-4 overflow-hidden">
                 <div
-                  className="flex items-center justify-center rounded-l-full text-[10px] font-bold text-white transition-all duration-500"
+                  className="text-2xs flex items-center justify-center font-bold text-white transition-all duration-500"
                   style={{
                     width: `${(headToHead.constructor1Wins / headToHead.totalRaces) * 100}%`,
                     backgroundColor: c1Color,
@@ -193,7 +190,7 @@ export default async function CompareConstructorsPage({
                     `${Math.round((headToHead.constructor1Wins / headToHead.totalRaces) * 100)}%`}
                 </div>
                 <div
-                  className="flex items-center justify-center rounded-r-full text-[10px] font-bold text-white transition-all duration-500"
+                  className="text-2xs flex items-center justify-center font-bold text-white transition-all duration-500"
                   style={{
                     width: `${(headToHead.constructor2Wins / headToHead.totalRaces) * 100}%`,
                     backgroundColor: c2Color,
@@ -225,7 +222,7 @@ export default async function CompareConstructorsPage({
                 <div key={key} className="flex items-center py-3">
                   <span
                     className={cn(
-                      'font-heading flex-1 text-right text-xl font-bold tabular-nums',
+                      'display flex-1 text-right text-xl tabular-nums',
                       c1Higher ? '' : 'text-muted-foreground',
                     )}
                     style={c1Higher ? { color: c1Color } : undefined}
@@ -237,7 +234,7 @@ export default async function CompareConstructorsPage({
                   </span>
                   <span
                     className={cn(
-                      'font-heading flex-1 text-xl font-bold tabular-nums',
+                      'display flex-1 text-xl tabular-nums',
                       c2Higher ? '' : 'text-muted-foreground',
                     )}
                     style={c2Higher ? { color: c2Color } : undefined}

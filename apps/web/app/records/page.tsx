@@ -82,7 +82,7 @@ function DriverRecordTable({
                     </span>
                   </Link>
                 </TableCell>
-                <TableCell className="text-right font-mono tabular-nums">{entry.count}</TableCell>
+                <TableCell className="font-data text-right tabular-nums">{entry.count}</TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -133,7 +133,7 @@ function ConstructorRecordTable({
                   >
                     {entry.constructor.color && (
                       <span
-                        className="inline-block size-3 rounded-full"
+                        className="inline-block size-3"
                         style={{ backgroundColor: entry.constructor.color }}
                       />
                     )}
@@ -142,7 +142,7 @@ function ConstructorRecordTable({
                     </span>
                   </Link>
                 </TableCell>
-                <TableCell className="text-right font-mono tabular-nums">{entry.count}</TableCell>
+                <TableCell className="font-data text-right tabular-nums">{entry.count}</TableCell>
               </TableRow>
             ))}
           </TableBody>

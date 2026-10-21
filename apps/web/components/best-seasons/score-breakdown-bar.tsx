@@ -1,5 +1,6 @@
 import type { BestSeasonComponent } from '@/lib/types'
 import { cn } from '@/lib/utils'
+import { NEUTRAL, SCORE_COLORS } from '@/lib/chart-theme'
 
 /**
  * One fixed colour per score component, in the API's component order.
@@ -10,16 +11,10 @@ import { cn } from '@/lib/utils'
  * separation of neighbours, contrast); the segments are also separated by a
  * gap and named in a legend, so colour never carries the identity alone.
  */
-export const COMPONENT_COLORS: Record<string, string> = {
-  closeness: '#3987e5',
-  lateness: '#d95926',
-  contention: '#199e70',
-  variety: '#c98500',
-  leadChanges: '#d55181',
-}
+export { SCORE_COLORS as COMPONENT_COLORS } from '@/lib/chart-theme'
 
 export function componentColor(id: string): string {
-  return COMPONENT_COLORS[id] ?? '#888888'
+  return SCORE_COLORS[id] ?? NEUTRAL
 }
 
 /**
@@ -36,7 +31,7 @@ export function ScoreBreakdownBar({
   const label = components.map((c) => `${c.label} ${c.points.toFixed(1)}/${c.weight}`).join(', ')
   return (
     <div
-      className={cn('flex h-2 w-full gap-[2px] overflow-hidden rounded-full bg-white/5', className)}
+      className={cn('bg-surface-3 flex h-2 w-full gap-[2px] overflow-hidden', className)}
       role="img"
       aria-label={`Score breakdown: ${label}`}
     >

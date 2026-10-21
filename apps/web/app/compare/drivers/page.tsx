@@ -117,7 +117,7 @@ export default async function CompareDriversPage({
       />
 
       <FadeIn>
-        <div className="glass rounded-xl px-6 py-8">
+        <div className="brackets bg-surface-1 border-hairline border px-6 py-8">
           <div className="flex items-center gap-4">
             <div className="flex flex-1 items-center justify-end gap-3">
               <h1>
@@ -130,9 +130,7 @@ export default async function CompareDriversPage({
               </h1>
               <DriverAvatar firstName={driver1.firstName} lastName={driver1.lastName} size="lg" />
             </div>
-            <span className="text-muted-foreground font-heading shrink-0 text-xl font-bold">
-              vs
-            </span>
+            <span className="text-muted-foreground display shrink-0 text-xl">vs</span>
             <div className="flex flex-1 items-center gap-3">
               <DriverAvatar firstName={driver2.firstName} lastName={driver2.lastName} size="lg" />
               <h1>
@@ -175,8 +173,6 @@ export default async function CompareDriversPage({
           )}
         </div>
       </FadeIn>
-
-      <div className="accent-line" />
 
       {/* Head to Head - Race + Qualifying */}
       <div className="grid gap-6 md:grid-cols-2">

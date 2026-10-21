@@ -72,9 +72,7 @@ export function ComparePickers({
 
       <div className="grid items-end gap-4 md:grid-cols-[1fr_auto_1fr]">
         <Picker label="Side A" value={a} options={options} onChange={(ref) => pick('a', ref)} />
-        <span className="font-heading text-muted-foreground hidden pb-1.5 text-xl font-bold md:block">
-          VS
-        </span>
+        <span className="display text-muted-foreground hidden pb-1.5 text-xl md:block">VS</span>
         <Picker label="Side B" value={b} options={options} onChange={(ref) => pick('b', ref)} />
       </div>
     </div>
@@ -106,7 +104,7 @@ function Picker({
               return option ? (
                 <span className="flex items-center gap-2">
                   <span
-                    className="inline-block size-2.5 shrink-0 rounded-full"
+                    className="inline-block size-2.5 shrink-0"
                     style={{ backgroundColor: option.color }}
                   />
                   {option.label}
@@ -122,7 +120,7 @@ function Picker({
             <SelectItem key={o.ref} value={o.ref}>
               <span className="flex items-center gap-2">
                 <span
-                  className="inline-block size-2.5 shrink-0 rounded-full"
+                  className="inline-block size-2.5 shrink-0"
                   style={{ backgroundColor: o.color }}
                 />
                 {o.label}

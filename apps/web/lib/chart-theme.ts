@@ -92,3 +92,16 @@ export function positionHeat(position: number): string {
   const t = Math.min((position - 11) / 10, 1)
   return `oklch(${0.4 - t * 0.1} 0.02 250)`
 }
+
+/**
+ * The best-seasons score components. Picked as a set for separation between
+ * neighbours and contrast on the dark surface; every segment is also gapped and
+ * named in a legend, so colour never carries the identity alone.
+ */
+export const SCORE_COLORS: Record<string, string> = {
+  closeness: '#3987e5',
+  lateness: '#d95926',
+  contention: '#199e70',
+  variety: '#c98500',
+  leadChanges: '#d55181',
+}

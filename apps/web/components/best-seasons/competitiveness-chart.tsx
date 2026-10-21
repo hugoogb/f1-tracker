@@ -52,7 +52,7 @@ function ChartTooltip({
   return (
     <div className="chart-tooltip max-w-xs text-xs">
       <p className="flex items-baseline justify-between gap-4">
-        <span className="font-heading text-sm font-bold">{point.year}</span>
+        <span className="display text-base">{point.year}</span>
         <span className="tabular-nums">{point.score.toFixed(1)} / 100</span>
       </p>
       {point.champion && (

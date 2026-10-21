@@ -25,7 +25,7 @@ export function DeltaHeader({
   const rounds = data.roundsRaced
 
   return (
-    <div className="glass relative overflow-hidden rounded-xl px-6 py-8">
+    <div className="brackets bg-surface-1 border-hairline relative border px-6 py-8">
       {leader && (
         <div
           aria-hidden
@@ -43,7 +43,7 @@ export function DeltaHeader({
               : 'Level on points'}
           </p>
           <p
-            className="font-heading text-6xl leading-none font-bold tabular-nums"
+            className="display text-6xl leading-none tabular-nums"
             style={leader ? { color: leader.color } : undefined}
           >
             {Number.isInteger(delta) ? (
@@ -98,14 +98,8 @@ function SideName({
             : 'flex items-center justify-center gap-2 md:justify-start'
         }
       >
-        <span
-          className="inline-block size-3 shrink-0 rounded-full"
-          style={{ backgroundColor: side.color }}
-        />
-        <Link
-          href={side.href}
-          className="font-heading text-2xl font-bold transition-colors hover:opacity-80"
-        >
+        <span className="inline-block size-3 shrink-0" style={{ backgroundColor: side.color }} />
+        <Link href={side.href} className="display text-2xl transition-colors hover:opacity-80">
           {side.name}
         </Link>
       </div>

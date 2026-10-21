@@ -42,7 +42,7 @@ export function CareerStatsTable({
             <div key={key} className="flex items-center py-3">
               <span
                 className={cn(
-                  'font-heading flex-1 text-right text-xl font-bold tabular-nums',
+                  'display flex-1 text-right text-xl tabular-nums',
                   d1Higher ? 'text-primary' : 'text-muted-foreground',
                 )}
               >
@@ -53,8 +53,8 @@ export function CareerStatsTable({
               </span>
               <span
                 className={cn(
-                  'font-heading flex-1 text-xl font-bold tabular-nums',
-                  d2Higher ? 'text-blue-500' : 'text-muted-foreground',
+                  'display flex-1 text-xl tabular-nums',
+                  d2Higher ? 'text-side-b' : 'text-muted-foreground',
                 )}
               >
                 {v2.toLocaleString()}
