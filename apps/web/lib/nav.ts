@@ -56,3 +56,17 @@ export function isActiveHref(pathname: string, href: string): boolean {
   if (href === '/seasons/current') return false
   return pathname === href || pathname.startsWith(`${href}/`)
 }
+
+/**
+ * The one group to highlight for a page. A page listed in two groups (Best
+ * seasons sits under Season and Stats) belongs to the first, so the header
+ * never shows two active sections at once.
+ */
+export function activeGroup(pathname: string): string | null {
+  const group = NAV_GROUPS.find((g) =>
+    g.items
+      ? g.items.some((item) => isActiveHref(pathname, item.href))
+      : isActiveHref(pathname, g.href!),
+  )
+  return group?.label ?? null
+}

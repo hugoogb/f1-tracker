@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation'
 import { NavigationMenu } from '@base-ui/react/navigation-menu'
 import { ChevronDown } from 'lucide-react'
 
-import { NAV_GROUPS, isActiveHref } from '@/lib/nav'
+import { NAV_GROUPS, activeGroup, isActiveHref } from '@/lib/nav'
 import { cn } from '@/lib/utils'
 
 const triggerClass =
@@ -17,13 +17,14 @@ const activeClass =
 /** The desktop header navigation: plain links, and groups that open a panel. */
 export function MainNav() {
   const pathname = usePathname()
+  const current = activeGroup(pathname)
 
   return (
     <NavigationMenu.Root className="hidden lg:block" aria-label="Main">
       <NavigationMenu.List className="flex items-center">
         {NAV_GROUPS.map((group) => {
+          const active = group.label === current
           if (!group.items) {
-            const active = isActiveHref(pathname, group.href!)
             return (
               <NavigationMenu.Item key={group.label}>
                 <NavigationMenu.Link
@@ -36,7 +37,6 @@ export function MainNav() {
               </NavigationMenu.Item>
             )
           }
-          const active = group.items.some((item) => isActiveHref(pathname, item.href))
           return (
             <NavigationMenu.Item key={group.label}>
               <NavigationMenu.Trigger className={cn(triggerClass, active && activeClass)}>

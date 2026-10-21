@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { NAV_GROUPS, isActiveHref } from '@/lib/nav'
+import { NAV_GROUPS, activeGroup, isActiveHref } from '@/lib/nav'
 
 describe('isActiveHref', () => {
   it('matches a section and the pages under it', () => {
@@ -34,5 +34,18 @@ describe('NAV_GROUPS', () => {
     ]) {
       expect(hrefs).toContain(href)
     }
+  })
+})
+
+describe('activeGroup', () => {
+  it('highlights exactly one group, even for a page listed in two', () => {
+    expect(activeGroup('/best-seasons')).toBe('Season')
+    expect(activeGroup('/records')).toBe('Stats')
+    expect(activeGroup('/compare/drivers')).toBe('Stats')
+  })
+
+  it('highlights plain links and nothing on unlisted pages', () => {
+    expect(activeGroup('/drivers/lewis-hamilton')).toBe('Drivers')
+    expect(activeGroup('/status')).toBeNull()
   })
 })
