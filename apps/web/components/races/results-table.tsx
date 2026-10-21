@@ -44,7 +44,11 @@ export function ResultsTable({ results, fastestLapDriverRef }: ResultsTableProps
           const hasFastestLap = fastestLapDriverRef === result.driver.ref
 
           return (
-            <TableRow key={result.driver.ref ?? idx} className={!isFinished ? 'opacity-50' : ''}>
+            <TableRow
+              key={result.driver.ref ?? idx}
+              highlight={result.position === 1 ? 'leader' : undefined}
+              className={!isFinished ? 'opacity-70' : ''}
+            >
               <TableCell>
                 {isFinished ? (
                   <PositionBadge position={result.position!} size="sm" />

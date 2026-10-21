@@ -42,7 +42,11 @@ import { buildMetadata } from '@/lib/seo'
 import { LocalDate } from '@/components/ui/local-date'
 import { SeasonRankBadge } from '@/components/best-seasons/season-rank-badge'
 import { buttonVariants } from '@/components/ui/button-variants'
-import { cn } from '@/lib/utils'
+import { PageHero } from '@/components/ui/page-hero'
+import { Tag } from '@/components/ui/tag'
+import { RecordVisit } from '@/components/layout/record-visit'
+import { WhereNext } from '@/components/layout/where-next'
+import { seasonNeighbours } from '@/lib/neighbours'
 
 interface SeasonDetailResponse {
   year: number
@@ -163,8 +167,12 @@ export default async function SeasonDetailPage({ params }: { params: Promise<{ y
         }))
     : []
 
+  // The clock only bounds the "next season" arrow, so the output changes on
+  // 1 January and nowhere else (see seasonNeighbours).
+  const neighbours = seasonNeighbours(year, new Date().getUTCFullYear())
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <Breadcrumbs
         items={[
           { label: 'Home', href: '/' },
@@ -173,43 +181,50 @@ export default async function SeasonDetailPage({ params }: { params: Promise<{ y
         ]}
       />
 
-      <FadeIn>
-        <div className="space-y-3">
-          <div className="flex items-center gap-4">
-            <Link
-              href={`/seasons/${year - 1}`}
-              className={buttonVariants({ variant: 'outline', size: 'icon' })}
-              title={`${year - 1} Season`}
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Link>
-            <div>
-              <h1>
-                <span className="text-gradient">{year}</span>{' '}
-                <span className="text-foreground">Season</span>
-              </h1>
-              <p className="text-muted-foreground">{seasonData.races.length} races</p>
-              <SeasonRankBadge year={year} />
-            </div>
-            <Link
-              href={`/seasons/${year + 1}`}
-              className={buttonVariants({ variant: 'outline', size: 'icon' })}
-              title={`${year + 1} Season`}
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Link>
+      <RecordVisit href={`/seasons/${year}`} label={`${year} season`} kind="season" />
+      <PageHero
+        eyebrow="Formula 1 World Championship"
+        title={
+          <>
+            {year} <span className="text-primary">season</span>
+          </>
+        }
+        tags={
+          <>
+            <Tag variant="red">{seasonData.races.length} rounds</Tag>
+            <SeasonRankBadge year={year} />
+          </>
+        }
+        actions={
+          <>
+            {neighbours.prev !== null && (
+              <Link
+                href={`/seasons/${neighbours.prev}`}
+                aria-label={`${neighbours.prev} season`}
+                className={buttonVariants({ variant: 'outline', size: 'icon' })}
+              >
+                <ChevronLeft className="size-4" aria-hidden />
+              </Link>
+            )}
+            {neighbours.next !== null && (
+              <Link
+                href={`/seasons/${neighbours.next}`}
+                aria-label={`${neighbours.next} season`}
+                className={buttonVariants({ variant: 'outline', size: 'icon' })}
+              >
+                <ChevronRight className="size-4" aria-hidden />
+              </Link>
+            )}
             <Link
               href={`/seasons/${year}/compare`}
-              className={cn(buttonVariants({ variant: 'outline' }), 'ml-auto')}
-              title={`Compare two drivers or constructors through ${year}`}
+              className={buttonVariants({ variant: 'default', size: 'lg' })}
             >
-              <GitCompareArrows className="h-3.5 w-3.5" />
+              <GitCompareArrows className="size-3.5" aria-hidden />
               Compare
             </Link>
-          </div>
-          <div className="accent-line" />
-        </div>
-      </FadeIn>
+          </>
+        }
+      />
 
       {seasonData.scoring && (
         <FadeIn>
@@ -230,6 +245,7 @@ export default async function SeasonDetailPage({ params }: { params: Promise<{ y
           aria-labelledby="calendar-heading"
         >
           <div>
+            <p className="label">The season on the map</p>
             <h2 id="calendar-heading">Calendar</h2>
             <p className="text-muted-foreground text-sm">
               Every round on the map in calendar order, joined by the great-circle legs between
@@ -275,6 +291,24 @@ export default async function SeasonDetailPage({ params }: { params: Promise<{ y
           ) : undefined
         }
       />
+
+      <WhereNext
+        links={[
+          {
+            label: `Compare in ${year}`,
+            href: `/seasons/${year}/compare`,
+            description: 'Any two drivers or teams, round by round',
+          },
+          {
+            label: 'Best seasons',
+            href: '/best-seasons',
+            description: `Where ${year} ranks among every title fight`,
+          },
+          ...(neighbours.prev !== null
+            ? [{ label: `${neighbours.prev} season`, href: `/seasons/${neighbours.prev}` }]
+            : []),
+        ]}
+      />
     </div>
   )
 }
@@ -299,15 +333,13 @@ function RacesTable({ races, year }: { races: Race[]; year: number }) {
         {races.map((race) => (
           <TableRow key={race.round}>
             <TableCell>
-              <Badge variant="outline" className="font-mono text-xs">
-                R{race.round}
-              </Badge>
+              <Badge variant="outline">R{race.round}</Badge>
             </TableCell>
             <TableCell>
               <Link
                 href={`/seasons/${year}/races/${race.round}`}
                 prefetch={false}
-                className="hover:text-primary font-medium transition-colors"
+                className="hover:text-primary focus-ring font-medium transition-colors"
               >
                 {race.name}
               </Link>

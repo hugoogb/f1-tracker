@@ -22,14 +22,18 @@ export async function SeasonRankBadge({ year }: { year: number }) {
   return (
     <Link
       href="/best-seasons"
-      className="hover:border-primary/40 inline-flex items-center gap-1.5 rounded-full border border-[var(--glass-border)] bg-[var(--glass-bg)] px-2.5 py-0.5 text-xs transition-colors"
+      className="skew-tag border-hairline-strong hover:border-primary focus-ring font-data inline-block border px-2.5 py-0.5 text-xs transition-colors"
       title={`Competitiveness score ${season.score.total.toFixed(1)} / 100`}
     >
-      <Gauge className="text-primary h-3.5 w-3.5" />
-      <span className="tabular-nums">
-        #{season.rank} of {rankedSeasons} best seasons
+      <span className="inline-flex items-center gap-1.5">
+        <Gauge className="text-primary size-3.5" aria-hidden />
+        <span className="tabular-nums">
+          #{season.rank} of {rankedSeasons} best seasons
+        </span>
+        <span className="text-muted-foreground tabular-nums">
+          · {season.score.total.toFixed(1)}
+        </span>
       </span>
-      <span className="text-muted-foreground tabular-nums">· {season.score.total.toFixed(1)}</span>
     </Link>
   )
 }

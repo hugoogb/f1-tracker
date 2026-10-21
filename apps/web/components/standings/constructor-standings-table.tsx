@@ -38,7 +38,10 @@ export function ConstructorStandingsTable({ standings, limit }: ConstructorStand
           const teamColor = teamColorOf(entry.constructor.color)
 
           return (
-            <TableRow key={entry.constructor.ref}>
+            <TableRow
+              key={entry.constructor.ref}
+              highlight={entry.position === 1 ? 'leader' : undefined}
+            >
               <TableCell>
                 <PositionBadge position={entry.position} size="sm" />
               </TableCell>

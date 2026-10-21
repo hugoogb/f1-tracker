@@ -126,7 +126,7 @@ export function TitlePermutations({ data }: TitlePermutationsProps) {
 
 function Stat({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
-    <div className="border-border rounded-lg border bg-[var(--surface-1)] px-3 py-2">
+    <div className="border-hairline bg-surface-2 border px-3 py-2">
       <p className="text-muted-foreground text-xs">{label}</p>
       <p className="text-lg font-semibold tabular-nums">{value}</p>
       {hint && <p className="text-muted-foreground text-xs">{hint}</p>}

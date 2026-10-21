@@ -3,7 +3,7 @@ import { Panel, PanelHeader } from '@/components/ui/panel'
 
 export default function SeasonsLoading() {
   return (
-    <main className="container mx-auto space-y-10 px-4 py-8">
+    <div className="space-y-10">
       <div>
         <Skeleton className="h-9 w-32" />
         <Skeleton className="mt-2 h-5 w-72" />
@@ -23,6 +23,6 @@ export default function SeasonsLoading() {
           </div>
         </section>
       ))}
-    </main>
+    </div>
   )
 }

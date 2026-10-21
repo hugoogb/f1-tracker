@@ -41,7 +41,7 @@ function DeltaCell({ delta }: { delta: number | null }) {
   return (
     <span
       className={`inline-flex items-center gap-0.5 text-xs tabular-nums ${
-        gained ? 'text-[var(--pos-gain,#22c55e)]' : 'text-[var(--pos-loss,#ef4444)]'
+        gained ? 'text-positive' : 'text-negative'
       }`}
     >
       {gained ? (
@@ -116,9 +116,7 @@ export function NormalisedStandings({ results, year }: NormalisedStandingsProps)
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <Badge variant="outline" className="font-mono text-xs">
-          {selected.system.label}
-        </Badge>
+        <Badge variant="outline">{selected.system.label}</Badge>
         {selected.championChanged && <Badge>Different champion</Badge>}
         {selected.isActualSystem && <Badge variant="outline">The season&apos;s own rules</Badge>}
       </div>

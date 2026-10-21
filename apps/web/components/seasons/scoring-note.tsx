@@ -32,15 +32,13 @@ export function ScoringNote({ scoring, year }: ScoringNoteProps) {
   const driver = largest?.driver
 
   return (
-    <div className="border-border rounded-xl border bg-[var(--surface-1)] px-4 py-3">
+    <div className="brackets border-hairline bg-surface-1 border px-4 py-3">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <span className="text-muted-foreground inline-flex items-center gap-1.5 text-xs font-medium tracking-wide uppercase">
           <Info className="size-3.5" aria-hidden />
           Scoring
         </span>
-        <Badge variant="outline" className="font-mono text-xs">
-          {system.label}
-        </Badge>
+        <Badge variant="outline">{system.label}</Badge>
         <span className="text-muted-foreground text-sm">{system.era}</span>
         {system.fastestLapPoint && (
           <Badge variant="outline" className="text-xs">
