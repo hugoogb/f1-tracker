@@ -7,6 +7,7 @@ import {
   GeoJSON,
   MapContainer,
   Marker,
+  Pane,
   Polyline,
   Tooltip,
   ZoomControl,
@@ -33,6 +34,11 @@ function loadWorld(): Promise<FeatureCollection | null> {
     .catch(() => null)
   return worldPromise
 }
+
+// The land arrives after a fetch, so in the shared overlay SVG it would be
+// appended after the routes and paint over them. Its own pane, below the
+// overlay pane (400), keeps it underneath whenever it lands.
+const LAND_PANE = 'calendar-land'
 
 const landStyle = {
   fillColor: '#18181b',
@@ -85,6 +91,13 @@ export function SeasonCalendarCanvas({
   // would be clipped to the frame the flight started from. A generous padding
   // keeps the continents drawn while the camera moves.
   const renderer = useMemo(() => L.svg({ padding: 1.5 }), [])
+  // A pane's default renderer would fall back to Leaflet's 0.1 padding. GeoJSON
+  // hands its options to every polygon it builds, `renderer` included; only
+  // react-leaflet's types leave it out.
+  const landOptions = useMemo(
+    () => ({ renderer: L.svg({ padding: 1.5, pane: LAND_PANE }) }) as Record<string, unknown>,
+    [],
+  )
 
   return (
     <MapContainer
@@ -107,7 +120,11 @@ export function SeasonCalendarCanvas({
       maxBoundsViscosity={0.8}
       className={`${styles.map} h-full w-full`}
     >
-      {world && <GeoJSON data={world} style={() => landStyle} interactive={false} />}
+      <Pane name={LAND_PANE} style={{ zIndex: '250' }}>
+        {world && (
+          <GeoJSON {...landOptions} data={world} style={() => landStyle} interactive={false} />
+        )}
+      </Pane>
       <ZoomControl position="bottomright" />
       <CameraController camera={camera} stops={stops} legs={legs} />
       <Route legs={legs} />

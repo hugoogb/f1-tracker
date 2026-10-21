@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { MapContainer, GeoJSON, CircleMarker, Tooltip } from 'react-leaflet'
+import { MapContainer, GeoJSON, CircleMarker, Pane, Tooltip } from 'react-leaflet'
 import type { FeatureCollection } from 'geojson'
 import 'leaflet/dist/leaflet.css'
 
@@ -60,7 +60,11 @@ export function WorldMap({ circuits }: WorldMapProps) {
       className="h-full w-full"
       style={{ background: '#0a0a0a' }}
     >
-      {world && <GeoJSON data={world} style={() => landStyle} interactive={false} />}
+      {/* Its own pane below the overlay pane: the land arrives after a fetch and
+          would otherwise be appended over the pins in the shared SVG. */}
+      <Pane name="circuits-land" style={{ zIndex: '250' }}>
+        {world && <GeoJSON data={world} style={() => landStyle} interactive={false} />}
+      </Pane>
       {circuits.map((circuit) => (
         <CircleMarker
           key={circuit.ref}
