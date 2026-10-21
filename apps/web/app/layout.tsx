@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next'
-import { Plus_Jakarta_Sans, Orbitron, JetBrains_Mono } from 'next/font/google'
+import { Barlow_Condensed, Chakra_Petch, Titillium_Web } from 'next/font/google'
 import { Header } from '@/components/layout/header'
 import { Footer } from '@/components/layout/footer'
 import { Toaster } from '@/components/ui/sonner'
@@ -8,19 +8,25 @@ import { websiteSchema } from '@/lib/structured-data'
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL, THEME_COLOR, absoluteUrl } from '@/lib/seo'
 import './globals.css'
 
-const plusJakarta = Plus_Jakarta_Sans({
-  variable: '--font-plus-jakarta',
+// Three families, one job each: Barlow Condensed for display titles and hero
+// numbers, Chakra Petch for labels and readouts, Titillium Web for body copy.
+const barlow = Barlow_Condensed({
+  variable: '--font-barlow',
   subsets: ['latin'],
+  weight: ['600', '700', '800'],
+  style: ['normal', 'italic'],
 })
 
-const orbitron = Orbitron({
-  variable: '--font-orbitron',
+const chakra = Chakra_Petch({
+  variable: '--font-chakra',
   subsets: ['latin'],
+  weight: ['400', '500', '600', '700'],
 })
 
-const jetbrainsMono = JetBrains_Mono({
-  variable: '--font-jetbrains-mono',
+const titillium = Titillium_Web({
+  variable: '--font-titillium',
   subsets: ['latin'],
+  weight: ['400', '600', '700'],
 })
 
 export const metadata: Metadata = {
@@ -93,7 +99,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body
-        className={`${plusJakarta.variable} ${orbitron.variable} ${jetbrainsMono.variable} flex min-h-screen flex-col font-sans antialiased`}
+        className={`${barlow.variable} ${chakra.variable} ${titillium.variable} flex min-h-screen flex-col font-sans antialiased`}
       >
         <JsonLd data={websiteSchema()} />
         <a
