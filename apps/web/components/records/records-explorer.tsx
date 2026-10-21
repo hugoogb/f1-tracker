@@ -13,7 +13,7 @@ import type {
 } from '@/lib/types'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Panel, PanelContent, PanelHeader, PanelTitle } from '@/components/ui/panel'
 import { DriverAvatar } from '@/components/ui/driver-avatar'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Input } from '@/components/ui/input'
@@ -258,15 +258,15 @@ export function RecordsExplorer({
   }, [result])
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">Explore the records</CardTitle>
+    <Panel>
+      <PanelHeader>
+        <PanelTitle className="text-base">Explore the records</PanelTitle>
         <p className="text-muted-foreground text-sm">
           The same results as the tables above, sliced by era, nationality and a minimum number of{' '}
           {isConstructor ? 'entries' : 'starts'}.
         </p>
-      </CardHeader>
-      <CardContent className="space-y-5">
+      </PanelHeader>
+      <PanelContent className="space-y-5">
         <div className="flex flex-wrap items-end gap-3">
           <FilterField label="Records for">
             <div className="flex gap-1" role="group" aria-label="Records for">
@@ -407,7 +407,7 @@ export function RecordsExplorer({
         <div aria-busy={loading} aria-live="polite">
           {error ? (
             <div className="flex flex-col items-center justify-center py-12 text-center">
-              <AlertTriangle className="text-muted-foreground/50 mb-3 size-10" strokeWidth={1} />
+              <AlertTriangle className="text-label mb-3 size-10" strokeWidth={1} />
               <h3 className="text-base font-semibold">Could not load these records</h3>
               <p className="text-muted-foreground mt-1 max-w-sm text-sm">{error}</p>
               <Button
@@ -475,7 +475,7 @@ export function RecordsExplorer({
                             >
                               {constructor.color && (
                                 <span
-                                  className="inline-block size-3 rounded-full"
+                                  className="inline-block size-3"
                                   style={{ backgroundColor: constructor.color }}
                                 />
                               )}
@@ -485,10 +485,10 @@ export function RecordsExplorer({
                             </Link>
                           ) : null}
                         </TableCell>
-                        <TableCell className="text-right font-mono tabular-nums">
+                        <TableCell className="font-data text-right tabular-nums">
                           {formatValue(row.value, result.format)}
                         </TableCell>
-                        <TableCell className="text-muted-foreground hidden text-right font-mono tabular-nums sm:table-cell">
+                        <TableCell className="text-muted-foreground font-data hidden text-right tabular-nums sm:table-cell">
                           {row.starts}
                         </TableCell>
                       </TableRow>
@@ -529,7 +529,7 @@ export function RecordsExplorer({
             </div>
           ) : null}
         </div>
-      </CardContent>
-    </Card>
+      </PanelContent>
+    </Panel>
   )
 }

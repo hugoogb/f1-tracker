@@ -2,8 +2,8 @@ import Link from 'next/link'
 import { Trophy } from 'lucide-react'
 import { api } from '@/lib/api'
 import type { SeasonChampion } from '@/lib/types'
-import { PageHeader } from '@/components/ui/page-header'
-import { Card, CardContent } from '@/components/ui/card'
+import { PageHero } from '@/components/ui/page-hero'
+import { Panel, PanelContent } from '@/components/ui/panel'
 import { Badge } from '@/components/ui/badge'
 import { ChampionsTabs } from './champions-tabs'
 import { FadeIn, StaggerList, StaggerItem } from '@/components/ui/motion'
@@ -57,14 +57,11 @@ export default async function ChampionsPage() {
 
   return (
     <div className="space-y-10">
-      <PageHeader
+      <PageHero
+        eyebrow="Since 1950"
         title="Champions"
         description="F1 World Champions from every season"
-        badge={
-          <Badge variant="secondary" className="font-mono">
-            {champions.length} seasons
-          </Badge>
-        }
+        badge={<Badge variant="secondary">{champions.length} seasons</Badge>}
       />
 
       <ChampionsTabs
@@ -75,33 +72,32 @@ export default async function ChampionsPage() {
                 <section>
                   <div className="mb-4 space-y-3">
                     <div className="flex items-center gap-3">
-                      <div className="bg-primary/20 h-6 w-1 rounded-full" />
+                      <span aria-hidden className="bg-primary h-5 w-1 -skew-x-12" />
                       <h2>{decade}</h2>
                     </div>
-                    <div className="accent-line" />
                   </div>
                   <StaggerList className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     {entries.map((champion) => {
                       const titles = driverTitleCounts[champion.driver.ref] ?? 0
-                      const teamColor = champion.constructor?.color ?? null
+                      const teamColor = champion.driverConstructor?.color ?? null
                       return (
                         <StaggerItem key={champion.year}>
-                          <Card className="relative overflow-hidden transition-colors duration-200">
+                          <Panel className="relative transition-colors duration-200">
                             {teamColor && (
                               <div
-                                className="absolute top-0 left-0 h-full w-1 rounded-l-2xl"
+                                className="absolute top-0 left-0 h-full w-1"
                                 style={{ backgroundColor: teamColor }}
                               />
                             )}
-                            <CardContent className="flex items-start gap-4 px-5 py-4">
+                            <PanelContent className="flex items-start gap-4 px-5 py-4">
                               <div className="flex flex-col items-center gap-1">
                                 <Link
                                   href={`/seasons/${champion.year}`}
-                                  className="font-heading hover:text-primary text-lg font-bold transition-colors"
+                                  className="display hover:text-primary focus-ring text-2xl transition-colors"
                                 >
                                   {champion.year}
                                 </Link>
-                                <Trophy className="h-4 w-4 text-amber-500/60" />
+                                <Trophy className="text-gold size-4" aria-hidden />
                               </div>
                               <div className="min-w-0 flex-1 space-y-1">
                                 <div className="flex items-center gap-2">
@@ -118,18 +114,20 @@ export default async function ChampionsPage() {
                                   )}
                                 </div>
                                 <div className="flex items-center justify-between">
-                                  {champion.constructor ? (
+                                  {champion.driverConstructor ? (
                                     <Link
-                                      href={`/constructors/${champion.constructor.ref}`}
+                                      href={`/constructors/${champion.driverConstructor.ref}`}
                                       className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 text-sm transition-colors"
                                     >
-                                      {champion.constructor.color && (
+                                      {champion.driverConstructor.color && (
                                         <span
-                                          className="inline-block size-2.5 rounded-full"
-                                          style={{ backgroundColor: champion.constructor.color }}
+                                          className="inline-block size-2.5"
+                                          style={{
+                                            backgroundColor: champion.driverConstructor.color,
+                                          }}
                                         />
                                       )}
-                                      {champion.constructor.name}
+                                      {champion.driverConstructor.name}
                                     </Link>
                                   ) : (
                                     <span className="text-muted-foreground text-sm">—</span>
@@ -139,8 +137,8 @@ export default async function ChampionsPage() {
                                   </span>
                                 </div>
                               </div>
-                            </CardContent>
-                          </Card>
+                            </PanelContent>
+                          </Panel>
                         </StaggerItem>
                       )
                     })}
@@ -157,10 +155,9 @@ export default async function ChampionsPage() {
                 <section>
                   <div className="mb-4 space-y-3">
                     <div className="flex items-center gap-3">
-                      <div className="bg-primary/20 h-6 w-1 rounded-full" />
+                      <span aria-hidden className="bg-primary h-5 w-1 -skew-x-12" />
                       <h2>{decade}</h2>
                     </div>
-                    <div className="accent-line" />
                   </div>
                   <StaggerList className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     {entries.map((champion) => {
@@ -168,22 +165,22 @@ export default async function ChampionsPage() {
                       const teamColor = champion.constructor!.color ?? null
                       return (
                         <StaggerItem key={champion.year}>
-                          <Card className="relative overflow-hidden transition-colors duration-200">
+                          <Panel className="relative transition-colors duration-200">
                             {teamColor && (
                               <div
-                                className="absolute top-0 left-0 h-full w-1 rounded-l-2xl"
+                                className="absolute top-0 left-0 h-full w-1"
                                 style={{ backgroundColor: teamColor }}
                               />
                             )}
-                            <CardContent className="flex items-start gap-4 px-5 py-4">
+                            <PanelContent className="flex items-start gap-4 px-5 py-4">
                               <div className="flex flex-col items-center gap-1">
                                 <Link
                                   href={`/seasons/${champion.year}`}
-                                  className="font-heading hover:text-primary text-lg font-bold transition-colors"
+                                  className="display hover:text-primary focus-ring text-2xl transition-colors"
                                 >
                                   {champion.year}
                                 </Link>
-                                <Trophy className="h-4 w-4 text-amber-500/60" />
+                                <Trophy className="text-gold size-4" aria-hidden />
                               </div>
                               <div className="min-w-0 flex-1 space-y-1">
                                 <div className="flex items-center gap-2">
@@ -217,8 +214,8 @@ export default async function ChampionsPage() {
                                   </span>
                                 </div>
                               </div>
-                            </CardContent>
-                          </Card>
+                            </PanelContent>
+                          </Panel>
                         </StaggerItem>
                       )
                     })}

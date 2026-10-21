@@ -1,5 +1,5 @@
-import { PageHeader } from '@/components/ui/page-header'
-import { Card, CardContent } from '@/components/ui/card'
+import { PageHero } from '@/components/ui/page-hero'
+import { Panel, PanelContent } from '@/components/ui/panel'
 import { FadeIn } from '@/components/ui/motion'
 import { buildMetadata } from '@/lib/seo'
 
@@ -45,17 +45,16 @@ const DATA_SOURCES: SourceEntry[] = [
 export default function AttributionsPage() {
   return (
     <div className="space-y-10">
-      <PageHeader
+      <PageHero
+        eyebrow="Credits"
         title="Attributions"
         description="F1 Tracker is an unofficial, non-commercial fan project. Every data source and image it uses is credited here."
       />
 
       <FadeIn>
-        <Card className="border-primary/40">
-          <CardContent className="space-y-3 pt-6 text-sm leading-relaxed">
-            <h2 className="font-heading text-base font-bold tracking-wider uppercase">
-              Trademark notice
-            </h2>
+        <Panel className="border-primary/40">
+          <PanelContent className="space-y-3 pt-6 text-sm leading-relaxed">
+            <h2>Trademark notice</h2>
             <p className="text-muted-foreground">
               F1 Tracker is unofficial and is not associated in any way with the Formula 1
               companies. F1, FORMULA ONE, FORMULA 1, FIA FORMULA ONE WORLD CHAMPIONSHIP, GRAND PRIX
@@ -65,17 +64,17 @@ export default function AttributionsPage() {
               Constructor and driver names are used for identification and editorial purposes only.
               No team logos, badges or driver photographs are reproduced on this site.
             </p>
-          </CardContent>
-        </Card>
+          </PanelContent>
+        </Panel>
       </FadeIn>
 
       <FadeIn>
         <section className="space-y-4">
-          <h2 className="font-heading text-lg font-bold tracking-wider uppercase">Sources</h2>
+          <h2>Sources</h2>
           <div className="grid gap-4 md:grid-cols-2">
             {DATA_SOURCES.map((source) => (
-              <Card key={source.name}>
-                <CardContent className="space-y-2 pt-6">
+              <Panel key={source.name}>
+                <PanelContent className="space-y-2 pt-6">
                   <a
                     href={source.href}
                     target="_blank"
@@ -100,8 +99,8 @@ export default function AttributionsPage() {
                       source.licence
                     )}
                   </p>
-                </CardContent>
-              </Card>
+                </PanelContent>
+              </Panel>
             ))}
           </div>
         </section>
@@ -109,11 +108,9 @@ export default function AttributionsPage() {
 
       <FadeIn>
         <section className="space-y-4">
-          <h2 className="font-heading text-lg font-bold tracking-wider uppercase">
-            Data licence &amp; reuse
-          </h2>
-          <Card>
-            <CardContent className="text-muted-foreground space-y-3 pt-6 text-sm leading-relaxed">
+          <h2>Data licence &amp; reuse</h2>
+          <Panel>
+            <PanelContent className="text-muted-foreground space-y-3 pt-6 text-sm leading-relaxed">
               <p>
                 Formula 1 data comes from{' '}
                 <a
@@ -146,16 +143,14 @@ export default function AttributionsPage() {
                 trademark or attribution obligation, so drivers and teams are shown as initials on
                 the team colour instead.
               </p>
-            </CardContent>
-          </Card>
+            </PanelContent>
+          </Panel>
         </section>
       </FadeIn>
 
       <FadeIn>
         <section className="space-y-3">
-          <h2 className="font-heading text-lg font-bold tracking-wider uppercase">
-            Rights holders
-          </h2>
+          <h2>Rights holders</h2>
           <p className="text-muted-foreground text-sm leading-relaxed">
             If you hold rights to something used here and believe it is used improperly, please open
             an issue at{' '}

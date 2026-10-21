@@ -4,7 +4,7 @@ import { ArrowLeftRight, Users } from 'lucide-react'
 import { api } from '@/lib/api'
 import type { Driver, RadarStats } from '@/lib/types'
 import { Breadcrumbs } from '@/components/layout/breadcrumbs'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Panel, PanelContent, PanelHeader, PanelTitle } from '@/components/ui/panel'
 import { DriverAvatar } from '@/components/ui/driver-avatar'
 import { cn } from '@/lib/utils'
 import { ComparisonChart } from '@/components/charts/comparison-chart'
@@ -13,6 +13,7 @@ import { HeadToHeadCard } from '@/components/compare/head-to-head-card'
 import { CareerStatsTable } from '@/components/compare/career-stats-table'
 import { FadeIn } from '@/components/ui/motion'
 import { buildMetadata } from '@/lib/seo'
+import { buttonVariants } from '@/components/ui/button-variants'
 
 interface DriverStats {
   total_races: number
@@ -116,10 +117,10 @@ export default async function CompareDriversPage({
       />
 
       <FadeIn>
-        <div className="glass rounded-xl px-6 py-8">
-          <div className="flex items-center gap-4">
-            <div className="flex flex-1 items-center justify-end gap-3">
-              <h1>
+        <div className="brackets bg-surface-1 border-hairline border px-4 py-6 sm:px-6 sm:py-8">
+          <div className="flex flex-col items-center gap-3 sm:flex-row sm:gap-4">
+            <div className="flex min-w-0 flex-1 items-center justify-center gap-3 sm:justify-end">
+              <h1 className="min-w-0 text-3xl break-words sm:text-4xl lg:text-5xl">
                 <Link
                   href={`/drivers/${driver1.ref}`}
                   className="hover:text-primary transition-colors"
@@ -129,12 +130,10 @@ export default async function CompareDriversPage({
               </h1>
               <DriverAvatar firstName={driver1.firstName} lastName={driver1.lastName} size="lg" />
             </div>
-            <span className="text-muted-foreground font-heading shrink-0 text-xl font-bold">
-              vs
-            </span>
-            <div className="flex flex-1 items-center gap-3">
+            <span className="text-muted-foreground display shrink-0 text-xl">vs</span>
+            <div className="flex min-w-0 flex-1 items-center justify-center gap-3 sm:justify-start">
               <DriverAvatar firstName={driver2.firstName} lastName={driver2.lastName} size="lg" />
-              <h1>
+              <h1 className="min-w-0 text-3xl break-words sm:text-4xl lg:text-5xl">
                 <Link
                   href={`/drivers/${driver2.ref}`}
                   className="hover:text-primary transition-colors"
@@ -148,7 +147,7 @@ export default async function CompareDriversPage({
           <div className="mt-4 flex justify-center gap-2">
             <Link
               href={`/compare/drivers?d1=${params.d2}&d2=${params.d1}${isTeammate ? '&teammate=true' : ''}`}
-              className="border-border inline-flex h-8 items-center gap-1.5 rounded-lg border bg-[var(--surface-1)] px-2.5 text-sm font-medium transition-all hover:bg-[var(--surface-2)]"
+              className={buttonVariants({ variant: 'outline' })}
             >
               <ArrowLeftRight className="h-3.5 w-3.5" />
               Swap
@@ -157,10 +156,8 @@ export default async function CompareDriversPage({
               <Link
                 href={`/compare/drivers?d1=${params.d1}&d2=${params.d2}${isTeammate ? '' : '&teammate=true'}`}
                 className={cn(
-                  'inline-flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-sm font-medium transition-all',
-                  isTeammate
-                    ? 'border-primary/50 bg-primary/10 text-primary'
-                    : 'border-border bg-[var(--surface-1)] hover:bg-[var(--surface-2)]',
+                  buttonVariants({ variant: 'outline' }),
+                  isTeammate && 'border-primary/50 bg-primary/10 text-primary',
                 )}
               >
                 <Users className="h-3.5 w-3.5" />
@@ -176,8 +173,6 @@ export default async function CompareDriversPage({
           )}
         </div>
       </FadeIn>
-
-      <div className="accent-line" />
 
       {/* Head to Head - Race + Qualifying */}
       <div className="grid gap-6 md:grid-cols-2">
@@ -208,37 +203,37 @@ export default async function CompareDriversPage({
 
       {/* Radar Chart */}
       <FadeIn>
-        <Card>
-          <CardHeader>
-            <CardTitle>Performance Profile</CardTitle>
-          </CardHeader>
-          <CardContent>
+        <Panel>
+          <PanelHeader>
+            <PanelTitle>Performance Profile</PanelTitle>
+          </PanelHeader>
+          <PanelContent>
             <DriverRadarChart
               driver1Name={driver1.lastName}
               driver2Name={driver2.lastName}
               driver1Radar={driver1Radar}
               driver2Radar={driver2Radar}
             />
-          </CardContent>
-        </Card>
+          </PanelContent>
+        </Panel>
       </FadeIn>
 
       {/* Career Points Chart */}
       {(driver1Seasons.length > 0 || driver2Seasons.length > 0) && (
         <FadeIn>
-          <Card>
-            <CardHeader>
-              <CardTitle>Career Points per Season</CardTitle>
-            </CardHeader>
-            <CardContent>
+          <Panel>
+            <PanelHeader>
+              <PanelTitle>Career Points per Season</PanelTitle>
+            </PanelHeader>
+            <PanelContent>
               <ComparisonChart
                 driver1Name={driver1.lastName}
                 driver2Name={driver2.lastName}
                 driver1Seasons={driver1Seasons}
                 driver2Seasons={driver2Seasons}
               />
-            </CardContent>
-          </Card>
+            </PanelContent>
+          </Panel>
         </FadeIn>
       )}
     </div>

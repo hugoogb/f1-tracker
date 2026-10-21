@@ -23,16 +23,16 @@ export function SeasonCalendarSkeleton() {
     <div className="space-y-3" aria-hidden>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         {Array.from({ length: 4 }, (_, i) => (
-          <Skeleton key={i} className="h-[68px] rounded-xl" />
+          <Skeleton key={i} className="h-[68px]" />
         ))}
       </div>
-      <div className="relative h-[340px] w-full overflow-hidden rounded-xl border border-[var(--glass-border)] sm:h-[440px] lg:h-[520px]">
+      <div className="border-hairline relative h-[340px] w-full overflow-hidden border sm:h-[440px] lg:h-[520px]">
         <Skeleton className="h-full w-full rounded-none" />
         <div className="text-muted-foreground absolute inset-0 flex items-center justify-center text-xs tracking-widest uppercase">
           Loading map…
         </div>
       </div>
-      <Skeleton className="h-[60px] rounded-xl md:h-[60px]" />
+      <Skeleton className="h-[60px] md:h-[60px]" />
     </div>
   )
 }

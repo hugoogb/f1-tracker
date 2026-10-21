@@ -3,11 +3,9 @@ import { notFound } from 'next/navigation'
 import { Flag, Trophy, Medal, TrendingUp, GitCompareArrows, Timer, Zap, Award } from 'lucide-react'
 import { api, isNotFound } from '@/lib/api'
 import type { Driver, DriverSeasonSummary, DriverPaceResponse } from '@/lib/types'
-import { teamColorOf } from '@/lib/utils'
+import { latestTeamColor, liveryStyle } from '@/lib/livery'
 import { CountryFlag } from '@/components/ui/country-flag'
-import { DriverAvatar } from '@/components/ui/driver-avatar'
 import { Breadcrumbs } from '@/components/layout/breadcrumbs'
-import { Badge } from '@/components/ui/badge'
 import { StatCard } from '@/components/ui/stat-card'
 import { SeasonHistoryTable } from '@/components/drivers/season-history-table'
 import { CareerPointsChart } from '@/components/charts/career-points-chart'
@@ -18,6 +16,14 @@ import { personSchema } from '@/lib/structured-data'
 import { buildMetadata, SITE_DESCRIPTION } from '@/lib/seo'
 import { LocalDate } from '@/components/ui/local-date'
 import { FavouriteButton } from '@/components/favourites/favourite-button'
+import { buttonVariants } from '@/components/ui/button-variants'
+import { Meter } from '@/components/ui/meter'
+import { Panel } from '@/components/ui/panel'
+import { PageHero } from '@/components/ui/page-hero'
+import { Tag } from '@/components/ui/tag'
+import { compareHref } from '@/lib/compare-prefill'
+import { RecordVisit } from '@/components/layout/record-visit'
+import { WhereNext } from '@/components/layout/where-next'
 
 interface DriverDetail extends Driver {
   stats: {
@@ -95,11 +101,17 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ r
   const seasons = seasonsResult.status === 'fulfilled' ? seasonsResult.value.seasons : []
   const paceData = paceResult.status === 'fulfilled' ? paceResult.value : null
 
-  const latestTeam = seasons[0]?.constructor
-  const teamColor = latestTeam ? (teamColorOf(latestTeam.color, null) ?? undefined) : undefined
+  // The livery is the most recent team's colour, or the default red (owner's call).
+  const latestSeason = seasons.reduce<(typeof seasons)[number] | undefined>(
+    (a, b) => (!a || b.year > a.year ? b : a),
+    undefined,
+  )
+  const latestTeam = latestSeason?.constructor
+  const teamColor = latestTeamColor(seasons) ?? undefined
+  const fullName = `${driverData.firstName} ${driverData.lastName}`
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8" style={liveryStyle(teamColor)}>
       <JsonLd
         data={personSchema({
           name: `${driverData.firstName} ${driverData.lastName}`,
@@ -117,53 +129,58 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ r
         ]}
       />
 
-      <FadeIn>
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-6">
-          <DriverAvatar
-            firstName={driverData.firstName}
-            lastName={driverData.lastName}
-            size="lg"
-            teamColor={teamColor}
-            className="rounded-2xl"
-          />
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <h1>
-                {driverData.firstName} {driverData.lastName}
-              </h1>
-              <FavouriteButton
-                type="driver"
-                entityRef={ref}
-                name={`${driverData.firstName} ${driverData.lastName}`}
-                detail={driverData.nationality}
-                countryCode={driverData.countryCode}
-                size="icon"
-              />
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              {driverData.nationality && (
-                <span className="text-muted-foreground inline-flex items-center gap-1.5">
-                  <CountryFlag code={driverData.countryCode} />
-                  {driverData.nationality}
-                </span>
-              )}
-              {driverData.dateOfBirth && (
-                <span className="text-muted-foreground">
-                  Born <LocalDate value={driverData.dateOfBirth} style="long" />
-                </span>
-              )}
-              {driverData.number != null && <Badge variant="outline">#{driverData.number}</Badge>}
-              {driverData.code && (
-                <Badge variant="secondary" className="font-mono">
-                  {driverData.code}
-                </Badge>
-              )}
-            </div>
-          </div>
-        </div>
-      </FadeIn>
-
-      <div className="accent-line" />
+      <RecordVisit
+        href={`/drivers/${ref}`}
+        label={fullName}
+        kind="driver"
+        color={teamColor ?? null}
+      />
+      <PageHero
+        livery={teamColor}
+        watermark={driverData.number != null ? String(driverData.number) : undefined}
+        eyebrow={latestTeam ? `Driver · ${latestTeam.name}` : 'Driver'}
+        title={
+          <>
+            {driverData.firstName} <span className="text-accent-livery">{driverData.lastName}</span>
+          </>
+        }
+        tags={
+          <>
+            {driverData.code && <Tag variant="livery">{driverData.code}</Tag>}
+            {driverData.number != null && <Tag variant="outline">#{driverData.number}</Tag>}
+            {driverData.nationality && (
+              <span className="text-muted-foreground inline-flex items-center gap-1.5 text-sm">
+                <CountryFlag code={driverData.countryCode} />
+                {driverData.nationality}
+              </span>
+            )}
+            {driverData.dateOfBirth && (
+              <span className="text-muted-foreground text-sm">
+                Born <LocalDate value={driverData.dateOfBirth} style="long" />
+              </span>
+            )}
+          </>
+        }
+        actions={
+          <>
+            <FavouriteButton
+              type="driver"
+              entityRef={ref}
+              name={fullName}
+              detail={driverData.nationality}
+              countryCode={driverData.countryCode}
+              size="icon"
+            />
+            <Link
+              href={compareHref('driver', ref, fullName)}
+              className={buttonVariants({ variant: 'livery', size: 'lg' })}
+            >
+              <GitCompareArrows className="size-3.5" aria-hidden />
+              Compare
+            </Link>
+          </>
+        }
+      />
 
       <StaggerList className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
         {driverData.stats.championships > 0 && (
@@ -216,15 +233,36 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ r
         </StaggerItem>
       </StaggerList>
 
-      <div className="flex">
-        <Link
-          href={`/compare?d1=${ref}`}
-          className="bg-primary hover:bg-primary/90 text-primary-foreground glow-red inline-flex h-9 items-center gap-2 rounded-lg px-4 text-sm font-medium transition-all"
-        >
-          <GitCompareArrows className="h-3.5 w-3.5" />
-          Compare with...
-        </Link>
-      </div>
+      {driverData.stats.total_races > 0 && (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Panel size="sm" className="gap-2 px-4">
+            <div className="flex items-baseline justify-between">
+              <span className="label">Win rate</span>
+              <span className="font-data text-sm">
+                {Math.round((driverData.stats.wins / driverData.stats.total_races) * 100)}%
+              </span>
+            </div>
+            <Meter
+              value={driverData.stats.wins}
+              max={driverData.stats.total_races}
+              label="Win rate"
+            />
+          </Panel>
+          <Panel size="sm" className="gap-2 px-4">
+            <div className="flex items-baseline justify-between">
+              <span className="label">Podium rate</span>
+              <span className="font-data text-sm">
+                {Math.round((driverData.stats.podiums / driverData.stats.total_races) * 100)}%
+              </span>
+            </div>
+            <Meter
+              value={driverData.stats.podiums}
+              max={driverData.stats.total_races}
+              label="Podium rate"
+            />
+          </Panel>
+        </div>
+      )}
 
       {paceData &&
         paceData.seasons.filter((s) => s.avgQualiPosition !== null && s.avgRacePosition !== null)
@@ -247,6 +285,30 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ r
           <SeasonHistoryTable seasons={seasons} />
         </div>
       </FadeIn>
+
+      <WhereNext
+        links={[
+          {
+            label: 'Compare head to head',
+            href: compareHref('driver', ref, fullName),
+            description: `${driverData.lastName} against any driver in history`,
+          },
+          ...(latestSeason
+            ? [
+                {
+                  label: `${latestSeason.year} in-season comparison`,
+                  href: `/seasons/${latestSeason.year}/compare?type=drivers&a=${ref}`,
+                  description: 'Round by round against a rival that year',
+                },
+                {
+                  label: `${latestSeason.year} season`,
+                  href: `/seasons/${latestSeason.year}`,
+                  description: 'Standings, calendar and results',
+                },
+              ]
+            : []),
+        ]}
+      />
     </div>
   )
 }

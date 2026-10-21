@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Panel, PanelContent, PanelHeader, PanelTitle } from '@/components/ui/panel'
 
 interface DriverStats {
   total_races: number
@@ -27,11 +27,11 @@ export function CareerStatsTable({
   driver2Stats: DriverStats
 }) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Career Stats</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-0 divide-y">
+    <Panel>
+      <PanelHeader>
+        <PanelTitle>Career Stats</PanelTitle>
+      </PanelHeader>
+      <PanelContent className="space-y-0 divide-y">
         {statLabels.map(({ key, label }) => {
           const v1 = driver1Stats[key]
           const v2 = driver2Stats[key]
@@ -42,7 +42,7 @@ export function CareerStatsTable({
             <div key={key} className="flex items-center py-3">
               <span
                 className={cn(
-                  'font-heading flex-1 text-right text-xl font-bold tabular-nums',
+                  'display flex-1 text-right text-xl tabular-nums',
                   d1Higher ? 'text-primary' : 'text-muted-foreground',
                 )}
               >
@@ -53,8 +53,8 @@ export function CareerStatsTable({
               </span>
               <span
                 className={cn(
-                  'font-heading flex-1 text-xl font-bold tabular-nums',
-                  d2Higher ? 'text-blue-500' : 'text-muted-foreground',
+                  'display flex-1 text-xl tabular-nums',
+                  d2Higher ? 'text-side-b' : 'text-muted-foreground',
                 )}
               >
                 {v2.toLocaleString()}
@@ -62,7 +62,7 @@ export function CareerStatsTable({
             </div>
           )
         })}
-      </CardContent>
-    </Card>
+      </PanelContent>
+    </Panel>
   )
 }

@@ -11,17 +11,10 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
-import { Card, CardContent } from '@/components/ui/card'
+import { REFERENCE, SERIES, axisProps, gridProps } from '@/lib/chart-theme'
+import { Panel, PanelContent } from '@/components/ui/panel'
 import { teamColorOf } from '@/lib/utils'
 import type { PitStopAnalysis } from '@/lib/types'
-
-const TOOLTIP_STYLE = {
-  backgroundColor: 'oklch(0.13 0.003 250 / 85%)',
-  border: '1px solid oklch(1 0 0 / 10%)',
-  color: 'oklch(0.95 0 0)',
-  boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
-  backdropFilter: 'blur(12px)',
-} as const
 
 interface TeamRow {
   name: string
@@ -43,7 +36,7 @@ function TeamTooltip({
   const team = payload[0].payload
 
   return (
-    <div className="rounded-xl px-3 py-2" style={TOOLTIP_STYLE}>
+    <div className="chart-tooltip">
       <div className="flex items-center gap-2">
         <span
           className="inline-block size-2.5 rounded-full"
@@ -85,7 +78,7 @@ function DistributionTooltip({
   if (!active || !payload?.length) return null
 
   return (
-    <div className="rounded-xl px-3 py-2" style={TOOLTIP_STYLE}>
+    <div className="chart-tooltip">
       <p className="text-sm font-medium">{label} off the best</p>
       <p className="text-muted-foreground mt-0.5 text-sm tabular-nums">
         {payload[0].value} {payload[0].value === 1 ? 'stop' : 'stops'}
@@ -106,15 +99,15 @@ function Stat({
   className?: string
 }) {
   return (
-    <Card className={className}>
-      <CardContent className="px-4 py-3">
+    <Panel className={className}>
+      <PanelContent className="px-4 py-3">
         <p className="text-muted-foreground text-xs font-medium tracking-wider uppercase">
           {label}
         </p>
-        <p className="font-heading text-lg font-bold tabular-nums">{value}</p>
+        <p className="display text-lg tabular-nums">{value}</p>
         {hint && <p className="text-muted-foreground text-xs">{hint}</p>}
-      </CardContent>
-    </Card>
+      </PanelContent>
+    </Panel>
   )
 }
 
@@ -155,12 +148,12 @@ export function PitStopAnalysisView({ analysis }: PitStopAnalysisProps) {
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         {analysis.fastestStop && (
-          <Card className="col-span-2 border border-green-500/30 bg-green-500/5 sm:col-span-1">
-            <CardContent className="px-4 py-3">
-              <p className="text-xs font-medium tracking-wider text-green-400 uppercase">
+          <Panel className="border-positive/30 bg-positive/5 col-span-2 sm:col-span-1">
+            <PanelContent className="px-4 py-3">
+              <p className="text-positive text-xs font-medium tracking-wider uppercase">
                 Quickest Stop
               </p>
-              <p className="font-mono text-lg font-bold text-green-300 tabular-nums">
+              <p className="font-data text-positive text-lg font-bold tabular-nums">
                 {analysis.fastestStop.duration}s
               </p>
               <p className="text-muted-foreground text-sm">
@@ -169,8 +162,8 @@ export function PitStopAnalysisView({ analysis }: PitStopAnalysisProps) {
               <p className="text-muted-foreground text-xs">
                 Lap {analysis.fastestStop.lap} · Stop {analysis.fastestStop.stopNumber}
               </p>
-            </CardContent>
-          </Card>
+            </PanelContent>
+          </Panel>
         )}
 
         <Stat label="Total Stops" value={String(analysis.totalStops)} />
@@ -204,22 +197,9 @@ export function PitStopAnalysisView({ analysis }: PitStopAnalysisProps) {
                 layout="vertical"
                 margin={{ left: 0, right: 24, top: 5, bottom: 5 }}
               >
-                <CartesianGrid
-                  horizontal={false}
-                  strokeDasharray="3 3"
-                  stroke="oklch(1 0 0 / 6%)"
-                />
-                <XAxis
-                  type="number"
-                  tick={{ fontSize: 12, fill: 'oklch(0.6 0 0)' }}
-                  tickFormatter={(v) => `+${v}s`}
-                />
-                <YAxis
-                  type="category"
-                  dataKey="name"
-                  width={100}
-                  tick={{ fontSize: 12, fill: 'oklch(0.6 0 0)' }}
-                />
+                <CartesianGrid {...gridProps} horizontal={false} />
+                <XAxis type="number" {...axisProps} tickFormatter={(v) => `+${v}s`} />
+                <YAxis type="category" dataKey="name" width={100} {...axisProps} />
                 <Tooltip
                   content={<TeamTooltip />}
                   cursor={{ fill: 'var(--muted)', opacity: 0.3 }}
@@ -248,21 +228,17 @@ export function PitStopAnalysisView({ analysis }: PitStopAnalysisProps) {
                 data={analysis.distribution}
                 margin={{ left: 0, right: 20, top: 5, bottom: 5 }}
               >
-                <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="oklch(1 0 0 / 6%)" />
-                <XAxis
-                  dataKey="range"
-                  tick={{ fontSize: 11, fill: 'oklch(0.6 0 0)' }}
-                  interval={0}
-                />
-                <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: 'oklch(0.6 0 0)' }} />
-                <ReferenceLine y={0} stroke="oklch(1 0 0 / 10%)" />
+                <CartesianGrid {...gridProps} vertical={false} />
+                <XAxis dataKey="range" {...axisProps} interval={0} />
+                <YAxis allowDecimals={false} {...axisProps} />
+                <ReferenceLine y={0} stroke={REFERENCE} />
                 <Tooltip
                   content={<DistributionTooltip />}
                   cursor={{ fill: 'var(--muted)', opacity: 0.3 }}
                 />
                 <Bar
                   dataKey="count"
-                  fill="oklch(0.65 0.15 250)"
+                  fill={SERIES[1]}
                   radius={[4, 4, 0, 0]}
                   animationDuration={600}
                 />

@@ -63,17 +63,17 @@ export function PitStopsTable({ pitStops, benchmark }: PitStopsTableProps) {
                 {stop.constructor?.name ?? '—'}
               </TableCell>
               <TableCell className="text-right">{stop.lap}</TableCell>
-              <TableCell className="text-right font-mono tabular-nums">
+              <TableCell className="font-data text-right tabular-nums">
                 {stop.duration ? `${stop.duration}s` : '—'}
               </TableCell>
-              <TableCell className="text-right font-mono tabular-nums">
+              <TableCell className="font-data text-right tabular-nums">
                 {lost === null ? (
                   '—'
                 ) : lost === 0 ? (
                   // The stop the rest of the race is measured against.
-                  <span className="font-semibold text-green-400">best</span>
+                  <span className="text-positive font-semibold">best</span>
                 ) : (
-                  <span className={lost >= 2 ? 'text-amber-400' : 'text-muted-foreground'}>
+                  <span className={lost >= 2 ? 'text-gold' : 'text-muted-foreground'}>
                     +{lost.toFixed(3)}s
                   </span>
                 )}

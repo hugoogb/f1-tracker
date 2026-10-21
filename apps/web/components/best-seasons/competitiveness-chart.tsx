@@ -12,6 +12,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
+import { BAND, NEUTRAL, REFERENCE, axisProps, gridProps, lineCursor } from '@/lib/chart-theme'
 import type { BestSeason } from '@/lib/types'
 import { teamColorOf } from '@/lib/utils'
 import { deciderLabel, formatPoints } from './format'
@@ -49,18 +50,9 @@ function ChartTooltip({
   const point = payload?.[0]?.payload
   if (!active || !point) return null
   return (
-    <div
-      className="max-w-xs rounded-xl px-3 py-2 text-xs"
-      style={{
-        backgroundColor: 'oklch(0.13 0.003 250 / 85%)',
-        border: '1px solid oklch(1 0 0 / 10%)',
-        color: 'oklch(0.95 0 0)',
-        boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
-        backdropFilter: 'blur(12px)',
-      }}
-    >
+    <div className="chart-tooltip max-w-xs text-xs">
       <p className="flex items-baseline justify-between gap-4">
-        <span className="font-heading text-sm font-bold">{point.year}</span>
+        <span className="display text-base">{point.year}</span>
         <span className="tabular-nums">{point.score.toFixed(1)} / 100</span>
       </p>
       {point.champion && (
@@ -135,7 +127,7 @@ export function CompetitivenessChart({
                 key={era.id}
                 x1={Math.max(era.from, first) - 0.5}
                 x2={Math.min(era.to, last) + 0.5}
-                fill={i % 2 === 0 ? 'oklch(1 0 0 / 4%)' : 'oklch(1 0 0 / 0%)'}
+                fill={i % 2 === 0 ? BAND : 'transparent'}
                 strokeOpacity={0}
                 ifOverflow="hidden"
                 label={
@@ -147,36 +139,28 @@ export function CompetitivenessChart({
                         position: 'insideTop',
                         offset: -18,
                         fontSize: 10,
-                        fill: 'oklch(0.55 0 0)',
+                        fill: NEUTRAL,
                       }
                     : undefined
                 }
               />
             ))}
-          <CartesianGrid strokeDasharray="3 3" stroke="oklch(1 0 0 / 6%)" vertical={false} />
+          <CartesianGrid {...gridProps} vertical={false} />
           <XAxis
             dataKey="year"
             type="number"
             domain={[first - 0.5, last + 0.5]}
             tickCount={10}
             allowDecimals={false}
-            tick={{ fontSize: 12, fill: 'oklch(0.6 0 0)' }}
+            {...axisProps}
           />
-          <YAxis
-            domain={[0, 100]}
-            ticks={[0, 25, 50, 75, 100]}
-            tick={{ fontSize: 12, fill: 'oklch(0.6 0 0)' }}
-            width={36}
-          />
-          <Tooltip
-            content={<ChartTooltip />}
-            cursor={{ stroke: 'oklch(1 0 0 / 15%)', strokeWidth: 1 }}
-          />
+          <YAxis domain={[0, 100]} ticks={[0, 25, 50, 75, 100]} {...axisProps} width={36} />
+          <Tooltip content={<ChartTooltip />} cursor={lineCursor} />
           <Line
             type="monotone"
             dataKey="score"
             name="Score"
-            stroke="oklch(0.7 0 0 / 45%)"
+            stroke={REFERENCE}
             strokeWidth={2}
             isAnimationActive={false}
             dot={(props: { cx?: number; cy?: number; payload?: Point; index?: number }) => (

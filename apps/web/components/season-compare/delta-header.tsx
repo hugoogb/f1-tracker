@@ -4,6 +4,7 @@ import type { SeasonCompareResponse } from '@/lib/types'
 import { AnimatedNumber } from '@/components/ui/motion'
 import { Badge } from '@/components/ui/badge'
 import { formatPoints, type SideInfo } from './sides'
+import { buttonVariants } from '@/components/ui/button-variants'
 
 /**
  * The headline: who leads on points and by how much, in the leader's colour.
@@ -24,7 +25,7 @@ export function DeltaHeader({
   const rounds = data.roundsRaced
 
   return (
-    <div className="glass relative overflow-hidden rounded-xl px-6 py-8">
+    <div className="brackets bg-surface-1 border-hairline relative border px-6 py-8">
       {leader && (
         <div
           aria-hidden
@@ -42,7 +43,7 @@ export function DeltaHeader({
               : 'Level on points'}
           </p>
           <p
-            className="font-heading text-6xl leading-none font-bold tabular-nums"
+            className="display text-6xl leading-none tabular-nums"
             style={leader ? { color: leader.color } : undefined}
           >
             {Number.isInteger(delta) ? (
@@ -70,10 +71,7 @@ export function DeltaHeader({
             Teammates at {data.teammates.constructor?.name} · {data.teammates.sharedRounds} rounds
           </Badge>
         )}
-        <Link
-          href={swapHref}
-          className="border-border inline-flex h-8 items-center gap-1.5 rounded-lg border bg-[var(--surface-1)] px-2.5 text-sm font-medium transition-all hover:bg-[var(--surface-2)]"
-        >
+        <Link href={swapHref} className={buttonVariants({ variant: 'outline' })}>
           <ArrowLeftRight className="h-3.5 w-3.5" />
           Swap sides
         </Link>
@@ -100,14 +98,8 @@ function SideName({
             : 'flex items-center justify-center gap-2 md:justify-start'
         }
       >
-        <span
-          className="inline-block size-3 shrink-0 rounded-full"
-          style={{ backgroundColor: side.color }}
-        />
-        <Link
-          href={side.href}
-          className="font-heading text-2xl font-bold transition-colors hover:opacity-80"
-        >
+        <span className="inline-block size-3 shrink-0" style={{ backgroundColor: side.color }} />
+        <Link href={side.href} className="display text-2xl transition-colors hover:opacity-80">
           {side.name}
         </Link>
       </div>

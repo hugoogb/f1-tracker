@@ -78,11 +78,7 @@ export function FavouriteButton({
       aria-label={label}
       title={label}
       onClick={onToggle}
-      className={cn(
-        'text-muted-foreground hover:text-amber-400',
-        favourited && 'text-amber-400',
-        className,
-      )}
+      className={cn('text-muted-foreground hover:text-gold', favourited && 'text-gold', className)}
     >
       <Star className={cn('transition-colors', favourited && 'fill-current')} aria-hidden="true" />
     </Button>

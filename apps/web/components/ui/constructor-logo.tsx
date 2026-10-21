@@ -8,7 +8,7 @@ interface ConstructorLogoProps {
 }
 
 const sizeMap = {
-  sm: 'h-7 w-7 text-[10px]',
+  sm: 'h-7 w-7 text-2xs',
   md: 'h-10 w-10 text-sm',
   lg: 'h-16 w-16 text-xl',
 } as const
@@ -31,7 +31,7 @@ export function ConstructorLogo({ name, size = 'sm', color, className }: Constru
     <div
       aria-label={name}
       className={cn(
-        'flex shrink-0 items-center justify-center rounded-md font-bold text-white',
+        'font-data flex shrink-0 items-center justify-center rounded-sm font-bold text-white',
         sizeMap[size],
         className,
       )}

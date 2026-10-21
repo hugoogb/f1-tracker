@@ -28,8 +28,8 @@ function getCompoundInitial(compound: string): string {
 
 function getTextColor(compound: string): string {
   // Dark text for light compounds, white for dark compounds
-  if (compound === 'MEDIUM' || compound === 'HARD') return '#000000'
-  return '#FFFFFF'
+  if (compound === 'MEDIUM' || compound === 'HARD') return 'var(--background)'
+  return 'var(--foreground)'
 }
 
 export function TyreStrategyChart({ drivers }: TyreStrategyChartProps) {

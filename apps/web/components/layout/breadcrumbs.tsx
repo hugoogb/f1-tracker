@@ -14,16 +14,18 @@ export function Breadcrumbs({ items }: { items: BreadcrumbItem[] }) {
       {/* Mirrors the visible trail, which is what Google requires of a
           BreadcrumbList — emitting it here covers every page that uses it. */}
       <JsonLd data={breadcrumbSchema(items)} />
-      <ol className="text-muted-foreground flex items-center gap-1.5 text-xs tracking-wider uppercase">
+      <ol className="label flex flex-wrap items-center gap-1.5">
         {items.map((item, i) => (
           <li key={i} className="flex items-center gap-1.5">
-            {i > 0 && <ChevronRight className="text-primary h-3 w-3" />}
+            {i > 0 && <ChevronRight className="text-primary size-3" aria-hidden />}
             {item.href ? (
-              <Link href={item.href} className="hover:text-primary transition-colors">
+              <Link href={item.href} className="hover:text-foreground focus-ring transition-colors">
                 {item.label}
               </Link>
             ) : (
-              <span className="text-foreground font-medium">{item.label}</span>
+              <span aria-current="page" className="text-foreground">
+                {item.label}
+              </span>
             )}
           </li>
         ))}

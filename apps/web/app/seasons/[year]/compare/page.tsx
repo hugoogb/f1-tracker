@@ -5,8 +5,8 @@ import type { SeasonCompareResponse, SeasonCompareType } from '@/lib/types'
 import { teamColorOf } from '@/lib/utils'
 import { buildMetadata } from '@/lib/seo'
 import { Breadcrumbs } from '@/components/layout/breadcrumbs'
-import { PageHeader } from '@/components/ui/page-header'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { PageHero } from '@/components/ui/page-hero'
+import { Panel, PanelContent, PanelHeader, PanelTitle } from '@/components/ui/panel'
 import { EmptyState } from '@/components/ui/empty-state'
 import { FadeIn } from '@/components/ui/motion'
 import { HeadToHeadCard } from '@/components/compare/head-to-head-card'
@@ -136,13 +136,14 @@ export default async function SeasonComparePage({
         ]}
       />
 
-      <PageHeader
-        title={`${year} Season Comparison`}
+      <PageHero
+        eyebrow="In-season comparison"
+        title={`${year} head to head`}
         description={`Two ${type} through the ${year} season, round by round. Every gap is the first pick minus the second.`}
       />
 
-      <Card>
-        <CardContent className="pt-6">
+      <Panel>
+        <PanelContent className="pt-6">
           <ComparePickers
             year={year}
             type={type}
@@ -151,8 +152,8 @@ export default async function SeasonComparePage({
             constructors={constructorOptions}
             drivers={driverOptions}
           />
-        </CardContent>
-      </Card>
+        </PanelContent>
+      </Panel>
 
       {!data || !sides ? (
         <EmptyState
@@ -168,9 +169,9 @@ export default async function SeasonComparePage({
           </FadeIn>
 
           <FadeIn>
-            <Card>
-              <CardHeader>
-                <CardTitle>Points, Round by Round</CardTitle>
+            <Panel>
+              <PanelHeader>
+                <PanelTitle>Points, Round by Round</PanelTitle>
                 <p className="text-muted-foreground text-xs">
                   {data.cumulativeSource === 'official'
                     ? 'The official championship table after each round.'
@@ -187,8 +188,8 @@ export default async function SeasonComparePage({
                       : 'That is why the line ends above the official totals.'}
                   </p>
                 )}
-              </CardHeader>
-              <CardContent>
+              </PanelHeader>
+              <PanelContent>
                 <SeasonPointsDeltaChart
                   rounds={data.rounds.map((r) => ({
                     round: r.round,
@@ -200,8 +201,8 @@ export default async function SeasonComparePage({
                   sideA={sides[0]}
                   sideB={sides[1]}
                 />
-              </CardContent>
-            </Card>
+              </PanelContent>
+            </Panel>
           </FadeIn>
 
           <div className="grid gap-6 lg:grid-cols-2">
@@ -250,35 +251,35 @@ export default async function SeasonComparePage({
 
           {quali.length > 0 && (
             <FadeIn>
-              <Card>
-                <CardHeader>
-                  <CardTitle>Qualifying Gap by Round</CardTitle>
+              <Panel>
+                <PanelHeader>
+                  <PanelTitle>Qualifying Gap by Round</PanelTitle>
                   <p className="text-muted-foreground text-xs">
                     Best lap in the last session both reached, as a percentage of the quicker one.
                     Below zero is {sides[0].short} on top. {quali.length} of {data.roundsShared}{' '}
                     shared rounds have times for both.
                   </p>
-                </CardHeader>
-                <CardContent>
+                </PanelHeader>
+                <PanelContent>
                   <QualifyingGapChart gaps={quali} sideA={sides[0]} sideB={sides[1]} />
-                </CardContent>
-              </Card>
+                </PanelContent>
+              </Panel>
             </FadeIn>
           )}
 
           <FadeIn>
-            <Card>
-              <CardHeader>
-                <CardTitle>Round by Round</CardTitle>
+            <Panel>
+              <PanelHeader>
+                <PanelTitle>Round by Round</PanelTitle>
                 <p className="text-muted-foreground text-xs">
                   Position deltas are {sides[0].short} minus {sides[1].short}: negative means{' '}
                   {sides[0].short} finished or started ahead.
                 </p>
-              </CardHeader>
-              <CardContent>
+              </PanelHeader>
+              <PanelContent>
                 <RoundsTable data={data} sides={sides} />
-              </CardContent>
-            </Card>
+              </PanelContent>
+            </Panel>
           </FadeIn>
         </>
       )}

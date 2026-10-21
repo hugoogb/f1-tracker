@@ -6,10 +6,11 @@ import Link from 'next/link'
 import { DriverSelect } from '@/components/compare/driver-select'
 import { ConstructorSelect } from '@/components/compare/constructor-select'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { PageHeader } from '@/components/ui/page-header'
+import { Panel, PanelContent, PanelHeader, PanelTitle } from '@/components/ui/panel'
+import { PageHero } from '@/components/ui/page-hero'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { FadeIn } from '@/components/ui/motion'
+import { comparePrefill, type PrefillSide } from '@/lib/compare-prefill'
 
 // f1db ids, which are hyphenated and use the driver's full name — not Ergast's
 // (`hamilton`, `max_verstappen`, `red_bull`). Every one of these was an Ergast
@@ -28,9 +29,9 @@ const suggestedConstructorComparisons = [
   { c1: 'ferrari', c2: 'williams', label: 'Ferrari vs Williams' },
 ]
 
-function DriverCompareForm({ prefillD1 }: { prefillD1: string }) {
+function DriverCompareForm({ prefill }: { prefill: PrefillSide }) {
   const router = useRouter()
-  const [d1, setD1] = useState({ ref: prefillD1, name: '' })
+  const [d1, setD1] = useState(prefill)
   const [d2, setD2] = useState({ ref: '', name: '' })
 
   const canCompare = d1.ref && d2.ref && d1.ref !== d2.ref
@@ -43,19 +44,20 @@ function DriverCompareForm({ prefillD1 }: { prefillD1: string }) {
 
   return (
     <>
-      <Card>
-        <CardHeader>
-          <CardTitle>Select Drivers</CardTitle>
-        </CardHeader>
-        <CardContent>
+      <Panel>
+        <PanelHeader>
+          <PanelTitle>Select Drivers</PanelTitle>
+        </PanelHeader>
+        <PanelContent>
           <div className="grid gap-6 md:grid-cols-[1fr_auto_1fr]">
             <DriverSelect
               label="Driver 1"
               value={d1.ref}
+              initialName={prefill.name}
               onChange={(ref, name) => setD1({ ref, name })}
             />
             <div className="hidden items-center md:flex">
-              <span className="font-heading text-muted-foreground text-2xl font-bold">VS</span>
+              <span className="display text-muted-foreground text-2xl">VS</span>
             </div>
             <DriverSelect
               label="Driver 2"
@@ -71,8 +73,8 @@ function DriverCompareForm({ prefillD1 }: { prefillD1: string }) {
           <Button className="mt-6" disabled={!canCompare} onClick={handleCompare}>
             Compare
           </Button>
-        </CardContent>
-      </Card>
+        </PanelContent>
+      </Panel>
 
       <div className="space-y-3">
         <h3 className="text-muted-foreground text-sm font-medium tracking-wider uppercase">
@@ -83,7 +85,7 @@ function DriverCompareForm({ prefillD1 }: { prefillD1: string }) {
             <Link
               key={comp.label}
               href={`/compare/drivers?d1=${comp.d1}&d2=${comp.d2}`}
-              className="glass hover:border-primary/30 hover:bg-accent/50 rounded-lg px-3 py-1.5 text-sm transition-colors"
+              className="border-hairline bg-surface-1 hover:bg-surface-2 focus-ring border px-3 py-1.5 text-sm transition-colors"
             >
               {comp.label}
             </Link>
@@ -94,9 +96,9 @@ function DriverCompareForm({ prefillD1 }: { prefillD1: string }) {
   )
 }
 
-function ConstructorCompareForm() {
+function ConstructorCompareForm({ prefill }: { prefill: PrefillSide }) {
   const router = useRouter()
-  const [c1, setC1] = useState({ ref: '', name: '' })
+  const [c1, setC1] = useState(prefill)
   const [c2, setC2] = useState({ ref: '', name: '' })
 
   const canCompare = c1.ref && c2.ref && c1.ref !== c2.ref
@@ -109,19 +111,20 @@ function ConstructorCompareForm() {
 
   return (
     <>
-      <Card>
-        <CardHeader>
-          <CardTitle>Select Constructors</CardTitle>
-        </CardHeader>
-        <CardContent>
+      <Panel>
+        <PanelHeader>
+          <PanelTitle>Select Constructors</PanelTitle>
+        </PanelHeader>
+        <PanelContent>
           <div className="grid gap-6 md:grid-cols-[1fr_auto_1fr]">
             <ConstructorSelect
               label="Constructor 1"
               value={c1.ref}
+              initialName={prefill.name}
               onChange={(ref, name) => setC1({ ref, name })}
             />
             <div className="hidden items-center md:flex">
-              <span className="font-heading text-muted-foreground text-2xl font-bold">VS</span>
+              <span className="display text-muted-foreground text-2xl">VS</span>
             </div>
             <ConstructorSelect
               label="Constructor 2"
@@ -139,8 +142,8 @@ function ConstructorCompareForm() {
           <Button className="mt-6" disabled={!canCompare} onClick={handleCompare}>
             Compare
           </Button>
-        </CardContent>
-      </Card>
+        </PanelContent>
+      </Panel>
 
       <div className="space-y-3">
         <h3 className="text-muted-foreground text-sm font-medium tracking-wider uppercase">
@@ -151,7 +154,7 @@ function ConstructorCompareForm() {
             <Link
               key={comp.label}
               href={`/compare/constructors?c1=${comp.c1}&c2=${comp.c2}`}
-              className="glass hover:border-primary/30 hover:bg-accent/50 rounded-lg px-3 py-1.5 text-sm transition-colors"
+              className="border-hairline bg-surface-1 hover:bg-surface-2 focus-ring border px-3 py-1.5 text-sm transition-colors"
             >
               {comp.label}
             </Link>
@@ -185,11 +188,11 @@ const suggestedSeasonComparisons = [
 
 function SeasonCompareLinks() {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Within a Season</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
+    <Panel>
+      <PanelHeader>
+        <PanelTitle>Within a Season</PanelTitle>
+      </PanelHeader>
+      <PanelContent className="space-y-3">
         <p className="text-muted-foreground text-sm">
           Follow two drivers or constructors through one season: the points gap round by round,
           finishes, grids and qualifying gaps. Open any season and press Compare, or start here.
@@ -199,35 +202,36 @@ function SeasonCompareLinks() {
             <Link
               key={comp.href}
               href={comp.href}
-              className="glass hover:border-primary/30 hover:bg-accent/50 rounded-lg px-3 py-1.5 text-sm transition-colors"
+              className="border-hairline bg-surface-1 hover:bg-surface-2 focus-ring border px-3 py-1.5 text-sm transition-colors"
             >
               {comp.label}
             </Link>
           ))}
           <Link
             href="/seasons"
-            className="text-primary rounded-lg px-3 py-1.5 text-sm hover:underline"
+            className="text-primary focus-ring px-3 py-1.5 text-sm hover:underline"
           >
             Pick a season →
           </Link>
         </div>
-      </CardContent>
-    </Card>
+      </PanelContent>
+    </Panel>
   )
 }
 
 export default function ComparePage() {
   const searchParams = useSearchParams()
-  const prefillD1 = searchParams.get('d1') ?? ''
+  const prefill = comparePrefill(searchParams)
 
   return (
     <div className="space-y-8">
-      <PageHeader
+      <PageHero
+        eyebrow="Head to head"
         title="Compare"
         description="Select two drivers or constructors to compare their career stats and head-to-head record"
       />
 
-      <Tabs defaultValue={0}>
+      <Tabs defaultValue={prefill.tab}>
         <TabsList variant="line">
           <TabsTrigger value={0}>Drivers</TabsTrigger>
           <TabsTrigger value={1}>Constructors</TabsTrigger>
@@ -235,14 +239,14 @@ export default function ComparePage() {
         <TabsContent value={0}>
           <FadeIn>
             <div className="space-y-8">
-              <DriverCompareForm prefillD1={prefillD1} />
+              <DriverCompareForm prefill={prefill.d1} />
             </div>
           </FadeIn>
         </TabsContent>
         <TabsContent value={1}>
           <FadeIn>
             <div className="space-y-8">
-              <ConstructorCompareForm />
+              <ConstructorCompareForm prefill={prefill.c1} />
             </div>
           </FadeIn>
         </TabsContent>

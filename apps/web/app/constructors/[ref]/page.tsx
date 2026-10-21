@@ -1,13 +1,12 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { Flag, Trophy, Medal, TrendingUp } from 'lucide-react'
+import { Flag, Trophy, Medal, TrendingUp, GitCompareArrows } from 'lucide-react'
 import { api, isNotFound } from '@/lib/api'
 import type { Constructor, ConstructorSeasonSummary, Driver, LineageResponse } from '@/lib/types'
-import { teamColorOf } from '@/lib/utils'
 import { CountryFlag } from '@/components/ui/country-flag'
 import { DriverAvatar } from '@/components/ui/driver-avatar'
 import { Breadcrumbs } from '@/components/layout/breadcrumbs'
-import { Card, CardContent } from '@/components/ui/card'
+import { Panel, PanelContent } from '@/components/ui/panel'
 import { StatCard } from '@/components/ui/stat-card'
 import { ConstructorSeasonHistoryTable } from '@/components/constructors/season-history-table'
 import { CareerPointsChart } from '@/components/charts/career-points-chart'
@@ -17,6 +16,12 @@ import { JsonLd } from '@/components/seo/json-ld'
 import { organizationSchema } from '@/lib/structured-data'
 import { buildMetadata, SITE_DESCRIPTION } from '@/lib/seo'
 import { FavouriteButton } from '@/components/favourites/favourite-button'
+import { buttonVariants } from '@/components/ui/button-variants'
+import { PageHero } from '@/components/ui/page-hero'
+import { compareHref } from '@/lib/compare-prefill'
+import { RecordVisit } from '@/components/layout/record-visit'
+import { WhereNext } from '@/components/layout/where-next'
+import { liveryStyle } from '@/lib/livery'
 
 interface ConstructorDetail extends Constructor {
   stats: {
@@ -92,10 +97,14 @@ export default async function ConstructorDetailPage({
   const roster = rosterResult.status === 'fulfilled' ? rosterResult.value : null
   const lineage = lineageResult.status === 'fulfilled' ? lineageResult.value : null
 
-  const teamColor = teamColorOf(constructor.color, '#E8002D')!
+  const teamColor = constructor.color ?? undefined
+  const latestYear = seasons.reduce<number | null>(
+    (y, s) => (y === null || s.year > y ? s.year : y),
+    null,
+  )
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8" style={liveryStyle(constructor.color)}>
       <JsonLd
         data={organizationSchema({
           name: constructor.name,
@@ -111,45 +120,45 @@ export default async function ConstructorDetailPage({
         ]}
       />
 
-      {/* Team-branded header */}
-      <FadeIn>
-        <div className="space-y-3">
-          <div className="h-1 w-24 rounded-full" style={{ backgroundColor: teamColor }} />
-          <div className="flex items-center gap-4">
-            <div
-              className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl text-lg font-bold text-white"
-              style={{
-                backgroundColor: teamColor,
-                boxShadow: `0 0 30px ${teamColor}40`,
-              }}
+      <RecordVisit
+        href={`/constructors/${ref}`}
+        label={constructor.name}
+        kind="constructor"
+        color={constructor.color}
+      />
+      <PageHero
+        livery={constructor.color}
+        eyebrow="Constructor"
+        title={constructor.name}
+        tags={
+          constructor.nationality && (
+            <span className="text-muted-foreground inline-flex items-center gap-1.5 text-sm">
+              <CountryFlag code={constructor.countryCode} />
+              {constructor.nationality}
+            </span>
+          )
+        }
+        actions={
+          <>
+            <FavouriteButton
+              type="constructor"
+              entityRef={ref}
+              name={constructor.name}
+              detail={constructor.nationality}
+              countryCode={constructor.countryCode}
+              color={constructor.color}
+              size="icon"
+            />
+            <Link
+              href={compareHref('constructor', ref, constructor.name)}
+              className={buttonVariants({ variant: 'livery', size: 'lg' })}
             >
-              {constructor.name[0]}
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1>{constructor.name}</h1>
-                <FavouriteButton
-                  type="constructor"
-                  entityRef={ref}
-                  name={constructor.name}
-                  detail={constructor.nationality}
-                  countryCode={constructor.countryCode}
-                  color={constructor.color}
-                  size="icon"
-                />
-              </div>
-              {constructor.nationality && (
-                <p className="text-muted-foreground inline-flex items-center gap-1.5">
-                  <CountryFlag code={constructor.countryCode} />
-                  {constructor.nationality}
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
-      </FadeIn>
-
-      <div className="accent-line" />
+              <GitCompareArrows className="size-3.5" aria-hidden />
+              Compare
+            </Link>
+          </>
+        }
+      />
 
       <StaggerList className="grid grid-cols-2 gap-4 md:grid-cols-4">
         <StaggerItem>
@@ -196,8 +205,8 @@ export default async function ConstructorDetailPage({
                 <StaggerItem key={d.ref}>
                   <Link href={`/drivers/${d.ref}`}>
                     <MotionCard>
-                      <Card className="hover:border-primary/30 transition-all duration-200">
-                        <CardContent className="flex items-center gap-3 px-4 py-3">
+                      <Panel className="hover:bg-surface-2 transition-colors">
+                        <PanelContent className="flex items-center gap-3 px-4 py-3">
                           <DriverAvatar
                             firstName={d.firstName}
                             lastName={d.lastName}
@@ -209,7 +218,7 @@ export default async function ConstructorDetailPage({
                               {d.firstName} {d.lastName}
                             </p>
                             <div className="text-muted-foreground flex items-center gap-2 text-xs">
-                              {d.code && <span className="font-mono">{d.code}</span>}
+                              {d.code && <span className="font-data">{d.code}</span>}
                               {d.nationality && (
                                 <span className="inline-flex items-center gap-1">
                                   <CountryFlag code={d.countryCode} size={12} />
@@ -218,8 +227,8 @@ export default async function ConstructorDetailPage({
                               )}
                             </div>
                           </div>
-                        </CardContent>
-                      </Card>
+                        </PanelContent>
+                      </Panel>
                     </MotionCard>
                   </Link>
                 </StaggerItem>
@@ -239,6 +248,29 @@ export default async function ConstructorDetailPage({
           <ConstructorSeasonHistoryTable seasons={seasons} />
         </div>
       </FadeIn>
+      <WhereNext
+        links={[
+          {
+            label: 'Compare head to head',
+            href: compareHref('constructor', ref, constructor.name),
+            description: `${constructor.name} against any team in history`,
+          },
+          ...(latestYear
+            ? [
+                {
+                  label: `${latestYear} in-season comparison`,
+                  href: `/seasons/${latestYear}/compare?type=constructors&a=${ref}`,
+                  description: 'Round by round against a rival that year',
+                },
+                {
+                  label: `${latestYear} season`,
+                  href: `/seasons/${latestYear}`,
+                  description: 'Standings, calendar and results',
+                },
+              ]
+            : []),
+        ]}
+      />
     </div>
   )
 }

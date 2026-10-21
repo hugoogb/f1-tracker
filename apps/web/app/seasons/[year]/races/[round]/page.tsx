@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { api, isNotFound } from '@/lib/api'
 import type {
@@ -17,7 +18,6 @@ import type {
 } from '@/lib/types'
 import { CountryFlag } from '@/components/ui/country-flag'
 import { Breadcrumbs } from '@/components/layout/breadcrumbs'
-import { Badge } from '@/components/ui/badge'
 import { ResultsTable } from '@/components/races/results-table'
 import { PodiumCard } from '@/components/races/podium-card'
 import { FastestLapCard } from '@/components/races/fastest-lap-card'
@@ -31,11 +31,17 @@ import { PositionChart } from '@/components/races/position-chart'
 import { GapChart } from '@/components/races/gap-chart'
 import { TyreDegradationChart } from '@/components/races/tyre-degradation-chart'
 import { RaceTabs } from './race-tabs'
-import { FadeIn } from '@/components/ui/motion'
 import { JsonLd } from '@/components/seo/json-ld'
 import { raceSchema } from '@/lib/structured-data'
 import { buildMetadata, SITE_DESCRIPTION } from '@/lib/seo'
 import { LocalDate, LocalDateTime } from '@/components/ui/local-date'
+import { PageHero } from '@/components/ui/page-hero'
+import { Tag } from '@/components/ui/tag'
+import { buttonVariants } from '@/components/ui/button-variants'
+import { RecordVisit } from '@/components/layout/record-visit'
+import { WhereNext } from '@/components/layout/where-next'
+import { roundNeighbours } from '@/lib/neighbours'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 
 interface RaceDetailResponse extends Race {
   fastestLap: FastestLap | null
@@ -158,6 +164,7 @@ export default async function RaceDetailPage({
     lapsResult,
     gapsResult,
     degradationResult,
+    seasonResult,
   ] = await Promise.allSettled([
     api.races.get(year, round) as Promise<RaceDetailResponse>,
     api.races.qualifying(year, round) as Promise<QualifyingResponse>,
@@ -182,6 +189,8 @@ export default async function RaceDetailPage({
     year >= 2018
       ? (api.races.degradation(year, round) as Promise<DegradationResponse>)
       : Promise.reject('not applicable'),
+    // Season-tagged like the race itself, so it adds no tag the page lacks.
+    api.seasons.get(year) as Promise<{ races: { round: number }[] }>,
   ])
 
   // A round that does not exist must answer 404 — but an API outage has to
@@ -220,9 +229,12 @@ export default async function RaceDetailPage({
   const podium = race.results
     .filter((r) => r.position && r.position <= 3)
     .sort((a, b) => (a.position ?? 99) - (b.position ?? 99))
+  const totalRounds = seasonResult.status === 'fulfilled' ? seasonResult.value.races.length : 0
+  const rounds = roundNeighbours(round, totalRounds)
+  const [first, second] = podium
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <JsonLd
         data={raceSchema({
           name: `${year} ${race.name}`,
@@ -242,35 +254,57 @@ export default async function RaceDetailPage({
         ]}
       />
 
-      <FadeIn>
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <div className="flex items-center gap-3">
-              <Badge variant="outline" className="font-mono">
-                Round {round}
-              </Badge>
-            </div>
-            <h1 className="text-gradient">{race.name}</h1>
-          </div>
-          <div className="glass rounded-xl px-5 py-4">
-            <p className="text-foreground inline-flex items-center gap-1.5 font-medium">
+      <RecordVisit
+        href={`/seasons/${year}/races/${round}`}
+        label={`${race.name} ${year}`}
+        kind="race"
+      />
+      <PageHero
+        eyebrow={`${year} · Round ${round}${totalRounds ? ` of ${totalRounds}` : ''}`}
+        title={race.name}
+        tags={
+          <>
+            <Tag variant="red">R{round}</Tag>
+            <Link
+              href={`/circuits/${race.circuit.ref}`}
+              className="text-foreground hover:text-primary focus-ring inline-flex items-center gap-1.5 text-sm font-medium transition-colors"
+            >
               {race.circuit.country && <CountryFlag code={race.circuit.countryCode} />}
               {race.circuit.name}
-            </p>
-            <p className="text-muted-foreground text-sm">
-              {race.circuit.location}, {race.circuit.country}
-            </p>
-            <p className="text-muted-foreground mt-1 text-sm">
+            </Link>
+            <span className="text-muted-foreground text-sm">
               {race.schedule?.race ? (
                 <LocalDateTime value={race.schedule.race} style="full" />
               ) : (
                 <LocalDate value={race.date} style="full" />
               )}
-            </p>
-          </div>
-          <div className="accent-line" />
-        </div>
-      </FadeIn>
+            </span>
+          </>
+        }
+        actions={
+          <>
+            {rounds.prev !== null && (
+              <Link
+                href={`/seasons/${year}/races/${rounds.prev}`}
+                aria-label={`Round ${rounds.prev}`}
+                className={buttonVariants({ variant: 'outline', size: 'sm' })}
+              >
+                <ChevronLeft className="size-4" aria-hidden />R{rounds.prev}
+              </Link>
+            )}
+            {rounds.next !== null && (
+              <Link
+                href={`/seasons/${year}/races/${rounds.next}`}
+                aria-label={`Round ${rounds.next}`}
+                className={buttonVariants({ variant: 'outline', size: 'sm' })}
+              >
+                R{rounds.next}
+                <ChevronRight className="size-4" aria-hidden />
+              </Link>
+            )}
+          </>
+        }
+      />
 
       <PodiumCard podium={podium} />
 
@@ -403,6 +437,30 @@ export default async function RaceDetailPage({
                 },
               ]
             : []),
+        ]}
+      />
+
+      <WhereNext
+        links={[
+          {
+            label: race.circuit.name,
+            href: `/circuits/${race.circuit.ref}`,
+            description: 'Every race held here, lap record',
+          },
+          ...(first && second
+            ? [
+                {
+                  label: `${first.driver.lastName} v ${second.driver.lastName}`,
+                  href: `/seasons/${year}/compare?type=drivers&a=${first.driver.ref}&b=${second.driver.ref}`,
+                  description: `The top two, round by round through ${year}`,
+                },
+              ]
+            : []),
+          {
+            label: `${year} season`,
+            href: `/seasons/${year}`,
+            description: 'Standings and calendar',
+          },
         ]}
       />
     </div>

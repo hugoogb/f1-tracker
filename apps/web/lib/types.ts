@@ -178,7 +178,10 @@ export interface DriverCareerStats {
 export interface SeasonChampion {
   year: number
   driver: Driver
+  /** The constructors' champion — not necessarily the drivers' champion's team. */
   constructor: Constructor
+  /** The team the drivers' champion raced for most that season. */
+  driverConstructor: Pick<Constructor, 'id' | 'ref' | 'name' | 'color'> | null
   driverPoints: number
   constructorPoints: number
 }

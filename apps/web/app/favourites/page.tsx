@@ -1,5 +1,5 @@
 import { Breadcrumbs } from '@/components/layout/breadcrumbs'
-import { PageHeader } from '@/components/ui/page-header'
+import { PageHero } from '@/components/ui/page-hero'
 import { FavouritesView } from '@/components/favourites/favourites-view'
 import { buildMetadata } from '@/lib/seo'
 
@@ -22,7 +22,8 @@ export default function FavouritesPage() {
   return (
     <div className="space-y-6">
       <Breadcrumbs items={[{ label: 'Home', href: '/' }, { label: 'Favourites' }]} />
-      <PageHeader
+      <PageHero
+        eyebrow="On this device"
         title="Favourites"
         description="Starred drivers, constructors and circuits. They are saved in this browser only — no account, and nothing is sent anywhere."
       />

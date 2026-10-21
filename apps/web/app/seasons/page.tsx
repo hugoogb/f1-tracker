@@ -1,7 +1,8 @@
 import Link from 'next/link'
+import { liveryStyle } from '@/lib/livery'
 import { api } from '@/lib/api'
 import type { SeasonChampion } from '@/lib/types'
-import { PageHeader } from '@/components/ui/page-header'
+import { PageHero } from '@/components/ui/page-hero'
 import { FadeIn, StaggerList, StaggerItem, MotionCard } from '@/components/ui/motion'
 import { teamColorOf } from '@/lib/utils'
 import { buildMetadata } from '@/lib/seo'
@@ -44,17 +45,18 @@ export default async function SeasonsPage() {
 
   return (
     <div className="space-y-10">
-      <PageHeader title="Seasons" description="Every Formula 1 season from 1950 to today." />
+      <PageHero
+        eyebrow={`Archive · 1950–${latestYear ?? ''}`}
+        title="Seasons"
+        description="Every Formula 1 season from 1950 to today."
+      />
 
       {decades.map(([decade, years], i) => (
         <FadeIn key={decade} delay={Math.min(i * 0.05, 0.2)}>
           <section>
-            <div className="mb-4 space-y-3">
-              <div className="flex items-center gap-3">
-                <div className="bg-primary/20 h-6 w-1 rounded-full" />
-                <h2>{decade}</h2>
-              </div>
-              <div className="accent-line" />
+            <div className="border-hairline mb-4 flex items-center gap-3 border-b pb-2">
+              <span aria-hidden className="bg-primary h-5 w-1 -skew-x-12" />
+              <h2>{decade}</h2>
             </div>
             <StaggerList className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
               {years.map((year) => (
@@ -95,16 +97,16 @@ function SeasonCard({
   // No champion for the season still being raced, and none recorded for a few
   // early seasons; both get a status line rather than an empty one.
   const inProgress = isLatest && !champion
-  const accent = teamColorOf(champion?.constructor?.color, null)
+  // The champion's own team, not the constructors' champion.
+  const accent = teamColorOf(champion?.driverConstructor?.color, null)
 
   return (
     <Link href={`/seasons/${year}`} prefetch={false} className="block">
       <MotionCard>
         <div
-          className={`group relative overflow-hidden rounded-2xl border bg-[var(--surface-1)] px-4 py-3 shadow-xl shadow-black/30 backdrop-blur-md transition-colors duration-200 ${
-            inProgress
-              ? 'border-primary/50 card-glow'
-              : 'hover:border-primary/30 border-[oklch(1_0_0/6%)]'
+          style={liveryStyle(accent)}
+          className={`group bg-surface-1 brackets relative border px-4 py-3 transition-colors duration-200 ${
+            inProgress ? 'border-primary/60' : 'border-hairline hover:bg-surface-2'
           }`}
         >
           {/* Champion's team colour, as a rail rather than a block of colour. */}
@@ -115,11 +117,11 @@ function SeasonCard({
           />
 
           <div className="flex items-baseline justify-between gap-2">
-            <span className="font-heading text-xl tabular-nums">{year}</span>
+            <span className="display text-3xl tabular-nums">{year}</span>
             {inProgress && (
               <span
                 aria-hidden
-                className="bg-primary size-1.5 shrink-0 rounded-full"
+                className="bg-primary size-1.5 shrink-0 motion-safe:animate-pulse"
                 title="Season in progress"
               />
             )}
@@ -131,8 +133,8 @@ function SeasonCard({
             ) : champion ? (
               <>
                 {champion.driver.lastName}
-                {champion.constructor && (
-                  <span className="opacity-60"> · {champion.constructor.name}</span>
+                {champion.driverConstructor && (
+                  <span className="opacity-60"> · {champion.driverConstructor.name}</span>
                 )}
               </>
             ) : (

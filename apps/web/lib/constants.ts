@@ -32,14 +32,15 @@ export const entityTag = (kind: 'driver' | 'constructor' | 'circuit', ref: strin
 // the unbounded filter combinations never become ISR cache entries.
 export const EXPLORE_CDN_MAX_AGE_SECONDS = 3600
 
+// Compound colours are tokens (--tyre-*) in app/globals.css.
 export const TYRE_COLORS: Record<string, string> = {
-  SOFT: '#FF3333',
-  MEDIUM: '#FFC906',
-  HARD: '#CCCCCC',
-  INTERMEDIATE: '#39B54A',
-  WET: '#0067FF',
-  UNKNOWN: '#888888',
-  TEST_UNKNOWN: '#888888',
+  SOFT: 'var(--tyre-soft)',
+  MEDIUM: 'var(--tyre-medium)',
+  HARD: 'var(--tyre-hard)',
+  INTERMEDIATE: 'var(--tyre-inter)',
+  WET: 'var(--tyre-wet)',
+  UNKNOWN: 'var(--tyre-unknown)',
+  TEST_UNKNOWN: 'var(--tyre-unknown)',
 } as const
 
 export const SEARCH_MIN_LENGTH = 2

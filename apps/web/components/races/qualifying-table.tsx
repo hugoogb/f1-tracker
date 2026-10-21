@@ -46,7 +46,7 @@ function SectorCell({
         return (
           <span
             key={i}
-            className={`font-mono text-[10px] ${isBest ? 'font-medium text-purple-400' : 'text-muted-foreground/60'}`}
+            className={`font-data text-2xs ${isBest ? 'text-fastest font-medium' : 'text-label'}`}
           >
             {formatSectorMs(s.ms)}
           </span>
@@ -66,8 +66,8 @@ export function QualifyingTable({ results, fastestSectors }: QualifyingTableProp
   return (
     <div className="space-y-4">
       {fastestSectors && (
-        <div className="glass flex flex-wrap items-center gap-x-6 gap-y-2 rounded-lg px-4 py-3">
-          <span className="text-xs font-medium tracking-wider text-purple-400 uppercase">
+        <div className="border-hairline bg-surface-1 flex flex-wrap items-center gap-x-6 gap-y-2 border px-4 py-3">
+          <span className="text-fastest text-xs font-medium tracking-wider uppercase">
             Fastest Sectors
           </span>
           {(['s1', 's2', 's3'] as const).map((key, i) => {
@@ -76,7 +76,7 @@ export function QualifyingTable({ results, fastestSectors }: QualifyingTableProp
             return (
               <div key={key} className="flex items-center gap-2">
                 <span className="text-muted-foreground text-xs font-medium">S{i + 1}</span>
-                <span className="font-mono text-sm text-purple-300">
+                <span className="font-data text-fastest text-sm">
                   {formatSectorMs(entry.timeMs)}
                 </span>
                 <span className="text-muted-foreground text-xs">{entry.driver.lastName}</span>

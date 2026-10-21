@@ -1,4 +1,4 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Panel, PanelContent, PanelHeader, PanelTitle } from '@/components/ui/panel'
 import { Badge } from '@/components/ui/badge'
 import { DriverAvatar } from '@/components/ui/driver-avatar'
 import type { PermutationsResponse } from '@/lib/types'
@@ -31,18 +31,18 @@ export function TitlePermutations({ data }: TitlePermutationsProps) {
   if (!leader) return null
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex flex-wrap items-center gap-2 text-base">
+    <Panel>
+      <PanelHeader>
+        <PanelTitle className="flex flex-wrap items-center gap-2 text-base">
           Title permutations
           {data.decided ? (
             <Badge>Mathematically decided</Badge>
           ) : (
             <Badge variant="outline">{alive.length} still in it</Badge>
           )}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
+        </PanelTitle>
+      </PanelHeader>
+      <PanelContent className="space-y-4">
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <Stat label="Rounds run" value={`${data.roundsRun} of ${data.totalRounds}`} />
           <Stat
@@ -119,14 +119,14 @@ export function TitlePermutations({ data }: TitlePermutationsProps) {
           year, so the list runs longer than the realistic one. Where two can only finish level, the
           title falls to a countback on wins, which no arithmetic here can project.
         </p>
-      </CardContent>
-    </Card>
+      </PanelContent>
+    </Panel>
   )
 }
 
 function Stat({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
-    <div className="border-border rounded-lg border bg-[var(--surface-1)] px-3 py-2">
+    <div className="border-hairline bg-surface-2 border px-3 py-2">
       <p className="text-muted-foreground text-xs">{label}</p>
       <p className="text-lg font-semibold tabular-nums">{value}</p>
       {hint && <p className="text-muted-foreground text-xs">{hint}</p>}

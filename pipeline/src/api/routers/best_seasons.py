@@ -26,7 +26,7 @@ came from. It is an opinion about what makes a title fight good to watch, and
 the page says so.
 """
 
-from collections import Counter, defaultdict
+from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import date
 from typing import Literal
@@ -47,7 +47,7 @@ from src.db.models import (
     RaceResult,
     SprintResult,
 )
-from src.db.queries import race_has_happened
+from src.db.queries import main_constructors, race_has_happened
 from src.scoring import (
     SYSTEMS,
     counts_every_result,
@@ -432,44 +432,6 @@ def _analyse(season: _Season, sprint_ids: set[str], today: date) -> dict | None:
     }
 
 
-def _main_constructors(
-    db: Session, pairs: set[tuple[int, str]]
-) -> dict[tuple[int, str], Constructor]:
-    """The team each (season, driver) raced for most often, for the champion's colour."""
-    if not pairs:
-        return {}
-    driver_ids = {d for _, d in pairs}
-    years = {y for y, _ in pairs}
-    counts: dict[tuple[int, str], Counter] = defaultdict(Counter)
-    last: dict[tuple[int, str], tuple[int, str]] = {}
-    for year, rnd, driver_id, constructor_id in db.execute(
-        select(Race.season_year, Race.round, RaceResult.driver_id, RaceResult.constructor_id)
-        .join(Race, RaceResult.race_id == Race.id)
-        .where(RaceResult.driver_id.in_(driver_ids), Race.season_year.in_(years))
-    ).all():
-        key = (year, driver_id)
-        if key not in pairs:
-            continue
-        counts[key][constructor_id] += 1
-        if key not in last or rnd > last[key][0]:
-            last[key] = (rnd, constructor_id)
-
-    chosen: dict[tuple[int, str], str] = {}
-    for key, counter in counts.items():
-        best = max(counter.values())
-        tied = [cid for cid, n in counter.items() if n == best]
-        # On a tie, the team they finished the season with.
-        chosen[key] = last[key][1] if last[key][1] in tied else sorted(tied)[0]
-
-    constructors = {
-        c.id: c
-        for c in db.execute(select(Constructor).where(Constructor.id.in_(set(chosen.values()))))
-        .scalars()
-        .all()
-    }
-    return {key: constructors[cid] for key, cid in chosen.items() if cid in constructors}
-
-
 def _build(
     db: Session, year_from: int | None, year_to: int | None, include_in_progress: bool
 ) -> list[dict]:
@@ -525,7 +487,7 @@ def _build(
         if constructor_ids
         else {}
     )
-    teams = _main_constructors(db, pairs)
+    teams = main_constructors(db, pairs)
 
     def contender(year: int, row: tuple[str, float, int | None] | None) -> dict | None:
         if row is None or row[0] not in drivers:

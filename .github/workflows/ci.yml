@@ -38,6 +38,9 @@ jobs:
       - name: Type check
         run: pnpm typecheck
 
+      - name: Unit tests
+        run: pnpm test
+
       # Compile and bundle without static generation. The prerendered routes
       # fetch from the API, and this job has none — Vercel's own build is what
       # exercises prerendering, with NEXT_PUBLIC_API_URL set and the backend

@@ -9,6 +9,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
+import { axisProps, gridProps, NEUTRAL } from '@/lib/chart-theme'
 import { teamColorOf } from '@/lib/utils'
 import type { StandingsProgressionDriver } from '@/lib/types'
 
@@ -45,16 +46,7 @@ function CustomTooltip({
   const raceName = payload[0]?.payload?.raceName as string | undefined
 
   return (
-    <div
-      className="max-w-xs rounded-xl px-3 py-2"
-      style={{
-        backgroundColor: 'oklch(0.13 0.003 250 / 85%)',
-        border: '1px solid oklch(1 0 0 / 10%)',
-        color: 'oklch(0.95 0 0)',
-        boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
-        backdropFilter: 'blur(12px)',
-      }}
-    >
+    <div className="chart-tooltip max-w-xs">
       <p className="mb-1 text-xs font-medium">
         R{label} {raceName && `— ${raceName}`}
       </p>
@@ -92,19 +84,19 @@ export function ChampionshipProgressionChart({
     <div className="mb-6 h-80 w-full" role="img" aria-label="Championship progression chart">
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={rounds} margin={{ left: 0, right: 20, top: 5, bottom: 5 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="oklch(1 0 0 / 6%)" />
+          <CartesianGrid {...gridProps} />
           <XAxis
             dataKey="round"
-            tick={{ fontSize: 12, fill: 'oklch(0.6 0 0)' }}
+            {...axisProps}
             label={{
               value: 'Round',
               position: 'insideBottom',
               offset: -2,
               fontSize: 11,
-              fill: 'oklch(0.5 0 0)',
+              fill: NEUTRAL,
             }}
           />
-          <YAxis tick={{ fontSize: 12, fill: 'oklch(0.6 0 0)' }} width={50} />
+          <YAxis {...axisProps} width={50} />
           <Tooltip content={<CustomTooltip />} />
           {items.map((entry) => {
             const color = teamColorOf(entry.color)!
@@ -119,7 +111,6 @@ export function ChampionshipProgressionChart({
                 strokeWidth={2}
                 dot={false}
                 activeDot={{ r: 4, strokeWidth: 2, stroke: 'var(--background)' }}
-                style={{ filter: `drop-shadow(0 0 4px ${color}40)` }}
               />
             )
           })}

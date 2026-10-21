@@ -222,7 +222,7 @@ export function BestSeasonsTable({ seasons, eras }: { seasons: BestSeason[]; era
               <TableCell>
                 <Link
                   href={`/seasons/${s.year}`}
-                  className="font-heading hover:text-primary text-base tabular-nums transition-colors"
+                  className="display hover:text-primary text-base tabular-nums transition-colors"
                 >
                   {s.year}
                 </Link>
@@ -232,7 +232,7 @@ export function BestSeasonsTable({ seasons, eras }: { seasons: BestSeason[]; era
                   <div className="flex items-center gap-2">
                     <span
                       aria-hidden
-                      className="h-7 w-1 shrink-0 rounded-full"
+                      className="h-7 w-1 shrink-0"
                       style={{
                         backgroundColor: teamColorOf(s.champion.constructor?.color) ?? undefined,
                       }}
@@ -254,7 +254,7 @@ export function BestSeasonsTable({ seasons, eras }: { seasons: BestSeason[]; era
                 )}
               </TableCell>
               <TableCell className="text-right whitespace-nowrap">
-                <span className="font-mono tabular-nums">{formatPoints(s.titleMargin)}</span>
+                <span className="font-data tabular-nums">{formatPoints(s.titleMargin)}</span>
                 <span className="text-muted-foreground block text-xs tabular-nums">
                   {formatShare(s.titleMarginShare)}
                 </span>
@@ -274,27 +274,27 @@ export function BestSeasonsTable({ seasons, eras }: { seasons: BestSeason[]; era
                   </span>
                 )}
               </TableCell>
-              <TableCell className="text-right font-mono tabular-nums">
+              <TableCell className="font-data text-right tabular-nums">
                 {s.contendersAtFinale ?? '—'}
               </TableCell>
-              <TableCell className="text-right font-mono tabular-nums">
+              <TableCell className="font-data text-right tabular-nums">
                 {s.distinctWinners}
               </TableCell>
-              <TableCell className="text-right font-mono tabular-nums">
+              <TableCell className="font-data text-right tabular-nums">
                 {s.distinctPoleSitters ?? '—'}
               </TableCell>
-              <TableCell className="text-right font-mono tabular-nums">{s.leadChanges}</TableCell>
+              <TableCell className="font-data text-right tabular-nums">{s.leadChanges}</TableCell>
               <TableCell className="text-right whitespace-nowrap">
                 {s.constructors ? (
                   <span className="inline-flex items-center gap-1.5">
                     <span
                       aria-hidden
-                      className="inline-block size-2 rounded-full"
+                      className="inline-block size-2"
                       style={{
                         backgroundColor: teamColorOf(s.constructors.champion?.color) ?? undefined,
                       }}
                     />
-                    <span className="font-mono tabular-nums">
+                    <span className="font-data tabular-nums">
                       {formatPoints(s.constructors.margin)}
                     </span>
                   </span>
@@ -304,7 +304,7 @@ export function BestSeasonsTable({ seasons, eras }: { seasons: BestSeason[]; era
               </TableCell>
               <TableCell>
                 <div className="flex items-center gap-3">
-                  <span className="font-heading w-10 text-right text-base font-bold tabular-nums">
+                  <span className="display w-10 text-right text-base tabular-nums">
                     {s.score.total.toFixed(1)}
                   </span>
                   <ScoreBreakdownBar components={s.score.components} className="min-w-[100px]" />

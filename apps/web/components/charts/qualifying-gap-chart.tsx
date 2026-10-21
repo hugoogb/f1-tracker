@@ -11,6 +11,15 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
+import {
+  NEUTRAL,
+  REFERENCE,
+  axisProps,
+  barCursor,
+  gridProps,
+  tooltipContentStyle,
+  tooltipLabelStyle,
+} from '@/lib/chart-theme'
 
 interface Side {
   name: string
@@ -46,23 +55,17 @@ export function QualifyingGapChart({
     <div className="h-64 w-full" role="img" aria-label="Qualifying gap per round">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={gaps} margin={{ left: 0, right: 20, top: 5, bottom: 5 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="oklch(1 0 0 / 6%)" vertical={false} />
-          <XAxis dataKey="round" tick={{ fontSize: 12, fill: 'oklch(0.6 0 0)' }} />
+          <CartesianGrid {...gridProps} vertical={false} />
+          <XAxis dataKey="round" {...axisProps} />
           <YAxis
-            tick={{ fontSize: 12, fill: 'oklch(0.6 0 0)' }}
+            {...axisProps}
             width={56}
             tickFormatter={(v: number) => `${v > 0 ? '+' : ''}${v.toFixed(2)}%`}
           />
           <Tooltip
-            cursor={{ fill: 'oklch(1 0 0 / 4%)' }}
-            contentStyle={{
-              backgroundColor: 'oklch(0.13 0.003 250 / 85%)',
-              border: '1px solid oklch(1 0 0 / 10%)',
-              borderRadius: '12px',
-              color: 'oklch(0.95 0 0)',
-              boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
-              padding: '8px 12px',
-            }}
+            cursor={barCursor}
+            contentStyle={tooltipContentStyle}
+            labelStyle={tooltipLabelStyle}
             labelFormatter={(label, payload) => {
               const gap = payload?.[0]?.payload as GapPoint | undefined
               return `R${label}${gap ? ` — ${gap.raceName} (${gap.session})` : ''}`
@@ -77,12 +80,12 @@ export function QualifyingGapChart({
               ]
             }}
           />
-          <ReferenceLine y={0} stroke="oklch(0.85 0 0 / 60%)" strokeWidth={1.5} />
+          <ReferenceLine y={0} stroke={REFERENCE} strokeWidth={1.5} />
           <Bar dataKey="deltaPct" radius={[3, 3, 3, 3]} maxBarSize={28}>
             {gaps.map((g) => (
               <Cell
                 key={g.round}
-                fill={g.deltaMs < 0 ? sideA.color : g.deltaMs > 0 ? sideB.color : 'oklch(0.6 0 0)'}
+                fill={g.deltaMs < 0 ? sideA.color : g.deltaMs > 0 ? sideB.color : NEUTRAL}
               />
             ))}
           </Bar>

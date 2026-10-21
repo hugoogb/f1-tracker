@@ -4,11 +4,13 @@ import { ArrowLeftRight } from 'lucide-react'
 import { api } from '@/lib/api'
 import type { Constructor } from '@/lib/types'
 import { Breadcrumbs } from '@/components/layout/breadcrumbs'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Panel, PanelContent, PanelHeader, PanelTitle } from '@/components/ui/panel'
 import { cn } from '@/lib/utils'
 import { ComparisonChart } from '@/components/charts/comparison-chart'
 import { FadeIn } from '@/components/ui/motion'
 import { buildMetadata } from '@/lib/seo'
+import { buttonVariants } from '@/components/ui/button-variants'
+import { sideColor } from '@/lib/chart-theme'
 
 interface ConstructorStats {
   total_entries: number
@@ -86,8 +88,8 @@ export default async function CompareConstructorsPage({
   }
 
   const { constructor1, constructor2, headToHead, constructor1Seasons, constructor2Seasons } = data
-  const c1Color = constructor1.color ?? '#E8002D'
-  const c2Color = constructor2.color ?? '#3671C6'
+  const c1Color = constructor1.color ?? sideColor('a')
+  const c2Color = constructor2.color ?? sideColor('b')
 
   return (
     <div className="space-y-8">
@@ -100,16 +102,16 @@ export default async function CompareConstructorsPage({
       />
 
       <FadeIn>
-        <div className="glass rounded-xl px-6 py-8">
-          <div className="flex items-center gap-4">
-            <div className="flex flex-1 items-center justify-end gap-3">
+        <div className="brackets bg-surface-1 border-hairline border px-4 py-6 sm:px-6 sm:py-8">
+          <div className="flex flex-col items-center gap-3 sm:flex-row sm:gap-4">
+            <div className="flex min-w-0 flex-1 items-center justify-center gap-3 sm:justify-end">
               {constructor1.color && (
                 <span
-                  className="inline-block size-4 rounded-full"
+                  className="inline-block size-4"
                   style={{ backgroundColor: constructor1.color }}
                 />
               )}
-              <h1>
+              <h1 className="min-w-0 text-3xl break-words sm:text-4xl lg:text-5xl">
                 <Link
                   href={`/constructors/${constructor1.ref}`}
                   className="hover:text-primary transition-colors"
@@ -118,11 +120,9 @@ export default async function CompareConstructorsPage({
                 </Link>
               </h1>
             </div>
-            <span className="text-muted-foreground font-heading shrink-0 text-xl font-bold">
-              vs
-            </span>
-            <div className="flex flex-1 items-center gap-3">
-              <h1>
+            <span className="text-muted-foreground display shrink-0 text-xl">vs</span>
+            <div className="flex min-w-0 flex-1 items-center justify-center gap-3 sm:justify-start">
+              <h1 className="min-w-0 text-3xl break-words sm:text-4xl lg:text-5xl">
                 <Link
                   href={`/constructors/${constructor2.ref}`}
                   className="hover:text-primary transition-colors"
@@ -132,7 +132,7 @@ export default async function CompareConstructorsPage({
               </h1>
               {constructor2.color && (
                 <span
-                  className="inline-block size-4 rounded-full"
+                  className="inline-block size-4"
                   style={{ backgroundColor: constructor2.color }}
                 />
               )}
@@ -142,7 +142,7 @@ export default async function CompareConstructorsPage({
           <div className="mt-4 flex justify-center">
             <Link
               href={`/compare/constructors?c1=${params.c2}&c2=${params.c1}`}
-              className="border-border inline-flex h-8 items-center gap-1.5 rounded-lg border bg-[var(--surface-1)] px-2.5 text-sm font-medium transition-all hover:bg-[var(--surface-2)]"
+              className={buttonVariants({ variant: 'outline' })}
             >
               <ArrowLeftRight className="h-3.5 w-3.5" />
               Swap constructors
@@ -151,15 +151,13 @@ export default async function CompareConstructorsPage({
         </div>
       </FadeIn>
 
-      <div className="accent-line" />
-
       {/* Head to Head */}
       <FadeIn>
-        <Card>
-          <CardHeader>
-            <CardTitle>Head to Head</CardTitle>
-          </CardHeader>
-          <CardContent>
+        <Panel>
+          <PanelHeader>
+            <PanelTitle>Head to Head</PanelTitle>
+          </PanelHeader>
+          <PanelContent>
             <div className="flex items-center gap-4">
               <div className="flex-1 text-right">
                 <p className="text-3xl font-bold tabular-nums" style={{ color: c1Color }}>
@@ -180,9 +178,9 @@ export default async function CompareConstructorsPage({
               </div>
             </div>
             {headToHead.totalRaces > 0 && (
-              <div className="bg-muted mt-4 flex h-4 overflow-hidden rounded-full">
+              <div className="bg-surface-3 mt-4 flex h-4 overflow-hidden">
                 <div
-                  className="flex items-center justify-center rounded-l-full text-[10px] font-bold text-white transition-all duration-500"
+                  className="text-2xs flex items-center justify-center font-bold text-white transition-all duration-500"
                   style={{
                     width: `${(headToHead.constructor1Wins / headToHead.totalRaces) * 100}%`,
                     backgroundColor: c1Color,
@@ -192,7 +190,7 @@ export default async function CompareConstructorsPage({
                     `${Math.round((headToHead.constructor1Wins / headToHead.totalRaces) * 100)}%`}
                 </div>
                 <div
-                  className="flex items-center justify-center rounded-r-full text-[10px] font-bold text-white transition-all duration-500"
+                  className="text-2xs flex items-center justify-center font-bold text-white transition-all duration-500"
                   style={{
                     width: `${(headToHead.constructor2Wins / headToHead.totalRaces) * 100}%`,
                     backgroundColor: c2Color,
@@ -203,17 +201,17 @@ export default async function CompareConstructorsPage({
                 </div>
               </div>
             )}
-          </CardContent>
-        </Card>
+          </PanelContent>
+        </Panel>
       </FadeIn>
 
       {/* Stat-by-Stat Comparison */}
       <FadeIn>
-        <Card>
-          <CardHeader>
-            <CardTitle>Career Stats</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-0 divide-y">
+        <Panel>
+          <PanelHeader>
+            <PanelTitle>Career Stats</PanelTitle>
+          </PanelHeader>
+          <PanelContent className="space-y-0 divide-y">
             {statLabels.map(({ key, label }) => {
               const v1 = constructor1.stats[key]
               const v2 = constructor2.stats[key]
@@ -224,7 +222,7 @@ export default async function CompareConstructorsPage({
                 <div key={key} className="flex items-center py-3">
                   <span
                     className={cn(
-                      'font-heading flex-1 text-right text-xl font-bold tabular-nums',
+                      'display flex-1 text-right text-xl tabular-nums',
                       c1Higher ? '' : 'text-muted-foreground',
                     )}
                     style={c1Higher ? { color: c1Color } : undefined}
@@ -236,7 +234,7 @@ export default async function CompareConstructorsPage({
                   </span>
                   <span
                     className={cn(
-                      'font-heading flex-1 text-xl font-bold tabular-nums',
+                      'display flex-1 text-xl tabular-nums',
                       c2Higher ? '' : 'text-muted-foreground',
                     )}
                     style={c2Higher ? { color: c2Color } : undefined}
@@ -246,18 +244,18 @@ export default async function CompareConstructorsPage({
                 </div>
               )
             })}
-          </CardContent>
-        </Card>
+          </PanelContent>
+        </Panel>
       </FadeIn>
 
       {/* Career Points Chart */}
       {(constructor1Seasons.length > 0 || constructor2Seasons.length > 0) && (
         <FadeIn>
-          <Card>
-            <CardHeader>
-              <CardTitle>Career Points per Season</CardTitle>
-            </CardHeader>
-            <CardContent>
+          <Panel>
+            <PanelHeader>
+              <PanelTitle>Career Points per Season</PanelTitle>
+            </PanelHeader>
+            <PanelContent>
               <ComparisonChart
                 driver1Name={constructor1.name}
                 driver2Name={constructor2.name}
@@ -266,8 +264,8 @@ export default async function CompareConstructorsPage({
                 color1={c1Color}
                 color2={c2Color}
               />
-            </CardContent>
-          </Card>
+            </PanelContent>
+          </Panel>
         </FadeIn>
       )}
     </div>

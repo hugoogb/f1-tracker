@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { MapContainer, GeoJSON, CircleMarker, Tooltip } from 'react-leaflet'
+import { MapContainer, GeoJSON, CircleMarker, Pane, Tooltip } from 'react-leaflet'
 import type { FeatureCollection } from 'geojson'
+import { MAP_INK, MAP_LAND, MAP_OCEAN, MAP_RED } from '@/lib/map-theme'
 import 'leaflet/dist/leaflet.css'
 
 interface CircuitPin {
@@ -23,12 +24,7 @@ interface WorldMapProps {
 // no non-commercial restriction. See apps/web/public/geo/README.txt.
 const WORLD_GEOJSON_URL = '/geo/world.geo.json'
 
-const landStyle = {
-  fillColor: '#1c1c1f',
-  fillOpacity: 1,
-  color: '#2e2e33',
-  weight: 0.5,
-}
+const landStyle = MAP_LAND
 
 export function WorldMap({ circuits }: WorldMapProps) {
   const router = useRouter()
@@ -58,18 +54,22 @@ export function WorldMap({ circuits }: WorldMapProps) {
       scrollWheelZoom={false}
       attributionControl={false}
       className="h-full w-full"
-      style={{ background: '#0a0a0a' }}
+      style={{ background: MAP_OCEAN }}
     >
-      {world && <GeoJSON data={world} style={() => landStyle} interactive={false} />}
+      {/* Its own pane below the overlay pane: the land arrives after a fetch and
+          would otherwise be appended over the pins in the shared SVG. */}
+      <Pane name="circuits-land" style={{ zIndex: '250' }}>
+        {world && <GeoJSON data={world} style={() => landStyle} interactive={false} />}
+      </Pane>
       {circuits.map((circuit) => (
         <CircleMarker
           key={circuit.ref}
           center={[circuit.latitude, circuit.longitude]}
           radius={6}
           pathOptions={{
-            fillColor: '#E10600',
+            fillColor: MAP_RED,
             fillOpacity: 0.85,
-            color: '#ffffff',
+            color: MAP_INK,
             weight: 1.5,
             opacity: 0.6,
           }}
@@ -80,7 +80,9 @@ export function WorldMap({ circuits }: WorldMapProps) {
           <Tooltip direction="top" offset={[0, -8]}>
             <span className="font-sans text-xs font-medium">
               {circuit.name}
-              {circuit.country && <span className="text-gray-400"> · {circuit.country}</span>}
+              {circuit.country && (
+                <span className="text-muted-foreground"> · {circuit.country}</span>
+              )}
             </span>
           </Tooltip>
         </CircleMarker>

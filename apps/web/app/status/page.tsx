@@ -4,9 +4,9 @@ import { api } from '@/lib/api'
 import { buildMetadata } from '@/lib/seo'
 import type { OpsIngestRun, OpsStatus } from '@/lib/types'
 import { Breadcrumbs } from '@/components/layout/breadcrumbs'
-import { PageHeader } from '@/components/ui/page-header'
+import { PageHero } from '@/components/ui/page-hero'
 import { Badge } from '@/components/ui/badge'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Panel, PanelContent, PanelHeader, PanelTitle } from '@/components/ui/panel'
 import { StatCard } from '@/components/ui/stat-card'
 import { EmptyState } from '@/components/ui/empty-state'
 import { LocalDate, LocalDateTime } from '@/components/ui/local-date'
@@ -83,7 +83,7 @@ function RunStatusBadge({ status }: { status: OpsIngestRun['status'] }) {
   if (status === 'error') return <Badge variant="destructive">Failed</Badge>
   if (status === 'running') return <Badge variant="secondary">Running</Badge>
   return (
-    <Badge variant="outline" className="text-emerald-400">
+    <Badge variant="outline" className="text-positive">
       OK
     </Badge>
   )
@@ -101,16 +101,16 @@ function SectionCard({
   children: React.ReactNode
 }) {
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between gap-3">
-        <CardTitle className="flex items-center gap-2 text-base">
+    <Panel>
+      <PanelHeader className="flex flex-row items-center justify-between gap-3">
+        <PanelTitle className="flex items-center gap-2 text-base">
           <Icon className="text-primary h-4 w-4" />
           {title}
-        </CardTitle>
+        </PanelTitle>
         {action}
-      </CardHeader>
-      <CardContent>{children}</CardContent>
-    </Card>
+      </PanelHeader>
+      <PanelContent>{children}</PanelContent>
+    </Panel>
   )
 }
 
@@ -128,22 +128,22 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 function Unreachable() {
   return (
     <FadeIn>
-      <Card className="border-destructive/40">
-        <CardHeader>
-          <CardTitle className="text-destructive flex items-center gap-2 text-base">
+      <Panel className="border-destructive/40">
+        <PanelHeader>
+          <PanelTitle className="text-destructive flex items-center gap-2 text-base">
             <AlertTriangle className="h-4 w-4" />
             The API is not answering
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="text-muted-foreground space-y-2 text-sm">
+          </PanelTitle>
+        </PanelHeader>
+        <PanelContent className="text-muted-foreground space-y-2 text-sm">
           <p>
             This page could not reach the backend, so there is nothing to report on the data behind
             it. That is itself the status: the rest of the site is served from cache and will keep
             working until those entries expire.
           </p>
           <p>The page re-checks on its own; reloading in a minute will pick up a recovery.</p>
-        </CardContent>
-      </Card>
+        </PanelContent>
+      </Panel>
     </FadeIn>
   )
 }
@@ -169,14 +169,13 @@ export default async function StatusPage() {
     <div className="space-y-6">
       <Breadcrumbs items={[{ label: 'Home', href: '/' }, { label: 'Status' }]} />
 
-      <PageHeader
+      <PageHero
+        eyebrow="Data pipeline"
         title="Status"
         description="What the database holds, when it was last filled, and what is still outstanding."
         badge={
           status?.schemaVersion ? (
-            <Badge variant="outline" className="font-mono">
-              {status.schemaVersion}
-            </Badge>
+            <Badge variant="outline">{status.schemaVersion}</Badge>
           ) : undefined
         }
       />
@@ -332,7 +331,7 @@ export default async function StatusPage() {
                             '—'
                           )}
                         </TableCell>
-                        <TableCell className="font-mono text-xs">{run.target}</TableCell>
+                        <TableCell className="font-data text-xs">{run.target}</TableCell>
                         <TableCell>
                           <RunStatusBadge status={run.status} />
                         </TableCell>
@@ -342,7 +341,7 @@ export default async function StatusPage() {
                         <TableCell className="text-right tabular-nums">
                           {run.rowsWritten === null ? '—' : run.rowsWritten.toLocaleString('en-GB')}
                         </TableCell>
-                        <TableCell className="text-muted-foreground font-mono text-xs">
+                        <TableCell className="text-muted-foreground font-data text-xs">
                           {run.f1dbVersion ?? '—'}
                         </TableCell>
                       </TableRow>
@@ -420,13 +419,13 @@ export default async function StatusPage() {
                 {Object.entries(status.rowCounts).map(([key, count]) => (
                   <div
                     key={key}
-                    className="flex items-baseline justify-between gap-2 border-b border-[oklch(1_0_0/6%)] pb-2"
+                    className="border-hairline flex items-baseline justify-between gap-2 border-b pb-2"
                   >
                     <dt className="text-muted-foreground truncate text-xs">
                       {ROW_COUNT_LABELS[key] ?? key}
                     </dt>
                     <dd
-                      className="font-mono text-sm tabular-nums"
+                      className="font-data text-sm tabular-nums"
                       title={estimated.has(key) ? APPROXIMATE_HINT : undefined}
                     >
                       {estimated.has(key) ? '≈\u202F' : ''}

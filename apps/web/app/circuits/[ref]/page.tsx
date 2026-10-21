@@ -5,7 +5,6 @@ import { api, isNotFound } from '@/lib/api'
 import type { Circuit, CircuitLayout, CircuitLapRecord, CircuitStats } from '@/lib/types'
 import { CountryFlag } from '@/components/ui/country-flag'
 import { Breadcrumbs } from '@/components/layout/breadcrumbs'
-import { Card, CardContent } from '@/components/ui/card'
 import { StatCard } from '@/components/ui/stat-card'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -24,6 +23,10 @@ import { placeSchema } from '@/lib/structured-data'
 import { buildMetadata, SITE_DESCRIPTION } from '@/lib/seo'
 import { LocalDate } from '@/components/ui/local-date'
 import { FavouriteButton } from '@/components/favourites/favourite-button'
+import { PageHero } from '@/components/ui/page-hero'
+import { FastestLapCard } from '@/components/races/fastest-lap-card'
+import { RecordVisit } from '@/components/layout/record-visit'
+import { WhereNext } from '@/components/layout/where-next'
 
 interface CircuitRace {
   id: string
@@ -133,29 +136,28 @@ export default async function CircuitDetailPage({ params }: { params: Promise<{ 
         ]}
       />
 
-      <FadeIn>
-        <div className="space-y-4">
-          <div className="flex items-center gap-2">
-            <h1 className="text-gradient">{circuit.name}</h1>
-            <FavouriteButton
-              type="circuit"
-              entityRef={ref}
-              name={circuit.name}
-              detail={circuit.location ?? circuit.country}
-              countryCode={circuit.countryCode}
-              size="icon"
-            />
-          </div>
-          <div className="glass rounded-xl px-5 py-4">
-            <p className="text-foreground flex items-center gap-2 font-medium">
-              <MapPin className="text-primary h-4 w-4" />
-              {circuit.country && <CountryFlag code={circuit.countryCode} />}
-              {circuit.location}, {circuit.country}
-            </p>
-          </div>
-          <div className="accent-line" />
-        </div>
-      </FadeIn>
+      <RecordVisit href={`/circuits/${ref}`} label={circuit.name} kind="circuit" />
+      <PageHero
+        eyebrow="Circuit"
+        title={circuit.name}
+        tags={
+          <span className="text-muted-foreground inline-flex items-center gap-1.5 text-sm">
+            <MapPin className="text-primary size-4" aria-hidden />
+            {circuit.country && <CountryFlag code={circuit.countryCode} />}
+            {[circuit.location, circuit.country].filter(Boolean).join(', ')}
+          </span>
+        }
+        actions={
+          <FavouriteButton
+            type="circuit"
+            entityRef={ref}
+            name={circuit.name}
+            detail={circuit.location ?? circuit.country}
+            countryCode={circuit.countryCode}
+            size="icon"
+          />
+        }
+      />
 
       {/* Track Layout */}
       {circuit.layouts.length > 0 && (
@@ -167,58 +169,39 @@ export default async function CircuitDetailPage({ params }: { params: Promise<{ 
       {/* Stats row */}
       <StaggerList className="grid grid-cols-3 gap-4">
         <StaggerItem>
-          <StatCard label="Total Races" value={circuit.races.length} icon={Calendar} />
+          <StatCard label="Races held" value={circuit.races.length} icon={Calendar} />
         </StaggerItem>
         {firstRaceYear && (
           <StaggerItem>
-            <StatCard label="First Race" value={firstRaceYear} />
+            <StatCard label="First race" value={String(firstRaceYear)} />
           </StaggerItem>
         )}
         {lastRaceYear && (
           <StaggerItem>
-            <StatCard label="Latest Race" value={lastRaceYear} />
+            <StatCard label="Latest race" value={String(lastRaceYear)} />
           </StaggerItem>
         )}
       </StaggerList>
 
       {/* Lap Record */}
       {circuit.lapRecord && (
-        <FadeIn>
-          <Card className="border border-purple-500/30 bg-purple-500/5">
-            <CardContent className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3">
-              <p className="text-xs font-medium tracking-wider text-purple-400 uppercase">
-                Lap Record
-              </p>
-              <div className="flex items-center gap-2">
-                {circuit.lapRecord.constructor?.color && (
-                  <span
-                    className="inline-block h-3 w-1 rounded-full"
-                    style={{ backgroundColor: circuit.lapRecord.constructor.color }}
-                  />
-                )}
-                <Link
-                  href={`/drivers/${circuit.lapRecord.driver.ref}`}
-                  className="hover:text-primary text-sm font-semibold transition-colors"
-                >
-                  {circuit.lapRecord.driver.firstName} {circuit.lapRecord.driver.lastName}
-                </Link>
-              </div>
-              <span className="font-mono text-sm text-purple-300">{circuit.lapRecord.time}</span>
-              <span className="text-muted-foreground text-xs">
-                {circuit.lapRecord.year}
-                {circuit.lapRecord.speed && ` · ${circuit.lapRecord.speed} km/h`}
-              </span>
-            </CardContent>
-          </Card>
-        </FadeIn>
+        <FastestLapCard
+          fastestLap={circuit.lapRecord}
+          label="Lap record"
+          detail={[
+            String(circuit.lapRecord.year),
+            circuit.lapRecord.speed && `${circuit.lapRecord.speed} km/h`,
+          ]
+            .filter(Boolean)
+            .join(' · ')}
+        />
       )}
 
       {/* Circuit Performance Stats */}
       {circuitStats && (circuitStats.mostWins.length > 0 || circuitStats.mostPoles.length > 0) && (
         <FadeIn>
           <div className="space-y-4">
-            <h2>Circuit Stats</h2>
-            <div className="accent-line" />
+            <h2>Circuit stats</h2>
             <CircuitStatsView stats={circuitStats} />
           </div>
         </FadeIn>
@@ -226,19 +209,14 @@ export default async function CircuitDetailPage({ params }: { params: Promise<{ 
 
       {/* Race history grouped by decade */}
       <div className="space-y-6">
-        <h2>Race History</h2>
+        <h2>Race history</h2>
         {circuit.races.length === 0 ? (
           <p className="text-muted-foreground text-sm">No race data available.</p>
         ) : (
           decades.map((decade, i) => (
             <FadeIn key={decade} delay={Math.min(i * 0.05, 0.2)}>
               <div className="space-y-3">
-                <div>
-                  <h3 className="text-muted-foreground mb-2 text-sm font-medium tracking-wider uppercase">
-                    {decade}
-                  </h3>
-                  <div className="accent-line" />
-                </div>
+                <h3 className="label">{decade}</h3>
                 <Table aria-label={`Race history ${decade}`}>
                   <TableHeader>
                     <TableRow>
@@ -260,9 +238,7 @@ export default async function CircuitDetailPage({ params }: { params: Promise<{ 
                           </Link>
                         </TableCell>
                         <TableCell className="hidden sm:table-cell">
-                          <Badge variant="outline" className="font-mono text-xs">
-                            R{race.round}
-                          </Badge>
+                          <Badge variant="outline">R{race.round}</Badge>
                         </TableCell>
                         <TableCell>
                           <Link
@@ -285,6 +261,23 @@ export default async function CircuitDetailPage({ params }: { params: Promise<{ 
           ))
         )}
       </div>
+      {circuit.races[0] && (
+        <WhereNext
+          links={[
+            {
+              label: `${circuit.races[0].name} ${circuit.races[0].seasonYear}`,
+              href: `/seasons/${circuit.races[0].seasonYear}/races/${circuit.races[0].round}`,
+              description: 'The latest race here',
+            },
+            {
+              label: `${circuit.races[0].seasonYear} season`,
+              href: `/seasons/${circuit.races[0].seasonYear}`,
+              description: 'Standings, calendar and results',
+            },
+            { label: 'All circuits', href: '/circuits', description: 'Every venue on the map' },
+          ]}
+        />
+      )}
     </div>
   )
 }

@@ -76,7 +76,7 @@ export function SeasonHistoryTable({ seasons }: SeasonHistoryTableProps) {
               <TableCell className="text-right">
                 {season.championshipPosition != null ? (
                   <div className="flex items-center justify-end gap-1.5">
-                    {isChampion && <Crown className="h-3.5 w-3.5 text-amber-500" />}
+                    {isChampion && <Crown className="text-gold size-3.5" aria-label="Champion" />}
                     <PositionBadge position={season.championshipPosition} size="sm" />
                   </div>
                 ) : (

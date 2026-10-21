@@ -2,7 +2,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 
 export default function RaceDetailLoading() {
   return (
-    <main className="container mx-auto space-y-6 px-4 py-8">
+    <div className="space-y-6">
       <div>
         <Skeleton className="h-9 w-64" />
         <Skeleton className="mt-2 h-5 w-80" />
@@ -22,6 +22,6 @@ export default function RaceDetailLoading() {
           ))}
         </div>
       </div>
-    </main>
+    </div>
   )
 }

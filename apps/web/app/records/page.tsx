@@ -12,8 +12,8 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { RecordsExplorer, type ExplorerEra } from '@/components/records/records-explorer'
 import { DriverAvatar } from '@/components/ui/driver-avatar'
 import { Breadcrumbs } from '@/components/layout/breadcrumbs'
-import { PageHeader } from '@/components/ui/page-header'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { PageHero } from '@/components/ui/page-hero'
+import { Panel, PanelContent, PanelHeader, PanelTitle } from '@/components/ui/panel'
 import {
   Table,
   TableBody,
@@ -46,14 +46,14 @@ function DriverRecordTable({
   label: string
 }) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-base">
+    <Panel>
+      <PanelHeader>
+        <PanelTitle className="flex items-center gap-2 text-base">
           <Icon className="text-primary h-4 w-4" />
           {title}
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
+        </PanelTitle>
+      </PanelHeader>
+      <PanelContent>
         <Table aria-label={title}>
           <TableHeader>
             <TableRow>
@@ -82,13 +82,13 @@ function DriverRecordTable({
                     </span>
                   </Link>
                 </TableCell>
-                <TableCell className="text-right font-mono tabular-nums">{entry.count}</TableCell>
+                <TableCell className="font-data text-right tabular-nums">{entry.count}</TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
-      </CardContent>
-    </Card>
+      </PanelContent>
+    </Panel>
   )
 }
 
@@ -104,14 +104,14 @@ function ConstructorRecordTable({
   label: string
 }) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-base">
+    <Panel>
+      <PanelHeader>
+        <PanelTitle className="flex items-center gap-2 text-base">
           <Icon className="text-primary h-4 w-4" />
           {title}
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
+        </PanelTitle>
+      </PanelHeader>
+      <PanelContent>
         <Table aria-label={title}>
           <TableHeader>
             <TableRow>
@@ -133,7 +133,7 @@ function ConstructorRecordTable({
                   >
                     {entry.constructor.color && (
                       <span
-                        className="inline-block size-3 rounded-full"
+                        className="inline-block size-3"
                         style={{ backgroundColor: entry.constructor.color }}
                       />
                     )}
@@ -142,13 +142,13 @@ function ConstructorRecordTable({
                     </span>
                   </Link>
                 </TableCell>
-                <TableCell className="text-right font-mono tabular-nums">{entry.count}</TableCell>
+                <TableCell className="font-data text-right tabular-nums">{entry.count}</TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
-      </CardContent>
-    </Card>
+      </PanelContent>
+    </Panel>
   )
 }
 
@@ -178,15 +178,16 @@ export default async function RecordsPage() {
       <Breadcrumbs items={[{ label: 'Home', href: '/' }, { label: 'Records' }]} />
 
       <FadeIn>
-        <PageHeader
-          title="All-Time Records"
+        <PageHero
+          eyebrow="Stats"
+          title="All-time records"
           description="The greatest achievements in Formula 1 history"
         />
       </FadeIn>
 
       <RecordsTabs
         driversContent={
-          <StaggerList className="grid gap-6 md:grid-cols-2">
+          <StaggerList className="grid gap-6 md:grid-cols-2 [&>*]:min-w-0">
             <StaggerItem>
               <DriverRecordTable
                 title="Most Championships"
@@ -238,7 +239,7 @@ export default async function RecordsPage() {
           </StaggerList>
         }
         constructorsContent={
-          <StaggerList className="grid gap-6 md:grid-cols-2">
+          <StaggerList className="grid gap-6 md:grid-cols-2 [&>*]:min-w-0">
             <StaggerItem>
               <ConstructorRecordTable
                 title="Most Constructor Championships"

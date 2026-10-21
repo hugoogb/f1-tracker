@@ -10,6 +10,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
+import { NEUTRAL, axisProps, gridProps, lineCursor } from '@/lib/chart-theme'
 import { teamColorOf } from '@/lib/utils'
 import type { DriverGaps } from '@/lib/types'
 
@@ -46,16 +47,7 @@ function CustomTooltip({
   if (entries.length === 0) return null
 
   return (
-    <div
-      className="rounded-xl px-3 py-2"
-      style={{
-        backgroundColor: 'oklch(0.13 0.003 250 / 90%)',
-        border: '1px solid oklch(1 0 0 / 10%)',
-        color: 'oklch(0.95 0 0)',
-        boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
-        backdropFilter: 'blur(12px)',
-      }}
-    >
+    <div className="chart-tooltip">
       <p className="text-muted-foreground mb-1 text-xs">Lap {label}</p>
       {entries.map((entry) => (
         <div key={entry.dataKey} className="flex items-center gap-2">
@@ -150,20 +142,20 @@ export function GapChart({ drivers, totalLaps, coveredLaps }: GapChartProps) {
         <div className="h-[28rem] w-full" role="img" aria-label="Gap to leader chart">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={data} margin={{ left: 10, right: 20, top: 10, bottom: 20 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="oklch(1 0 0 / 5%)" />
+              <CartesianGrid {...gridProps} />
               <XAxis
                 dataKey="lap"
                 type="number"
                 domain={[1, 'dataMax']}
-                tick={{ fontSize: 12, fill: 'oklch(0.5 0 0)' }}
-                tickLine={{ stroke: 'oklch(0.3 0 0)' }}
-                axisLine={{ stroke: 'oklch(0.3 0 0)' }}
+                {...axisProps}
+                tickLine={{ stroke: NEUTRAL }}
+                axisLine={{ stroke: NEUTRAL }}
                 label={{
                   value: 'Lap Number',
                   position: 'insideBottom',
                   offset: -10,
                   fontSize: 12,
-                  fill: 'oklch(0.5 0 0)',
+                  fill: NEUTRAL,
                 }}
               />
               <YAxis
@@ -172,9 +164,9 @@ export function GapChart({ drivers, totalLaps, coveredLaps }: GapChartProps) {
                 // behind moves a line downwards.
                 domain={[0, yMax]}
                 reversed
-                tick={{ fontSize: 11, fill: 'oklch(0.5 0 0)' }}
-                tickLine={{ stroke: 'oklch(0.3 0 0)' }}
-                axisLine={{ stroke: 'oklch(0.3 0 0)' }}
+                {...axisProps}
+                tickLine={{ stroke: NEUTRAL }}
+                axisLine={{ stroke: NEUTRAL }}
                 tickFormatter={(v) => `${v}s`}
                 width={55}
                 label={{
@@ -183,10 +175,10 @@ export function GapChart({ drivers, totalLaps, coveredLaps }: GapChartProps) {
                   position: 'insideLeft',
                   offset: 5,
                   fontSize: 12,
-                  fill: 'oklch(0.5 0 0)',
+                  fill: NEUTRAL,
                 }}
               />
-              <Tooltip content={<CustomTooltip />} cursor={{ stroke: 'oklch(1 0 0 / 15%)' }} />
+              <Tooltip content={<CustomTooltip />} cursor={lineCursor} />
               {active.map((d) => (
                 <Line
                   key={d.driver.ref}

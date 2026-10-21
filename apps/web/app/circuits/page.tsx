@@ -3,7 +3,7 @@ import { Suspense } from 'react'
 import { api } from '@/lib/api'
 import type { Circuit, PaginatedResponse } from '@/lib/types'
 import { CountryFlag } from '@/components/ui/country-flag'
-import { PageHeader } from '@/components/ui/page-header'
+import { PageHero } from '@/components/ui/page-hero'
 import {
   Table,
   TableBody,
@@ -38,7 +38,9 @@ export default async function CircuitsPage({
 
   const [circuitsResponse, allCircuitsResponse, countriesResult] = await Promise.allSettled([
     api.circuits.list(page, pageSize, country) as Promise<PaginatedResponse<Circuit>>,
-    api.circuits.list(1, 1000) as Promise<PaginatedResponse<Circuit>>,
+    // Every circuit for the map. 200 is the API's page-size ceiling (a larger
+    // value is a 422, which left the map empty); f1db has well under that.
+    api.circuits.list(1, 200) as Promise<PaginatedResponse<Circuit>>,
     api.circuits.countries(),
   ])
 
@@ -68,7 +70,8 @@ export default async function CircuitsPage({
 
   return (
     <div className="space-y-6">
-      <PageHeader
+      <PageHero
+        eyebrow="Venues"
         title="Circuits"
         description={`${total} circuits${country ? ` in ${country}` : ' across F1 history'}`}
       />

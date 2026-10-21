@@ -8,6 +8,7 @@ import {
   ResponsiveContainer,
   Tooltip,
 } from 'recharts'
+import { axisProps, sideColor } from '@/lib/chart-theme'
 import type { RadarStats } from '@/lib/types'
 
 const STAT_LABELS: Record<keyof RadarStats, string> = {
@@ -28,16 +29,7 @@ function CustomTooltip({
   if (!active || !payload?.length) return null
 
   return (
-    <div
-      className="rounded-xl px-3 py-2"
-      style={{
-        backgroundColor: 'oklch(0.13 0.003 250 / 90%)',
-        border: '1px solid oklch(1 0 0 / 10%)',
-        color: 'oklch(0.95 0 0)',
-        boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
-        backdropFilter: 'blur(12px)',
-      }}
-    >
+    <div className="chart-tooltip">
       {payload.map((entry) => (
         <div key={entry.dataKey} className="flex items-center gap-2">
           <span
@@ -68,8 +60,8 @@ export function DriverRadarChart({
   driver2Name,
   driver1Radar,
   driver2Radar,
-  color1 = '#E8002D',
-  color2 = '#3B82F6',
+  color1 = sideColor('a'),
+  color2 = sideColor('b'),
 }: DriverRadarChartProps) {
   const data = Object.keys(STAT_LABELS).map((key) => ({
     stat: STAT_LABELS[key as keyof RadarStats],
@@ -81,8 +73,8 @@ export function DriverRadarChart({
     <div className="h-80 w-full" role="img" aria-label="Driver comparison radar chart">
       <ResponsiveContainer width="100%" height="100%">
         <RadarChart data={data} cx="50%" cy="50%" outerRadius="75%">
-          <PolarGrid stroke="oklch(1 0 0 / 10%)" />
-          <PolarAngleAxis dataKey="stat" tick={{ fontSize: 11, fill: 'oklch(0.6 0 0)' }} />
+          <PolarGrid stroke="var(--hairline-strong)" />
+          <PolarAngleAxis dataKey="stat" {...axisProps} />
           <Radar
             name={driver1Name}
             dataKey={driver1Name}
@@ -90,7 +82,6 @@ export function DriverRadarChart({
             fill={color1}
             fillOpacity={0.15}
             strokeWidth={2}
-            style={{ filter: `drop-shadow(0 0 4px ${color1}80)` }}
           />
           <Radar
             name={driver2Name}
@@ -99,7 +90,6 @@ export function DriverRadarChart({
             fill={color2}
             fillOpacity={0.15}
             strokeWidth={2}
-            style={{ filter: `drop-shadow(0 0 4px ${color2}80)` }}
           />
           <Tooltip content={<CustomTooltip />} />
         </RadarChart>

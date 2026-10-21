@@ -1,5 +1,5 @@
 import { Skeleton } from '@/components/ui/skeleton'
-import { Card, CardContent, CardHeader } from '@/components/ui/card'
+import { Panel, PanelContent, PanelHeader } from '@/components/ui/panel'
 
 export default function HomeLoading() {
   return (
@@ -13,52 +13,51 @@ export default function HomeLoading() {
             <Skeleton className="h-6 w-96" />
           </div>
         </div>
-        <div className="accent-line" />
       </div>
 
       {/* Stat cards skeleton */}
       <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
         {Array.from({ length: 5 }).map((_, i) => (
-          <Card key={i} className="gap-4 py-5">
+          <Panel key={i} className="gap-4 py-5">
             <div className="flex items-start justify-between px-5">
               <div className="space-y-2">
                 <Skeleton className="h-4 w-16" />
                 <Skeleton className="h-8 w-20" />
               </div>
-              <Skeleton className="h-9 w-9 rounded-lg" />
+              <Skeleton className="h-9 w-9" />
             </div>
-          </Card>
+          </Panel>
         ))}
       </div>
 
       {/* Standings skeleton */}
       <div className="grid gap-6 md:grid-cols-2">
         {Array.from({ length: 2 }).map((_, i) => (
-          <Card key={i}>
-            <CardHeader className="flex-row items-center justify-between">
+          <Panel key={i}>
+            <PanelHeader className="flex-row items-center justify-between">
               <Skeleton className="h-6 w-40" />
               <Skeleton className="h-4 w-20" />
-            </CardHeader>
-            <CardContent className="space-y-3">
+            </PanelHeader>
+            <PanelContent className="space-y-3">
               {Array.from({ length: 5 }).map((_, j) => (
                 <Skeleton key={j} className="h-8 w-full" />
               ))}
-            </CardContent>
-          </Card>
+            </PanelContent>
+          </Panel>
         ))}
       </div>
 
       {/* Calendar skeleton */}
-      <Card>
-        <CardHeader>
+      <Panel>
+        <PanelHeader>
           <Skeleton className="h-6 w-32" />
-        </CardHeader>
-        <CardContent className="space-y-3">
+        </PanelHeader>
+        <PanelContent className="space-y-3">
           {Array.from({ length: 6 }).map((_, i) => (
             <Skeleton key={i} className="h-8 w-full" />
           ))}
-        </CardContent>
-      </Card>
+        </PanelContent>
+      </Panel>
     </div>
   )
 }

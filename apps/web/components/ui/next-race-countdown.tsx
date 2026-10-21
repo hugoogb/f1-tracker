@@ -45,16 +45,16 @@ export function NextRaceCountdown({ race, seasonYear }: NextRaceCountdownProps) 
   const href = `/seasons/${seasonYear}/races/${race.round}`
 
   return (
-    <div className="glass hover:border-primary/30 rounded-xl border transition-colors">
+    <div className="brackets bg-surface-1 border-hairline border">
       <div className="flex flex-col gap-5 p-5 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-1.5">
-          <p className="text-muted-foreground flex items-center gap-1.5 text-xs font-medium tracking-widest uppercase">
+          <p className="label flex items-center gap-1.5">
             <CalendarClock className="h-3.5 w-3.5" />
             Next Up — Round {race.round}
           </p>
           <Link
             href={href}
-            className="hover:text-primary block text-lg font-bold transition-colors"
+            className="display hover:text-primary focus-ring block text-3xl transition-colors"
           >
             {race.name}
           </Link>
@@ -71,7 +71,7 @@ export function NextRaceCountdown({ race, seasonYear }: NextRaceCountdownProps) 
         </div>
 
         <div className="space-y-2 sm:text-right">
-          <p className="text-muted-foreground text-xs tracking-wider uppercase">
+          <p className="label">
             {upcoming ? upcoming.label : 'Race day'}
             {upcoming && (
               <>
@@ -89,14 +89,12 @@ export function NextRaceCountdown({ race, seasonYear }: NextRaceCountdownProps) 
             ].map(({ value, label }) => (
               <div key={label} className="text-center">
                 <span
-                  className="font-heading text-foreground block text-2xl font-bold tabular-nums sm:text-3xl"
+                  className="display text-foreground block text-4xl tabular-nums sm:text-5xl"
                   suppressHydrationWarning
                 >
                   {value === undefined ? '--' : String(value).padStart(2, '0')}
                 </span>
-                <span className="text-muted-foreground text-[10px] tracking-wider uppercase">
-                  {label}
-                </span>
+                <span className="label">{label}</span>
               </div>
             ))}
           </div>
@@ -104,7 +102,7 @@ export function NextRaceCountdown({ race, seasonYear }: NextRaceCountdownProps) 
       </div>
 
       {sessions.length > 0 && (
-        <ul className="flex flex-wrap gap-x-5 gap-y-2 border-t border-[var(--glass-border)] px-5 py-3">
+        <ul className="border-hairline flex flex-wrap gap-x-5 gap-y-2 border-t px-5 py-3">
           {sessions.map((session) => {
             const done = now !== null && Date.parse(session.at) <= now
             const isNext = upcoming?.key === session.key
@@ -113,8 +111,8 @@ export function NextRaceCountdown({ race, seasonYear }: NextRaceCountdownProps) 
                 key={session.key}
                 suppressHydrationWarning
                 className={cn(
-                  'flex items-baseline gap-1.5 text-xs',
-                  done && 'text-muted-foreground/50 line-through',
+                  'font-data flex items-baseline gap-1.5 text-xs',
+                  done && 'text-label line-through',
                   isNext && 'text-primary font-semibold',
                   !done && !isNext && 'text-muted-foreground',
                 )}

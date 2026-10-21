@@ -39,7 +39,10 @@ export function DriverStandingsTable({ standings, limit }: DriverStandingsTableP
           const teamColor = entry.constructor ? teamColorOf(entry.constructor.color, null) : null
 
           return (
-            <TableRow key={entry.driver.ref}>
+            <TableRow
+              key={entry.driver.ref}
+              highlight={entry.position === 1 ? 'leader' : undefined}
+            >
               <TableCell>
                 <PositionBadge position={entry.position} size="sm" />
               </TableCell>

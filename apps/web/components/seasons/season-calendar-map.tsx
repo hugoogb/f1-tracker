@@ -42,6 +42,8 @@ import {
   type StopStatus,
 } from './season-calendar-model'
 import styles from './season-calendar-map.module.css'
+import { buttonVariants } from '@/components/ui/button-variants'
+import { liveryStyle } from '@/lib/livery'
 
 export type SeasonCalendarVariant = 'season' | 'home'
 
@@ -316,7 +318,7 @@ export function SeasonCalendarMap({ year, rounds, variant }: SeasonCalendarMapPr
 
   if (stops.length === 0) {
     return (
-      <p className="text-muted-foreground rounded-xl border border-[var(--glass-border)] p-6 text-sm">
+      <p className="text-muted-foreground border-hairline border p-6 text-sm">
         No circuit coordinates are available for this season.
       </p>
     )
@@ -338,9 +340,9 @@ export function SeasonCalendarMap({ year, rounds, variant }: SeasonCalendarMapPr
         variant={variant}
       />
 
-      <div className="relative">
+      <div className="brackets relative isolate [&::after]:z-[1001] [&::before]:z-[1001]">
         <div
-          className="relative h-[340px] w-full overflow-hidden rounded-xl border border-[var(--glass-border)] sm:h-[440px] lg:h-[520px]"
+          className="border-hairline relative h-[340px] w-full overflow-hidden border sm:h-[440px] lg:h-[520px]"
           role="region"
           aria-label={`${year} season calendar map`}
         >
@@ -354,7 +356,7 @@ export function SeasonCalendarMap({ year, rounds, variant }: SeasonCalendarMapPr
             onSelect={select}
           />
           {/* Vignette: pulls the eye to the middle, hides the hard map edge. */}
-          <div className="pointer-events-none absolute inset-0 z-[400] rounded-xl shadow-[inset_0_0_80px_30px_rgba(0,0,0,0.55)]" />
+          <div className="pointer-events-none absolute inset-0 z-[400] shadow-[inset_0_0_80px_30px_var(--surface-0)]" />
           <EnRoute stops={stops} legs={legs} playhead={playhead} />
           <div className="absolute top-3 right-3 z-[1000] hidden md:block">
             <Legend inProgress={inProgress} />
@@ -513,19 +515,17 @@ function Stat({
   live?: boolean
 }) {
   return (
-    <div className="glass min-w-0 rounded-xl px-3 py-2.5">
-      <dt className="text-muted-foreground truncate text-[10px] font-medium tracking-widest uppercase">
-        {label}
-      </dt>
+    <div className="brackets bg-surface-1 border-hairline min-w-0 border px-3 py-2.5">
+      <dt className="label truncate">{label}</dt>
       <dd
         className={cn(
-          'font-heading truncate text-lg font-bold tabular-nums sm:text-xl',
+          'font-data truncate text-lg font-semibold tabular-nums sm:text-xl',
           live && 'text-foreground',
         )}
       >
         {value}
       </dd>
-      {hint && <dd className="text-muted-foreground truncate text-[11px]">{hint}</dd>}
+      {hint && <dd className="text-muted-foreground text-2xs truncate">{hint}</dd>}
     </div>
   )
 }
@@ -548,7 +548,7 @@ function EnRoute({
   const leg = legs[from + 1]
   return (
     <div className="pointer-events-none absolute bottom-3 left-1/2 z-[1000] max-w-[calc(100%-1.5rem)] -translate-x-1/2">
-      <div className="flex items-center gap-2 rounded-full border border-white/10 bg-black/70 px-3 py-1.5 text-xs whitespace-nowrap shadow-lg backdrop-blur">
+      <div className="bg-surface-1 border-hairline-strong font-data flex items-center gap-2 border px-3 py-1.5 text-xs whitespace-nowrap">
         <Plane className="text-primary h-3.5 w-3.5 shrink-0" />
         <span className="truncate">
           {placeName(stops[from])} <span className="text-muted-foreground">→</span>{' '}
@@ -576,7 +576,7 @@ function Legend({ inProgress }: { inProgress: boolean }) {
   // the same thing and a legend would only be noise.
   if (!inProgress) return null
   return (
-    <ul className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg bg-black/55 px-2.5 py-1.5 text-[11px] backdrop-blur md:border md:border-white/10">
+    <ul className="bg-surface-1/90 text-2xs font-data md:border-hairline flex flex-wrap items-center gap-x-3 gap-y-1 px-2.5 py-1.5 md:border">
       {LEGEND.map(({ status, label }) => (
         <li key={status} className="flex items-center gap-1.5">
           <span
@@ -612,10 +612,7 @@ function RoundCard({
   const color = round.winner?.constructor?.color ?? null
 
   return (
-    <div
-      className="overflow-hidden rounded-xl border border-white/10 bg-[oklch(0.11_0.003_250/0.88)] shadow-2xl backdrop-blur-md"
-      style={color ? { boxShadow: `0 20px 50px -20px ${color}66` } : undefined}
-    >
+    <div className="brackets bg-surface-1 border-hairline-strong border" style={liveryStyle(color)}>
       <div
         className="h-1 w-full"
         style={{
@@ -627,18 +624,16 @@ function RoundCard({
       <div className="flex gap-3 p-4">
         <div className="min-w-0 flex-1 space-y-1.5">
           <div className="flex items-center gap-2">
-            <span className="bg-primary/15 text-primary rounded-md px-1.5 py-0.5 font-mono text-[10px] font-bold tracking-wider">
+            <span className="skew-tag bg-primary text-primary-foreground font-data text-2xs px-1.5 py-0.5 font-bold tracking-wider">
               R{round.round}
             </span>
             {status === 'next' && (
-              <span className="rounded-md bg-white/10 px-1.5 py-0.5 text-[10px] font-semibold tracking-wider whitespace-nowrap uppercase">
+              <span className="label bg-surface-3 text-foreground px-1.5 py-0.5 whitespace-nowrap">
                 Next race
               </span>
             )}
             {status === 'previous' && (
-              <span className="text-muted-foreground rounded-md bg-white/5 px-1.5 py-0.5 text-[10px] font-semibold tracking-wider whitespace-nowrap uppercase">
-                Last race
-              </span>
+              <span className="label bg-surface-2 px-1.5 py-0.5 whitespace-nowrap">Last race</span>
             )}
             <span className="text-muted-foreground ml-auto text-xs tabular-nums">
               {round.schedule.race ? (
@@ -673,15 +668,15 @@ function RoundCard({
         )}
       </div>
 
-      <div className="border-t border-white/5 px-4 py-3">
+      <div className="border-hairline border-t px-4 py-3">
         {raced && round.winner ? (
           <div className="flex items-center gap-2.5">
             <span
-              className="h-8 w-1 shrink-0 rounded-full"
+              className="h-8 w-1 shrink-0 -skew-x-12"
               style={{ backgroundColor: color ?? 'var(--muted-foreground)' }}
             />
             <div className="min-w-0">
-              <p className="text-muted-foreground text-[10px] tracking-widest uppercase">Winner</p>
+              <p className="label">Winner</p>
               <p className="truncate text-sm font-semibold">
                 {round.winner.driver.firstName} {round.winner.driver.lastName}
                 {round.winner.constructor && (
@@ -701,7 +696,7 @@ function RoundCard({
         )}
       </div>
 
-      <div className="flex items-center justify-between gap-2 border-t border-white/5 px-4 py-2.5">
+      <div className="border-hairline flex items-center justify-between gap-2 border-t px-4 py-2.5">
         <Link
           href={href}
           className="text-primary hover:text-primary/80 inline-flex items-center gap-1 text-xs font-semibold transition-colors"
@@ -712,7 +707,7 @@ function RoundCard({
         <button
           type="button"
           onClick={onClose}
-          className="text-muted-foreground hover:text-foreground focus-visible:ring-ring rounded-md p-1 transition-colors focus-visible:ring-2 focus-visible:outline-none"
+          className="text-muted-foreground hover:text-foreground focus-visible:ring-ring p-1 transition-colors focus-visible:ring-2 focus-visible:outline-none"
           aria-label="Close round card"
         >
           <X className="h-3.5 w-3.5" />
@@ -723,11 +718,11 @@ function RoundCard({
 }
 
 const DOT_COLOR: Record<StopStatus, string> = {
-  completed: 'bg-zinc-500',
-  previous: 'bg-white',
+  completed: 'bg-label',
+  previous: 'bg-foreground',
   next: 'bg-primary',
   future: 'border border-primary/70 bg-transparent',
-  unknown: 'border border-white/40 bg-transparent',
+  unknown: 'border border-hairline-strong bg-transparent',
 }
 
 function Controls({
@@ -764,10 +759,10 @@ function Controls({
   const replay = !playing && parked >= lastIndex
   const currentStop = stops[current]
   const buttonClass =
-    'focus-visible:ring-ring inline-flex size-9 shrink-0 items-center justify-center rounded-lg border border-[var(--glass-border)] bg-[var(--surface-1)] text-foreground transition-colors hover:bg-[var(--surface-2)] focus-visible:ring-2 focus-visible:outline-none disabled:opacity-40'
+    'focus-ring border-hairline-strong bg-surface-1 text-foreground hover:bg-surface-2 inline-flex size-9 shrink-0 items-center justify-center border transition-colors disabled:opacity-40'
 
   return (
-    <div className="glass flex flex-col gap-3 rounded-xl p-3 md:flex-row md:items-center">
+    <div className="brackets bg-surface-1 border-hairline flex flex-col gap-3 border p-3 md:flex-row md:items-center">
       <div className="flex flex-wrap items-center gap-2">
         <button
           type="button"
@@ -780,7 +775,7 @@ function Controls({
         <button
           type="button"
           onClick={onToggle}
-          className="bg-primary text-primary-foreground hover:bg-primary/90 focus-visible:ring-ring inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg px-3.5 text-sm font-semibold shadow-[0_0_20px_oklch(0.55_0.25_27/35%)] transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-black focus-visible:outline-none"
+          className={buttonVariants({ size: 'lg' })}
           aria-label={playing ? 'Pause' : replay ? 'Replay the season' : 'Play the season'}
         >
           {playing ? (
@@ -821,7 +816,7 @@ function Controls({
           atEnd={atEnd}
           onSeek={onSeek}
         />
-        <div className="text-muted-foreground mt-0.5 flex items-center justify-between gap-2 text-[11px]">
+        <div className="font-data text-muted-foreground text-2xs mt-0.5 flex items-center justify-between gap-2">
           <span className="tabular-nums">R{stops[0]?.round.round}</span>
           <span className="text-foreground/80 min-w-0 truncate text-center">
             {atEnd ? (
@@ -866,7 +861,7 @@ function SpeedPicker({
     <div
       role="group"
       aria-label="Playback speed"
-      className="flex rounded-lg border border-[var(--glass-border)] bg-[var(--surface-1)] p-0.5"
+      className="border-hairline-strong bg-surface-1 flex border p-0.5"
       title={disabled ? 'Reduced motion: transitions are instant' : undefined}
     >
       {SPEEDS.map((value) => (
@@ -876,9 +871,9 @@ function SpeedPicker({
           aria-pressed={speed === value}
           onClick={() => onSpeed(value)}
           className={cn(
-            'focus-visible:ring-ring rounded-md px-2 py-1 text-xs font-semibold tabular-nums transition-colors focus-visible:ring-2 focus-visible:outline-none',
+            'focus-ring font-data px-2 py-1 text-xs font-semibold tabular-nums transition-colors',
             speed === value
-              ? 'text-foreground bg-white/10'
+              ? 'bg-primary text-primary-foreground'
               : 'text-muted-foreground hover:text-foreground',
           )}
         >
@@ -915,18 +910,29 @@ function Timeline({
     <div className="relative">
       {/* Inset by the thumb's radius so dot i sits exactly under value i. */}
       <div className="pointer-events-none absolute inset-y-0 right-[9px] left-[9px]">
-        <div className="absolute top-1/2 right-0 left-0 h-1 -translate-y-1/2 rounded-full bg-white/10" />
-        <div
-          className="from-primary/60 to-primary absolute top-1/2 left-0 h-1 -translate-y-1/2 rounded-full bg-gradient-to-r"
-          style={{ width: `${(Math.min(pos, last) / last) * 100}%` }}
-        />
+        {/* One skewed segment per leg, filled as the playhead flies it. */}
+        {Array.from({ length: last }, (_, i) => (
+          <span
+            key={i}
+            className="bg-surface-3 absolute top-1/2 h-1.5 -translate-y-1/2 -skew-x-[20deg] overflow-hidden"
+            style={{
+              left: `calc(${(i / last) * 100}% + 1px)`,
+              width: `calc(${100 / last}% - 2px)`,
+            }}
+          >
+            <span
+              className="bg-primary block h-full"
+              style={{ width: `${Math.min(Math.max(pos - i, 0), 1) * 100}%` }}
+            />
+          </span>
+        ))}
         {stops.map((s) => (
           <span
             key={s.index}
             className={cn(
-              'absolute top-1/2 size-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full',
+              'absolute top-1/2 h-3 w-1 -translate-x-1/2 -translate-y-1/2',
               DOT_COLOR[s.status],
-              s.status === 'next' && 'size-2 shadow-[0_0_8px_var(--primary)]',
+              s.status === 'next' && 'h-4 motion-safe:animate-pulse',
             )}
             style={{ left: `${(s.index / last) * 100}%` }}
           />

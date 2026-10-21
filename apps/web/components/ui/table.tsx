@@ -8,11 +8,11 @@ function Table({ className, ...props }: React.ComponentProps<'table'>) {
   return (
     <div
       data-slot="table-container"
-      className="relative w-full overflow-x-auto rounded-xl border border-[oklch(1_0_0/6%)]"
+      className="border-hairline bg-surface-1 relative w-full overflow-x-auto border"
     >
       <table
         data-slot="table"
-        className={cn('w-full caption-bottom text-sm', className)}
+        className={cn('font-data w-full caption-bottom text-sm tabular-nums', className)}
         {...props}
       />
     </div>
@@ -23,7 +23,10 @@ function TableHeader({ className, ...props }: React.ComponentProps<'thead'>) {
   return (
     <thead
       data-slot="table-header"
-      className={cn('bg-[oklch(1_0_0/3%)] [&_tr]:border-b', className)}
+      className={cn(
+        'bg-surface-2 [&_tr]:border-hairline [&_tr]:border-b [&_tr]:border-solid',
+        className,
+      )}
       {...props}
     />
   )
@@ -43,18 +46,32 @@ function TableFooter({ className, ...props }: React.ComponentProps<'tfoot'>) {
   return (
     <tfoot
       data-slot="table-footer"
-      className={cn('bg-muted/50 border-t font-medium [&>tr]:last:border-b-0', className)}
+      className={cn(
+        'bg-surface-2 border-hairline border-t font-medium [&>tr]:last:border-b-0',
+        className,
+      )}
       {...props}
     />
   )
 }
 
-function TableRow({ className, ...props }: React.ComponentProps<'tr'>) {
+/**
+ * `highlight="leader"` paints the broadcast slab — the red leader/winner row.
+ * Use it for at most one row per table.
+ */
+function TableRow({
+  className,
+  highlight,
+  ...props
+}: React.ComponentProps<'tr'> & { highlight?: 'leader' }) {
   return (
     <tr
       data-slot="table-row"
+      data-highlight={highlight}
       className={cn(
-        'border-border/40 border-b transition-colors duration-150 hover:bg-[oklch(1_0_0/4%)] data-[state=selected]:bg-[oklch(1_0_0/6%)]',
+        'border-hairline hover:bg-surface-2 data-[state=selected]:bg-surface-2 border-b border-dashed transition-colors duration-150',
+        highlight === 'leader' &&
+          'bg-primary/15 hover:bg-primary/20 [&>td:first-child]:shadow-[inset_3px_0_0_var(--primary)]',
         className,
       )}
       {...props}
@@ -67,7 +84,7 @@ function TableHead({ className, ...props }: React.ComponentProps<'th'>) {
     <th
       data-slot="table-head"
       className={cn(
-        'text-muted-foreground h-11 px-4 text-left align-middle text-xs font-semibold tracking-wider whitespace-nowrap uppercase [&:has([role=checkbox])]:pr-0',
+        'label h-10 px-4 text-left align-middle font-semibold whitespace-nowrap [&:has([role=checkbox])]:pr-0',
         className,
       )}
       {...props}

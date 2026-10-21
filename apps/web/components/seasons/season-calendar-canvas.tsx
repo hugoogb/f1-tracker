@@ -7,6 +7,7 @@ import {
   GeoJSON,
   MapContainer,
   Marker,
+  Pane,
   Polyline,
   Tooltip,
   ZoomControl,
@@ -15,6 +16,7 @@ import {
 import type { FeatureCollection } from 'geojson'
 import 'leaflet/dist/leaflet.css'
 import { LocalDate } from '@/components/ui/local-date'
+import { MAP_INK, MAP_LAND, MAP_NEUTRAL, MAP_RED, MAP_RED_HOT } from '@/lib/map-theme'
 import { normaliseLng, pathPrefix, pointAlong, splitAtAntimeridian, type LatLng } from '@/lib/geo'
 import type { CalendarCamera, CalendarLeg, CalendarStop, Playhead } from './season-calendar-model'
 import styles from './season-calendar-map.module.css'
@@ -34,15 +36,15 @@ function loadWorld(): Promise<FeatureCollection | null> {
   return worldPromise
 }
 
-const landStyle = {
-  fillColor: '#18181b',
-  fillOpacity: 1,
-  color: '#2c2c31',
-  weight: 0.6,
-}
+// The land arrives after a fetch, so in the shared overlay SVG it would be
+// appended after the routes and paint over them. Its own pane, below the
+// overlay pane (400), keeps it underneath whenever it lands.
+const LAND_PANE = 'calendar-land'
 
-const RED = '#E10600'
-const RED_HOT = '#ff3b2f'
+const landStyle = MAP_LAND
+
+const RED = MAP_RED
+const RED_HOT = MAP_RED_HOT
 
 const MARKER_SIZE = 24
 const GLYPH_SIZE = 22
@@ -85,6 +87,13 @@ export function SeasonCalendarCanvas({
   // would be clipped to the frame the flight started from. A generous padding
   // keeps the continents drawn while the camera moves.
   const renderer = useMemo(() => L.svg({ padding: 1.5 }), [])
+  // A pane's default renderer would fall back to Leaflet's 0.1 padding. GeoJSON
+  // hands its options to every polygon it builds, `renderer` included; only
+  // react-leaflet's types leave it out.
+  const landOptions = useMemo(
+    () => ({ renderer: L.svg({ padding: 1.5, pane: LAND_PANE }) }) as Record<string, unknown>,
+    [],
+  )
 
   return (
     <MapContainer
@@ -107,7 +116,11 @@ export function SeasonCalendarCanvas({
       maxBoundsViscosity={0.8}
       className={`${styles.map} h-full w-full`}
     >
-      {world && <GeoJSON data={world} style={() => landStyle} interactive={false} />}
+      <Pane name={LAND_PANE} style={{ zIndex: '250' }}>
+        {world && (
+          <GeoJSON {...landOptions} data={world} style={() => landStyle} interactive={false} />
+        )}
+      </Pane>
       <ZoomControl position="bottomright" />
       <CameraController camera={camera} stops={stops} legs={legs} />
       <Route legs={legs} />
@@ -200,7 +213,7 @@ const Route = memo(function Route({ legs }: { legs: (CalendarLeg | null)[] }) {
     <Polyline
       positions={runs}
       interactive={false}
-      pathOptions={{ color: '#ffffff', opacity: 0.28, weight: 1.4, className: styles.route }}
+      pathOptions={{ color: MAP_INK, opacity: 0.28, weight: 1.4, className: styles.route }}
     />
   )
 })
@@ -237,7 +250,7 @@ function glyphIcon() {
     iconSize: [GLYPH_SIZE, GLYPH_SIZE],
     iconAnchor: [GLYPH_SIZE / 2, GLYPH_SIZE / 2],
     // A navigation arrow pointing north; rotated to the heading every frame.
-    html: `<div class="${styles.glyph}"><div class="${styles.glyphHalo}"></div><svg class="${styles.glyphArrow}" viewBox="0 0 24 24" width="${GLYPH_SIZE}" height="${GLYPH_SIZE}" aria-hidden="true"><path d="M12 2 L20 21 L12 16.5 L4 21 Z" fill="#ffffff" stroke="${RED}" stroke-width="1.6" stroke-linejoin="round"/></svg></div>`,
+    html: `<div class="${styles.glyph}"><div class="${styles.glyphHalo}"></div><svg class="${styles.glyphArrow}" viewBox="0 0 24 24" width="${GLYPH_SIZE}" height="${GLYPH_SIZE}" aria-hidden="true"><path d="M12 2 L20 21 L12 16.5 L4 21 Z" fill="${MAP_INK}" stroke="${RED}" stroke-width="1.6" stroke-linejoin="round"/></svg></div>`,
   })
 }
 
@@ -318,7 +331,7 @@ function ActiveLeg({
         ref={coreRef}
         positions={[]}
         interactive={false}
-        pathOptions={{ color: '#ffffff', opacity: 0.95, weight: 2.2, lineCap: 'round' }}
+        pathOptions={{ color: MAP_INK, opacity: 0.95, weight: 2.2, lineCap: 'round' }}
       />
       <Marker
         ref={glyphRef}
@@ -432,7 +445,7 @@ function StopMarker({
     >
       <Tooltip direction="top" offset={[0, -MARKER_SIZE / 2 - 2]} className={styles.tooltip}>
         <div className="space-y-0.5 text-xs">
-          <div className="text-muted-foreground font-mono text-[10px] tracking-wider uppercase">
+          <div className="label">
             Round {round.round}
             {round.date && (
               <>
@@ -445,8 +458,8 @@ function StopMarker({
           {round.winner ? (
             <div className="flex items-center gap-1.5">
               <span
-                className="inline-block h-3 w-1 rounded-full"
-                style={{ backgroundColor: round.winner.constructor?.color ?? '#888' }}
+                className="inline-block h-3 w-1"
+                style={{ backgroundColor: round.winner.constructor?.color ?? MAP_NEUTRAL }}
               />
               <span>
                 {round.winner.driver.firstName} {round.winner.driver.lastName}

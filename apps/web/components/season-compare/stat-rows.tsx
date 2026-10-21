@@ -1,5 +1,5 @@
 import type { SeasonCompareAggregateKey, SeasonCompareResponse } from '@/lib/types'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Panel, PanelContent, PanelHeader, PanelTitle } from '@/components/ui/panel'
 import { cn } from '@/lib/utils'
 import { DeltaChip, type Better } from './delta-chip'
 import { formatPoints, signed, type SideInfo } from './sides'
@@ -47,16 +47,16 @@ export function StatRows({
   const pace = data.racePace
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Season Stats</CardTitle>
+    <Panel>
+      <PanelHeader>
+        <PanelTitle>Season Stats</PanelTitle>
         {perCar && (
           <p className="text-muted-foreground text-xs">
             Totals count every car: two podiums in one race are two podiums.
           </p>
         )}
-      </CardHeader>
-      <CardContent className="space-y-0 divide-y">
+      </PanelHeader>
+      <PanelContent className="space-y-0 divide-y">
         {STATS.map(({ key, label, better, digits }) => {
           const { a: va, b: vb, delta } = data.aggregates[key]
           const aBetter =
@@ -134,8 +134,8 @@ export function StatRows({
             />
           }
         />
-      </CardContent>
-    </Card>
+      </PanelContent>
+    </Panel>
   )
 }
 
@@ -160,7 +160,7 @@ function StatRow({
     <div className="grid grid-cols-[1fr_minmax(7rem,auto)_1fr] items-center gap-3 py-3">
       <span
         className={cn(
-          'font-heading text-right text-xl font-bold tabular-nums',
+          'display text-right text-xl tabular-nums',
           !leftColor && 'text-muted-foreground',
         )}
         style={leftColor ? { color: leftColor } : undefined}
@@ -172,13 +172,10 @@ function StatRow({
           {label}
         </span>
         {chip}
-        {note && <span className="text-muted-foreground/70 text-[10px] leading-tight">{note}</span>}
+        {note && <span className="text-muted-foreground text-2xs leading-tight">{note}</span>}
       </div>
       <span
-        className={cn(
-          'font-heading text-xl font-bold tabular-nums',
-          !rightColor && 'text-muted-foreground',
-        )}
+        className={cn('display text-xl tabular-nums', !rightColor && 'text-muted-foreground')}
         style={rightColor ? { color: rightColor } : undefined}
       >
         {right}

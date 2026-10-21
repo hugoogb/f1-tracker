@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { MapPin, Star } from 'lucide-react'
 
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Panel, PanelAction, PanelContent, PanelHeader, PanelTitle } from '@/components/ui/panel'
 import { ConstructorLogo } from '@/components/ui/constructor-logo'
 import { DriverAvatar } from '@/components/ui/driver-avatar'
 import { nameParts, useFavourites, type Favourite } from '@/lib/favourites'
@@ -38,26 +38,28 @@ export function FavouritesSummary() {
   const remaining = items.length - preview.length
 
   return (
-    <Card>
-      <CardHeader className="flex-row items-center justify-between">
-        <CardTitle className="flex items-center gap-2">
-          <Star className="h-4 w-4 fill-current text-amber-400" />
-          Your Favourites
-        </CardTitle>
-        <Link
-          href="/favourites"
-          className="text-primary hover:text-primary/80 text-sm font-medium transition-colors"
-        >
-          View all &rarr;
-        </Link>
-      </CardHeader>
-      <CardContent>
+    <Panel>
+      <PanelHeader>
+        <PanelTitle className="flex items-center gap-2">
+          <Star className="text-gold size-4 fill-current" aria-hidden />
+          Your favourites
+        </PanelTitle>
+        <PanelAction>
+          <Link
+            href="/favourites"
+            className="font-data text-primary hover:text-foreground focus-ring text-xs font-semibold tracking-wider uppercase"
+          >
+            View all
+          </Link>
+        </PanelAction>
+      </PanelHeader>
+      <PanelContent>
         <div className="flex flex-wrap gap-2">
           {preview.map((entry) => (
             <Link
               key={`${entry.type}:${entry.ref}`}
               href={hrefOf(entry)}
-              className="glass hover:border-primary/40 inline-flex items-center gap-2 rounded-full border border-[var(--glass-border)] py-1 pr-3 pl-1 text-sm font-medium transition-colors"
+              className="bg-surface-2 border-hairline hover:border-primary focus-ring inline-flex items-center gap-2 border py-1 pr-3 pl-1 text-sm font-medium transition-colors"
             >
               <EntityMark entry={entry} />
               {entry.name}
@@ -66,14 +68,14 @@ export function FavouritesSummary() {
           {remaining > 0 && (
             <Link
               href="/favourites"
-              className="text-muted-foreground hover:text-foreground inline-flex items-center rounded-full px-3 py-1 text-sm transition-colors"
+              className="text-muted-foreground hover:text-foreground focus-ring inline-flex items-center px-3 py-1 text-sm transition-colors"
             >
               +{remaining} more
             </Link>
           )}
         </div>
-      </CardContent>
-    </Card>
+      </PanelContent>
+    </Panel>
   )
 }
 
@@ -86,7 +88,7 @@ function EntityMark({ entry }: { entry: Favourite }) {
     return <ConstructorLogo name={entry.name} color={entry.color} size="sm" />
   }
   return (
-    <span className="bg-muted flex size-7 shrink-0 items-center justify-center rounded-full">
+    <span className="bg-surface-3 flex size-7 shrink-0 items-center justify-center">
       <MapPin className="text-muted-foreground h-3.5 w-3.5" />
     </span>
   )

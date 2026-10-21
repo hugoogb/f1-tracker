@@ -2,19 +2,21 @@ import Link from 'next/link'
 import type { LucideIcon } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
-import { Card } from '@/components/ui/card'
-import { AnimatedNumber, MotionCard } from '@/components/ui/motion'
+import { Panel } from '@/components/ui/panel'
+import { AnimatedNumber } from '@/components/ui/motion'
 
 interface StatCardProps {
   label: string
   value: number | string
   icon?: LucideIcon
   href?: string
+  /** A team colour: tints the brackets and the edge strip. */
   color?: string
   description?: string
   className?: string
 }
 
+/** A telemetry readout: label, one big display-type number, a footnote. */
 export function StatCard({
   label,
   value,
@@ -25,45 +27,33 @@ export function StatCard({
   className,
 }: StatCardProps) {
   const card = (
-    <Card
+    <Panel
+      size="sm"
+      accent={color}
       className={cn(
-        'glow-border relative gap-4 py-5 transition-all duration-200',
-        href && 'hover:border-primary/30 card-glow cursor-pointer',
+        'gap-1 px-4 py-4',
+        color && 'shadow-[inset_3px_0_0_var(--accent-livery)]',
+        href && 'hover:bg-surface-2 transition-colors',
         className,
       )}
     >
-      {color && (
-        <div
-          className="absolute top-0 left-0 h-full w-1 rounded-l-2xl"
-          style={{ backgroundColor: color }}
-        />
-      )}
-      <div className="flex items-start justify-between px-5">
-        <div className="space-y-1">
-          <p className="text-muted-foreground text-sm font-medium">{label}</p>
-          {typeof value === 'number' ? (
-            <AnimatedNumber
-              value={value}
-              className="font-heading text-3xl font-bold tracking-tight tabular-nums"
-            />
-          ) : (
-            <p className="font-heading text-3xl font-bold tracking-tight tabular-nums">{value}</p>
-          )}
-          {description && <p className="text-muted-foreground text-xs">{description}</p>}
-        </div>
-        {Icon && (
-          <div className="text-muted-foreground/50 rounded-lg border border-[var(--glass-border)] bg-[var(--glass-bg)] p-2 backdrop-blur">
-            <Icon className="h-5 w-5" />
-          </div>
-        )}
+      <div className="flex items-start justify-between gap-2">
+        <p className="label">{label}</p>
+        {Icon && <Icon className="text-label size-4" aria-hidden />}
       </div>
-    </Card>
+      {typeof value === 'number' ? (
+        <AnimatedNumber value={value} className="display text-4xl tabular-nums" />
+      ) : (
+        <p className="display text-4xl tabular-nums">{value}</p>
+      )}
+      {description && <p className="text-muted-foreground text-xs">{description}</p>}
+    </Panel>
   )
 
   if (href) {
     return (
-      <Link href={href}>
-        <MotionCard>{card}</MotionCard>
+      <Link href={href} className="focus-ring block">
+        {card}
       </Link>
     )
   }

@@ -1,3 +1,4 @@
+from collections import Counter, defaultdict
 from datetime import date
 
 from sqlalchemy import func, select
@@ -188,16 +189,26 @@ def get_driver_career_stats(db: Session, driver_id: str) -> dict:
     }
 
 
+def _contains(query: str) -> str:
+    """An ILIKE pattern matching `query` literally anywhere in a value.
+
+    `%` and `_` typed into the search box are characters to find, not
+    wildcards: unescaped, a search for "%%" matched every row.
+    """
+    escaped = query.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    return f"%{escaped}%"
+
+
 def search_drivers(db: Session, query: str, limit: int = 10) -> list[Driver]:
-    pattern = f"%{query}%"
+    pattern = _contains(query)
     return (
         db.execute(
             select(Driver)
             .where(
-                (Driver.first_name.ilike(pattern))
-                | (Driver.last_name.ilike(pattern))
-                | (Driver.code.ilike(pattern))
-                | (Driver.ref.ilike(pattern))
+                (Driver.first_name.ilike(pattern, escape="\\"))
+                | (Driver.last_name.ilike(pattern, escape="\\"))
+                | (Driver.code.ilike(pattern, escape="\\"))
+                | (Driver.ref.ilike(pattern, escape="\\"))
             )
             .limit(limit)
         )
@@ -207,11 +218,14 @@ def search_drivers(db: Session, query: str, limit: int = 10) -> list[Driver]:
 
 
 def search_constructors(db: Session, query: str, limit: int = 10) -> list[Constructor]:
-    pattern = f"%{query}%"
+    pattern = _contains(query)
     return (
         db.execute(
             select(Constructor)
-            .where((Constructor.name.ilike(pattern)) | (Constructor.ref.ilike(pattern)))
+            .where(
+                (Constructor.name.ilike(pattern, escape="\\"))
+                | (Constructor.ref.ilike(pattern, escape="\\"))
+            )
             .limit(limit)
         )
         .scalars()
@@ -220,20 +234,54 @@ def search_constructors(db: Session, query: str, limit: int = 10) -> list[Constr
 
 
 def search_circuits(db: Session, query: str, limit: int = 5) -> list[Circuit]:
-    pattern = f"%{query}%"
+    pattern = _contains(query)
     return (
         db.execute(
             select(Circuit)
             .where(
-                (Circuit.name.ilike(pattern))
-                | (Circuit.location.ilike(pattern))
-                | (Circuit.country.ilike(pattern))
+                (Circuit.name.ilike(pattern, escape="\\"))
+                | (Circuit.location.ilike(pattern, escape="\\"))
+                | (Circuit.country.ilike(pattern, escape="\\"))
             )
             .limit(limit)
         )
         .scalars()
         .all()
     )
+
+
+def search_seasons(db: Session, year: int) -> list[int]:
+    """`[year]` when that season exists, else nothing."""
+    found = db.execute(select(Season.year).where(Season.year == year)).scalar_one_or_none()
+    return [found] if found is not None else []
+
+
+def search_races(db: Session, text: str, year: int | None, limit: int = 5) -> list[Race]:
+    """Races matching `text`, newest season first.
+
+    Without a year only the race name counts: a circuit substring on its own
+    ("ham" in Francorchamps) would list every Belgian GP ahead of the driver
+    being looked for. With a year the circuit's name, town and country count
+    too ("monza 2023"), and a year with no text lists that whole calendar.
+    """
+    if not text and year is None:
+        return []
+    stmt = select(Race).join(Circuit, Race.circuit_id == Circuit.id)
+    if text:
+        pattern = _contains(text)
+        match = Race.name.ilike(pattern, escape="\\")
+        if year is not None:
+            match = (
+                match
+                | Circuit.name.ilike(pattern, escape="\\")
+                | Circuit.location.ilike(pattern, escape="\\")
+                | Circuit.country.ilike(pattern, escape="\\")
+            )
+        stmt = stmt.where(match)
+    if year is not None:
+        stmt = stmt.where(Race.season_year == year)
+    stmt = stmt.order_by(Race.season_year.desc(), Race.round.asc()).limit(limit)
+    return list(db.execute(stmt).scalars().all())
 
 
 def get_constructor_career_stats(db: Session, constructor_id: str) -> dict:
@@ -262,6 +310,49 @@ def get_constructor_career_stats(db: Session, constructor_id: str) -> dict:
         "podiums": podiums or 0,
         "total_points": float(total_points or 0),
     }
+
+
+def main_constructors(
+    db: Session, pairs: set[tuple[int, str]]
+) -> dict[tuple[int, str], Constructor]:
+    """The team each (season, driver) raced for most often; on a tie, the one they ended with.
+
+    Used wherever a driver is shown with "their" team for a season: a driver
+    can change teams mid-year, and the constructors' champion is a different
+    question altogether.
+    """
+    if not pairs:
+        return {}
+    driver_ids = {d for _, d in pairs}
+    years = {y for y, _ in pairs}
+    counts: dict[tuple[int, str], Counter] = defaultdict(Counter)
+    last: dict[tuple[int, str], tuple[int, str]] = {}
+    for year, rnd, driver_id, constructor_id in db.execute(
+        select(Race.season_year, Race.round, RaceResult.driver_id, RaceResult.constructor_id)
+        .join(Race, RaceResult.race_id == Race.id)
+        .where(RaceResult.driver_id.in_(driver_ids), Race.season_year.in_(years))
+    ).all():
+        key = (year, driver_id)
+        if key not in pairs:
+            continue
+        counts[key][constructor_id] += 1
+        if key not in last or rnd > last[key][0]:
+            last[key] = (rnd, constructor_id)
+
+    chosen: dict[tuple[int, str], str] = {}
+    for key, counter in counts.items():
+        best = max(counter.values())
+        tied = [cid for cid, n in counter.items() if n == best]
+        # On a tie, the team they finished the season with.
+        chosen[key] = last[key][1] if last[key][1] in tied else sorted(tied)[0]
+
+    constructors = {
+        c.id: c
+        for c in db.execute(select(Constructor).where(Constructor.id.in_(set(chosen.values()))))
+        .scalars()
+        .all()
+    }
+    return {key: constructors[cid] for key, cid in chosen.items() if cid in constructors}
 
 
 def get_season_champions(db: Session) -> list[dict]:
@@ -342,6 +433,12 @@ def get_season_champions(db: Session) -> list[dict]:
         )
         constructor_map = {c.id: c for c in constructors}
 
+    # The champion's own team, which is not necessarily the constructors'
+    # champion (2024: Verstappen at Red Bull, McLaren won the constructors').
+    driver_teams = main_constructors(
+        db, {(race_year_map[ds.race_id], ds.driver_id) for ds in driver_standings}
+    )
+
     # Build results
     champions = []
     for race in completed_races:
@@ -352,6 +449,7 @@ def get_season_champions(db: Session) -> list[dict]:
         driver = driver_map.get(ds.driver_id)
         cs = cs_by_race.get(race.id)
         constructor = constructor_map.get(cs.constructor_id) if cs else None
+        driver_team = driver_teams.get((race_year_map[race.id], ds.driver_id))
 
         champions.append(
             {
@@ -374,6 +472,14 @@ def get_season_champions(db: Session) -> list[dict]:
                 if constructor
                 else None,
                 "constructorPoints": cs.points if cs else None,
+                "driverConstructor": {
+                    "id": driver_team.id,
+                    "ref": driver_team.ref,
+                    "name": driver_team.name,
+                    "color": driver_team.color,
+                }
+                if driver_team
+                else None,
             }
         )
 
