@@ -11,6 +11,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
+import { NEUTRAL, axisProps, gridProps } from '@/lib/chart-theme'
 import { CountryFlag } from '@/components/ui/country-flag'
 import { DriverAvatar } from '@/components/ui/driver-avatar'
 import type { CircuitStats } from '@/lib/types'
@@ -29,16 +30,7 @@ function WinnersTooltip({
   const { payload: item } = payload[0]
 
   return (
-    <div
-      className="rounded-xl px-3 py-2"
-      style={{
-        backgroundColor: 'oklch(0.13 0.003 250 / 85%)',
-        border: '1px solid oklch(1 0 0 / 10%)',
-        color: 'oklch(0.95 0 0)',
-        boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
-        backdropFilter: 'blur(12px)',
-      }}
-    >
+    <div className="chart-tooltip">
       <p className="text-sm font-medium">{label}</p>
       <div className="mt-0.5 flex items-center gap-2">
         <span
@@ -69,7 +61,7 @@ export function CircuitStatsView({ stats }: CircuitStatsViewProps) {
     .map((w) => ({
       year: w.year,
       wins: 1,
-      color: w.winner.constructor.color ?? '#888888',
+      color: w.winner.constructor.color ?? NEUTRAL,
       driverName: `${w.winner.driver.firstName} ${w.winner.driver.lastName}`,
       constructorName: w.winner.constructor.name,
     }))
@@ -154,10 +146,10 @@ export function CircuitStatsView({ stats }: CircuitStatsViewProps) {
           <div className="h-48" role="img" aria-label="Circuit winners timeline">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={timelineData} margin={{ left: 0, right: 10, top: 5, bottom: 5 }}>
-                <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="oklch(1 0 0 / 6%)" />
+                <CartesianGrid {...gridProps} vertical={false} />
                 <XAxis
                   dataKey="year"
-                  tick={{ fontSize: 11, fill: 'oklch(0.6 0 0)' }}
+                  {...axisProps}
                   interval={Math.max(0, Math.floor(timelineData.length / 10) - 1)}
                 />
                 <YAxis hide />

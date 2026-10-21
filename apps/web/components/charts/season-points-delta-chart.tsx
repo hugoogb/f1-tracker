@@ -14,6 +14,15 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
+import {
+  NEUTRAL,
+  REFERENCE,
+  axisProps,
+  barCursor,
+  gridProps,
+  tooltipContentStyle,
+  tooltipLabelStyle,
+} from '@/lib/chart-theme'
 
 interface Side {
   name: string
@@ -27,17 +36,6 @@ interface RoundPoint {
   a: number
   b: number
   delta: number
-}
-
-const AXIS_TICK = { fontSize: 12, fill: 'oklch(0.6 0 0)' }
-const TOOLTIP_STYLE = {
-  backgroundColor: 'oklch(0.13 0.003 250 / 85%)',
-  border: '1px solid oklch(1 0 0 / 10%)',
-  borderRadius: '12px',
-  color: 'oklch(0.95 0 0)',
-  boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
-  backdropFilter: 'blur(12px)',
-  padding: '8px 12px',
 }
 
 function fmt(value: number): string {
@@ -72,11 +70,12 @@ export function SeasonPointsDeltaChart({
             syncId="season-compare"
             margin={{ left: 0, right: 20, top: 5, bottom: 5 }}
           >
-            <CartesianGrid strokeDasharray="3 3" stroke="oklch(1 0 0 / 6%)" />
-            <XAxis dataKey="round" tick={AXIS_TICK} />
-            <YAxis tick={AXIS_TICK} width={50} />
+            <CartesianGrid {...gridProps} />
+            <XAxis dataKey="round" {...axisProps} />
+            <YAxis {...axisProps} width={50} />
             <Tooltip
-              contentStyle={TOOLTIP_STYLE}
+              contentStyle={tooltipContentStyle}
+              labelStyle={tooltipLabelStyle}
               labelFormatter={(label, payload) => {
                 const race = payload?.[0]?.payload as RoundPoint | undefined
                 return `R${label}${race ? ` — ${race.raceName}` : ''}`
@@ -92,7 +91,6 @@ export function SeasonPointsDeltaChart({
               strokeWidth={2.5}
               dot={{ r: 2.5, strokeWidth: 0, fill: sideA.color }}
               activeDot={{ r: 5, strokeWidth: 2, stroke: 'var(--background)' }}
-              style={{ filter: `drop-shadow(0 0 6px ${sideA.color}66)` }}
             />
             <Line
               type="monotone"
@@ -102,7 +100,6 @@ export function SeasonPointsDeltaChart({
               strokeWidth={2.5}
               dot={{ r: 2.5, strokeWidth: 0, fill: sideB.color }}
               activeDot={{ r: 5, strokeWidth: 2, stroke: 'var(--background)' }}
-              style={{ filter: `drop-shadow(0 0 6px ${sideB.color}66)` }}
             />
           </LineChart>
         </ResponsiveContainer>
@@ -119,16 +116,17 @@ export function SeasonPointsDeltaChart({
             syncId="season-compare"
             margin={{ left: 0, right: 20, top: 5, bottom: 5 }}
           >
-            <CartesianGrid strokeDasharray="3 3" stroke="oklch(1 0 0 / 6%)" vertical={false} />
-            <XAxis dataKey="round" tick={AXIS_TICK} />
+            <CartesianGrid {...gridProps} vertical={false} />
+            <XAxis dataKey="round" {...axisProps} />
             <YAxis
-              tick={AXIS_TICK}
+              {...axisProps}
               width={50}
               tickFormatter={(v: number) => (v > 0 ? `+${v}` : `${v}`)}
             />
             <Tooltip
-              cursor={{ fill: 'oklch(1 0 0 / 4%)' }}
-              contentStyle={TOOLTIP_STYLE}
+              cursor={barCursor}
+              contentStyle={tooltipContentStyle}
+              labelStyle={tooltipLabelStyle}
               labelFormatter={(label) => `After round ${label}`}
               formatter={(value) => {
                 const delta = Number(value)
@@ -139,20 +137,20 @@ export function SeasonPointsDeltaChart({
             />
             <ReferenceLine
               y={0}
-              stroke="oklch(0.85 0 0 / 60%)"
+              stroke={REFERENCE}
               strokeWidth={1.5}
               label={{
                 value: 'level',
                 position: 'insideLeft',
                 fontSize: 10,
-                fill: 'oklch(0.6 0 0)',
+                fill: NEUTRAL,
               }}
             />
             <Bar dataKey="delta" name="Gap" radius={[3, 3, 3, 3]} maxBarSize={28}>
               {rounds.map((r) => (
                 <Cell
                   key={r.round}
-                  fill={r.delta > 0 ? sideA.color : r.delta < 0 ? sideB.color : 'oklch(0.6 0 0)'}
+                  fill={r.delta > 0 ? sideA.color : r.delta < 0 ? sideB.color : NEUTRAL}
                 />
               ))}
             </Bar>

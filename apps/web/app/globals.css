@@ -235,6 +235,11 @@
   }
 }
 
+/* Chart tooltip chrome: a small bracketed readout panel. */
+@utility chart-tooltip {
+  @apply brackets bg-surface-1 border-hairline-strong font-data border px-3 py-2 text-xs tabular-nums;
+}
+
 /* The red leader/winner slab inside a readout table. */
 @utility slab {
   background: var(--primary);

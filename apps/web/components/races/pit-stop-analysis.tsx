@@ -11,17 +11,10 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
+import { REFERENCE, SERIES, axisProps, gridProps } from '@/lib/chart-theme'
 import { Panel, PanelContent } from '@/components/ui/panel'
 import { teamColorOf } from '@/lib/utils'
 import type { PitStopAnalysis } from '@/lib/types'
-
-const TOOLTIP_STYLE = {
-  backgroundColor: 'oklch(0.13 0.003 250 / 85%)',
-  border: '1px solid oklch(1 0 0 / 10%)',
-  color: 'oklch(0.95 0 0)',
-  boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
-  backdropFilter: 'blur(12px)',
-} as const
 
 interface TeamRow {
   name: string
@@ -43,7 +36,7 @@ function TeamTooltip({
   const team = payload[0].payload
 
   return (
-    <div className="rounded-xl px-3 py-2" style={TOOLTIP_STYLE}>
+    <div className="chart-tooltip">
       <div className="flex items-center gap-2">
         <span
           className="inline-block size-2.5 rounded-full"
@@ -85,7 +78,7 @@ function DistributionTooltip({
   if (!active || !payload?.length) return null
 
   return (
-    <div className="rounded-xl px-3 py-2" style={TOOLTIP_STYLE}>
+    <div className="chart-tooltip">
       <p className="text-sm font-medium">{label} off the best</p>
       <p className="text-muted-foreground mt-0.5 text-sm tabular-nums">
         {payload[0].value} {payload[0].value === 1 ? 'stop' : 'stops'}
@@ -204,22 +197,9 @@ export function PitStopAnalysisView({ analysis }: PitStopAnalysisProps) {
                 layout="vertical"
                 margin={{ left: 0, right: 24, top: 5, bottom: 5 }}
               >
-                <CartesianGrid
-                  horizontal={false}
-                  strokeDasharray="3 3"
-                  stroke="oklch(1 0 0 / 6%)"
-                />
-                <XAxis
-                  type="number"
-                  tick={{ fontSize: 12, fill: 'oklch(0.6 0 0)' }}
-                  tickFormatter={(v) => `+${v}s`}
-                />
-                <YAxis
-                  type="category"
-                  dataKey="name"
-                  width={100}
-                  tick={{ fontSize: 12, fill: 'oklch(0.6 0 0)' }}
-                />
+                <CartesianGrid {...gridProps} horizontal={false} />
+                <XAxis type="number" {...axisProps} tickFormatter={(v) => `+${v}s`} />
+                <YAxis type="category" dataKey="name" width={100} {...axisProps} />
                 <Tooltip
                   content={<TeamTooltip />}
                   cursor={{ fill: 'var(--muted)', opacity: 0.3 }}
@@ -248,21 +228,17 @@ export function PitStopAnalysisView({ analysis }: PitStopAnalysisProps) {
                 data={analysis.distribution}
                 margin={{ left: 0, right: 20, top: 5, bottom: 5 }}
               >
-                <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="oklch(1 0 0 / 6%)" />
-                <XAxis
-                  dataKey="range"
-                  tick={{ fontSize: 11, fill: 'oklch(0.6 0 0)' }}
-                  interval={0}
-                />
-                <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: 'oklch(0.6 0 0)' }} />
-                <ReferenceLine y={0} stroke="oklch(1 0 0 / 10%)" />
+                <CartesianGrid {...gridProps} vertical={false} />
+                <XAxis dataKey="range" {...axisProps} interval={0} />
+                <YAxis allowDecimals={false} {...axisProps} />
+                <ReferenceLine y={0} stroke={REFERENCE} />
                 <Tooltip
                   content={<DistributionTooltip />}
                   cursor={{ fill: 'var(--muted)', opacity: 0.3 }}
                 />
                 <Bar
                   dataKey="count"
-                  fill="oklch(0.65 0.15 250)"
+                  fill={SERIES[1]}
                   radius={[4, 4, 0, 0]}
                   animationDuration={600}
                 />

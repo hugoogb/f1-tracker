@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import type { SeasonHeatmapResponse } from '@/lib/types'
+import { positionHeat } from '@/lib/chart-theme'
 
 function getPositionColor(position: number | null, status: string | null): string {
   if (
@@ -13,29 +14,18 @@ function getPositionColor(position: number | null, status: string | null): strin
       status !== '+2 Laps' &&
       status !== '+3 Laps')
   ) {
-    return 'oklch(0.45 0.15 25)' // Red-ish for DNF
+    return 'color-mix(in oklch, var(--negative) 55%, var(--surface-1))' // DNF
   }
-  if (position === 1) return 'oklch(0.8 0.15 85)' // Gold
-  if (position === 2) return 'oklch(0.7 0.02 250)' // Silver
-  if (position === 3) return 'oklch(0.6 0.12 55)' // Bronze
-  if (position <= 10) {
-    // Green to yellow gradient for points positions
-    const t = (position - 4) / 6
-    const l = 0.55 - t * 0.1
-    const c = 0.12 - t * 0.02
-    const h = 145 - t * 50
-    return `oklch(${l} ${c} ${h})`
-  }
-  // P11+: fade to gray
-  const t = Math.min((position - 11) / 10, 1)
-  const l = 0.4 - t * 0.1
-  return `oklch(${l} 0.02 250)`
+  if (position === 1) return 'var(--gold)'
+  if (position === 2) return 'var(--silver)'
+  if (position === 3) return 'var(--bronze)'
+  return positionHeat(position)
 }
 
 function getTextColor(position: number | null): string {
-  if (position === null) return 'oklch(0.95 0 0)'
-  if (position <= 3) return 'oklch(0.15 0 0)'
-  return 'oklch(0.95 0 0)'
+  if (position === null) return 'var(--foreground)'
+  if (position <= 3) return 'var(--background)'
+  return 'var(--foreground)'
 }
 
 interface SeasonHeatmapProps {
@@ -104,7 +94,7 @@ export function SeasonHeatmap({ data }: SeasonHeatmapProps) {
                   const bgColor = result
                     ? getPositionColor(result.position, result.status)
                     : 'transparent'
-                  const textColor = result ? getTextColor(result.position) : 'oklch(0.4 0 0)'
+                  const textColor = result ? getTextColor(result.position) : 'var(--label)'
 
                   return (
                     <td
@@ -125,18 +115,9 @@ export function SeasonHeatmap({ data }: SeasonHeatmapProps) {
                       </div>
                       {/* Tooltip */}
                       {isHovered && result && (
-                        <div
-                          className="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 -translate-x-1/2 rounded-lg px-3 py-2 text-left whitespace-nowrap"
-                          style={{
-                            backgroundColor: 'oklch(0.13 0.003 250 / 95%)',
-                            border: '1px solid oklch(1 0 0 / 10%)',
-                            color: 'oklch(0.95 0 0)',
-                            boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
-                            backdropFilter: 'blur(12px)',
-                          }}
-                        >
+                        <div className="chart-tooltip pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 -translate-x-1/2 text-left whitespace-nowrap">
                           <p className="text-xs font-medium">{roundsMap.get(round.round)}</p>
-                          <p className="text-muted-foreground mt-0.5 text-[11px]">
+                          <p className="text-muted-foreground text-2xs mt-0.5">
                             P{result.positionText} · {result.points} pts
                             {result.status && result.status !== 'Finished' && ` · ${result.status}`}
                           </p>

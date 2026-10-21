@@ -10,6 +10,13 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
+import {
+  axisProps,
+  gridProps,
+  sideColor,
+  tooltipContentStyle,
+  tooltipLabelStyle,
+} from '@/lib/chart-theme'
 
 interface ComparisonChartProps {
   driver1Name: string
@@ -25,8 +32,8 @@ export function ComparisonChart({
   driver2Name,
   driver1Seasons,
   driver2Seasons,
-  color1 = '#E8002D',
-  color2 = '#3671C6',
+  color1 = sideColor('a'),
+  color2 = sideColor('b'),
 }: ComparisonChartProps) {
   // Merge both drivers' data by year
   const yearSet = new Set([
@@ -50,19 +57,12 @@ export function ComparisonChart({
     <div className="h-72 w-full" role="img" aria-label="Driver comparison points chart">
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={data} margin={{ left: 0, right: 20, top: 5, bottom: 5 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="oklch(1 0 0 / 6%)" />
-          <XAxis dataKey="year" tick={{ fontSize: 12, fill: 'oklch(0.6 0 0)' }} />
-          <YAxis tick={{ fontSize: 12, fill: 'oklch(0.6 0 0)' }} width={50} />
+          <CartesianGrid {...gridProps} />
+          <XAxis dataKey="year" {...axisProps} />
+          <YAxis {...axisProps} width={50} />
           <Tooltip
-            contentStyle={{
-              backgroundColor: 'oklch(0.13 0.003 250 / 85%)',
-              border: '1px solid oklch(1 0 0 / 10%)',
-              borderRadius: '12px',
-              color: 'oklch(0.95 0 0)',
-              boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
-              backdropFilter: 'blur(12px)',
-              padding: '8px 12px',
-            }}
+            contentStyle={tooltipContentStyle}
+            labelStyle={tooltipLabelStyle}
             labelFormatter={(label) => `${label} Season`}
           />
           <Legend wrapperStyle={{ fontSize: '13px', paddingTop: '8px' }} />
@@ -74,7 +74,6 @@ export function ComparisonChart({
             dot={{ r: 3, strokeWidth: 0 }}
             activeDot={{ r: 6, strokeWidth: 2, stroke: 'var(--background)' }}
             connectNulls
-            style={{ filter: `drop-shadow(0 0 6px ${color1})` }}
           />
           <Line
             type="monotone"
@@ -84,7 +83,6 @@ export function ComparisonChart({
             dot={{ r: 3, strokeWidth: 0 }}
             activeDot={{ r: 6, strokeWidth: 2, stroke: 'var(--background)' }}
             connectNulls
-            style={{ filter: `drop-shadow(0 0 6px ${color2})` }}
           />
         </LineChart>
       </ResponsiveContainer>

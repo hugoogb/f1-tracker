@@ -11,6 +11,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
+import { NEUTRAL, SERIES, axisProps, gridProps } from '@/lib/chart-theme'
 import type { DriverPaceSeason } from '@/lib/types'
 
 function CustomTooltip({
@@ -28,16 +29,7 @@ function CustomTooltip({
   const raceEntry = payload.find((p) => p.name === 'Race')
 
   return (
-    <div
-      className="rounded-xl px-3 py-2"
-      style={{
-        backgroundColor: 'oklch(0.13 0.003 250 / 85%)',
-        border: '1px solid oklch(1 0 0 / 10%)',
-        color: 'oklch(0.95 0 0)',
-        boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
-        backdropFilter: 'blur(12px)',
-      }}
-    >
+    <div className="chart-tooltip">
       <p className="text-sm font-medium">{label} Season</p>
       {qualiEntry && (
         <p className="text-muted-foreground mt-0.5 text-sm tabular-nums">
@@ -75,7 +67,7 @@ interface QualiVsRaceChartProps {
   color?: string
 }
 
-export function QualiVsRaceChart({ seasons, color = '#E8002D' }: QualiVsRaceChartProps) {
+export function QualiVsRaceChart({ seasons, color = SERIES[0] }: QualiVsRaceChartProps) {
   // Filter to seasons that have both qualifying and race data
   const data = seasons
     .filter((s) => s.avgQualiPosition !== null && s.avgRacePosition !== null)
@@ -87,7 +79,7 @@ export function QualiVsRaceChart({ seasons, color = '#E8002D' }: QualiVsRaceChar
 
   if (data.length < 2) return null
 
-  const raceColor = '#3B82F6'
+  const raceColor = SERIES[1]
 
   return (
     <div className="h-72 w-full" role="img" aria-label="Qualifying vs race pace chart">
@@ -99,11 +91,11 @@ export function QualiVsRaceChart({ seasons, color = '#E8002D' }: QualiVsRaceChar
               <stop offset="100%" stopColor={color} stopOpacity={0} />
             </linearGradient>
           </defs>
-          <CartesianGrid strokeDasharray="3 3" stroke="oklch(1 0 0 / 6%)" />
-          <XAxis dataKey="year" tick={{ fontSize: 12, fill: 'oklch(0.6 0 0)' }} />
+          <CartesianGrid {...gridProps} />
+          <XAxis dataKey="year" {...axisProps} />
           <YAxis
             reversed
-            tick={{ fontSize: 12, fill: 'oklch(0.6 0 0)' }}
+            {...axisProps}
             tickFormatter={(v) => `P${v}`}
             width={45}
             domain={['dataMin - 1', 'dataMax + 1']}
@@ -111,7 +103,7 @@ export function QualiVsRaceChart({ seasons, color = '#E8002D' }: QualiVsRaceChar
           <Tooltip content={<CustomTooltip />} />
           <Legend
             wrapperStyle={{ fontSize: 13 }}
-            formatter={(value) => <span style={{ color: 'oklch(0.7 0 0)' }}>{value}</span>}
+            formatter={(value) => <span style={{ color: NEUTRAL }}>{value}</span>}
           />
           <Area
             type="monotone"
@@ -128,7 +120,6 @@ export function QualiVsRaceChart({ seasons, color = '#E8002D' }: QualiVsRaceChar
             dot={{ r: 3, fill: color }}
             name="Qualifying"
             connectNulls
-            style={{ filter: `drop-shadow(0 0 4px ${color}80)` }}
           />
           <Line
             type="monotone"
@@ -138,7 +129,6 @@ export function QualiVsRaceChart({ seasons, color = '#E8002D' }: QualiVsRaceChar
             dot={{ r: 3, fill: raceColor }}
             name="Race"
             connectNulls
-            style={{ filter: `drop-shadow(0 0 4px ${raceColor}80)` }}
           />
         </ComposedChart>
       </ResponsiveContainer>
