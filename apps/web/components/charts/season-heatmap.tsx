@@ -48,17 +48,17 @@ export function SeasonHeatmap({ data }: SeasonHeatmapProps) {
   if (data.drivers.length === 0 || data.rounds.length === 0) return null
 
   return (
-    <div className="overflow-x-auto rounded-xl border border-[var(--border)]">
+    <div className="border-hairline overflow-x-auto rounded-xl border">
       <table className="w-full border-collapse text-xs">
         <thead>
           <tr>
-            <th className="sticky left-0 z-10 min-w-[100px] border-r border-b border-[var(--border)] bg-[var(--surface-1)] px-2 py-2 text-left text-[11px] font-medium">
+            <th className="border-hairline bg-surface-1 text-2xs sticky left-0 z-10 min-w-[100px] border-r border-b px-2 py-2 text-left font-medium">
               Driver
             </th>
             {data.rounds.map((round) => (
               <th
                 key={round.round}
-                className="border-b border-[var(--border)] px-0 py-2 text-center text-[10px] font-medium"
+                className="border-hairline text-2xs border-b px-0 py-2 text-center font-medium"
                 title={round.name}
               >
                 R{round.round}
@@ -71,7 +71,7 @@ export function SeasonHeatmap({ data }: SeasonHeatmapProps) {
             const resultsByRound = new Map(driver.results.map((r) => [r.round, r]))
             return (
               <tr key={driver.driver.ref}>
-                <td className="sticky left-0 z-10 border-r border-[var(--border)] bg-[var(--surface-1)] px-2 py-1.5">
+                <td className="border-hairline bg-surface-1 sticky left-0 z-10 border-r px-2 py-1.5">
                   <div className="flex items-center gap-1.5">
                     {driver.constructor.color && (
                       <span
@@ -99,12 +99,12 @@ export function SeasonHeatmap({ data }: SeasonHeatmapProps) {
                   return (
                     <td
                       key={round.round}
-                      className="relative border-[var(--border)] px-0 py-0 text-center"
+                      className="border-hairline relative px-0 py-0 text-center"
                       onMouseEnter={() => setHoveredCell({ driverIdx, roundIdx })}
                       onMouseLeave={() => setHoveredCell(null)}
                     >
                       <div
-                        className="flex h-7 w-full items-center justify-center text-[11px] font-bold tabular-nums transition-opacity"
+                        className="text-2xs flex h-7 w-full items-center justify-center font-bold tabular-nums transition-opacity"
                         style={{
                           backgroundColor: bgColor,
                           color: textColor,

@@ -5,9 +5,9 @@ import { Panel, PanelContent } from '@/components/ui/panel'
 import { PodiumReveal } from '@/components/ui/motion'
 
 const podiumColors = [
-  'border-amber-500/40 bg-amber-500/5',
-  'border-zinc-400/40 bg-zinc-400/5',
-  'border-orange-600/40 bg-orange-600/5',
+  'border-gold/40 bg-gold/5',
+  'border-silver/40 bg-silver/5',
+  'border-bronze/40 bg-bronze/5',
 ]
 
 const podiumLabels = ['1st', '2nd', '3rd']
@@ -24,9 +24,7 @@ export function PodiumCard({ podium }: { podium: RaceResult[] }) {
         return (
           <Panel key={result.driver.ref} className={`${podiumColors[idx]} border`}>
             <PanelContent className="space-y-1 px-4 py-3">
-              <p className="text-muted-foreground text-xs font-medium tracking-wider uppercase">
-                {podiumLabels[idx]}
-              </p>
+              <p className="label">{podiumLabels[idx]}</p>
               <Link
                 href={`/drivers/${result.driver.ref}`}
                 className="hover:text-primary text-sm font-semibold transition-colors"
@@ -35,10 +33,7 @@ export function PodiumCard({ podium }: { podium: RaceResult[] }) {
               </Link>
               <div className="flex items-center gap-1.5">
                 {teamColor && (
-                  <span
-                    className="inline-block h-3 w-1 rounded-full"
-                    style={{ backgroundColor: teamColor }}
-                  />
+                  <span className="inline-block h-3 w-1" style={{ backgroundColor: teamColor }} />
                 )}
                 <Link
                   href={`/constructors/${result.constructor.ref}`}

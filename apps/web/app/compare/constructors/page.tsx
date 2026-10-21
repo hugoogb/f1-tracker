@@ -102,16 +102,16 @@ export default async function CompareConstructorsPage({
       />
 
       <FadeIn>
-        <div className="brackets bg-surface-1 border-hairline border px-6 py-8">
-          <div className="flex items-center gap-4">
-            <div className="flex flex-1 items-center justify-end gap-3">
+        <div className="brackets bg-surface-1 border-hairline border px-4 py-6 sm:px-6 sm:py-8">
+          <div className="flex flex-col items-center gap-3 sm:flex-row sm:gap-4">
+            <div className="flex min-w-0 flex-1 items-center justify-center gap-3 sm:justify-end">
               {constructor1.color && (
                 <span
                   className="inline-block size-4"
                   style={{ backgroundColor: constructor1.color }}
                 />
               )}
-              <h1>
+              <h1 className="min-w-0 text-3xl break-words sm:text-4xl lg:text-5xl">
                 <Link
                   href={`/constructors/${constructor1.ref}`}
                   className="hover:text-primary transition-colors"
@@ -121,8 +121,8 @@ export default async function CompareConstructorsPage({
               </h1>
             </div>
             <span className="text-muted-foreground display shrink-0 text-xl">vs</span>
-            <div className="flex flex-1 items-center gap-3">
-              <h1>
+            <div className="flex min-w-0 flex-1 items-center justify-center gap-3 sm:justify-start">
+              <h1 className="min-w-0 text-3xl break-words sm:text-4xl lg:text-5xl">
                 <Link
                   href={`/constructors/${constructor2.ref}`}
                   className="hover:text-primary transition-colors"

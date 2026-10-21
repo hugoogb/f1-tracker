@@ -8,7 +8,7 @@ interface ConstructorLogoProps {
 }
 
 const sizeMap = {
-  sm: 'h-7 w-7 text-[10px]',
+  sm: 'h-7 w-7 text-2xs',
   md: 'h-10 w-10 text-sm',
   lg: 'h-16 w-16 text-xl',
 } as const

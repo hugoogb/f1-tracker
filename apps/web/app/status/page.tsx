@@ -83,7 +83,7 @@ function RunStatusBadge({ status }: { status: OpsIngestRun['status'] }) {
   if (status === 'error') return <Badge variant="destructive">Failed</Badge>
   if (status === 'running') return <Badge variant="secondary">Running</Badge>
   return (
-    <Badge variant="outline" className="text-emerald-400">
+    <Badge variant="outline" className="text-positive">
       OK
     </Badge>
   )

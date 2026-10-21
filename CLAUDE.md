@@ -25,8 +25,9 @@ Deployment: frontend on Vercel; the API runs as a Docker container (`f1_api`) on
 
 | Route | Description |
 |-------|-------------|
-| `/` | Home dashboard (stats, standings, race calendar, next race countdown) |
+| `/` | Home: *Right now* (championship lead, next race countdown + track, top-5 standings, last podium, favourites, title permutations) and *Explore* (live teasers for Best seasons, Compare, Records, Champions), then the World Tour map |
 | `/seasons` | Season list (one tile per year with its champion) |
+| `/seasons/current` | Route handler: 307 to the latest season (the header's "Current season"; CDN-cached) |
 | `/seasons/[year]` | Season detail (scoring note, standings + charts + championship progression, title permutations, cross-era "what if" scoring) |
 | `/seasons/[year]/compare` | In-season comparison of two constructors or two drivers (`?type=constructors\|drivers&a=&b=`, defaults to the top two of the standings): points-gap header, cumulative points + gap chart, stat rows with A − B delta chips, head-to-heads, qualifying gap by round, round-by-round table. Server-rendered from `searchParams`, `noindex`, not in the sitemap |
 | `/seasons/[year]/races/[round]` | Race detail (results, qualifying, sprint, pit stops, gaps, tyre degradation) |
@@ -54,8 +55,8 @@ daily and on any purge, since it reads `f1-global`), `robots.ts`, `manifest.ts`,
 
 ### Frontend Components
 
-- `components/ui/` - shadcn/ui base components (badge, button, card, table, tabs, sheet, dialog, dropdown-menu, country-flag, driver-avatar, constructor-logo, empty-state, motion, page-header, position-badge, sonner, stat-card, next-race-countdown)
-- `components/layout/` - Header, footer, mobile nav, breadcrumbs, search dialog, theme toggle, nav link
+- `components/ui/` - The design system's primitives. Telemetry pieces: `panel` (bracketed surface; replaced shadcn's Card, same sub-part API), `page-hero` (every page's header; `livery`, `watermark`), `tag` (skewed broadcast tag), `meter` (segmented), `section-header`, `container` (the one page width), `stat-card`. shadcn/Base UI pieces restyled to the tokens: button (+ `button-variants.ts`, server-safe), badge, table (`TableRow highlight="leader"`), tabs, select, dialog, sheet, input, skeleton, sonner. Plus country-flag, driver-avatar, constructor-logo, empty-state, motion, position-badge, local-date, next-race-countdown
+- `components/layout/` - Header (`main-nav.tsx`: grouped Base UI NavigationMenu from `lib/nav.ts`), mobile nav (bottom sheet, same groups), footer (every section + the credits/disclaimer), breadcrumbs, `command-search.tsx` (⌘K / Ctrl+K / `/` command palette: pages, seasons, races, drivers, teams, circuits; quick links and recently viewed when empty), `record-visit.tsx` (feeds recently viewed), `where-next.tsx` (the links at the foot of every detail page)
 - `components/charts/` - Recharts visualizations (points bar, constructor points, career line, comparison line, championship progression, season heatmap, quali-vs-race, driver radar, season points + gap, qualifying gap by round)
 - `components/races/` - Race result tables (results with position change indicators, qualifying, sprint, pit stops, lap-times-chart, tyre-strategy-chart, tyre-degradation-chart, position-chart, gap-chart, pit-stop-analysis, podium-card, fastest-lap-card)
 - `components/standings/` - Driver + constructor standings tables
@@ -74,7 +75,7 @@ daily and on any purge, since it reads `f1-global`), `robots.ts`, `manifest.ts`,
 - `components/season-compare/` - In-season comparison: URL-driven pickers, delta header, stat rows, delta chip, round-by-round table, `sides.ts` (names + colours; teammates' shared livery is tinted lighter for side B)
 - `components/records/` - Records explorer (client-side filters, URL-synced via `history.replaceState`)
 - `components/best-seasons/` - Season podium, competitiveness chart, ranking table (client-side sort/filter, URL-synced), score breakdown bar, `SeasonRankBadge` (the rank on `/seasons/[year]`)
-- `components/providers/` - Theme provider
+- `components/home/` - Home sections: standings panel (slab leader row), last-race podium, explore grid (live teasers)
 - `components/favourites/` - Star toggle, favourites view, home-page summary, stale-refresh hook
 - `components/ops/` - `time-ago.tsx` (relative timestamps on `/status`, via `useNow()`)
 - `components/seo/` - `json-ld.tsx` (schema.org graph) and `og-card.tsx` (shared card chrome for every `opengraph-image` route)
@@ -113,7 +114,7 @@ daily and on any purge, since it reads `f1-global`), `robots.ts`, `manifest.ts`,
 - `GET /api/circuits/{ref}` - Circuit detail with race history
 - `GET /api/circuits/{ref}/stats` - Circuit performance stats (most wins, poles, history)
 - `GET /api/champions` - All championship winners
-- `GET /api/search?q={query}` - Search drivers, constructors, circuits
+- `GET /api/search?q={query}` - Search drivers, constructors, circuits, plus `seasons` and `races`. A standalone year ("monaco 2021") is split off: it finds that season and filters races to it; without a year races match on the race name only (a circuit substring like "ham" in Francorchamps would flood them). `%`/`_` are matched literally
 - `GET /api/compare/drivers?d1={ref}&d2={ref}&teammate=bool` - Driver comparison with H2H, quali H2H, radar stats
 - `GET /api/compare/constructors?c1={ref}&c2={ref}` - Constructor comparison with head-to-head
 - `GET /api/seasons/{year}/compare/entrants` - That season's drivers and constructors, final-standings order (the in-season pickers)
@@ -166,6 +167,7 @@ daily and on any purge, since it reads `f1-global`), `robots.ts`, `manifest.ts`,
 - `pnpm dev` - Start Next.js dev server
 - `pnpm build` - Build for production
 - `pnpm lint` - Run ESLint
+- `pnpm test` - Frontend unit tests (Vitest; pure helpers in `lib/**/*.test.ts` and `components/**/*.test.ts`)
 
 ### Backend (from `pipeline/`)
 - `uv run uvicorn src.api.main:app --reload` - Start FastAPI dev server
@@ -256,7 +258,31 @@ Two f1db quirks the UI is built around:
 - Fast-F1 code is split by what it needs: `src/ingestion/fastf1_sessions.py` is network-only (no DB import, so it runs on a host with no database), `src/ingestion/fastf1_targets.py` holds `find_targets()` — the one definition of what is outstanding, shared by `scripts/fastf1_status.py` and `/api/ops/status` so the page and `pnpm fastf1` can never disagree, `src/ingestion/fastf1_payload.py` is the NDJSON wire format between the two hosts, and the writers (`write_lap_rows`, `write_quali_sectors`) are shared by the direct ingestors and the payload importer — keep it that way so the off-box path cannot drift from the local one
 - All API endpoints prefixed with `/api/`
 - Next.js frontend calls FastAPI at `NEXT_PUBLIC_API_URL` (default: http://localhost:8000/api)
-- Dark-mode-first UI with F1 team colors
+- Dark-only UI (no light theme, no toggle) in the "telemetry" design: HUD panels with corner brackets on a
+  blueprint grid, Barlow Condensed italic for display titles/numbers (`display`), Chakra Petch for labels and
+  readouts (`label`, `font-data`), Titillium Web for body text. Broadcast touches are accents only: skewed
+  `Tag`s, the red `.slab` / `highlight="leader"` row, the logo. Spec: `docs/superpowers/specs/2026-10-21-ui-ux-overhaul-design.md`
+- **Design tokens are the only source of colour.** Everything is a token in `app/globals.css` registered in
+  `@theme` (`bg-surface-0..3`, `border-hairline`, `text-label`, `*-accent-livery`, `fastest`, `gold/silver/bronze`,
+  `side-a/b`, `tyre-*`, `positive/negative`, `chart-1..5`). No hex/oklch literals or raw palette classes
+  (`text-blue-500`) in components; the only literals live in `lib/chart-theme.ts` (computed heatmap scale, the
+  best-seasons score set), `lib/map-theme.ts` (Leaflet needs concrete values), `components/seo/*` (Satori cannot
+  read CSS variables), `lib/utils.ts`'s `teamColorOf` default (the OG cards use it) and `lib/seo.ts`/`manifest.ts`
+- **Livery**: `var(--accent-livery)` (default red) drives brackets, meters, tabs underline and hero stripe; set it
+  with `liveryStyle(color)` (`lib/livery.ts`) on a page root or one panel. A driver page uses
+  `latestTeamColor(seasons)` — the most recent team, red when that team has no colour, never an older team's.
+  shadcn's own `--accent` is its hover surface, unrelated
+- **Charts** spread `axisProps`/`gridProps`/`lineCursor`/`barCursor` from `lib/chart-theme.ts` and use
+  `ChartTooltip`/`TooltipFrame` (`components/charts/chart-tooltip.tsx`) or the `chart-tooltip` utility; series
+  without a team colour use `SERIES`. Comparison sides keep their team colours (`season-compare/sides.ts`) and fall
+  back to `sideColor('a'|'b')` only when a side has none; colours may be CSS variables, so derive translucency with
+  `color-mix(...)`, never a hex alpha suffix
+- Track layouts render through `TrackOutline` (`components/circuits/track-outline.tsx`): f1db's white SVG used as
+  a CSS mask over the accent colour
+- Navigation lives in `lib/nav.ts` (header, mobile sheet and footer read it). The header renders on every page and
+  fetches nothing; "Current season" links to `/seasons/current`, a route handler that looks the year up `no-store`
+  and 307-redirects with a CDN `Cache-Control`. Season prev/next arrows are bounded by `seasonNeighbours()`
+  (1950 … current calendar year) and race arrows by `roundNeighbours()` (`lib/neighbours.ts`)
 - Use `Promise.allSettled` for optional data fetching (graceful degradation)
 - Constructor colours come from the backend palette (`src/ingestion/colors.py`)
   and travel on every constructor payload; the frontend only picks a fallback,

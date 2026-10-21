@@ -134,14 +134,6 @@
   --chart-5: oklch(0.68 0.19 305);
 
   --radius: 0.125rem;
-
-  /* LEGACY tokens — removed in Task 14. */
-  --glass-bg: oklch(1 0 0 / 4%);
-  --glass-border: var(--hairline);
-  --glass-blur: 0px;
-  --glow-primary: oklch(0.58 0.24 28 / 20%);
-  --gradient-start: var(--primary);
-  --gradient-end: oklch(0.5 0.28 15);
 }
 
 @layer base {
@@ -281,114 +273,6 @@
   }
 }
 
-/* LEGACY — removed in Task 14 */
-@layer components {
-  /* Text gradient */
-  .text-gradient {
-    @apply bg-gradient-to-r from-[var(--gradient-start)] to-[var(--gradient-end)] bg-clip-text text-transparent;
-  }
-
-  /* Glassmorphism */
-  .glass {
-    background: var(--glass-bg);
-    backdrop-filter: blur(var(--glass-blur));
-    -webkit-backdrop-filter: blur(var(--glass-blur));
-    border: 1px solid var(--glass-border);
-  }
-
-  /* Animated gradient border on hover */
-  .glow-border {
-    position: relative;
-    overflow: hidden;
-  }
-  .glow-border::before {
-    content: '';
-    position: absolute;
-    inset: -1px;
-    border-radius: inherit;
-    padding: 1px;
-    background: linear-gradient(
-      135deg,
-      var(--primary),
-      transparent 40%,
-      transparent 60%,
-      var(--primary)
-    );
-    -webkit-mask:
-      linear-gradient(#fff 0 0) content-box,
-      linear-gradient(#fff 0 0);
-    mask:
-      linear-gradient(#fff 0 0) content-box,
-      linear-gradient(#fff 0 0);
-    -webkit-mask-composite: xor;
-    mask-composite: exclude;
-    opacity: 0;
-    transition: opacity 0.3s;
-    pointer-events: none;
-  }
-  .glow-border:hover::before {
-    opacity: 1;
-  }
-
-  /* Speed lines background pattern */
-  .speed-lines {
-    background-image:
-      linear-gradient(90deg, oklch(1 0 0 / 2%) 1px, transparent 1px),
-      linear-gradient(0deg, oklch(1 0 0 / 2%) 1px, transparent 1px);
-    background-size: 60px 60px;
-  }
-
-  /* Gradient glow behind elements */
-  .glow-red {
-    box-shadow:
-      0 0 40px oklch(0.55 0.25 27 / 15%),
-      0 0 80px oklch(0.55 0.25 27 / 8%);
-  }
-
-  /* Card hover glow */
-  .card-glow {
-    @apply transition-shadow duration-300;
-  }
-  .card-glow:hover {
-    box-shadow:
-      0 0 30px var(--glow-primary),
-      0 8px 20px oklch(0 0 0 / 30%);
-  }
-
-  /* Position badges */
-  .pos-1 {
-    @apply border-amber-500/30 bg-amber-500/15 text-amber-400;
-  }
-  .pos-2 {
-    @apply border-zinc-400/30 bg-zinc-400/15 text-zinc-300;
-  }
-  .pos-3 {
-    @apply border-orange-600/30 bg-orange-600/15 text-orange-400;
-  }
-
-  /* Animated accent line (horizontal rule) */
-  .accent-line {
-    @apply relative h-px w-full overflow-hidden;
-    background: linear-gradient(90deg, transparent, var(--primary), transparent);
-  }
-  .accent-line::after {
-    content: '';
-    @apply absolute inset-0;
-    background: linear-gradient(90deg, transparent, oklch(1 0 0 / 40%), transparent);
-    animation: scan-line 3s ease-in-out infinite;
-  }
-}
-
-/* Keyframe animations */
-@keyframes scan-line {
-  0% {
-    transform: translateX(-100%);
-  }
-  100% {
-    transform: translateX(100%);
-  }
-}
-
 @keyframes fade-up {
   from {
     opacity: 0;
@@ -397,37 +281,5 @@
   to {
     opacity: 1;
     transform: translateY(0);
-  }
-}
-
-@keyframes glow-pulse {
-  0%,
-  100% {
-    opacity: 0.5;
-  }
-  50% {
-    opacity: 1;
-  }
-}
-
-@keyframes shimmer {
-  0% {
-    background-position: -200% 0;
-  }
-  100% {
-    background-position: 200% 0;
-  }
-}
-
-/* Accessibility: respect reduced motion preference */
-@media (prefers-reduced-motion: reduce) {
-  .card-glow {
-    transition: none;
-  }
-  .accent-line::after {
-    animation: none;
-  }
-  .glow-border::before {
-    transition: none;
   }
 }

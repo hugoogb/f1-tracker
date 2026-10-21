@@ -187,7 +187,7 @@ export default async function RecordsPage() {
 
       <RecordsTabs
         driversContent={
-          <StaggerList className="grid gap-6 md:grid-cols-2">
+          <StaggerList className="grid gap-6 md:grid-cols-2 [&>*]:min-w-0">
             <StaggerItem>
               <DriverRecordTable
                 title="Most Championships"
@@ -239,7 +239,7 @@ export default async function RecordsPage() {
           </StaggerList>
         }
         constructorsContent={
-          <StaggerList className="grid gap-6 md:grid-cols-2">
+          <StaggerList className="grid gap-6 md:grid-cols-2 [&>*]:min-w-0">
             <StaggerItem>
               <ConstructorRecordTable
                 title="Most Constructor Championships"

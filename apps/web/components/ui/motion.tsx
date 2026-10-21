@@ -191,22 +191,3 @@ export function PodiumReveal({ children, className }: PodiumRevealProps) {
     </div>
   )
 }
-
-// ── HeroGlow ────────────────────────────────────────────────────────────────
-// Breathing radial glow for the hero section background.
-
-interface HeroGlowProps {
-  className?: string
-}
-
-export function HeroGlow({ className }: HeroGlowProps) {
-  const shouldReduce = useReducedMotion()
-
-  return (
-    <motion.div
-      className={className}
-      animate={shouldReduce ? undefined : { opacity: [0.4, 1, 0.4] }}
-      transition={shouldReduce ? undefined : { duration: 6, repeat: Infinity, ease: 'easeInOut' }}
-    />
-  )
-}

@@ -118,10 +118,7 @@ export function TyreDegradationChart({ data }: TyreDegradationChartProps) {
     <div className="space-y-4">
       <div className="flex flex-wrap gap-3">
         {compounds.map((compound) => (
-          <div
-            key={compound.compound}
-            className="border-border rounded-lg border bg-[var(--surface-1)] px-3 py-2"
-          >
+          <div key={compound.compound} className="border-hairline bg-surface-2 border px-3 py-2">
             <div className="flex items-center gap-2">
               <span
                 className="inline-block size-2.5 rounded-full"

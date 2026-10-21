@@ -53,7 +53,7 @@ export function ResultsTable({ results, fastestLapDriverRef }: ResultsTableProps
                 {isFinished ? (
                   <PositionBadge position={result.position!} size="sm" />
                 ) : (
-                  <span className="text-muted-foreground font-mono text-xs">
+                  <span className="text-muted-foreground font-data text-xs">
                     {result.positionText}
                   </span>
                 )}
@@ -113,8 +113,8 @@ export function ResultsTable({ results, fastestLapDriverRef }: ResultsTableProps
                   </span>
                   {hasFastestLap && result.fastestLapTime && (
                     <div className="flex items-center gap-1">
-                      <span className="inline-block h-1.5 w-1.5 rounded-full bg-purple-500" />
-                      <span className="font-mono text-xs text-purple-400">
+                      <span className="bg-fastest inline-block size-1.5" />
+                      <span className="font-data text-fastest text-xs">
                         {result.fastestLapTime}
                       </span>
                     </div>

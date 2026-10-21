@@ -104,7 +104,7 @@ function Stat({
         <p className="text-muted-foreground text-xs font-medium tracking-wider uppercase">
           {label}
         </p>
-        <p className="font-heading text-lg font-bold tabular-nums">{value}</p>
+        <p className="display text-lg tabular-nums">{value}</p>
         {hint && <p className="text-muted-foreground text-xs">{hint}</p>}
       </PanelContent>
     </Panel>
@@ -148,12 +148,12 @@ export function PitStopAnalysisView({ analysis }: PitStopAnalysisProps) {
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         {analysis.fastestStop && (
-          <Panel className="col-span-2 border border-green-500/30 bg-green-500/5 sm:col-span-1">
+          <Panel className="border-positive/30 bg-positive/5 col-span-2 sm:col-span-1">
             <PanelContent className="px-4 py-3">
-              <p className="text-xs font-medium tracking-wider text-green-400 uppercase">
+              <p className="text-positive text-xs font-medium tracking-wider uppercase">
                 Quickest Stop
               </p>
-              <p className="font-mono text-lg font-bold text-green-300 tabular-nums">
+              <p className="font-data text-positive text-lg font-bold tabular-nums">
                 {analysis.fastestStop.duration}s
               </p>
               <p className="text-muted-foreground text-sm">

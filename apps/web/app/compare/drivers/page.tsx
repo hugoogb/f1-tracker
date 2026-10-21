@@ -117,10 +117,10 @@ export default async function CompareDriversPage({
       />
 
       <FadeIn>
-        <div className="brackets bg-surface-1 border-hairline border px-6 py-8">
-          <div className="flex items-center gap-4">
-            <div className="flex flex-1 items-center justify-end gap-3">
-              <h1>
+        <div className="brackets bg-surface-1 border-hairline border px-4 py-6 sm:px-6 sm:py-8">
+          <div className="flex flex-col items-center gap-3 sm:flex-row sm:gap-4">
+            <div className="flex min-w-0 flex-1 items-center justify-center gap-3 sm:justify-end">
+              <h1 className="min-w-0 text-3xl break-words sm:text-4xl lg:text-5xl">
                 <Link
                   href={`/drivers/${driver1.ref}`}
                   className="hover:text-primary transition-colors"
@@ -131,9 +131,9 @@ export default async function CompareDriversPage({
               <DriverAvatar firstName={driver1.firstName} lastName={driver1.lastName} size="lg" />
             </div>
             <span className="text-muted-foreground display shrink-0 text-xl">vs</span>
-            <div className="flex flex-1 items-center gap-3">
+            <div className="flex min-w-0 flex-1 items-center justify-center gap-3 sm:justify-start">
               <DriverAvatar firstName={driver2.firstName} lastName={driver2.lastName} size="lg" />
-              <h1>
+              <h1 className="min-w-0 text-3xl break-words sm:text-4xl lg:text-5xl">
                 <Link
                   href={`/drivers/${driver2.ref}`}
                   className="hover:text-primary transition-colors"
