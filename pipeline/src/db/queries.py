@@ -188,16 +188,26 @@ def get_driver_career_stats(db: Session, driver_id: str) -> dict:
     }
 
 
+def _contains(query: str) -> str:
+    """An ILIKE pattern matching `query` literally anywhere in a value.
+
+    `%` and `_` typed into the search box are characters to find, not
+    wildcards: unescaped, a search for "%%" matched every row.
+    """
+    escaped = query.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    return f"%{escaped}%"
+
+
 def search_drivers(db: Session, query: str, limit: int = 10) -> list[Driver]:
-    pattern = f"%{query}%"
+    pattern = _contains(query)
     return (
         db.execute(
             select(Driver)
             .where(
-                (Driver.first_name.ilike(pattern))
-                | (Driver.last_name.ilike(pattern))
-                | (Driver.code.ilike(pattern))
-                | (Driver.ref.ilike(pattern))
+                (Driver.first_name.ilike(pattern, escape="\\"))
+                | (Driver.last_name.ilike(pattern, escape="\\"))
+                | (Driver.code.ilike(pattern, escape="\\"))
+                | (Driver.ref.ilike(pattern, escape="\\"))
             )
             .limit(limit)
         )
@@ -207,11 +217,14 @@ def search_drivers(db: Session, query: str, limit: int = 10) -> list[Driver]:
 
 
 def search_constructors(db: Session, query: str, limit: int = 10) -> list[Constructor]:
-    pattern = f"%{query}%"
+    pattern = _contains(query)
     return (
         db.execute(
             select(Constructor)
-            .where((Constructor.name.ilike(pattern)) | (Constructor.ref.ilike(pattern)))
+            .where(
+                (Constructor.name.ilike(pattern, escape="\\"))
+                | (Constructor.ref.ilike(pattern, escape="\\"))
+            )
             .limit(limit)
         )
         .scalars()
@@ -220,20 +233,49 @@ def search_constructors(db: Session, query: str, limit: int = 10) -> list[Constr
 
 
 def search_circuits(db: Session, query: str, limit: int = 5) -> list[Circuit]:
-    pattern = f"%{query}%"
+    pattern = _contains(query)
     return (
         db.execute(
             select(Circuit)
             .where(
-                (Circuit.name.ilike(pattern))
-                | (Circuit.location.ilike(pattern))
-                | (Circuit.country.ilike(pattern))
+                (Circuit.name.ilike(pattern, escape="\\"))
+                | (Circuit.location.ilike(pattern, escape="\\"))
+                | (Circuit.country.ilike(pattern, escape="\\"))
             )
             .limit(limit)
         )
         .scalars()
         .all()
     )
+
+
+def search_seasons(db: Session, year: int) -> list[int]:
+    """`[year]` when that season exists, else nothing."""
+    found = db.execute(select(Season.year).where(Season.year == year)).scalar_one_or_none()
+    return [found] if found is not None else []
+
+
+def search_races(db: Session, text: str, year: int | None, limit: int = 5) -> list[Race]:
+    """Races whose name or circuit (name, town, country) contains `text`.
+
+    With a `year`, only that season's races — and with a year but no text,
+    all of them, so "2021" lists the 2021 calendar. Newest season first.
+    """
+    if not text and year is None:
+        return []
+    stmt = select(Race).join(Circuit, Race.circuit_id == Circuit.id)
+    if text:
+        pattern = _contains(text)
+        stmt = stmt.where(
+            (Race.name.ilike(pattern, escape="\\"))
+            | (Circuit.name.ilike(pattern, escape="\\"))
+            | (Circuit.location.ilike(pattern, escape="\\"))
+            | (Circuit.country.ilike(pattern, escape="\\"))
+        )
+    if year is not None:
+        stmt = stmt.where(Race.season_year == year)
+    stmt = stmt.order_by(Race.season_year.desc(), Race.round.asc()).limit(limit)
+    return list(db.execute(stmt).scalars().all())
 
 
 def get_constructor_career_stats(db: Session, constructor_id: str) -> dict:
