@@ -304,6 +304,7 @@ function RacesTable({ races, year }: { races: Race[]; year: number }) {
             <TableCell>
               <Link
                 href={`/seasons/${year}/races/${race.round}`}
+                prefetch={false}
                 className="hover:text-primary font-medium transition-colors"
               >
                 {race.name}

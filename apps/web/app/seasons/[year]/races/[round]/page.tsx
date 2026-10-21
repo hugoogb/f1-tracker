@@ -7,6 +7,7 @@ import type {
   SprintResult,
   PitStop,
   LapsResponse,
+  ChartDriverLaps,
   FastestLap,
   FastestSectors,
   PitStopAnalysis,
@@ -57,6 +58,20 @@ interface PitStopsResponse {
   /** The race's quickest pit lane time, in seconds. */
   benchmark: string | null
   pitStops: PitStop[]
+}
+
+/**
+ * The `/laps` response cut down to what the two charts draw. About two thirds
+ * of it is sector splits, stint numbers, tyre life and driver nationality,
+ * none of which either chart reads — and whatever a client component gets is
+ * serialised into the cached page twice (RSC payload and inline HTML).
+ */
+function chartLaps(laps: LapsResponse): ChartDriverLaps[] {
+  return laps.drivers.map((d) => ({
+    driver: { ref: d.driver.ref, code: d.driver.code, lastName: d.driver.lastName },
+    constructor: { color: d.constructor.color },
+    laps: d.laps.map((l) => ({ lapNumber: l.lapNumber, timeMs: l.timeMs, compound: l.compound })),
+  }))
 }
 
 /**
@@ -129,7 +144,7 @@ export default async function RaceDetailPage({
   let pitStops: PitStopsResponse | null = null
   let pitStopAnalysis: PitStopAnalysis | null = null
   let positions: PositionsResponse | null = null
-  let laps: LapsResponse | null = null
+  let laps: ChartDriverLaps[] | null = null
   let gaps: GapsResponse | null = null
   let degradation: DegradationResponse | null = null
 
@@ -193,7 +208,7 @@ export default async function RaceDetailPage({
     positions = positionsResult.value
   }
   if (lapsResult.status === 'fulfilled' && lapsResult.value.drivers?.length > 0) {
-    laps = lapsResult.value
+    laps = chartLaps(lapsResult.value)
   }
   if (gapsResult.status === 'fulfilled' && gapsResult.value.drivers?.length > 0) {
     gaps = gapsResult.value
@@ -315,7 +330,7 @@ export default async function RaceDetailPage({
                         {laps && (
                           <div>
                             <h3 className="mb-3 text-sm font-medium">Tyre Strategy</h3>
-                            <TyreStrategyChart drivers={laps.drivers} />
+                            <TyreStrategyChart drivers={laps} />
                           </div>
                         )}
                         {degradation && (
@@ -349,7 +364,7 @@ export default async function RaceDetailPage({
                   id: 'lap-times',
                   label: 'Lap Times',
                   content: laps ? (
-                    <LapTimesChart drivers={laps.drivers} />
+                    <LapTimesChart drivers={laps} />
                   ) : (
                     <p className="text-muted-foreground text-sm">
                       No lap time data available for this race.

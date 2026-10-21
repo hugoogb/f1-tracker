@@ -11,10 +11,10 @@ import {
   YAxis,
 } from 'recharts'
 import { teamColorOf } from '@/lib/utils'
-import type { DriverLaps } from '@/lib/types'
+import type { ChartDriverLaps } from '@/lib/types'
 
 interface LapTimesChartProps {
-  drivers: DriverLaps[]
+  drivers: ChartDriverLaps[]
 }
 
 function formatSeconds(s: number): string {
@@ -26,7 +26,7 @@ function formatSeconds(s: number): string {
   return secs.toFixed(3)
 }
 
-function getDriverColor(driver: DriverLaps): string {
+function getDriverColor(driver: ChartDriverLaps): string {
   return teamColorOf(driver.constructor.color)!
 }
 

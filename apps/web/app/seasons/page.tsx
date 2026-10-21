@@ -98,7 +98,7 @@ function SeasonCard({
   const accent = teamColorOf(champion?.constructor?.color, null)
 
   return (
-    <Link href={`/seasons/${year}`} className="block">
+    <Link href={`/seasons/${year}`} prefetch={false} className="block">
       <MotionCard>
         <div
           className={`group relative overflow-hidden rounded-2xl border bg-[var(--surface-1)] px-4 py-3 shadow-xl shadow-black/30 backdrop-blur-md transition-colors duration-200 ${

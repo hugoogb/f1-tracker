@@ -396,6 +396,7 @@ export default async function Home() {
                         <TableCell>
                           <Link
                             href={`/seasons/${latestYear}/races/${race.round}`}
+                            prefetch={false}
                             className="hover:text-primary font-medium transition-colors"
                           >
                             {race.name}

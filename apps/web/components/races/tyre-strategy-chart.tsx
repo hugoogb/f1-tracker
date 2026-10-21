@@ -2,10 +2,10 @@
 
 import { useMemo } from 'react'
 import { TYRE_COLORS } from '@/lib/constants'
-import type { DriverLaps } from '@/lib/types'
+import type { ChartDriverLaps } from '@/lib/types'
 
 interface TyreStrategyChartProps {
-  drivers: DriverLaps[]
+  drivers: ChartDriverLaps[]
 }
 
 interface Stint {
