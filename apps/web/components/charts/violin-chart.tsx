@@ -67,6 +67,16 @@ export function ViolinChart<C extends ViolinColumn>({
     return () => observer.disconnect()
   }, [])
 
+  const open = hover !== null
+  useEffect(() => {
+    if (!open) return
+    const close = (event: globalThis.PointerEvent) => {
+      if (!frameRef.current?.contains(event.target as Node)) setHover(null)
+    }
+    document.addEventListener('pointerdown', close)
+    return () => document.removeEventListener('pointerdown', close)
+  }, [open])
+
   if (columns.length === 0) return null
 
   const width = Math.max(available, columns.length * minColumnWidth)
@@ -98,7 +108,13 @@ export function ViolinChart<C extends ViolinColumn>({
   const hoveredDot = hovered && hover?.dot !== undefined ? hovered.dots?.[hover.dot] : undefined
 
   return (
-    <div ref={frameRef} className="relative" onPointerLeave={() => setHover(null)}>
+    <div
+      ref={frameRef}
+      className="relative"
+      // A finger lifting fires pointerleave straight after the tap that opened
+      // the tooltip; on touch it stays until a tap lands outside the chart.
+      onPointerLeave={(e) => e.pointerType !== 'touch' && setHover(null)}
+    >
       <div className="flex">
         <svg width={GUTTER} height={height} className="shrink-0" aria-hidden>
           {ticks.map((tick) => (
@@ -136,6 +152,7 @@ export function ViolinChart<C extends ViolinColumn>({
                   height={height}
                   fill="transparent"
                   onPointerMove={(e) => point(e, i)}
+                  onPointerDown={(e) => point(e, i)}
                 />
                 <path
                   d={outline(column, i)}
@@ -152,6 +169,10 @@ export function ViolinChart<C extends ViolinColumn>({
                     r={hover?.column === i && hover.dot === j ? DOT_RADIUS * 1.8 : DOT_RADIUS}
                     fill={dot.color}
                     onPointerMove={(e) => {
+                      e.stopPropagation()
+                      point(e, i, j)
+                    }}
+                    onPointerDown={(e) => {
                       e.stopPropagation()
                       point(e, i, j)
                     }}
