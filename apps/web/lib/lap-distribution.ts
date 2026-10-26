@@ -56,6 +56,19 @@ export function normaliseCompound(raw: string | null): string {
   return compound in TYRE_COLORS && compound !== 'TEST_UNKNOWN' ? compound : 'UNKNOWN'
 }
 
+const LEGACY_COMPOUNDS = new Set(['HYPERSOFT', 'ULTRASOFT', 'SUPERSOFT'])
+
+/**
+ * In 2018 the softs ran down to hypersoft and the soft, medium and hard were
+ * yellow, white and ice blue. A race that used the 2018 names gets that year's
+ * colours, so its supersoft and soft are not both red.
+ */
+const LEGACY_COLORS: Record<string, string> = {
+  SOFT: 'var(--tyre-medium)',
+  MEDIUM: 'var(--tyre-hard)',
+  HARD: 'var(--tyre-hard-2018)',
+}
+
 /** `1:38.339`. Rounds the whole time first, so 119.96 s reads `2:00.0`, never `1:60.0`. */
 export function formatLapTime(ms: number, decimals: number): string {
   const scale = 10 ** decimals
@@ -93,6 +106,7 @@ export function raceDistribution(
   }
 
   const thresholdMs = median(timed.map((t) => t.timeMs)) * CLEAN_LAP_THRESHOLD
+  const legacy = timed.some((t) => LEGACY_COMPOUNDS.has(normaliseCompound(t.lap.compound)))
   const groups = new Map<string, Group>()
   // Every driver gets a group, even with no clean laps, so the "not shown"
   // list can name them.
@@ -125,7 +139,7 @@ export function raceDistribution(
     groups.get(key)!.dots.push({
       y: timeMs,
       x: jitter(`${driver.driver.ref}-${lap.lapNumber}`),
-      color: TYRE_COLORS[compound],
+      color: (legacy && LEGACY_COLORS[compound]) || TYRE_COLORS[compound],
       meta: {
         driver: driverLabel(driver.driver),
         lap: String(lap.lapNumber),

@@ -113,6 +113,23 @@ describe('raceDistribution', () => {
     expect(laps('ULTRASOFT').color).toBe(TYRE_COLORS.ULTRASOFT)
   })
 
+  it('uses the 2018 colours for soft, medium and hard alongside 2018 compounds', () => {
+    const result = raceDistribution(
+      [
+        driverLaps('alpha', 'a', repeat(90_000, 8), 'SUPERSOFT'),
+        driverLaps('bravo', 'b', repeat(90_000, 8), 'SOFT'),
+        driverLaps('charlie', 'c', repeat(90_000, 8), 'MEDIUM'),
+        driverLaps('delta', 'd', repeat(90_000, 8), 'HARD'),
+      ],
+      'drivers',
+    )
+    const colour = (key: string) => result.columns.find((c) => c.key === key)!.dots![0].color
+    expect(colour('alpha')).toBe(TYRE_COLORS.SUPERSOFT)
+    expect(colour('bravo')).toBe('var(--tyre-medium)')
+    expect(colour('charlie')).toBe('var(--tyre-hard)')
+    expect(colour('delta')).toBe('var(--tyre-hard-2018)')
+  })
+
   it('labels fall back to last name', () => {
     const drivers = [
       driverLaps('hulkenberg', 'sauber', repeat(90_000, 8), 'HARD', {

@@ -9,7 +9,6 @@ import { ConstructorLogo } from '@/components/ui/constructor-logo'
 import { CountryFlag } from '@/components/ui/country-flag'
 import { DriverAvatar } from '@/components/ui/driver-avatar'
 import { REFERENCE } from '@/lib/chart-theme'
-import { TYRE_COLORS } from '@/lib/constants'
 import {
   axisLapLabel,
   CLEAN_LAP_THRESHOLD,
@@ -46,11 +45,17 @@ const COMPOUND_ORDER = [
 export function LapDistributionChart({ drivers }: { drivers: ChartDriverLaps[] }) {
   const [mode, setMode] = useState<DistributionMode>('drivers')
   const distribution = useMemo(() => raceDistribution(drivers, mode), [drivers, mode])
+  // Swatches from the dots actually drawn, so a 2018 race's legend shows
+  // that year's colours.
   const compounds = useMemo(() => {
-    const seen = new Set(
-      distribution.columns.flatMap((c) => c.dots?.map((d) => d.meta.compound.toUpperCase()) ?? []),
-    )
-    return COMPOUND_ORDER.filter((c) => seen.has(c))
+    const drawn = new Map<string, string>()
+    for (const column of distribution.columns) {
+      for (const dot of column.dots ?? []) drawn.set(dot.meta.compound.toUpperCase(), dot.color)
+    }
+    return COMPOUND_ORDER.filter((c) => drawn.has(c)).map((c) => ({
+      compound: c,
+      color: drawn.get(c)!,
+    }))
   }, [distribution])
 
   return (
@@ -130,11 +135,11 @@ export function LapDistributionChart({ drivers }: { drivers: ChartDriverLaps[] }
               />
               Median connector
             </span>
-            {compounds.map((compound) => (
+            {compounds.map(({ compound, color }) => (
               <span key={compound} className="flex items-center gap-1.5">
                 <span
                   className="inline-block size-2 rounded-full"
-                  style={{ backgroundColor: TYRE_COLORS[compound] }}
+                  style={{ backgroundColor: color }}
                 />
                 {compound.charAt(0) + compound.slice(1).toLowerCase()}
               </span>
