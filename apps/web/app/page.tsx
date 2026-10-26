@@ -5,6 +5,7 @@ import { api } from '@/lib/api'
 import type {
   DriverStanding,
   ConstructorStanding,
+  ConstructorPermutationsResponse,
   PermutationsResponse,
   Race,
   RaceResult,
@@ -96,6 +97,14 @@ export default async function Home() {
   const races = seasonDetail.status === 'fulfilled' ? (seasonDetail.value.races ?? []) : []
   const calendarRounds = calendarResult.status === 'fulfilled' ? calendarResult.value.rounds : []
   const permutations = permutationsResult.status === 'fulfilled' ? permutationsResult.value : null
+  const constructorPermutations =
+    permutations?.started && !permutations.seasonComplete
+      ? await (
+          api.seasons.constructorPermutations(
+            latestYear,
+          ) as Promise<ConstructorPermutationsResponse>
+        ).catch(() => null)
+      : null
 
   // Reading the clock in a server component is the point here — the lint rule
   // is aimed at client components, where an impure read would drift between
@@ -275,7 +284,7 @@ export default async function Home() {
           </div>
         </FadeIn>
 
-        {permutations && <TitlePermutations data={permutations} />}
+        <TitlePermutations drivers={permutations} constructors={constructorPermutations} />
       </section>
 
       {/* Explore */}

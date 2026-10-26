@@ -9,6 +9,7 @@ import type {
   StandingsProgressionResponse,
   ConstructorProgressionResponse,
   SeasonHeatmapResponse,
+  ConstructorPermutationsResponse,
   PermutationsResponse,
   PointsSystemsResponse,
   NormalisedStandingsResponse,
@@ -138,6 +139,14 @@ export default async function SeasonDetailPage({ params }: { params: Promise<{ y
     constructorProgressionResult.status === 'fulfilled' ? constructorProgressionResult.value : null
   const heatmap = heatmapResult.status === 'fulfilled' ? heatmapResult.value : null
   const permutations = permutationsResult.status === 'fulfilled' ? permutationsResult.value : null
+  // Only a season still running shows the panel, so a finished one skips the
+  // constructors' fetch rather than writing a cache entry nothing reads.
+  const constructorPermutations =
+    permutations?.started && !permutations.seasonComplete
+      ? await (
+          api.seasons.constructorPermutations(year) as Promise<ConstructorPermutationsResponse>
+        ).catch(() => null)
+      : null
   const calendar = calendarResult.status === 'fulfilled' ? calendarResult.value : null
 
   // Every era's re-scored table, rendered up front so switching between them is
@@ -234,7 +243,7 @@ export default async function SeasonDetailPage({ params }: { params: Promise<{ y
 
       {permutations && (
         <FadeIn>
-          <TitlePermutations data={permutations} />
+          <TitlePermutations drivers={permutations} constructors={constructorPermutations} />
         </FadeIn>
       )}
 

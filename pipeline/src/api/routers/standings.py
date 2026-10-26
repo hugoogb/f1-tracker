@@ -20,12 +20,17 @@ from src.db.queries import (
     official_running_totals,
 )
 from src.scoring import (
+    DOUBLE_POINTS_FINALES,
+    FIRST_CONSTRUCTORS_SEASON,
+    FIRST_SEASON_EVERY_CAR_SCORES,
     SYSTEMS,
     PointsSystem,
+    max_per_round,
     max_points_remaining,
     sprint_system_for_year,
     still_in_contention,
     system_for_year,
+    wins_countback,
 )
 
 router = APIRouter()
@@ -489,21 +494,34 @@ def normalised_standings(
     }
 
 
-@router.get("/seasons/{year}/permutations")
-def title_permutations(year: int, db: Session = Depends(get_db)):
-    """Who can still win the drivers' championship, and by how much.
+def _finishing_counts(db: Session, year: int, up_to_round: int, column) -> dict[str, list[int]]:
+    """Each entrant's Grand Prix finishes by position, for the countback.
 
-    The elimination test is the strict one: a driver is out only when their
-    current points plus every point still on the table is less than the
-    leader's total *now*. That assumes the leader scores nothing again all
-    season, which is why the answer stays "mathematically alive" long after it
-    stops being realistic — but it is the only version of the question with a
-    definite answer.
-
-    Where two drivers can only finish level, the championship is decided on a
-    countback of wins, which no arithmetic here can project. Those cases come
-    back flagged rather than resolved.
+    Index 0 counts wins, index 1 second places and so on. Only the rounds the
+    standings already include, and never sprints: the countback is on Grand
+    Prix results.
     """
+    rows = db.execute(
+        select(column, RaceResult.position, func.count())
+        .join(Race, Race.id == RaceResult.race_id)
+        .where(
+            Race.season_year == year,
+            Race.round <= up_to_round,
+            RaceResult.position.is_not(None),
+            RaceResult.position > 0,
+        )
+        .group_by(column, RaceResult.position)
+    ).all()
+    counts: dict[str, list[int]] = defaultdict(list)
+    for entity_id, position, n in rows:
+        found = counts[entity_id]
+        found.extend([0] * (position - len(found)))
+        found[position - 1] += n
+    return counts
+
+
+def _permutations(db: Session, year: int, *, constructors: bool) -> dict:
+    """Who can still win one of the two titles. See `title_permutations`."""
     races = (
         db.execute(select(Race).where(Race.season_year == year).order_by(Race.round))
         .scalars()
@@ -511,12 +529,21 @@ def title_permutations(year: int, db: Session = Depends(get_db)):
     )
     if not races:
         raise HTTPException(status_code=404, detail="Season not found")
+    if constructors and year < FIRST_CONSTRUCTORS_SEASON:
+        raise HTTPException(
+            status_code=404,
+            detail=f"There was no constructors' championship before {FIRST_CONSTRUCTORS_SEASON}",
+        )
 
+    race_ids = [r.id for r in races]
     rounds_with_results = set(
+        db.execute(select(RaceResult.race_id).where(RaceResult.race_id.in_(race_ids)).distinct())
+        .scalars()
+        .all()
+    )
+    sprints_run = set(
         db.execute(
-            select(RaceResult.race_id)
-            .where(RaceResult.race_id.in_([r.id for r in races]))
-            .distinct()
+            select(SprintResult.race_id).where(SprintResult.race_id.in_(race_ids)).distinct()
         )
         .scalars()
         .all()
@@ -527,20 +554,28 @@ def title_permutations(year: int, db: Session = Depends(get_db)):
     # which are exactly the ones this endpoint is useful for. A remaining round
     # with a sprint session on the calendar is a sprint weekend; without the
     # schedule there is no way to know, and the flag says so rather than
-    # guessing a number that would move the arithmetic.
-    sprints_remaining = sum(1 for r in remaining_races if r.sprint_race_at is not None)
+    # guessing a number that would move the arithmetic. A sprint already run on
+    # a weekend whose race has not been is no longer on the table.
+    def sprint_pending(race: Race) -> bool:
+        return race.sprint_race_at is not None and race.id not in sprints_run
+
+    sprints_remaining = sum(1 for r in remaining_races if sprint_pending(r))
     sprint_schedule_known = year < 2021 or any(r.sprint_race_at is not None for r in races)
 
     system = system_for_year(year)
-    sprint_scale = sprint_system_for_year(year)
-    sprint_win = sprint_scale[0] if sprint_scale else 0.0
+    max_remaining = max_points_remaining(
+        system, len(remaining_races), sprints_remaining, year, constructors=constructors
+    )
 
-    max_remaining = max_points_remaining(system, len(remaining_races), sprints_remaining, year)
-
-    standings = get_driver_standings_for_season(db, year)
+    standings = (
+        get_constructor_standings_for_season(db, year)
+        if constructors
+        else get_driver_standings_for_season(db, year)
+    )
     if not standings:
         return {
             "year": year,
+            "kind": "constructors" if constructors else "drivers",
             "decided": False,
             "started": False,
             "roundsRun": 0,
@@ -548,75 +583,166 @@ def title_permutations(year: int, db: Session = Depends(get_db)):
             "contenders": [],
         }
 
-    leader = standings[0]
-    rounds_run = len(rounds_with_results)
-    season_complete = not remaining_races
+    def entity_id(standing) -> str:
+        return standing.constructor_id if constructors else standing.driver_id
 
-    contenders = []
-    for standing in standings:
-        max_possible = standing.points + max_remaining
-        deficit = leader.points - standing.points
-        if standing.driver_id == leader.driver_id:
-            alive, only_on_countback = True, False
-        else:
-            alive = still_in_contention(standing.points, leader.points, max_remaining)
-            only_on_countback = max_possible == leader.points
-        contenders.append(
-            {
-                "position": standing.position,
-                "driver": driver_summary(standing.driver),
-                "points": standing.points,
-                "wins": standing.wins,
-                "maxPossible": round(max_possible, 2),
-                "deficit": round(deficit, 2),
-                "alive": alive,
-                # A driver who can at best draw level does not win on points; the
-                # title would come down to a countback on wins.
-                "onlyOnCountback": only_on_countback,
-                "isLeader": standing.driver_id == leader.driver_id,
-            }
+    # Points already scored that the latest official table does not include
+    # yet: a sprint run on a weekend whose race has not been, or results in
+    # ahead of their table. Leaving them out would understate a chaser.
+    table_round = standings[0].race.round
+    later_ids = [r.id for r in races if r.round > table_round]
+    column = RaceResult.constructor_id if constructors else RaceResult.driver_id
+    sprint_column = SprintResult.constructor_id if constructors else SprintResult.driver_id
+    banked: dict[str, float] = defaultdict(float)
+    if later_ids:
+        for model, col in ((RaceResult, column), (SprintResult, sprint_column)):
+            for eid, pts in db.execute(
+                select(col, func.sum(model.points))
+                .where(model.race_id.in_(later_ids))
+                .group_by(col)
+            ).all():
+                banked[eid] += float(pts or 0)
+
+    entries = [
+        (standing, standing.points + banked.get(entity_id(standing), 0.0)) for standing in standings
+    ]
+    # Re-rank only on the banked points; the official order (which already
+    # applies the countback) stands wherever totals are level.
+    entries.sort(key=lambda e: -e[1])
+    leader, leader_points = entries[0]
+    leader_id = entity_id(leader)
+
+    finishes = _finishing_counts(db, year, table_round, column)
+    races_remaining = len(remaining_races)
+
+    def countback(eid: str, rounds: int, leader_extra_wins: int = 0) -> bool | None:
+        leader_record = list(finishes.get(leader_id, []))
+        if leader_extra_wins:
+            leader_record += [0] * max(2 - len(leader_record), 0)
+            leader_record[0] += leader_extra_wins
+            if constructors and year >= FIRST_SEASON_EVERY_CAR_SCORES:
+                leader_record[1] += leader_extra_wins
+        return wins_countback(
+            finishes.get(eid, []), leader_record, rounds, constructors=constructors
         )
 
+    contenders = []
+    for standing, points in entries:
+        eid = entity_id(standing)
+        is_leader = eid == leader_id
+        max_possible = points + max_remaining
+        if is_leader:
+            alive, only_on_countback = True, False
+        else:
+            alive = still_in_contention(
+                points,
+                leader_points,
+                max_remaining,
+                countback=countback(eid, races_remaining),
+            )
+            # Alive, but only by drawing level and winning the countback.
+            only_on_countback = alive and max_possible == leader_points
+        row = {
+            "position": standing.position,
+            "points": points,
+            "wins": standing.wins,
+            "maxPossible": round(max_possible, 2),
+            "deficit": round(leader_points - points, 2),
+            "alive": alive,
+            "onlyOnCountback": only_on_countback,
+            "isLeader": is_leader,
+        }
+        if constructors:
+            row["constructor"] = constructor_summary(standing.constructor)
+        else:
+            row["driver"] = driver_summary(standing.driver)
+        contenders.append(row)
+
     alive_count = sum(1 for c in contenders if c["alive"])
+    season_complete = not remaining_races
     # Mathematically settled once nobody else can reach the leader, which can
     # happen several rounds before the finale.
     decided = season_complete or alive_count <= 1
 
-    # What the leader still has to do. The margin that ends it is one point more
-    # than everything still available to a rival; whether the next round can
-    # deliver that margin depends on what is left after it.
+    # What the leader still has to do: take the maximum at the next round while
+    # every rival scores nothing there (always possible — points stop at tenth),
+    # and still be out of reach of everything left afterwards.
     next_race = remaining_races[0] if remaining_races else None
-    max_next_round = system.max_per_round + (
-        sprint_win if next_race is not None and next_race.sprint_race_at is not None else 0.0
-    )
-    max_after_next = max(max_remaining - max_next_round, 0.0)
-    runner_up = next((c for c in contenders if not c["isLeader"]), None)
+    can_clinch = False
+    if next_race is not None and not decided:
+        next_sprints = 1 if sprint_pending(next_race) else 0
+        max_next = max_points_remaining(system, 1, next_sprints, year, constructors=constructors)
+        if year in DOUBLE_POINTS_FINALES and races_remaining > 1:
+            # Only the finale pays double; a single remaining race already is it.
+            max_next -= max_per_round(system, year, constructors=constructors)
+        max_after = max(max_remaining - max_next, 0.0)
+        can_clinch = not any(
+            still_in_contention(
+                c["points"],
+                leader_points + max_next,
+                max_after,
+                countback=countback(
+                    c["constructor"]["id"] if constructors else c["driver"]["id"],
+                    races_remaining - 1,
+                    leader_extra_wins=1,
+                ),
+            )
+            for c in contenders
+            if c["alive"] and not c["isLeader"]
+        )
 
     return {
         "year": year,
+        "kind": "constructors" if constructors else "drivers",
         "started": True,
         "decided": decided,
         "seasonComplete": season_complete,
-        "roundsRun": rounds_run,
+        "roundsRun": len(rounds_with_results),
         "totalRounds": len(races),
-        "racesRemaining": len(remaining_races),
+        "racesRemaining": races_remaining,
         "sprintsRemaining": sprints_remaining,
         "sprintScheduleKnown": sprint_schedule_known,
+        "doublePointsFinale": year in DOUBLE_POINTS_FINALES and races_remaining > 0,
         "maxRemaining": round(max_remaining, 2),
         "pointsSystem": _system_payload(system),
         "nextRound": (
             {"round": next_race.round, "name": next_race.name} if next_race is not None else None
         ),
         # The scenario every broadcast means by "he can win it next time out":
-        # the leader takes the maximum at the next round, the runner-up scores
-        # nothing there, and even taking everything left afterwards the
-        # runner-up finishes short.
-        "canClinchNextRound": bool(
-            runner_up is not None
-            and not decided
-            and (leader.points + max_next_round) - runner_up["points"] > max_after_next
-        ),
+        # the leader takes the maximum at the next round, no rival scores there,
+        # and even taking everything left afterwards none of them can catch up.
+        "canClinchNextRound": can_clinch,
         "marginToClinch": round(max_remaining + 1, 2) if not decided else 0,
         "aliveCount": alive_count,
         "contenders": contenders,
     }
+
+
+@router.get("/seasons/{year}/permutations")
+def title_permutations(year: int, db: Session = Depends(get_db)):
+    """Who can still win the drivers' championship, and by how much.
+
+    The elimination test is the strict one: a driver is out only when their
+    current points plus every point still on the table cannot reach the
+    leader's total *now*. That assumes the leader scores nothing again all
+    season, which is why the answer stays "mathematically alive" long after it
+    stops being realistic — but it is the only version of the question with a
+    definite answer.
+
+    A rival who can at best draw level has exactly one way to do it — win every
+    remaining race while the leader scores nothing — so the countback that
+    settles the tie (wins, then second places, ...) is fully determined, and
+    the rival is alive only if they would win it (`onlyOnCountback`).
+    """
+    return _permutations(db, year, constructors=False)
+
+
+@router.get("/seasons/{year}/permutations/constructors")
+def constructor_title_permutations(year: int, db: Session = Depends(get_db)):
+    """Who can still win the constructors' championship (1958 onwards).
+
+    The same strict test as the drivers', with a constructor's maximum: a
+    one-two in every remaining race and sprint (only the best car scored
+    before 1979), plus the fastest-lap point where it was paid.
+    """
+    return _permutations(db, year, constructors=True)

@@ -49,12 +49,14 @@ from src.db.models import (
 )
 from src.db.queries import main_constructors, race_has_happened
 from src.scoring import (
+    FIRST_CONSTRUCTORS_SEASON,
     SYSTEMS,
     counts_every_result,
     era_bounds,
     max_points_remaining,
     still_in_contention,
     system_for_year,
+    wins_countback,
 )
 
 router = APIRouter()
@@ -108,10 +110,10 @@ MARGIN_SHARE_CEILING = 0.4
 WINNERS_FOR_FULL_MARKS = 8
 # Lead changes needed for full marks.
 LEAD_CHANGES_FOR_FULL_MARKS = 4
-# The constructors' championship was first awarded in 1958. The database can
-# hold constructor tables for earlier seasons (the ingest totals them where
-# f1db has none), but there was no title to win, so they are not shown as one.
-FIRST_CONSTRUCTORS_SEASON = 1958
+# The constructors' championship was first awarded in 1958 (FIRST_CONSTRUCTORS_SEASON).
+# The database can hold constructor tables for earlier seasons (the ingest
+# totals them where f1db has none), but there was no title to win, so they are
+# not shown as one.
 
 NOTES = (
     "The champion, the runner-up and the title margin come from the official final "
@@ -160,6 +162,8 @@ class _Season:
     official_tables: dict[str, dict[str, tuple[float, int | None]]] = field(default_factory=dict)
     driver_final: list[Standing] = field(default_factory=list)
     constructor_final: list[Standing] = field(default_factory=list)
+    # Grand Prix finishing positions per round, for the countback on a tie.
+    round_positions: dict[str, dict[str, int]] = field(default_factory=dict)
     winners: set[str] = field(default_factory=set)
     pole_sitters: set[str] = field(default_factory=set)
     poles_known: int = 0
@@ -209,6 +213,8 @@ def _load(db: Session) -> dict[int, _Season]:
         scored[driver_id] = scored.get(driver_id, 0.0) + float(points or 0)
         if position == 1:
             season.winners.add(driver_id)
+        if position is not None and position > 0:
+            season.round_positions.setdefault(race_id, {})[driver_id] = position
 
     for race_id, driver_id, points in db.execute(
         select(SprintResult.race_id, SprintResult.driver_id, SprintResult.points)
@@ -310,7 +316,12 @@ def _analyse(season: _Season, sprint_ids: set[str], today: date) -> dict | None:
     contenders_at_finale: int | None = None
     leaders: list[str] = []
     totals: dict[str, float] = defaultdict(float)
+    finishes: dict[str, list[int]] = defaultdict(list)
     for index, race in enumerate(run):
+        for driver_id, position in season.round_positions.get(race.id, {}).items():
+            counts = finishes[driver_id]
+            counts.extend([0] * (position - len(counts)))
+            counts[position - 1] += 1
         if official:
             table = season.official_tables[race.id]
             totals.update({d: p for d, (p, _) in table.items()})
@@ -335,7 +346,13 @@ def _analyse(season: _Season, sprint_ids: set[str], today: date) -> dict | None:
         alive = 1 + sum(
             1
             for d, points in totals.items()
-            if d != leader_id and still_in_contention(points, leader_points, remaining)
+            if d != leader_id
+            and still_in_contention(
+                points,
+                leader_points,
+                remaining,
+                countback=wins_countback(finishes[d], finishes[leader_id], len(later)),
+            )
         )
         if not in_progress:
             if decided_at is None and leader_id == champion[0] and alive == 1:
