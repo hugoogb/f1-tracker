@@ -11,7 +11,9 @@ import { DriverAvatar } from '@/components/ui/driver-avatar'
 import { REFERENCE } from '@/lib/chart-theme'
 import { TYRE_COLORS } from '@/lib/constants'
 import {
+  axisLapLabel,
   CLEAN_LAP_THRESHOLD,
+  formatLapTime,
   MIN_CLEAN_LAPS,
   raceDistribution,
   type DistributionMode,
@@ -19,19 +21,21 @@ import {
 } from '@/lib/lap-distribution'
 import type { ChartDriverLaps } from '@/lib/types'
 
-/** `1:40.5` on the axis, `1:40.512` in a tooltip. */
-function formatLap(ms: number, decimals = 1): string {
-  const total = ms / 1000
-  const minutes = Math.floor(total / 60)
-  const seconds = (total - minutes * 60).toFixed(decimals)
-  return `${minutes}:${seconds.padStart(decimals + 3, '0')}`
-}
-
 function formatGap(ms: number): string {
   return ms === 0 ? '0.000' : `+${(ms / 1000).toFixed(3)}`
 }
 
-const COMPOUND_ORDER = ['SOFT', 'MEDIUM', 'HARD', 'INTERMEDIATE', 'WET', 'UNKNOWN']
+const COMPOUND_ORDER = [
+  'HYPERSOFT',
+  'ULTRASOFT',
+  'SUPERSOFT',
+  'SOFT',
+  'MEDIUM',
+  'HARD',
+  'INTERMEDIATE',
+  'WET',
+  'UNKNOWN',
+]
 
 /**
  * Every clean race lap as a dot coloured by tyre, a violin per driver (or per
@@ -73,7 +77,7 @@ export function LapDistributionChart({ drivers }: { drivers: ChartDriverLaps[] }
         <>
           <ViolinChart<RaceColumn>
             columns={distribution.columns}
-            formatValue={(ms) => formatLap(ms)}
+            formatValue={axisLapLabel}
             ariaLabel={`Lap time distribution by ${mode === 'drivers' ? 'driver' : 'constructor'}`}
             renderFooter={(column) => (
               <>
@@ -99,15 +103,15 @@ export function LapDistributionChart({ drivers }: { drivers: ChartDriverLaps[] }
               dot ? (
                 <TooltipFrame title={dot.meta.driver}>
                   <TooltipRow name="Lap" value={dot.meta.lap} />
-                  <TooltipRow name="Time" value={formatLap(dot.y, 3)} />
+                  <TooltipRow name="Time" value={formatLapTime(dot.y, 3)} />
                   <TooltipRow color={dot.color} name="Tyre" value={dot.meta.compound} />
                 </TooltipFrame>
               ) : (
                 <TooltipFrame title={column.label}>
-                  <TooltipRow name="Median" value={formatLap(column.median, 3)} />
+                  <TooltipRow name="Median" value={formatLapTime(column.median, 3)} />
                   <TooltipRow
                     name="IQR"
-                    value={`${formatLap(column.q1, 3)} – ${formatLap(column.q3, 3)}`}
+                    value={`${formatLapTime(column.q1, 3)} – ${formatLapTime(column.q3, 3)}`}
                   />
                   <TooltipRow name="Clean laps" value={column.cleanLaps} />
                 </TooltipFrame>

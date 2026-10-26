@@ -46,6 +46,30 @@ interface Group {
   dots: ViolinDot[]
 }
 
+/**
+ * Fast-F1's compound as one of `TYRE_COLORS`' keys. The stored values include
+ * 2018's hyper/ultra/supersoft and pandas' missing-value strings (`nan`,
+ * `None`), which must read as unknown rather than as a compound called "nan".
+ */
+export function normaliseCompound(raw: string | null): string {
+  const compound = raw?.trim().toUpperCase() ?? ''
+  return compound in TYRE_COLORS && compound !== 'TEST_UNKNOWN' ? compound : 'UNKNOWN'
+}
+
+/** `1:38.339`. Rounds the whole time first, so 119.96 s reads `2:00.0`, never `1:60.0`. */
+export function formatLapTime(ms: number, decimals: number): string {
+  const scale = 10 ** decimals
+  const units = Math.round((ms / 1000) * scale)
+  const minutes = Math.floor(units / (60 * scale))
+  const seconds = (units - minutes * 60 * scale) / scale
+  return `${minutes}:${seconds.toFixed(decimals).padStart(decimals + 3, '0')}`
+}
+
+/** An axis tick: tenths, or hundredths for a tick that falls between them. */
+export function axisLapLabel(ms: number): string {
+  return formatLapTime(ms, ms % 100 === 0 ? 1 : 2)
+}
+
 function driverLabel(driver: ChartDriverLaps['driver']): string {
   return driver.code ?? driver.lastName.slice(0, 3).toUpperCase()
 }
@@ -96,16 +120,16 @@ export function raceDistribution(
   for (const { driver, lap, timeMs } of timed) {
     if (timeMs > thresholdMs) continue
     cleanLaps++
-    const compound = lap.compound?.toUpperCase() ?? 'UNKNOWN'
+    const compound = normaliseCompound(lap.compound)
     const key = mode === 'drivers' ? driver.driver.ref : driver.constructor.ref
     groups.get(key)!.dots.push({
       y: timeMs,
       x: jitter(`${driver.driver.ref}-${lap.lapNumber}`),
-      color: TYRE_COLORS[compound] ?? TYRE_COLORS.UNKNOWN,
+      color: TYRE_COLORS[compound],
       meta: {
         driver: driverLabel(driver.driver),
         lap: String(lap.lapNumber),
-        compound: lap.compound ?? 'Unknown',
+        compound: compound.charAt(0) + compound.slice(1).toLowerCase(),
       },
     })
   }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { TYRE_COLORS } from '@/lib/constants'
-import { raceDistribution } from '@/lib/lap-distribution'
+import { axisLapLabel, formatLapTime, raceDistribution } from '@/lib/lap-distribution'
 import type { ChartDriverLaps } from '@/lib/types'
 
 /** One driver's race, laps numbered from 1. */
@@ -93,6 +93,26 @@ describe('raceDistribution', () => {
     expect(soft.columns[0].dots?.[0].color).toBe(TYRE_COLORS.SOFT)
   })
 
+  it('normalises junk and 2018 compounds', () => {
+    const laps = (compound: string) =>
+      raceDistribution([driverLaps('alpha', 'a', repeat(90_000, 8), compound)], 'drivers')
+        .columns[0].dots![0]
+    expect(laps('nan')).toMatchObject({ color: TYRE_COLORS.UNKNOWN, meta: { compound: 'Unknown' } })
+    expect(laps('None')).toMatchObject({
+      color: TYRE_COLORS.UNKNOWN,
+      meta: { compound: 'Unknown' },
+    })
+    expect(TYRE_COLORS.SUPERSOFT).toBeDefined()
+    expect(laps('SUPERSOFT')).toMatchObject({
+      color: TYRE_COLORS.SUPERSOFT,
+      meta: { compound: 'Supersoft' },
+    })
+    expect(TYRE_COLORS.HYPERSOFT).toBeDefined()
+    expect(laps('HYPERSOFT').color).toBe(TYRE_COLORS.HYPERSOFT)
+    expect(TYRE_COLORS.ULTRASOFT).toBeDefined()
+    expect(laps('ULTRASOFT').color).toBe(TYRE_COLORS.ULTRASOFT)
+  })
+
   it('labels fall back to last name', () => {
     const drivers = [
       driverLaps('hulkenberg', 'sauber', repeat(90_000, 8), 'HARD', {
@@ -110,5 +130,24 @@ describe('raceDistribution', () => {
       driverLaps('bravo', 'b', [96_000, 90_900, 91_400, 90_800, 91_100, 91_300, 90_600]),
     ]
     expect(raceDistribution(drivers, 'drivers')).toEqual(raceDistribution(drivers, 'drivers'))
+  })
+})
+
+describe('formatLapTime', () => {
+  it('formats minutes and seconds', () => {
+    expect(formatLapTime(98_339, 3)).toBe('1:38.339')
+  })
+
+  it('carries a rounded 60 into the minutes', () => {
+    expect(formatLapTime(119_960, 1)).toBe('2:00.0')
+    expect(formatLapTime(119_999.75, 3)).toBe('2:00.000')
+  })
+})
+
+describe('axisLapLabel', () => {
+  it('shows tenths unless the tick sits between them', () => {
+    expect(axisLapLabel(96_000)).toBe('1:36.0')
+    expect(axisLapLabel(95_200)).toBe('1:35.2')
+    expect(axisLapLabel(95_250)).toBe('1:35.25')
   })
 })
