@@ -5,8 +5,11 @@ import {
   kde,
   median,
   niceTicks,
+  outlinePath,
   quantile,
   silvermanBandwidth,
+  violinDomain,
+  type ViolinColumn,
 } from '@/lib/violin'
 
 describe('median', () => {
@@ -110,5 +113,45 @@ describe('niceTicks', () => {
 
   it('handles fractional steps without float noise', () => {
     expect(niceTicks(0, 1, 6)).toEqual([0, 0.2, 0.4, 0.6, 0.8, 1])
+  })
+})
+
+describe('violinDomain', () => {
+  const column = (key: string, ys: number[]): ViolinColumn => ({
+    key,
+    label: key,
+    color: 'var(--chart-1)',
+    median: ys[0] ?? 0,
+    q1: 0,
+    q3: 0,
+    density: ys.map((y) => ({ y, w: 1 })),
+  })
+
+  it('spans every drawable column', () => {
+    expect(violinDomain([column('a', [10, 20]), column('b', [5, 15])])).toEqual({ lo: 5, hi: 20 })
+  })
+
+  it('ignores a column with no density', () => {
+    expect(violinDomain([column('a', [10, 20]), column('b', [])])).toEqual({ lo: 10, hi: 20 })
+  })
+
+  it('is null when nothing can be drawn', () => {
+    expect(violinDomain([column('a', [])])).toBeNull()
+  })
+})
+
+describe('outlinePath', () => {
+  const toPx = (y: number) => 100 - y
+
+  it('traces the right side up and the left side back', () => {
+    const density = [
+      { y: 0, w: 0.5 },
+      { y: 10, w: 1 },
+    ]
+    expect(outlinePath(density, 50, 20, toPx)).toBe('M60,100L70,90L30,90L40,100Z')
+  })
+
+  it('is empty for an empty density', () => {
+    expect(outlinePath([], 50, 20, toPx)).toBe('')
   })
 })

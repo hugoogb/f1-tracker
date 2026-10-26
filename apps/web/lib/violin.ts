@@ -101,6 +101,36 @@ export function densityAt(density: DensityPoint[], y: number): number {
 }
 
 /**
+ * The y range every drawable column spans. A column with no density (no data
+ * for that slot) has nothing to draw and does not stretch the axis; null when
+ * no column can be drawn at all.
+ */
+export function violinDomain(columns: ViolinColumn[]): { lo: number; hi: number } | null {
+  const drawable = columns.filter((c) => c.density.length > 0)
+  if (drawable.length === 0) return null
+  return {
+    lo: Math.min(...drawable.map((c) => c.density[0].y)),
+    hi: Math.max(...drawable.map((c) => c.density[c.density.length - 1].y)),
+  }
+}
+
+/**
+ * The closed outline of one violin: up the right side, back down the left.
+ * `half` is the pixel half-width at the widest point; empty for no density.
+ */
+export function outlinePath(
+  density: DensityPoint[],
+  centre: number,
+  half: number,
+  toPx: (y: number) => number,
+): string {
+  if (density.length === 0) return ''
+  const right = density.map((p) => `${centre + p.w * half},${toPx(p.y)}`)
+  const left = [...density].reverse().map((p) => `${centre - p.w * half},${toPx(p.y)}`)
+  return `M${[...right, ...left].join('L')}Z`
+}
+
+/**
  * A stable pseudo-random spread in [-1, 1] (FNV-1a of the seed). Never
  * `Math.random`: the server and client renders must agree, and a cached page
  * whose dots moved on every render would be a new cache write each time.

@@ -1,10 +1,26 @@
 'use client'
 
-import { useEffect, useRef, useState, type PointerEvent, type ReactNode } from 'react'
+import {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type FocusEvent,
+  type PointerEvent,
+  type ReactNode,
+} from 'react'
 
 import { TooltipFrame, TooltipRow } from '@/components/charts/chart-tooltip'
 import { axisProps, gridProps, REFERENCE } from '@/lib/chart-theme'
-import { densityAt, niceTicks, type ViolinColumn, type ViolinDot } from '@/lib/violin'
+import {
+  densityAt,
+  niceTicks,
+  outlinePath,
+  violinDomain,
+  type ViolinColumn,
+  type ViolinDot,
+} from '@/lib/violin'
 
 export interface ViolinChartProps<C extends ViolinColumn = ViolinColumn> {
   columns: C[]
@@ -13,6 +29,8 @@ export interface ViolinChartProps<C extends ViolinColumn = ViolinColumn> {
   /** Rendered under each column. */
   renderFooter?: (column: C) => ReactNode
   renderTooltip?: (hit: { column: C; dot?: ViolinDot }) => ReactNode
+  /** What a screen reader hears for a column; defaults to its median and IQR. */
+  describeColumn?: (column: C) => string
   /** Dashed line through the medians, in column order. */
   connectMedians?: boolean
   /** Plot height in px. */
@@ -34,6 +52,19 @@ interface Hover {
   y: number
   /** Past the middle of the frame the tooltip opens to the left of the pointer. */
   flip: boolean
+  /** Opened by keyboard focus rather than a pointer. */
+  focus?: boolean
+}
+
+/** The column (and dot) under an event target, read off `data-col`/`data-dot`. */
+function hitAt(target: EventTarget): { column: number; dot?: number } | null {
+  const el = target instanceof Element ? target.closest('[data-col]') : null
+  if (!el) return null
+  const dot = el.getAttribute('data-dot')
+  return {
+    column: Number(el.getAttribute('data-col')),
+    dot: dot === null ? undefined : Number(dot),
+  }
 }
 
 /**
@@ -43,12 +74,16 @@ interface Hover {
  *
  * Plain SVG — Recharts has no violin — styled from the same chart theme. The
  * y-axis stays put in a gutter while the columns scroll on a narrow screen.
+ * The outlines and dots are one memoised layer; hovering only redraws the
+ * highlight and the tooltip, and one handler on the frame finds what is under
+ * the pointer, so a thousand dots carry no listeners of their own.
  */
 export function ViolinChart<C extends ViolinColumn>({
   columns,
   formatValue,
   renderFooter,
   renderTooltip,
+  describeColumn,
   connectMedians = true,
   height = 420,
   minColumnWidth = 44,
@@ -59,13 +94,17 @@ export function ViolinChart<C extends ViolinColumn>({
   const [available, setAvailable] = useState(0)
   const [hover, setHover] = useState<Hover | null>(null)
 
-  useEffect(() => {
+  const empty = columns.length === 0
+  // Measured before the first paint, so the columns never draw at their
+  // minimum width and then jump to fill the container.
+  useLayoutEffect(() => {
     const el = scrollRef.current
     if (!el) return
+    setAvailable(el.clientWidth)
     const observer = new ResizeObserver(([entry]) => setAvailable(entry.contentRect.width))
     observer.observe(el)
     return () => observer.disconnect()
-  }, [])
+  }, [empty])
 
   const open = hover !== null
   useEffect(() => {
@@ -77,31 +116,155 @@ export function ViolinChart<C extends ViolinColumn>({
     return () => document.removeEventListener('pointerdown', close)
   }, [open])
 
-  if (columns.length === 0) return null
+  const geometry = useMemo(() => {
+    const domain = violinDomain(columns)
+    if (!domain) return null
+    const width = Math.max(available, columns.length * minColumnWidth)
+    const columnWidth = width / columns.length
+    const span = domain.hi - domain.lo || 1
+    const plot = height - 2 * PAD_Y
+    return {
+      width,
+      columnWidth,
+      ticks: niceTicks(domain.lo, domain.hi, 8),
+      centre: (i: number) => (i + 0.5) * columnWidth,
+      toPx: (value: number) => PAD_Y + ((domain.hi - value) / span) * plot,
+    }
+  }, [columns, available, height, minColumnWidth])
 
-  const width = Math.max(available, columns.length * minColumnWidth)
-  const columnWidth = width / columns.length
-  const centre = (i: number) => (i + 0.5) * columnWidth
+  const describe = useMemo(
+    () =>
+      describeColumn ??
+      ((c: C) =>
+        `${c.label}: median ${formatValue(c.median)}, middle half ${formatValue(c.q1)} to ${formatValue(c.q3)}`),
+    [describeColumn, formatValue],
+  )
 
-  const lo = Math.min(...columns.map((c) => c.density[0]?.y ?? c.median))
-  const hi = Math.max(...columns.map((c) => c.density[c.density.length - 1]?.y ?? c.median))
-  const span = hi - lo || 1
-  const plot = height - 2 * PAD_Y
-  const toPx = (value: number) => PAD_Y + ((hi - value) / span) * plot
-  const ticks = niceTicks(lo, hi, 8)
+  const plot = useMemo(() => {
+    if (!geometry) return null
+    const { width, columnWidth, ticks, centre, toPx } = geometry
+    const drawn = columns.flatMap((c, i) => (c.density.length > 0 ? [{ c, i }] : []))
+    return (
+      <>
+        {ticks.map((tick) => (
+          <line
+            key={tick}
+            x1={0}
+            x2={width}
+            y1={toPx(tick)}
+            y2={toPx(tick)}
+            stroke={gridProps.stroke}
+            strokeDasharray={gridProps.strokeDasharray}
+          />
+        ))}
+        {columns.map((column, i) => (
+          <g key={column.key}>
+            <rect
+              data-col={i}
+              x={i * columnWidth}
+              y={0}
+              width={columnWidth}
+              height={height}
+              fill="transparent"
+              tabIndex={0}
+              role="img"
+              aria-label={describe(column)}
+              className="outline-none"
+            />
+            {column.density.length > 0 && (
+              <>
+                <path
+                  d={outlinePath(column.density, centre(i), 0.45 * columnWidth, toPx)}
+                  fill={`color-mix(in oklab, ${column.color} 18%, transparent)`}
+                  stroke={column.color}
+                  strokeWidth={1}
+                  pointerEvents="none"
+                />
+                {column.dots?.map((dot, j) => (
+                  <circle
+                    key={j}
+                    data-col={i}
+                    data-dot={j}
+                    cx={centre(i) + dot.x * densityAt(column.density, dot.y) * 0.4 * columnWidth}
+                    cy={toPx(dot.y)}
+                    r={DOT_RADIUS}
+                    fill={dot.color}
+                  />
+                ))}
+              </>
+            )}
+          </g>
+        ))}
+        {connectMedians && drawn.length > 1 && (
+          <polyline
+            points={drawn.map(({ c, i }) => `${centre(i)},${toPx(c.median)}`).join(' ')}
+            fill="none"
+            stroke={REFERENCE}
+            strokeDasharray="4 4"
+            pointerEvents="none"
+          />
+        )}
+        {drawn.map(({ c, i }) => {
+          const x = centre(i)
+          const y = toPx(c.median)
+          return (
+            <polygon
+              key={c.key}
+              points={`${x},${y - DIAMOND} ${x + DIAMOND},${y} ${x},${y + DIAMOND} ${x - DIAMOND},${y}`}
+              fill="var(--foreground)"
+              stroke="var(--background)"
+              strokeWidth={1}
+              pointerEvents="none"
+            />
+          )
+        })}
+      </>
+    )
+  }, [geometry, columns, connectMedians, height, describe])
 
-  function outline(column: C, i: number): string {
-    const half = 0.45 * columnWidth
-    const right = column.density.map((p) => `${centre(i) + p.w * half},${toPx(p.y)}`)
-    const left = [...column.density].reverse().map((p) => `${centre(i) - p.w * half},${toPx(p.y)}`)
-    return `M${[...right, ...left].join('L')}Z`
+  const footer = useMemo(
+    () =>
+      geometry &&
+      renderFooter && (
+        <div className="flex pt-3" style={{ width: geometry.width }}>
+          {columns.map((column) => (
+            <div
+              key={column.key}
+              className="flex flex-col items-center gap-1 text-center"
+              style={{ width: geometry.columnWidth }}
+            >
+              {renderFooter(column)}
+            </div>
+          ))}
+        </div>
+      ),
+    [geometry, columns, renderFooter],
+  )
+
+  if (!geometry) return null
+  const { width, columnWidth, ticks, centre, toPx } = geometry
+
+  function track(event: PointerEvent<HTMLDivElement>) {
+    const hit = hitAt(event.target)
+    if (!hit) {
+      // Over the labels row or the axis: nothing to describe. A tap there on
+      // touch leaves an open tooltip alone; the outside-tap listener closes it.
+      if (event.pointerType !== 'touch') setHover(null)
+      return
+    }
+    const frame = event.currentTarget.getBoundingClientRect()
+    const x = event.clientX - frame.left
+    setHover({ ...hit, x, y: event.clientY - frame.top, flip: x > frame.width / 2 })
   }
 
-  function point(event: PointerEvent, column: number, dot?: number) {
+  function focus(event: FocusEvent<HTMLDivElement>) {
+    const hit = hitAt(event.target)
     const frame = frameRef.current?.getBoundingClientRect()
-    if (!frame) return
-    const x = event.clientX - frame.left
-    setHover({ column, dot, x, y: event.clientY - frame.top, flip: x > frame.width / 2 })
+    if (!hit || !frame || !(event.target instanceof Element)) return
+    const target = event.target.getBoundingClientRect()
+    const x = target.left - frame.left + target.width / 2
+    const y = target.top - frame.top + toPx(columns[hit.column].median)
+    setHover({ column: hit.column, x, y, flip: x > frame.width / 2, focus: true })
   }
 
   const hovered = hover ? columns[hover.column] : null
@@ -111,9 +274,13 @@ export function ViolinChart<C extends ViolinColumn>({
     <div
       ref={frameRef}
       className="relative"
+      onPointerMove={track}
+      onPointerDown={track}
       // A finger lifting fires pointerleave straight after the tap that opened
       // the tooltip; on touch it stays until a tap lands outside the chart.
       onPointerLeave={(e) => e.pointerType !== 'touch' && setHover(null)}
+      onFocus={focus}
+      onBlur={() => setHover((h) => (h?.focus ? null : h))}
     >
       <div className="flex">
         <svg width={GUTTER} height={height} className="shrink-0" aria-hidden>
@@ -131,92 +298,36 @@ export function ViolinChart<C extends ViolinColumn>({
           ))}
         </svg>
         <div ref={scrollRef} className="min-w-0 flex-1 overflow-x-auto">
-          <svg width={width} height={height} role="img" aria-label={ariaLabel} className="block">
-            {ticks.map((tick) => (
-              <line
-                key={tick}
-                x1={0}
-                x2={width}
-                y1={toPx(tick)}
-                y2={toPx(tick)}
-                stroke={gridProps.stroke}
-                strokeDasharray={gridProps.strokeDasharray}
-              />
-            ))}
-            {columns.map((column, i) => (
-              <g key={column.key}>
-                <rect
-                  x={i * columnWidth}
-                  y={0}
-                  width={columnWidth}
-                  height={height}
-                  fill="transparent"
-                  onPointerMove={(e) => point(e, i)}
-                  onPointerDown={(e) => point(e, i)}
-                />
-                <path
-                  d={outline(column, i)}
-                  fill={`color-mix(in oklab, ${column.color} 18%, transparent)`}
-                  stroke={column.color}
-                  strokeWidth={1}
-                  pointerEvents="none"
-                />
-                {column.dots?.map((dot, j) => (
-                  <circle
-                    key={j}
-                    cx={centre(i) + dot.x * densityAt(column.density, dot.y) * 0.4 * columnWidth}
-                    cy={toPx(dot.y)}
-                    r={hover?.column === i && hover.dot === j ? DOT_RADIUS * 1.8 : DOT_RADIUS}
-                    fill={dot.color}
-                    onPointerMove={(e) => {
-                      e.stopPropagation()
-                      point(e, i, j)
-                    }}
-                    onPointerDown={(e) => {
-                      e.stopPropagation()
-                      point(e, i, j)
-                    }}
-                  />
-                ))}
-              </g>
-            ))}
-            {connectMedians && columns.length > 1 && (
-              <polyline
-                points={columns.map((c, i) => `${centre(i)},${toPx(c.median)}`).join(' ')}
+          <svg width={width} height={height} role="group" aria-label={ariaLabel} className="block">
+            {plot}
+            {hover?.focus && (
+              <rect
+                x={hover.column * columnWidth + 1}
+                y={1}
+                width={columnWidth - 2}
+                height={height - 2}
                 fill="none"
-                stroke={REFERENCE}
-                strokeDasharray="4 4"
+                stroke="var(--ring)"
+                strokeWidth={1.5}
                 pointerEvents="none"
               />
             )}
-            {columns.map((column, i) => {
-              const x = centre(i)
-              const y = toPx(column.median)
-              return (
-                <polygon
-                  key={column.key}
-                  points={`${x},${y - DIAMOND} ${x + DIAMOND},${y} ${x},${y + DIAMOND} ${x - DIAMOND},${y}`}
-                  fill="var(--foreground)"
-                  stroke="var(--background)"
-                  strokeWidth={1}
-                  pointerEvents="none"
-                />
-              )
-            })}
+            {hoveredDot && hovered && (
+              <circle
+                cx={
+                  centre(hover!.column) +
+                  hoveredDot.x * densityAt(hovered.density, hoveredDot.y) * 0.4 * columnWidth
+                }
+                cy={toPx(hoveredDot.y)}
+                r={DOT_RADIUS * 1.8}
+                fill={hoveredDot.color}
+                stroke="var(--foreground)"
+                strokeWidth={1}
+                pointerEvents="none"
+              />
+            )}
           </svg>
-          {renderFooter && (
-            <div className="flex pt-3" style={{ width }}>
-              {columns.map((column) => (
-                <div
-                  key={column.key}
-                  className="flex flex-col items-center gap-1 text-center"
-                  style={{ width: columnWidth }}
-                >
-                  {renderFooter(column)}
-                </div>
-              ))}
-            </div>
-          )}
+          {footer}
         </div>
       </div>
       {hover && hovered && (
