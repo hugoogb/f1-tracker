@@ -345,7 +345,12 @@ Two f1db quirks the UI is built around:
   and `lib/violin.ts` (Silverman bandwidth, grid padded by two bandwidths, widest
   point = 1) is the reference any server-side density must reproduce — change
   both or neither. Dot spread is hashed from the driver and lap (`jitter()`),
-  never `Math.random`, so cached renders stay byte-identical
+  never `Math.random`: server and client renders must agree, and once a violin
+  is server-rendered into a cached page (the Stage 2 season charts) a reshuffle
+  would be a new cache write. The race chart itself sits in a non-default tab
+  (`TabsContent` does not keep panels mounted), so it is never in cached HTML.
+  A column with an empty `density` is not drawn and does not stretch the axis
+  (`violinDomain()`)
 - A season's scoring context makes two claims from two sources, and the wording
   has to keep them apart. The points system is a fact about the year, from
   `src/scoring.py`. Whether results were dropped is read off the results — a
