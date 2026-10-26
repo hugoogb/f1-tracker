@@ -67,15 +67,21 @@ interface PitStopsResponse {
 }
 
 /**
- * The `/laps` response cut down to what the two charts draw. About two thirds
+ * The `/laps` response cut down to what the lap charts draw. About two thirds
  * of it is sector splits, stint numbers, tyre life and driver nationality,
- * none of which either chart reads — and whatever a client component gets is
+ * none of which any chart reads — and whatever a client component gets is
  * serialised into the cached page twice (RSC payload and inline HTML).
  */
 function chartLaps(laps: LapsResponse): ChartDriverLaps[] {
   return laps.drivers.map((d) => ({
-    driver: { ref: d.driver.ref, code: d.driver.code, lastName: d.driver.lastName },
-    constructor: { color: d.constructor.color },
+    driver: {
+      ref: d.driver.ref,
+      code: d.driver.code,
+      firstName: d.driver.firstName,
+      lastName: d.driver.lastName,
+      countryCode: d.driver.countryCode,
+    },
+    constructor: { ref: d.constructor.ref, name: d.constructor.name, color: d.constructor.color },
     laps: d.laps.map((l) => ({ lapNumber: l.lapNumber, timeMs: l.timeMs, compound: l.compound })),
   }))
 }

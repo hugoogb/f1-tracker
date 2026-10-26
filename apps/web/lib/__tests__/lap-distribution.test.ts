@@ -1,0 +1,114 @@
+import { describe, expect, it } from 'vitest'
+import { TYRE_COLORS } from '@/lib/constants'
+import { raceDistribution } from '@/lib/lap-distribution'
+import type { ChartDriverLaps } from '@/lib/types'
+
+/** One driver's race, laps numbered from 1. */
+function driverLaps(
+  ref: string,
+  team: string,
+  times: (number | null)[],
+  compound: string | null = 'MEDIUM',
+  overrides: Partial<ChartDriverLaps['driver']> = {},
+): ChartDriverLaps {
+  return {
+    driver: {
+      ref,
+      code: ref.slice(0, 3).toUpperCase(),
+      firstName: 'First',
+      lastName: ref,
+      countryCode: 'GB',
+      ...overrides,
+    },
+    constructor: { ref: team, name: `Team ${team}`, color: '#123456' },
+    laps: times.map((timeMs, i) => ({ lapNumber: i + 1, timeMs, compound })),
+  }
+}
+
+const repeat = (value: number, count: number) => Array.from({ length: count }, () => value)
+
+describe('raceDistribution', () => {
+  it('drops lap 1 and slow laps', () => {
+    const result = raceDistribution(
+      [
+        driverLaps('alpha', 'a', [200_000, ...repeat(90_000, 6), 120_000]),
+        driverLaps('bravo', 'b', repeat(90_000, 8)),
+      ],
+      'drivers',
+    )
+    expect(result.thresholdMs).toBeCloseTo(96_300, 6)
+    expect(result.totalLaps).toBe(14)
+    expect(result.cleanLaps).toBe(13)
+    expect(result.columns.find((c) => c.key === 'alpha')?.cleanLaps).toBe(6)
+  })
+
+  it('orders by median and computes gaps', () => {
+    const result = raceDistribution(
+      [driverLaps('slow', 'a', repeat(91_000, 8)), driverLaps('fast', 'b', repeat(90_000, 8))],
+      'drivers',
+    )
+    expect(result.columns.map((c) => c.key)).toEqual(['fast', 'slow'])
+    expect(result.columns.map((c) => c.gapMs)).toEqual([0, 1000])
+  })
+
+  it('excludes drivers under the minimum', () => {
+    const result = raceDistribution(
+      [driverLaps('full', 'a', repeat(90_000, 8)), driverLaps('short', 'b', repeat(90_000, 5))],
+      'drivers',
+    )
+    expect(result.columns.map((c) => c.key)).toEqual(['full'])
+    expect(result.excluded).toEqual([{ key: 'short', label: 'SHO', cleanLaps: 4 }])
+  })
+
+  it('pools teammates even when one has too few laps', () => {
+    const result = raceDistribution(
+      [
+        driverLaps('one', 'team-a', repeat(90_000, 7)),
+        driverLaps('two', 'team-a', repeat(90_500, 3)),
+      ],
+      'constructors',
+    )
+    expect(result.columns).toHaveLength(1)
+    expect(result.columns[0].key).toBe('team-a')
+    expect(result.columns[0].cleanLaps).toBe(8)
+    expect(result.columns[0].dots).toHaveLength(8)
+    expect(result.excluded).toEqual([])
+  })
+
+  it('returns no columns when nothing is timed', () => {
+    const result = raceDistribution([driverLaps('alpha', 'a', repeat(null as never, 8))], 'drivers')
+    expect(result).toEqual({
+      columns: [],
+      excluded: [],
+      totalLaps: 0,
+      cleanLaps: 0,
+      thresholdMs: null,
+    })
+  })
+
+  it('colours unknown compounds', () => {
+    const unknown = raceDistribution([driverLaps('alpha', 'a', repeat(90_000, 8), null)], 'drivers')
+    expect(unknown.columns[0].dots?.[0].color).toBe(TYRE_COLORS.UNKNOWN)
+    const soft = raceDistribution([driverLaps('alpha', 'a', repeat(90_000, 8), 'soft')], 'drivers')
+    expect(soft.columns[0].dots?.[0].color).toBe(TYRE_COLORS.SOFT)
+  })
+
+  it('labels fall back to last name', () => {
+    const drivers = [
+      driverLaps('hulkenberg', 'sauber', repeat(90_000, 8), 'HARD', {
+        code: null,
+        lastName: 'Hülkenberg',
+      }),
+    ]
+    expect(raceDistribution(drivers, 'drivers').columns[0].label).toBe('HÜL')
+    expect(raceDistribution(drivers, 'constructors').columns[0].label).toBe('Team sauber')
+  })
+
+  it('is deterministic', () => {
+    const drivers = [
+      driverLaps('alpha', 'a', [95_000, 90_100, 90_400, 89_900, 90_700, 90_200, 91_000]),
+      driverLaps('bravo', 'b', [96_000, 90_900, 91_400, 90_800, 91_100, 91_300, 90_600]),
+    ]
+    expect(raceDistribution(drivers, 'drivers')).toEqual(raceDistribution(drivers, 'drivers'))
+  })
+})

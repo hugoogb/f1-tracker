@@ -251,7 +251,8 @@ export interface LapsResponse {
 }
 
 /**
- * What the lap-time and tyre-strategy charts actually read from `DriverLaps`.
+ * What the lap-time, tyre-strategy and lap-distribution charts actually read
+ * from `DriverLaps` (the distribution chart adds names and the driver's flag).
  *
  * The race page trims the `/laps` response down to this before handing it to
  * those client components (see `chartLaps` there). Everything passed to a
@@ -261,8 +262,8 @@ export interface LapsResponse {
  * the largest part of every 2018+ race page.
  */
 export interface ChartDriverLaps {
-  driver: Pick<Driver, 'ref' | 'code' | 'lastName'>
-  constructor: Pick<Constructor, 'color'>
+  driver: Pick<Driver, 'ref' | 'code' | 'firstName' | 'lastName' | 'countryCode'>
+  constructor: Pick<Constructor, 'ref' | 'name' | 'color'>
   laps: Pick<LapData, 'lapNumber' | 'timeMs' | 'compound'>[]
 }
 

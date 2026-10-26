@@ -17,6 +17,7 @@ DEFAULT_EXPLORE_MIN_STARTS = 20
 
 # The season comparison's race-pace delta compares each side's median clean lap.
 # Below this many clean laps a side's median is one or two laps, not a pace.
+# Mirrored in apps/web/lib/lap-distribution.ts; change both or neither.
 SEASON_COMPARE_MIN_CLEAN_LAPS = 5
 # The constructors' championship was first awarded in 1958. Constructor standings
 # for earlier seasons are sums the ingest computed, not an official table.

@@ -519,7 +519,8 @@ def get_gaps(year: int, round: int, db: Session = Depends(get_db)):
 
 # A lap slower than this much of the race's median is not a representative
 # green-flag lap: it is a pit stop, a safety car, or traffic. Degradation is a
-# tyre effect and those laps drown it out completely.
+# tyre effect and those laps drown it out completely. Mirrored in
+# apps/web/lib/lap-distribution.ts; change both or neither.
 _CLEAN_LAP_THRESHOLD = 1.07
 
 
