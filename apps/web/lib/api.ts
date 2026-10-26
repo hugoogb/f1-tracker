@@ -174,6 +174,8 @@ export const api = {
       return fetchApi(`/seasons/${year}/standings/constructors/progression?${params}`)
     },
     permutations: (year: number) => fetchApi(`/seasons/${year}/permutations`),
+    constructorPermutations: (year: number) =>
+      fetchApi(`/seasons/${year}/permutations/constructors`),
     normalisedStandings: (year: number, system: string) => {
       const params = new URLSearchParams({ system })
       return fetchApi(`/seasons/${year}/standings/normalised?${params}`)

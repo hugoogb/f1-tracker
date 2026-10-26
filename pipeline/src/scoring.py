@@ -14,6 +14,7 @@ the wrong champion in those seasons. What follows is for answering hypothetical
 questions, and is labelled as such everywhere it surfaces.
 """
 
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 
 
@@ -208,29 +209,106 @@ def sprint_system_for_year(year: int) -> tuple[float, ...]:
     return _SPRINT_2022
 
 
-def max_points_remaining(
-    system: PointsSystem, races_remaining: int, sprints_remaining: int, year: int
-) -> float:
-    """The most one driver could still add to their total this season.
+# The one season whose finale paid double: Abu Dhabi 2014, 50 for the win.
+DOUBLE_POINTS_FINALES = frozenset({2014})
 
-    Every remaining race paid at its maximum (the win, plus the fastest-lap
-    point where the era had one) and every remaining sprint at its win. Under
-    the pre-1991 "best N results" rules a new result could only replace a
-    dropped one, so this is an upper bound there rather than the exact ceiling.
+# The constructors' championship began in 1958, and until 1978 only a team's
+# best-placed car scored; from 1979 every car's points counted.
+FIRST_CONSTRUCTORS_SEASON = 1958
+FIRST_SEASON_EVERY_CAR_SCORES = 1979
+
+
+def max_per_round(system: PointsSystem, year: int, *, constructors: bool = False) -> float:
+    """The most one entrant can take from a race (not counting a sprint).
+
+    A driver: the win, plus the fastest-lap point where the era paid one. A
+    constructor: a one-two once both cars scored (best car only before 1979),
+    plus the fastest-lap point in the era that paid it to the constructors too
+    (2019-2024; the 1950s point predates the constructors' title).
     """
-    sprint_scale = sprint_system_for_year(year)
-    sprint_win = sprint_scale[0] if sprint_scale else 0.0
-    return races_remaining * system.max_per_round + sprints_remaining * sprint_win
+    if not constructors:
+        return system.max_per_round
+    if year < FIRST_SEASON_EVERY_CAR_SCORES:
+        return system.win_points
+    one_two = sum(system.race_points[:2])
+    return one_two + (1.0 if system.fastest_lap_within else 0.0)
 
 
-def still_in_contention(points: float, leader_points: float, max_remaining: float) -> bool:
+def max_sprint_points(year: int, *, constructors: bool = False) -> float:
+    """The most one entrant can take from a sprint: the win, or a one-two."""
+    scale = sprint_system_for_year(year)
+    return sum(scale[: 2 if constructors else 1])
+
+
+def max_points_remaining(
+    system: PointsSystem,
+    races_remaining: int,
+    sprints_remaining: int,
+    year: int,
+    *,
+    constructors: bool = False,
+) -> float:
+    """The most one driver (or constructor) could still add to their total.
+
+    Every remaining race paid at its maximum and every remaining sprint at its
+    win (a one-two for a constructor). A season with a double-points finale
+    still to run gets that round twice. Under the pre-1991 "best N results"
+    rules a new result could only replace a dropped one, so this is an upper
+    bound there rather than the exact ceiling.
+    """
+    per_race = max_per_round(system, year, constructors=constructors)
+    races = races_remaining + (1 if races_remaining and year in DOUBLE_POINTS_FINALES else 0)
+    return races * per_race + sprints_remaining * max_sprint_points(year, constructors=constructors)
+
+
+def wins_countback(
+    chaser: Sequence[int],
+    leader: Sequence[int],
+    races_remaining: int,
+    *,
+    constructors: bool = False,
+) -> bool | None:
+    """Whether a chaser who can at best draw level would win the tie.
+
+    Drawing level needs every remaining point, so the scenario is unique: the
+    chaser wins every remaining race (a one-two for a constructor) and the
+    leader scores nothing. That fixes both records, and the tie goes to whoever
+    has more wins, then more second places, and so on. `chaser` and `leader`
+    count finishing positions so far (index 0 is wins); sprints are not Grand
+    Prix results and play no part. None when the records are identical, which
+    no countback separates.
+    """
+    after = list(chaser)
+    width = max(len(after), len(leader), 2)
+    after += [0] * (width - len(after))
+    after[0] += races_remaining
+    if constructors:
+        after[1] += races_remaining
+    before = list(leader) + [0] * (width - len(leader))
+    if after == before:
+        return None
+    return after > before
+
+
+def still_in_contention(
+    points: float,
+    leader_points: float,
+    max_remaining: float,
+    *,
+    countback: bool | None = None,
+) -> bool:
     """The strict test behind "mathematically alive".
 
     A driver is out only when everything still on the table would not take them
     to the leader's total *now* — as if the leader never scored again. Drawing
-    level counts as alive, because that title goes to a countback of wins.
+    level is decided by `countback` (from `wins_countback`); left unknown, a
+    tie counts as alive, because ruling a contender out wrongly is
+    the worse mistake.
     """
-    return points + max_remaining >= leader_points
+    best = points + max_remaining
+    if best != leader_points:
+        return best > leader_points
+    return countback is not False
 
 
 @dataclass

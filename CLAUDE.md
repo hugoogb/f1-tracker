@@ -147,7 +147,11 @@ daily and on any purge, since it reads `f1-global`), `robots.ts`, `manifest.ts`,
 - `GET /api/seasons/{year}/heatmap` - Season results heatmap (driver × round grid)
 - `GET /api/seasons/{year}/calendar` - Every round with its circuit's coordinates, the layout SVG in
   use that year, the winner (null if not raced) and `legKm` from the previous round; `totalKm` sums them
-- `GET /api/seasons/{year}/permutations` - Who can still win the drivers' title
+- `GET /api/seasons/{year}/permutations` / `permutations/constructors` - Who can still win the drivers' /
+  constructors' title (1958+). A tie on points is settled by the countback, which is fully determined
+  (drawing level needs every remaining maximum), so a rival who could only draw level and would lose it is out.
+  Constructor maximum is a one-two per round (best car only before 1979); 2014's double-points finale counts twice;
+  a sprint already run on a weekend whose race has not been is banked, not still available
 - `GET /api/seasons/{year}/standings/normalised?system={id}` - The season re-scored under another era
 - `GET /api/points-systems` - Every points system the championship has used
 - `GET /api/best-seasons?sort=&order=&era=|year_from=&year_to=&include_in_progress=` - Every completed
@@ -182,7 +186,7 @@ daily and on any purge, since it reads `f1-global`), `robots.ts`, `manifest.ts`,
 - `uv run python scripts/fastf1_import.py --payload payload.ndjson.gz` - Load a payload into PostgreSQL (DB, no network)
 - `uv run python scripts/seed.py --lineages` - Rebuild constructor lineages only (one of the `--<target>` flags in `seed.py`)
 - `uv run python scripts/refresh_views.py` - Rebuild the computed-stats materialized views (`driver_career_stats`, `constructor_career_stats`, `season_champions`); `db-restore.sh` calls this after migrating
-- `uv run pytest -v` - Run backend tests (425 tests)
+- `uv run pytest -v` - Run backend tests (440 tests)
 - `uv run ruff check . && uv run ruff format --check .` - Lint + format check
 
 ### VPS (production backend)

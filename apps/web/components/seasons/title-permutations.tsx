@@ -1,126 +1,217 @@
+import type { ReactNode } from 'react'
 import { Panel, PanelContent, PanelHeader, PanelTitle } from '@/components/ui/panel'
 import { Badge } from '@/components/ui/badge'
 import { DriverAvatar } from '@/components/ui/driver-avatar'
-import type { PermutationsResponse } from '@/lib/types'
+import { ConstructorLogo } from '@/components/ui/constructor-logo'
+import { TitlePermutationsTabs } from '@/components/seasons/title-permutations-tabs'
+import type {
+  ConstructorPermutationsResponse,
+  PermutationsResponse,
+  TitleContender,
+  ConstructorTitleContender,
+} from '@/lib/types'
 
 interface TitlePermutationsProps {
-  data: PermutationsResponse
+  drivers: PermutationsResponse | null
+  constructors?: ConstructorPermutationsResponse | null
 }
 
 function points(value: number): string {
   return Number.isInteger(value) ? String(value) : value.toFixed(1)
 }
 
+/** A season with rounds left to run; a finished one's standings already answer it. */
+function isLive(data: PermutationsResponse<unknown> | null | undefined): boolean {
+  return Boolean(data?.started && !data.seasonComplete && data.contenders.length > 0)
+}
+
+/** What a row needs, whichever championship it belongs to. */
+interface Row {
+  key: string
+  name: string
+  short: string
+  mark: ReactNode
+  contender: TitleContender | ConstructorTitleContender
+}
+
+function driverRows(data: PermutationsResponse): Row[] {
+  return data.contenders.map((c) => ({
+    key: c.driver.ref,
+    name: c.driver.lastName,
+    short: c.driver.code ?? c.driver.lastName,
+    mark: <DriverAvatar firstName={c.driver.firstName} lastName={c.driver.lastName} />,
+    contender: c,
+  }))
+}
+
+function constructorRows(data: ConstructorPermutationsResponse): Row[] {
+  return data.contenders.map((c) => ({
+    key: c.constructor.ref,
+    name: c.constructor.name,
+    short: c.constructor.name,
+    mark: <ConstructorLogo name={c.constructor.name} color={c.constructor.color} />,
+    contender: c,
+  }))
+}
+
 /**
- * Who can still win the drivers' title, and what the leader needs.
+ * Who can still win the drivers' and constructors' titles, and what the
+ * leader needs. Tabs when both are live, a single panel otherwise.
  *
- * Only rendered for a season with rounds left to run — for a finished season
- * the standings already answer the question.
- *
- * "Still in it" is the strict mathematical test: a driver is out only once
- * every remaining point could not carry them past the leader's current total.
- * That assumes the leader never scores again, so the list stays longer than
+ * "Still in it" is the strict mathematical test: out only once every remaining
+ * point could not carry a contender past the leader's current total. That
+ * assumes the leader never scores again, so the list stays longer than
  * anyone's realistic shortlist. The copy says as much rather than implying
  * these are all live contenders.
  */
-export function TitlePermutations({ data }: TitlePermutationsProps) {
-  if (!data.started || data.seasonComplete) return null
+export function TitlePermutations({ drivers, constructors }: TitlePermutationsProps) {
+  const driversLive = isLive(drivers)
+  const constructorsLive = isLive(constructors)
+  if (!driversLive && !constructorsLive) return null
 
-  const alive = data.contenders.filter((c) => c.alive)
-  const leader = data.contenders.find((c) => c.isLeader)
-  if (!leader) return null
+  const driversBody = driversLive ? (
+    <PermutationsBody data={drivers!} rows={driverRows(drivers!)} kind="drivers" />
+  ) : null
+  const constructorsBody = constructorsLive ? (
+    <PermutationsBody
+      data={constructors!}
+      rows={constructorRows(constructors!)}
+      kind="constructors"
+    />
+  ) : null
 
   return (
     <Panel>
       <PanelHeader>
-        <PanelTitle className="flex flex-wrap items-center gap-2 text-base">
-          Title permutations
-          {data.decided ? (
-            <Badge>Mathematically decided</Badge>
-          ) : (
-            <Badge variant="outline">{alive.length} still in it</Badge>
-          )}
-        </PanelTitle>
+        <PanelTitle className="text-base">Title permutations</PanelTitle>
       </PanelHeader>
-      <PanelContent className="space-y-4">
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <Stat label="Rounds run" value={`${data.roundsRun} of ${data.totalRounds}`} />
-          <Stat
-            label="Races left"
-            value={String(data.racesRemaining ?? 0)}
-            hint={
-              data.sprintsRemaining
-                ? `+ ${data.sprintsRemaining} sprint${data.sprintsRemaining === 1 ? '' : 's'}`
-                : undefined
-            }
+      <PanelContent>
+        {driversBody && constructorsBody ? (
+          <TitlePermutationsTabs
+            driversContent={driversBody}
+            constructorsContent={constructorsBody}
           />
-          <Stat label="Points available" value={points(data.maxRemaining ?? 0)} />
-          <Stat
-            label={data.decided ? 'Champion' : 'Leads by'}
-            value={
-              data.decided
-                ? (leader.driver.code ?? leader.driver.lastName)
-                : points((data.contenders[1]?.deficit ?? 0) as number)
-            }
-          />
-        </div>
-
-        {!data.decided && data.nextRound && data.canClinchNextRound && (
-          <p className="text-sm">
-            <span className="font-medium">{leader.driver.lastName}</span> can seal it at round{' '}
-            {data.nextRound.round} ({data.nextRound.name}) by taking maximum points there while the
-            runner-up scores none.
-          </p>
+        ) : (
+          (driversBody ?? constructorsBody)
         )}
-
-        {data.decided && (
-          <p className="text-sm">
-            Nobody else can reach {leader.driver.lastName} with {points(data.maxRemaining ?? 0)}{' '}
-            points left, so the title is settled with {data.racesRemaining}{' '}
-            {data.racesRemaining === 1 ? 'round' : 'rounds'} to spare.
-          </p>
-        )}
-
-        <ul className="divide-border divide-y">
-          {data.contenders.slice(0, 10).map((contender) => (
-            <li
-              key={contender.driver.ref}
-              className={`flex items-center gap-3 py-2 ${contender.alive ? '' : 'opacity-45'}`}
-            >
-              <span className="text-muted-foreground w-5 text-sm tabular-nums">
-                {contender.position}
-              </span>
-              <DriverAvatar
-                firstName={contender.driver.firstName}
-                lastName={contender.driver.lastName}
-              />
-              <span className="font-medium">{contender.driver.lastName}</span>
-              {contender.onlyOnCountback && (
-                <Badge variant="outline" className="text-xs">
-                  Countback only
-                </Badge>
-              )}
-              {!contender.alive && (
-                <Badge variant="outline" className="text-xs">
-                  Out
-                </Badge>
-              )}
-              <span className="ml-auto text-sm tabular-nums">{points(contender.points)}</span>
-              <span className="text-muted-foreground w-20 text-right text-xs tabular-nums">
-                max {points(contender.maxPossible)}
-              </span>
-            </li>
-          ))}
-        </ul>
-
-        <p className="text-muted-foreground text-xs">
-          A driver counts as still in it until every remaining point could not take them past the
-          leader&apos;s total today — which assumes the leader scores nothing for the rest of the
-          year, so the list runs longer than the realistic one. Where two can only finish level, the
-          title falls to a countback on wins, which no arithmetic here can project.
-        </p>
       </PanelContent>
     </Panel>
+  )
+}
+
+function PermutationsBody({
+  data,
+  rows,
+  kind,
+}: {
+  data: PermutationsResponse<unknown>
+  rows: Row[]
+  kind: 'drivers' | 'constructors'
+}) {
+  const leader = rows.find((r) => r.contender.isLeader)
+  if (!leader) return null
+  const aliveCount = rows.filter((r) => r.contender.alive).length
+  const isTeams = kind === 'constructors'
+  const title = isTeams ? "Constructors' championship" : "Drivers' championship"
+
+  return (
+    <div className="space-y-4 pt-2">
+      <p className="flex flex-wrap items-center gap-2 text-sm font-medium">
+        {title}
+        {data.decided ? (
+          <Badge>Mathematically decided</Badge>
+        ) : (
+          <Badge variant="outline">{aliveCount} still in it</Badge>
+        )}
+      </p>
+
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <Stat label="Rounds run" value={`${data.roundsRun} of ${data.totalRounds}`} />
+        <Stat
+          label="Races left"
+          value={String(data.racesRemaining ?? 0)}
+          hint={
+            data.sprintsRemaining
+              ? `+ ${data.sprintsRemaining} sprint${data.sprintsRemaining === 1 ? '' : 's'}`
+              : undefined
+          }
+        />
+        <Stat
+          label="Points available"
+          value={points(data.maxRemaining ?? 0)}
+          hint={
+            data.doublePointsFinale
+              ? 'finale pays double'
+              : isTeams
+                ? 'a one-two every round'
+                : undefined
+          }
+        />
+        <Stat
+          label={data.decided ? 'Champion' : 'Leads by'}
+          value={
+            data.decided
+              ? leader.short
+              : points(rows.find((r) => !r.contender.isLeader)?.contender.deficit ?? 0)
+          }
+        />
+      </div>
+
+      {!data.decided && data.nextRound && data.canClinchNextRound && (
+        <p className="text-sm">
+          <span className="font-medium">{leader.name}</span> can seal it at round{' '}
+          {data.nextRound.round} ({data.nextRound.name}) by taking{' '}
+          {isTeams ? 'a one-two' : 'maximum points'} there while{' '}
+          {isTeams ? 'no rival team scores' : 'no rival scores'}.
+        </p>
+      )}
+
+      {data.decided && (
+        <p className="text-sm">
+          Nobody else can overhaul {leader.name} with {points(data.maxRemaining ?? 0)} points left,
+          so the title is settled with {data.racesRemaining}{' '}
+          {data.racesRemaining === 1 ? 'round' : 'rounds'} to spare.
+        </p>
+      )}
+
+      <ul className="divide-border divide-y">
+        {rows.slice(0, 10).map(({ key, name, mark, contender }) => (
+          <li
+            key={key}
+            className={`flex items-center gap-3 py-2 ${contender.alive ? '' : 'opacity-45'}`}
+          >
+            <span className="text-muted-foreground w-5 text-sm tabular-nums">
+              {contender.position}
+            </span>
+            {mark}
+            <span className="font-medium">{name}</span>
+            {contender.onlyOnCountback && (
+              <Badge variant="outline" className="text-xs">
+                On countback
+              </Badge>
+            )}
+            {!contender.alive && (
+              <Badge variant="outline" className="text-xs">
+                Out
+              </Badge>
+            )}
+            <span className="ml-auto text-sm tabular-nums">{points(contender.points)}</span>
+            <span className="text-muted-foreground w-20 text-right text-xs tabular-nums">
+              max {points(contender.maxPossible)}
+            </span>
+          </li>
+        ))}
+      </ul>
+
+      <p className="text-muted-foreground text-xs">
+        {isTeams ? 'A team' : 'A driver'} counts as still in it until every remaining point could
+        not take {isTeams ? 'it' : 'them'} past the leader&apos;s total today — which assumes the
+        leader scores nothing for the rest of the year, so the list runs longer than the realistic
+        one. Drawing level means {isTeams ? 'a one-two in' : 'winning'} every remaining race, so the
+        countback that breaks the tie (most wins, then second places, and so on) is already known: a
+        rival who could only draw level and would lose it is out.
+      </p>
+    </div>
   )
 }
 

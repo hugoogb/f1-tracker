@@ -608,21 +608,33 @@ export interface LineageResponse {
 }
 
 // Title permutations
-export interface TitleContender {
+interface TitleContenderBase {
   position: number | null
-  driver: Driver
   points: number
   wins: number
   maxPossible: number
   deficit: number
   alive: boolean
-  /** Can at best draw level, so the title would fall to a countback on wins. */
+  /**
+   * Alive only by drawing level: that needs every remaining point, so the
+   * countback (wins, then seconds, ...) that settles the tie is already known
+   * and goes this contender's way.
+   */
   onlyOnCountback: boolean
   isLeader: boolean
 }
 
-export interface PermutationsResponse {
+export interface TitleContender extends TitleContenderBase {
+  driver: Driver
+}
+
+export interface ConstructorTitleContender extends TitleContenderBase {
+  constructor: Constructor
+}
+
+export interface PermutationsResponse<C = TitleContender> {
   year: number
+  kind?: 'drivers' | 'constructors'
   started: boolean
   decided: boolean
   seasonComplete?: boolean
@@ -631,14 +643,18 @@ export interface PermutationsResponse {
   racesRemaining?: number
   sprintsRemaining?: number
   sprintScheduleKnown?: boolean
+  /** A double-points finale (2014) is still to run and counted twice. */
+  doublePointsFinale?: boolean
   maxRemaining?: number
   pointsSystem?: PointsSystem
   nextRound?: { round: number; name: string } | null
   canClinchNextRound?: boolean
   marginToClinch?: number
   aliveCount?: number
-  contenders: TitleContender[]
+  contenders: C[]
 }
+
+export type ConstructorPermutationsResponse = PermutationsResponse<ConstructorTitleContender>
 
 // Cross-era points normalisation
 export interface PointsSystem {
