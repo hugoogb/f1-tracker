@@ -25,6 +25,7 @@ import { QualifyingTable } from '@/components/races/qualifying-table'
 import { SprintTable } from '@/components/races/sprint-table'
 import { PitStopsTable } from '@/components/races/pit-stops-table'
 import { PitStopAnalysisView } from '@/components/races/pit-stop-analysis'
+import { LapDistributionChart } from '@/components/races/lap-distribution-chart'
 import { LapTimesChart } from '@/components/races/lap-times-chart'
 import { TyreStrategyChart } from '@/components/races/tyre-strategy-chart'
 import { PositionChart } from '@/components/races/position-chart'
@@ -404,7 +405,16 @@ export default async function RaceDetailPage({
                   id: 'lap-times',
                   label: 'Lap Times',
                   content: laps ? (
-                    <LapTimesChart drivers={laps} />
+                    <div className="space-y-10">
+                      <div>
+                        <h3 className="mb-3 text-sm font-medium">Lap Time Distribution</h3>
+                        <LapDistributionChart drivers={laps} />
+                      </div>
+                      <div>
+                        <h3 className="mb-3 text-sm font-medium">Lap Times</h3>
+                        <LapTimesChart drivers={laps} />
+                      </div>
+                    </div>
                   ) : (
                     <p className="text-muted-foreground text-sm">
                       No lap time data available for this race.

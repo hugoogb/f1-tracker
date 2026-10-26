@@ -57,8 +57,8 @@ daily and on any purge, since it reads `f1-global`), `robots.ts`, `manifest.ts`,
 
 - `components/ui/` - The design system's primitives. Telemetry pieces: `panel` (bracketed surface; replaced shadcn's Card, same sub-part API), `page-hero` (every page's header; `livery`, `watermark`), `tag` (skewed broadcast tag), `meter` (segmented), `section-header`, `container` (the one page width), `stat-card`. shadcn/Base UI pieces restyled to the tokens: button (+ `button-variants.ts`, server-safe), badge, table (`TableRow highlight="leader"`), tabs, select, dialog, sheet, input, skeleton, sonner. Plus country-flag, driver-avatar, constructor-logo, empty-state, motion, position-badge, local-date, next-race-countdown
 - `components/layout/` - Header (`main-nav.tsx`: grouped Base UI NavigationMenu from `lib/nav.ts`), mobile nav (bottom sheet, same groups), footer (every section + the credits/disclaimer), breadcrumbs, `command-search.tsx` (⌘K / Ctrl+K / `/` command palette: pages, seasons, races, drivers, teams, circuits; quick links and recently viewed when empty), `record-visit.tsx` (feeds recently viewed), `where-next.tsx` (the links at the foot of every detail page)
-- `components/charts/` - Recharts visualizations (points bar, constructor points, career line, comparison line, championship progression, season heatmap, quali-vs-race, driver radar, season points + gap, qualifying gap by round)
-- `components/races/` - Race result tables (results with position change indicators, qualifying, sprint, pit stops, lap-times-chart, tyre-strategy-chart, tyre-degradation-chart, position-chart, gap-chart, pit-stop-analysis, podium-card, fastest-lap-card)
+- `components/charts/` - Recharts visualizations (points bar, constructor points, career line, comparison line, championship progression, season heatmap, quali-vs-race, driver radar, season points + gap, qualifying gap by round) and `violin-chart.tsx`, a hand-built SVG violin + dot swarm (Recharts has none) shared by the lap time distribution charts
+- `components/races/` - Race result tables (results with position change indicators, qualifying, sprint, pit stops, lap-distribution-chart (violin per driver or team, dots by tyre), lap-times-chart, tyre-strategy-chart, tyre-degradation-chart, position-chart, gap-chart, pit-stop-analysis, podium-card, fastest-lap-card)
 - `components/standings/` - Driver + constructor standings tables
 - `components/seasons/` - Scoring note, title permutations card, cross-era normalised standings
 - `components/seasons/season-calendar-*` - Cinematic calendar world map (the `Calendar` section on
@@ -338,6 +338,14 @@ Two f1db quirks the UI is built around:
   of the race's median are dropped, because a pit or safety-car lap is seconds
   off the pace and the wear being measured is tenths. Report `cleanLaps` against
   `totalLaps` wherever the slope is shown
+- The race page's lap time distribution applies the same clean-lap filter in the
+  browser (`lib/lap-distribution.ts`), from the median of every timed lap after
+  lap 1 as the season compare's race pace does. Its `CLEAN_LAP_THRESHOLD` and
+  `MIN_CLEAN_LAPS` mirror `_CLEAN_LAP_THRESHOLD` and `SEASON_COMPARE_MIN_CLEAN_LAPS`,
+  and `lib/violin.ts` (Silverman bandwidth, grid padded by two bandwidths, widest
+  point = 1) is the reference any server-side density must reproduce — change
+  both or neither. Dot spread is hashed from the driver and lap (`jitter()`),
+  never `Math.random`, so cached renders stay byte-identical
 - A season's scoring context makes two claims from two sources, and the wording
   has to keep them apart. The points system is a fact about the year, from
   `src/scoring.py`. Whether results were dropped is read off the results — a
