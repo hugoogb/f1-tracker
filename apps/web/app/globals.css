@@ -32,6 +32,9 @@
   --color-bronze: var(--bronze);
   --color-side-a: var(--side-a);
   --color-side-b: var(--side-b);
+  --color-tyre-hypersoft: var(--tyre-hypersoft);
+  --color-tyre-ultrasoft: var(--tyre-ultrasoft);
+  --color-tyre-hard-2018: var(--tyre-hard-2018);
   --color-tyre-soft: var(--tyre-soft);
   --color-tyre-medium: var(--tyre-medium);
   --color-tyre-hard: var(--tyre-hard);
@@ -119,6 +122,11 @@
   --side-b: oklch(0.76 0.13 220);
   --positive: oklch(0.74 0.17 150);
   --negative: oklch(0.68 0.2 25);
+  /* 2018's three softest compounds (Pirelli's pink and purple); supersoft was red. */
+  --tyre-hypersoft: #ff87bc;
+  --tyre-ultrasoft: #9b30ff;
+  /* 2018's hard was ice blue (soft yellow, medium white: the medium and hard tokens). */
+  --tyre-hard-2018: #6ec8ff;
   --tyre-soft: #ff3333;
   --tyre-medium: #ffc906;
   --tyre-hard: #cccccc;

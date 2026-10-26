@@ -34,6 +34,9 @@ export const EXPLORE_CDN_MAX_AGE_SECONDS = 3600
 
 // Compound colours are tokens (--tyre-*) in app/globals.css.
 export const TYRE_COLORS: Record<string, string> = {
+  HYPERSOFT: 'var(--tyre-hypersoft)',
+  ULTRASOFT: 'var(--tyre-ultrasoft)',
+  SUPERSOFT: 'var(--tyre-soft)',
   SOFT: 'var(--tyre-soft)',
   MEDIUM: 'var(--tyre-medium)',
   HARD: 'var(--tyre-hard)',

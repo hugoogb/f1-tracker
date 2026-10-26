@@ -25,6 +25,7 @@ import { QualifyingTable } from '@/components/races/qualifying-table'
 import { SprintTable } from '@/components/races/sprint-table'
 import { PitStopsTable } from '@/components/races/pit-stops-table'
 import { PitStopAnalysisView } from '@/components/races/pit-stop-analysis'
+import { LapDistributionChart } from '@/components/races/lap-distribution-chart'
 import { LapTimesChart } from '@/components/races/lap-times-chart'
 import { TyreStrategyChart } from '@/components/races/tyre-strategy-chart'
 import { PositionChart } from '@/components/races/position-chart'
@@ -67,15 +68,21 @@ interface PitStopsResponse {
 }
 
 /**
- * The `/laps` response cut down to what the two charts draw. About two thirds
+ * The `/laps` response cut down to what the lap charts draw. About two thirds
  * of it is sector splits, stint numbers, tyre life and driver nationality,
- * none of which either chart reads — and whatever a client component gets is
+ * none of which any chart reads — and whatever a client component gets is
  * serialised into the cached page twice (RSC payload and inline HTML).
  */
 function chartLaps(laps: LapsResponse): ChartDriverLaps[] {
   return laps.drivers.map((d) => ({
-    driver: { ref: d.driver.ref, code: d.driver.code, lastName: d.driver.lastName },
-    constructor: { color: d.constructor.color },
+    driver: {
+      ref: d.driver.ref,
+      code: d.driver.code,
+      firstName: d.driver.firstName,
+      lastName: d.driver.lastName,
+      countryCode: d.driver.countryCode,
+    },
+    constructor: { ref: d.constructor.ref, name: d.constructor.name, color: d.constructor.color },
     laps: d.laps.map((l) => ({ lapNumber: l.lapNumber, timeMs: l.timeMs, compound: l.compound })),
   }))
 }
@@ -398,7 +405,16 @@ export default async function RaceDetailPage({
                   id: 'lap-times',
                   label: 'Lap Times',
                   content: laps ? (
-                    <LapTimesChart drivers={laps} />
+                    <div className="space-y-10">
+                      <div>
+                        <h3 className="mb-3 text-sm font-medium">Lap Time Distribution</h3>
+                        <LapDistributionChart drivers={laps} />
+                      </div>
+                      <div>
+                        <h3 className="mb-3 text-sm font-medium">Lap Times</h3>
+                        <LapTimesChart drivers={laps} />
+                      </div>
+                    </div>
                   ) : (
                     <p className="text-muted-foreground text-sm">
                       No lap time data available for this race.
