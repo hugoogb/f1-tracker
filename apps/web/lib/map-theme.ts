@@ -13,6 +13,8 @@ export const MAP_RED_HOT = '#ff3b2f'
 export const MAP_INK = '#ffffff'
 /** A pin or winner with no team colour (--label). */
 export const MAP_NEUTRAL = '#9ba1ab'
+/** The graticule under the land: the blueprint grid, barely there. */
+export const MAP_GRID = 'rgba(255, 255, 255, 0.05)'
 /** The ocean behind the land (--surface-0). */
 export const MAP_OCEAN = '#0b0c10'
 

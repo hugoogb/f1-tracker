@@ -66,8 +66,10 @@ daily and on any purge, since it reads `f1-global`), `robots.ts`, `manifest.ts`,
   intro flight from the previous one). `season-calendar-map-wrapper.tsx` is the only entry point: it
   imports the rest with `ssr: false`, mounts it after hydration and once near the viewport.
   `season-calendar-map.tsx` is the playback shell (play/pause, prev/next, scrubbable timeline,
-  speed, live km counter, round card), `season-calendar-canvas.tsx` the Leaflet layer,
-  `season-calendar-model.ts` the Leaflet-free data model (statuses, legs, `Playhead` store)
+  speed, live km counter, round card), `season-calendar-canvas.tsx` the Leaflet map (camera, markers)
+  with land, routes and the glyph drawn on one canvas, `season-calendar-projection.ts` the zoom-0
+  Mercator maths it draws and chases with, `season-calendar-model.ts` the Leaflet-free data model
+  (statuses, legs, `Playhead` store)
 - `components/drivers/` - Driver season history table
 - `components/constructors/` - Constructor season history table, lineage timeline
 - `components/circuits/` - Track layout, world map, world map wrapper
@@ -328,7 +330,14 @@ Two f1db quirks the UI is built around:
   only ever computed in the client-mounted component, so there is no server render to disagree
   with. Per-frame playback goes through the `Playhead` external store and imperative Leaflet
   updates, never React state; `prefers-reduced-motion` turns every flight into an instant jump and
-  skips the home intro
+  skips the home intro. Do not move the land or routes back onto Leaflet vector layers
+  (`Polyline`/`GeoJSON`): their renderers re-project only on `moveend` and CSS-scale the last frame
+  during a flight, so anything updated mid-flight is projected twice — the trail drifts off the
+  glyph and the land flickers on landing. The canvas redraws synchronously on every `move`; the map
+  runs with `zoomSnap: 0` and `zoomAnimation: false` (the zoom buttons fly) for the same reason.
+  The world repeats sideways: the canvas draws every visible copy and each pin follows the copy
+  nearest the view, so a Pacific leg is one continuous line. During a leg the camera chases the
+  glyph (pulling back mid-leg, landing on the stop) rather than running a `flyTo` on its own clock
 - Anything derived from Fast-F1 lap times (`/positions`, `/gaps`) shares
   `_cumulative_lap_times()` in the races router. A cumulative total needs an
   unbroken chain from lap 1, so it stops at a driver's first missing lap rather

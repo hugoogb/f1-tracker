@@ -35,7 +35,7 @@ export function greatCircleKm([lat1, lng1]: LatLng, [lat2, lng2]: LatLng): numbe
  * scales with distance so a Monaco–Barcelona hop is not drawn with as many
  * vertices as a Las Vegas–Qatar haul. Longitudes are unwrapped (each point is
  * kept within 180° of the previous one) so a leg over the antimeridian stays a
- * continuous line — `splitAtAntimeridian` folds it back for drawing.
+ * continuous line; the map draws every world copy, so it is never cut.
  */
 export function greatCirclePath(a: LatLng, b: LatLng): LatLng[] {
   const km = greatCircleKm(a, b)
@@ -74,61 +74,4 @@ export function greatCirclePath(a: LatLng, b: LatLng): LatLng[] {
   points[0] = a
   points[points.length - 1] = [b[0], points[points.length - 1][1]]
   return points
-}
-
-/** Bring a longitude back into [-180, 180). */
-export function normaliseLng(lng: number): number {
-  return ((((lng + 180) % 360) + 360) % 360) - 180
-}
-
-/**
- * Cut an unwrapped path into runs that each stay inside [-180, 180], adding the
- * crossing point to both sides — the map only draws one copy of the world.
- */
-export function splitAtAntimeridian(path: LatLng[]): LatLng[][] {
-  if (path.length === 0) return []
-  const runs: LatLng[][] = []
-  let offset = Math.round(path[0][1] / 360) * 360
-  let run: LatLng[] = [[path[0][0], path[0][1] - offset]]
-
-  for (let i = 1; i < path.length; i++) {
-    const [lat0, lng0] = path[i - 1]
-    const [lat1, lng1] = path[i]
-    const nextOffset = Math.round(lng1 / 360) * 360
-    if (nextOffset !== offset) {
-      // The edge between the two zones sits at offset ± 180.
-      const edge = nextOffset > offset ? offset + 180 : offset - 180
-      const t = (edge - lng0) / (lng1 - lng0)
-      const lat = lat0 + (lat1 - lat0) * t
-      run.push([lat, edge - offset])
-      runs.push(run)
-      run = [[lat, edge - nextOffset]]
-      offset = nextOffset
-    }
-    run.push([lat1, lng1 - offset])
-  }
-  runs.push(run)
-  return runs
-}
-
-/**
- * The first `fraction` of a path, measured along its vertices, ending on an
- * interpolated point so a progressive reveal moves smoothly between samples.
- */
-export function pathPrefix(path: LatLng[], fraction: number): LatLng[] {
-  if (path.length < 2 || fraction <= 0) return path.slice(0, 1)
-  if (fraction >= 1) return path
-  const exact = fraction * (path.length - 1)
-  const whole = Math.floor(exact)
-  const t = exact - whole
-  const [lat0, lng0] = path[whole]
-  const [lat1, lng1] = path[whole + 1]
-  return [...path.slice(0, whole + 1), [lat0 + (lat1 - lat0) * t, lng0 + (lng1 - lng0) * t]]
-}
-
-/** The point `fraction` of the way along a path (same parameterisation as `pathPrefix`). */
-export function pointAlong(path: LatLng[], fraction: number): LatLng {
-  const prefix = pathPrefix(path, Math.max(0, Math.min(1, fraction)))
-  const [lat, lng] = prefix[prefix.length - 1]
-  return [lat, normaliseLng(lng)]
 }
