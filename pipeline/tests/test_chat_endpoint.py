@@ -404,3 +404,54 @@ def test_feedback_is_503_while_the_chat_is_off(client, db):
 def test_feedback_id_is_bounded(client, db, chat_on):
     r = client.post("/api/chat/feedback", json={"id": "x" * 65, "thumbs": 1})
     assert r.status_code == 422
+
+
+@pytest.mark.parametrize(
+    "content",
+    [
+        b'{"messages": []}',
+        b"not json",
+        b'{"messages": [{"role": "user", "content": "x"}], "path": "//evil"}',
+    ],
+)
+def test_disabled_chat_is_503_even_for_an_invalid_body(client, db, content):
+    r = client.post("/api/chat", content=content, headers={"content-type": "application/json"})
+    assert r.status_code == 503 and r.json() == {"detail": {"code": "disabled"}}
+
+
+def test_malformed_json_is_422_when_the_chat_is_on(client, db, chat_on):
+    r = client.post("/api/chat", content=b"{", headers={"content-type": "application/json"})
+    assert r.status_code == 422 and r.json()["detail"][0]["loc"] == ["body"]
+    assert db.query(ChatUsage).count() == 0
+
+
+def test_validation_errors_keep_the_body_location(client, db, chat_on):
+    r = client.post("/api/chat", json={"messages": []})
+    assert r.json()["detail"][0]["loc"][:2] == ["body", "messages"]
+
+
+def test_a_failure_outside_the_model_is_internal_not_provider(client, db, chat_on, monkeypatch):
+    fake, _ = script(
+        [
+            [
+                ToolCall("t1", "search", {"q": "x"}),
+                usage(),
+                Done("tool_use", [{"type": "tool_use", "id": "t1", "name": "search", "input": {}}]),
+            ]
+        ]
+    )
+    monkeypatch.setattr(chat_loop, "stream_turn", fake)
+
+    def broken(db, name, args):
+        raise RuntimeError("session gone")
+
+    monkeypatch.setattr(chat_loop, "run_tool", broken)
+    events = parse_sse(
+        client.post("/api/chat", json={"messages": [{"role": "user", "content": "x"}]}).text
+    )
+    assert events[-2] == (
+        "error",
+        {"code": "internal", "message": "The Engineer hit a problem. Try again."},
+    )
+    assert events[-1][1]["outcome"] == "error"
+    assert db.query(ChatUsage).one().outcome == "error"

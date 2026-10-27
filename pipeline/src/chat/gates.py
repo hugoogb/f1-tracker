@@ -13,7 +13,7 @@ from src.config import settings
 RATE_WINDOW = datetime.timedelta(minutes=10)
 
 
-@dataclass
+@dataclass(frozen=True)
 class Refusal:
     status: int
     code: str  # "budget" | "rate_limited"

@@ -154,3 +154,35 @@ def test_tool_choice_can_be_forced_off_for_the_final_turn(captured):
         )
     )
     assert captured["tool_choice"] == {"type": "none"}
+
+
+def test_an_end_turn_without_tool_use_yields_only_usage_and_done(monkeypatch):
+    final = SimpleNamespace(
+        stop_reason="end_turn",
+        content=[Block(type="text", text="Done.")],
+        usage=SimpleNamespace(
+            input_tokens=10,
+            output_tokens=2,
+            cache_creation_input_tokens=None,
+            cache_read_input_tokens=None,
+        ),
+    )
+    calls = {}
+
+    def stream(**kwargs):
+        calls.update(kwargs)
+        return FakeStream([], final)
+
+    monkeypatch.setattr(
+        chat_model,
+        "_client",
+        lambda: SimpleNamespace(messages=SimpleNamespace(stream=stream)),
+    )
+    events = list(
+        chat_model.stream_turn(
+            system="S", tools=[], messages=[{"role": "user", "content": "q"}], max_tokens=600
+        )
+    )
+    assert [type(e) for e in events] == [UsageEvent, Done]
+    assert events[-1].stop_reason == "end_turn"
+    assert calls["tools"] == []

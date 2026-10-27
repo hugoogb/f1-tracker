@@ -5,8 +5,9 @@ from typing import Literal
 
 import anyio
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, StreamingResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 from sqlalchemy.orm import Session
 from starlette.concurrency import iterate_in_threadpool, run_in_threadpool
 
@@ -34,10 +35,35 @@ async def _stream(gen: Iterator[str]) -> AsyncIterator[str]:
             await run_in_threadpool(gen.close)
 
 
-@router.post("/chat")
-def chat(body: ChatRequest, request: Request, db: Session = Depends(get_db)):
+async def _enabled_chat_body(request: Request) -> ChatRequest:
+    """The body, read only once the chat is known to be on.
+
+    As a plain `body: ChatRequest` parameter FastAPI validates it before the
+    handler runs, so a switched-off chat answered a malformed request with 422
+    and a well-formed one with 503; the client should see "disabled" either way.
+    """
     if not settings.chat_enabled:
         raise HTTPException(status_code=503, detail={"code": "disabled"})
+    try:
+        raw = await request.json()
+    except ValueError:
+        raise RequestValidationError(
+            [{"type": "json_invalid", "loc": ("body",), "msg": "invalid JSON", "input": None}]
+        ) from None
+    try:
+        return ChatRequest.model_validate(raw)
+    except ValidationError as e:
+        raise RequestValidationError(
+            [{**err, "loc": ("body", *err["loc"])} for err in e.errors(include_url=False)]
+        ) from None
+
+
+@router.post("/chat")
+def chat(
+    request: Request,
+    body: ChatRequest = Depends(_enabled_chat_body),
+    db: Session = Depends(get_db),
+):
     now = utcnow()
     caller = ledger.ip_hash(client_ip(request), now.date(), settings.chat_ip_salt)
     refusal = check_gates(db, caller, now)

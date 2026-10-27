@@ -51,6 +51,8 @@ class ChampionsArgs(BaseModel):
     model_config = ConfigDict(extra="forbid")
     year_from: int | None
     year_to: int | None
+    limit: int | None = None
+    oldest_first: bool = False
 
 
 class BestSeasonsArgs(BaseModel):
@@ -116,7 +118,11 @@ def _champions_run(db: Session, args: ChampionsArgs) -> dict:
         if (args.year_from is None or s["year"] >= args.year_from)
         and (args.year_to is None or s["year"] <= args.year_to)
     ]
-    shown = seasons[:MAX_CHAMPION_SEASONS]  # newest first
+    if args.oldest_first:
+        seasons.reverse()  # the router lists newest first
+    wanted = MAX_CHAMPION_SEASONS if args.limit is None else args.limit
+    limit = max(1, min(wanted, MAX_CHAMPION_SEASONS))
+    shown = seasons[:limit]
     out = []
     for s in shown:
         d, team, con = s["driver"], s["driverConstructor"], s["constructor"]
@@ -142,7 +148,11 @@ def _champions_run(db: Session, args: ChampionsArgs) -> dict:
         )
     result: dict = {"href": "/champions", "total": len(seasons), "seasons": out}
     if len(seasons) > len(shown):
-        result["note"] = f"newest {len(shown)} of {len(seasons)} seasons; narrow with a year range"
+        end = "oldest" if args.oldest_first else "newest"
+        result["note"] = (
+            f"{end} {len(shown)} of {len(seasons)} seasons; for the rest, move the year range "
+            "on or set oldest_first"
+        )
     return result
 
 
@@ -192,7 +202,9 @@ register(
         name="get_champions",
         description=(
             "Drivers' champions by season, with the team they raced for, and the constructors' "
-            "champion as a separate field (the two need not be the same team). Newest first."
+            "champion as a separate field (the two need not be the same team). Newest first, or "
+            "oldest first with oldest_first. At most 25 seasons per call (limit 1-25, null for "
+            "25); page through the rest with year_from/year_to."
         ),
         args=ChampionsArgs,
         run=_champions_run,

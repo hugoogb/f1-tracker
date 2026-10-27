@@ -121,3 +121,81 @@ def test_strict_schema_flattens_bounded_and_literal_nullables_and_keeps_title_ar
     assert "title" in schema["properties"]
     assert "default" not in json.dumps(schema)
     assert sorted(schema["required"]) == ["k", "n", "title"]
+
+
+def _spy_statements(db, monkeypatch) -> list[str]:
+    """Swallow `SET LOCAL` (SQLite cannot run it) and record what was sent."""
+    sent: list[str] = []
+    real = db.execute
+
+    def execute(statement, *a, **kw):
+        sql = str(statement)
+        sent.append(sql)
+        if sql.startswith("SET LOCAL"):
+            return None
+        return real(statement, *a, **kw)
+
+    monkeypatch.setattr(db, "execute", execute)
+    return sent
+
+
+def test_statement_timeout_is_set_on_postgresql(db, monkeypatch):
+    from src.chat.tools import registry
+
+    monkeypatch.setattr(registry, "_is_postgres", lambda db: True)
+    sent = _spy_statements(db, monkeypatch)
+    run_tool(db, "site_map", {})
+    assert sent == ["SET LOCAL statement_timeout = 5000"]
+
+
+def test_statement_timeout_is_not_set_on_sqlite(db, monkeypatch):
+    sent = _spy_statements(db, monkeypatch)
+    run_tool(db, "site_map", {})
+    assert not any(s.startswith("SET LOCAL") for s in sent)
+
+
+def _count_rollbacks(db, monkeypatch) -> list[int]:
+    calls: list[int] = []
+    real = db.rollback
+    monkeypatch.setattr(db, "rollback", lambda: (calls.append(1), real())[1])
+    return calls
+
+
+def test_a_failing_tool_still_rolls_back(db, monkeypatch):
+    from dataclasses import replace
+
+    def boom(db, args):
+        raise RuntimeError("db down")
+
+    monkeypatch.setitem(TOOLS, "search", replace(TOOLS["search"], run=boom))
+    calls = _count_rollbacks(db, monkeypatch)
+    run_tool(db, "search", {"q": "x"})
+    assert calls == [1]
+
+
+def test_a_tool_raising_http_exception_rolls_back_and_reports_it(db, monkeypatch):
+    from dataclasses import replace
+
+    from fastapi import HTTPException
+
+    def not_found(db, args):
+        raise HTTPException(status_code=404, detail="Driver not found")
+
+    monkeypatch.setitem(TOOLS, "search", replace(TOOLS["search"], run=not_found))
+    calls = _count_rollbacks(db, monkeypatch)
+    out = json.loads(run_tool(db, "search", {"q": "x"}))
+    assert out["error"].startswith("HTTPException")
+    assert calls == [1]
+
+
+def test_site_map_fits_the_tool_result_cap(db):
+    raw = run_tool(db, "site_map", {})
+    assert len(raw) < MAX_TOOL_RESULT_CHARS
+    assert "truncated" not in json.loads(raw)
+
+
+def test_navigate_refuses_dot_dot_segments(db):
+    for bad in ["/../x", "/seasons/../../x", "/seasons/..", "/..", "/../x?y=1"]:
+        assert "error" in json.loads(run_tool(db, "navigate", {"href": bad})), bad
+    for good in ["/drivers/carlos-sainz-jr.", "/seasons/2024?x=1"]:
+        assert json.loads(run_tool(db, "navigate", {"href": good}))["navigated"] is True, good

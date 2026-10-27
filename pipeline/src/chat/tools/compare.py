@@ -43,7 +43,9 @@ def _side(entity: dict, kind: str) -> dict:
 
 
 def _same(args: PairArgs, kind: str) -> dict | None:
-    if args.a == args.b:
+    """Refs are case- and space-insensitive to the router's lookup, so " Perez" vs
+    "perez" is the same side and must be refused here too."""
+    if args.a.strip().lower() == args.b.strip().lower():
         return {"error": f"pick two different {kind}; both refs are '{args.a}'"}
     return None
 
@@ -68,7 +70,9 @@ def _drivers_run(db: Session, args: PairArgs) -> dict:
             "race": {"a": h["driver1Wins"], "b": h["driver2Wins"], "total": h["totalRaces"]},
             "qualifying": {"a": q["driver1Wins"], "b": q["driver2Wins"], "total": q["totalRaces"]},
         },
-        "teammateSeasons": c["teammateSeasons"],
+        # Seasons both drove for the same constructor (not necessarily the same
+        # races); the router's name for it read as "seasons as teammates".
+        "sharedTeamSeasons": c["teammateSeasons"],
     }
 
 
@@ -129,6 +133,7 @@ register(
     Tool(
         name="compare_drivers",
         description="Two drivers' careers side by side with race and qualifying head-to-head. "
+        "sharedTeamSeasons lists the seasons both drove for the same constructor. "
         "a and b are driver refs from search; they must differ.",
         args=PairArgs,
         run=_drivers_run,

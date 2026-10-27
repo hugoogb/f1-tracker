@@ -22,12 +22,16 @@ PROVIDER = "anthropic"
 
 @dataclass
 class Usage:
+    """Token counts for one request, summed across its model turns; the four
+    buckets are priced separately (see `cost_of`)."""
+
     input_tokens: int = 0
     output_tokens: int = 0
     cache_write_tokens: int = 0
     cache_read_tokens: int = 0
 
     def add(self, other: "Usage") -> None:
+        """Fold one turn's counts in place: a tool loop is several turns, one bill."""
         self.input_tokens += other.input_tokens
         self.output_tokens += other.output_tokens
         self.cache_write_tokens += other.cache_write_tokens
@@ -56,12 +60,18 @@ def cost_of(model: str, usage: Usage) -> float:
 
 
 def day_start(now: datetime.datetime) -> datetime.datetime:
-    """Midnight UTC of `now`'s date: when the daily budget resets."""
+    """Midnight UTC of `now`'s date: when the daily budget resets.
+
+    `now` must be timezone-aware: `astimezone` would read a naive value as
+    the server's local time and shift the day boundary by its offset.
+    """
     now = now.astimezone(datetime.UTC)
     return now.replace(hour=0, minute=0, second=0, microsecond=0)
 
 
 def spent_today(db: Session, now: datetime.datetime) -> float:
+    """Dollars recorded since midnight UTC, the figure the budget gate checks.
+    A row stamped exactly at midnight belongs to the new day."""
     total = db.scalar(
         select(func.coalesce(func.sum(ChatUsage.cost_usd), 0.0)).where(
             ChatUsage.created_at >= day_start(now)
@@ -92,6 +102,10 @@ def record(
     ip_hash: str,
     now: datetime.datetime,
 ) -> ChatUsage:
+    """Write one request's row and commit it straight away, so the next
+    request's gates already see it. `now` must be UTC-aware, as for
+    `day_start`: it is the timestamp every daily bound is compared against.
+    Refused requests are recorded too, with empty usage."""
     row = ChatUsage(
         created_at=now,
         model=model,

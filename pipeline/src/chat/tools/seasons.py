@@ -27,6 +27,7 @@ from src.api.routers.standings import (
     standings_progression,
     title_permutations,
 )
+from src.api.serializers import constructor_summary, driver_summary
 from src.chat.constants import TOP_N
 from src.chat.tools.registry import Tool, register
 from src.db.models import Race, RaceResult, SprintResult
@@ -185,11 +186,16 @@ def _champion(db: Session, year: int, races: list[dict], kind: str) -> dict | No
     as_of = _round_of(table)
     if as_of is None or as_of["round"] != last["round"]:
         return None
-    payload = driver_standings(year, db) if drivers else constructor_standings(year, db)
-    top = next((r for r in payload["standings"] if r["position"] == 1), None)
+    # Read the leader off the table already in hand rather than through the
+    # router, which would query the same standings a second time.
+    top = next((s for s in table if s.position == 1), None)
     if top is None:
         return None
-    e = _entity(kind, top)
+    if drivers:
+        row = {"driver": driver_summary(top.driver)}
+    else:
+        row = {"constructor": constructor_summary(top.constructor)}
+    e = _entity(kind, row)
     return {"name": e["name"], "ref": e["ref"], "href": e["href"]}
 
 

@@ -31,6 +31,10 @@ def stream_turn(
     max_tokens: int,
     tool_choice: dict | None = None,
 ) -> Iterator[Event]:
+    """One model turn as events: text deltas live, then (once the message is
+    final) its tool calls, its usage and `Done` with the raw content the loop
+    replays as the assistant turn. Tool calls wait for the final message
+    because a streamed tool input is only valid JSON once complete."""
     # Fresh dicts per call: cache_control must never land on the shared specs.
     tool_params = [{**spec, "strict": True} for spec in tools]
     if tool_params:

@@ -32,6 +32,7 @@ from src.config import settings
 logger = logging.getLogger(__name__)
 
 PROVIDER_ERROR = "The Engineer lost the radio. Try again."
+INTERNAL_ERROR = "The Engineer hit a problem. Try again."
 CAP_ERROR = "tool call limit reached; answer now"
 CAP_NUDGE = "Answer with what you have."
 
@@ -41,6 +42,23 @@ CAP_NUDGE = "Answer with what you have."
 SYSTEM_AND_TOOLS_ESTIMATE = 2_000
 
 SITE_PATH = r"^/[A-Za-z0-9_\-./]*(\?[A-Za-z0-9_=&\-]*)?$"
+
+
+class ProviderError(Exception):
+    """A failure inside the model call, as opposed to one in the loop's own work."""
+
+
+def _model_turn(**kwargs) -> Iterator:
+    """`stream_turn`, with anything it raises tagged as the provider's.
+
+    Only exceptions raised inside the generator are wrapped; one raised while
+    the loop handles an event surfaces in the loop, so the tag cannot blame the
+    provider for the database or the tools.
+    """
+    try:
+        yield from stream_turn(**kwargs)
+    except Exception as e:  # noqa: BLE001 - re-raised, tagged
+        raise ProviderError(str(e)) from e
 
 
 def utcnow() -> datetime.datetime:
@@ -112,7 +130,7 @@ def run_chat(
             calls: list[ToolCall] = []
             done: Done | None = None
             turn_usage_seen = False
-            for event in stream_turn(
+            for event in _model_turn(
                 system=SYSTEM,
                 tools=tools,
                 messages=messages,
@@ -164,9 +182,10 @@ def run_chat(
                 {"role": "assistant", "content": done.content},
                 {"role": "user", "content": results},
             ]
-    except Exception:  # noqa: BLE001 - any provider failure ends the stream, not the server
+    except Exception as e:  # noqa: BLE001 - any failure ends the stream, not the server
         logger.exception("chat turn failed")
         outcome = "error"
+        provider = isinstance(e, ProviderError)
         if not turn_usage_seen:
             # The turn died before its usage arrived; count it conservatively
             # rather than as free, so the budget never under-counts.
@@ -176,7 +195,10 @@ def run_chat(
                     output_tokens=settings.chat_max_tokens,
                 )
             )
-        yield sse("error", {"code": "provider", "message": PROVIDER_ERROR})
+        if provider:
+            yield sse("error", {"code": "provider", "message": PROVIDER_ERROR})
+        else:
+            yield sse("error", {"code": "internal", "message": INTERNAL_ERROR})
     finally:
         # Runs on a client disconnect too (GeneratorExit), so spend is never lost.
         row = ledger.record(

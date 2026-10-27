@@ -98,3 +98,24 @@ def test_rate_gate_window_is_ten_minutes(db, monkeypatch):
         now=NOW - datetime.timedelta(minutes=11),
     )
     assert check_gates(db, "h", NOW) is None
+
+
+def test_rate_gate_refuses_with_429_once_the_day_limit_is_reached(db, monkeypatch):
+    monkeypatch.setattr(settings, "chat_ip_per_10min", 100)
+    monkeypatch.setattr(settings, "chat_ip_per_day", 3)
+    for hours in (1, 2, 3):
+        record(
+            db,
+            model="claude-haiku-5-5",
+            usage=Usage(),
+            tool_calls=0,
+            outcome="ok",
+            ip_hash="h",
+            now=NOW - datetime.timedelta(hours=hours),
+        )
+    refusal = check_gates(db, "h", NOW)
+    assert (refusal.status, refusal.code) == (429, "rate_limited")
+
+
+def test_client_ip_without_a_socket_peer_is_unknown():
+    assert client_ip(make_request({}, client=None)) == "unknown"

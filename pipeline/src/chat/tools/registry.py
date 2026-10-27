@@ -77,6 +77,9 @@ def strict_schema(model: type[BaseModel]) -> dict:
 
 
 def tool_specs() -> list[ToolSpec]:
+    """The strict schemas sent to the model. Navigate sorts last because the
+    cache breakpoint goes on the final tool, and an order that changed between
+    requests would miss the prompt cache."""
     tools = sorted(TOOLS.values(), key=lambda t: t.name == NAVIGATE)  # stable: navigate last
     return [
         {"name": t.name, "description": t.description, "input_schema": strict_schema(t.args)}
@@ -86,6 +89,11 @@ def tool_specs() -> list[ToolSpec]:
 
 def _error(message: str) -> str:
     return json.dumps({"error": message})
+
+
+def _is_postgres(db: Session) -> bool:
+    """The statement timeout is PostgreSQL syntax; SQLite (the tests) has none."""
+    return db.get_bind().dialect.name == "postgresql"
 
 
 def run_tool(db: Session, name: str, raw_args: dict) -> str:
@@ -98,7 +106,7 @@ def run_tool(db: Session, name: str, raw_args: dict) -> str:
     except (ValidationError, TypeError) as e:
         return _error(f"invalid arguments: {e}"[:300])
     try:
-        if db.get_bind().dialect.name == "postgresql":
+        if _is_postgres(db):
             db.execute(text(f"SET LOCAL statement_timeout = {int(STATEMENT_TIMEOUT_MS)}"))
         out = json.dumps(tool.run(db, args), default=str)
     except Exception as e:  # noqa: BLE001 - the model gets the error text

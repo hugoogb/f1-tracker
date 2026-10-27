@@ -40,11 +40,13 @@ class Settings(BaseSettings):
     @property
     def chat_enabled(self) -> bool:
         """On only with a key, a model, a salt and a price for that model: an
-        unpriced model would be billed without the budget ever seeing it."""
+        unpriced model would be billed without the budget ever seeing it. A
+        whitespace-only value is unset: an env file line like `CHAT_MODEL= `
+        must not switch the chat on."""
         return bool(
-            self.anthropic_api_key
-            and self.chat_model
-            and self.chat_ip_salt
+            self.anthropic_api_key.strip()
+            and self.chat_model.strip()
+            and self.chat_ip_salt.strip()
             and self.chat_model_priced
         )
 

@@ -109,3 +109,21 @@ def test_usage_add_accumulates_every_counter():
     assert total == Usage(
         input_tokens=11, output_tokens=2, cache_write_tokens=3, cache_read_tokens=4
     )
+
+
+def test_the_day_starts_exactly_at_midnight_utc(db):
+    midnight = datetime.datetime(2026, 10, 26, tzinfo=UTC)
+    for stamp, tokens in (
+        (midnight, 1_000_000),
+        (midnight - datetime.timedelta(seconds=1), 2_000_000),
+    ):
+        record(
+            db,
+            model="claude-haiku-5-5",
+            usage=Usage(output_tokens=tokens),
+            tool_calls=0,
+            outcome="ok",
+            ip_hash="h",
+            now=stamp,
+        )
+    assert spent_today(db, NOW) == 0.50
