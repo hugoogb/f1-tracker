@@ -1,4 +1,4 @@
-import { AlertTriangle, Calendar, CheckCircle2, Database, Flag, Timer } from 'lucide-react'
+import { AlertTriangle, Calendar, CheckCircle2, Database, Flag, Radio, Timer } from 'lucide-react'
 
 import { api } from '@/lib/api'
 import { buildMetadata } from '@/lib/seo'
@@ -410,6 +410,39 @@ export default async function StatusPage() {
                 or in CI. It is pulled from a residential connection and pushed back, which makes
                 this backlog a manual job — the oldest few are shown as a sample.
               </p>
+            </SectionCard>
+          </FadeIn>
+
+          <FadeIn>
+            <SectionCard title="Engineer" icon={Radio}>
+              {!status.chat.enabled ? (
+                <p className="text-muted-foreground text-sm">Off</p>
+              ) : (
+                <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+                  <Field label="Requests today">
+                    <span className="font-data tabular-nums">
+                      {status.chat.requestsToday.toLocaleString('en-GB')}
+                    </span>
+                  </Field>
+                  <Field label="Cost today">
+                    <span className="font-data tabular-nums">
+                      ${status.chat.costTodayUsd.toFixed(4)} of ${status.chat.budgetUsd.toFixed(2)}
+                    </span>
+                  </Field>
+                  <Field label="Answers using tools">
+                    <span className="font-data tabular-nums">
+                      {status.chat.toolShare === null
+                        ? '—'
+                        : `${Math.round(status.chat.toolShare * 100)}%`}
+                    </span>
+                  </Field>
+                  <Field label="Errors today">
+                    <span className="font-data tabular-nums">
+                      {status.chat.errorsToday.toLocaleString('en-GB')}
+                    </span>
+                  </Field>
+                </div>
+              )}
             </SectionCard>
           </FadeIn>
 

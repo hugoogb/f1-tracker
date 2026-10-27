@@ -3,6 +3,7 @@ import { Star } from 'lucide-react'
 
 import { Container } from '@/components/ui/container'
 import { buttonVariants } from '@/components/ui/button-variants'
+import { EngineerButton } from '@/components/engineer/engineer-button'
 import { MainNav } from './main-nav'
 import { MobileNav } from './mobile-nav'
 import { CommandSearch } from './command-search'
@@ -23,6 +24,7 @@ export function Header() {
         <MainNav />
         <div className="ml-auto flex items-center gap-1">
           <CommandSearch />
+          {process.env.NEXT_PUBLIC_CHAT_ENABLED === 'true' && <EngineerButton />}
           <Link
             href="/favourites"
             aria-label="Favourites"

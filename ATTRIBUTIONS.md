@@ -82,6 +82,14 @@ Properties are stripped to `name` and coordinates rounded to 2 decimal places to
 reduce transfer size. Documented in `apps/web/public/geo/README.txt` as a
 courtesy, not an obligation.
 
+### Anthropic (Claude) — the Engineer chat sidebar
+
+| | |
+|---|---|
+| **Used for** | Answers the Engineer chat sidebar. Each question is sent to the Claude API with the data the tools return; nothing a reader types is stored by this site |
+| **Source** | <https://www.anthropic.com> |
+| **Licence** | [Commercial API terms](https://www.anthropic.com/legal/commercial-terms) |
+
 ---
 
 ## Deliberately not used

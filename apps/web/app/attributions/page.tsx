@@ -40,6 +40,13 @@ const DATA_SOURCES: SourceEntry[] = [
     licence: 'Public domain',
     licenceHref: 'https://www.naturalearthdata.com/about/terms-of-use/',
   },
+  {
+    name: 'Anthropic (Claude)',
+    href: 'https://www.anthropic.com',
+    used: 'Answers the Engineer chat sidebar. Each question is sent to the Claude API with the data the tools return; nothing a reader types is stored by this site.',
+    licence: 'Commercial API terms',
+    licenceHref: 'https://www.anthropic.com/legal/commercial-terms',
+  },
 ]
 
 export default function AttributionsPage() {
