@@ -54,6 +54,11 @@ env:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    # The Tailscale OAuth secrets live in the `vps` environment, not the
+    # repository, and that environment only releases them to runs on master.
+    # A workflow edited on a branch and started with workflow_dispatch gets
+    # nothing to join the tailnet with.
+    environment: vps
     timeout-minutes: 30
     permissions:
       contents: read

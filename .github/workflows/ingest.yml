@@ -43,6 +43,11 @@ concurrency:
 jobs:
   ingest:
     runs-on: ubuntu-latest
+    # The Tailscale OAuth secrets live in the `vps` environment, not the
+    # repository, and that environment only releases them to runs on master.
+    # A workflow edited on a branch and started with workflow_dispatch gets
+    # nothing to join the tailnet with.
+    environment: vps
     # A full historical load takes minutes; a Fast-F1 backfill can take hours,
     # and is throttled to ~45s per session.
     timeout-minutes: 360
