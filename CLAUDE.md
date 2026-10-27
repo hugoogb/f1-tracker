@@ -166,7 +166,9 @@ daily and on any purge, since it reads `f1-global`), `robots.ts`, `manifest.ts`,
   (`enabled`, `requestsToday`, `costTodayUsd`, `budgetUsd`, `toolShare`, `errorsToday`) is read from the ledger
 - `POST /api/chat` - The Race Engineer: a tool loop streamed over SSE (events `text`, `tool`, `navigate`,
   `usage`, `error`, `done`). Refusals are JSON before the stream: 503 `{"detail":{"code":"disabled"}}` when
-  chat is off, 503 `budget`, 429 `rate_limited`, 422 for an invalid body. See the Conventions paragraph
+  chat is off (checked before the body, so it wins over 422), 503 `budget`, 429 `rate_limited`, 422 for an
+  invalid body. A failure mid-stream is an `error` event, `code` `provider` (the model call) or `internal`
+  (anything else). See the Conventions paragraph
 - `POST /api/chat/feedback` - `{id, thumbs: 1|-1}` on a ledger row; 204, or 404 for an unknown id
 
 ## Commands
@@ -204,7 +206,7 @@ daily and on any purge, since it reads `f1-global`), `robots.ts`, `manifest.ts`,
 - `/srv/apps/f1_api/backup.sh > f1_api.sql.gz` - Dump the whole production database to stdout, from a throwaway postgres container on the shared network against `DIRECT_URL`. It asks the server its version first and pulls the matching `postgres:<major>-alpine`, because pg_dump refuses to dump a server newer than itself; `PG_IMAGE` pins one instead. Driven from a laptop by `pnpm db:backup:prod`
 - Manual deploy/rollback on the box: `echo "TAG=<sha>" > .tag`, then `docker compose --env-file .env --env-file .tag pull && ... run --rm migrate && ... up -d --wait`
 - Env file: `/srv/apps/f1_api/.env` (created by the platform's `new-app.sh`; app-specific keys in `docker/.env.prod.example`) plus `.tag`, which carries only `TAG=<sha>`
-- Race Engineer keys in that file: `ANTHROPIC_API_KEY`, `CHAT_MODEL`, `CHAT_IP_SALT` (all three, or chat stays off), tuned by `CHAT_DAILY_BUDGET_USD`, `CHAT_IP_PER_10MIN`, `CHAT_IP_PER_DAY`, `CHAT_MAX_TOKENS`, `CHAT_PRICES_JSON`. The button needs `NEXT_PUBLIC_CHAT_ENABLED=true` in Vercel (build-time, redeploy). Runbook: `docs/DEPLOYMENT.md`
+- Race Engineer keys in that file: `ANTHROPIC_API_KEY`, `CHAT_MODEL`, `CHAT_IP_SALT`, tuned by `CHAT_DAILY_BUDGET_USD`, `CHAT_IP_PER_10MIN`, `CHAT_IP_PER_DAY`, `CHAT_MAX_TOKENS`, `CHAT_PRICES_JSON`. What switches it on (here and in Vercel) is the Race Engineer paragraph under Conventions. Runbook: `docs/DEPLOYMENT.md`
 - Database is the platform's shared PostgreSQL: the API uses `DATABASE_URL` (PgBouncer), migrations and ingest use `DIRECT_URL` (direct — transaction pooling cannot run a migration). Backups are the platform's job
 - Scheduling: `.github/workflows/ingest.yml` — Mondays 06:00 UTC, calendar-gated inside `ingest.sh`; run it by hand from the Actions tab with optional `force`/`flags` inputs. Its last step reports the Fast-F1 backlog, which is a manual job (`scripts/fastf1-sync.sh`)
 
@@ -449,8 +451,9 @@ Two f1db quirks the UI is built around:
   `request.client.host` (forgeable in production; probed 2026-10-26) — the origin is sealed behind Cloudflare.
   The row is written after the stream, so concurrent in-flight requests can overshoot the daily budget by their
   own cost; the Cloudflare rule and the Anthropic console cap bound that. Chat is off until `ANTHROPIC_API_KEY`,
-  `CHAT_MODEL` and `CHAT_IP_SALT` are all set, and the UI hides the button unless `NEXT_PUBLIC_CHAT_ENABLED` is
-  exactly `'true'`. Status tags in the sheet are RADIO CHECK / ON IT / CHECKING … / OFF THE RADIO / ON COOLDOWN /
+  `CHAT_MODEL` and `CHAT_IP_SALT` are all set (whitespace-only counts as unset) and `CHAT_MODEL` has a price in
+  `CHAT_PRICES_JSON`; the UI hides the button unless `NEXT_PUBLIC_CHAT_ENABLED` is exactly `'true'` in Vercel
+  (build-time, so changing it needs a redeploy). Status tags in the sheet are RADIO CHECK / ON IT / CHECKING … / OFF THE RADIO / ON COOLDOWN /
   RADIO FAULT; the transcript lives in `sessionStorage` only
 - Pre-commit: Husky runs lint-staged (prettier) + ruff check/format on staged `.py` files
 - CI: GitHub Actions `ci.yml` — frontend (audit, format, lint, typecheck, build) + backend (ruff, pip-audit, pytest) + backend image (docker build + smoke test)

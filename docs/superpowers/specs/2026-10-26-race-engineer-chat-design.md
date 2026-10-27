@@ -157,9 +157,9 @@ removed").
 | `get_race(year, round, section)` | race detail | `results` / `qualifying` / `sprint` / `pitstops`; top 10 + named drivers |
 | `get_driver(ref)` / `get_constructor(ref)` / `get_circuit(ref)` | detail + stats | career stats, season history summary, href |
 | `get_records(entity, category, filters…)` | `/records/explore` | top 10 with the same filters the page has |
-| `get_champions(from?, to?)` | `/champions` | year, drivers' champion, constructors' champion |
+| `get_champions(from?, to?, limit?, oldest_first?)` | `/champions` | year, drivers' champion, constructors' champion; at most 25 seasons per call, paged by year range |
 | `get_best_seasons(limit)` | `/best-seasons` | ranked seasons with score |
-| `compare_drivers(a, b)` / `compare_constructors(a, b)` | `/compare/*` | the H2H summary |
+| `compare_drivers(a, b)` / `compare_constructors(a, b)` | `/compare/*` | the H2H summary (drivers add `sharedTeamSeasons`: seasons both drove for the same constructor) |
 | `compare_in_season(year, kind, a, b)` | season compare | official totals, wins, H2H, hrefs |
 | `navigate(href)` | **client-side** | no server work; the server emits it as an event and the sidebar runs `router.push` for same-origin paths only |
 
