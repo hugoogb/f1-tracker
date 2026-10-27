@@ -6,6 +6,7 @@ from src.chat.prompt import SYSTEM, page_description, user_turn
 def test_system_prompt_is_stable_and_states_the_data_rules():
     for phrase in ("official", "what-if", "Fast-F1", "1958", "lineage", "navigate", "search"):
         assert phrase in SYSTEM
+    assert "were produced with these same tools" in SYSTEM
     assert "2026" not in SYSTEM and "Today" not in SYSTEM
 
 

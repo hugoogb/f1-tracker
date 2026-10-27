@@ -420,7 +420,8 @@ Two f1db quirks the UI is built around:
   The `[ref]`/`[year]` detail routes each export an empty `generateStaticParams()` — without one a
   dynamic segment never enters the full route cache, and with one returning `[]` nothing is
   prerendered at build while the first request for a path still caches it. The routes that stay
-  server-rendered are the seven reading `searchParams` (`/seasons/[year]/compare` is the seventh)
+  server-rendered are the six reading `searchParams` on the server (`/seasons/[year]/compare` is the
+  sixth; `/compare` reads them client-side and stays static)
   and `/status` (`dynamic = 'force-dynamic'`: `/api/ops/status` stamps `generatedAt`, so a cached
   copy was rewritten on every refresh). Endpoints with unbounded URL spaces — head-to-head pairs,
   the records explorer's filter combinations — are fetched `no-store` so they never become cache
