@@ -20,6 +20,17 @@ describe('tokenizeAnswer', () => {
     expect(tokenizeAnswer('a **bol')).toEqual([{ type: 'text', value: 'a **bol' }])
     expect(tokenizeAnswer('[2024]')).toEqual([{ type: 'text', value: '[2024]' }])
   })
+  it('keeps a link inside bold a link', () => {
+    expect(tokenizeAnswer('**[Max](/drivers/max)**')).toEqual([
+      { type: 'link', label: 'Max', href: '/drivers/max', bold: true },
+    ])
+    expect(tokenizeAnswer('**Champion: [Max](/drivers/max) again**!')).toEqual([
+      { type: 'bold', value: 'Champion: ' },
+      { type: 'link', label: 'Max', href: '/drivers/max', bold: true },
+      { type: 'bold', value: ' again' },
+      { type: 'text', value: '!' },
+    ])
+  })
   it('returns nothing for empty input', () => {
     expect(tokenizeAnswer('')).toEqual([])
   })

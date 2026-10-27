@@ -10,7 +10,7 @@ import { EngineerAnswer } from './engineer-answer'
 
 const NOTICES: Partial<Record<EngineerStatus['kind'], string>> = {
   budget: 'The engineer is off the radio for today. Try again tomorrow.',
-  cooldown: 'Too many questions in a row. Give it a minute and ask again.',
+  cooldown: 'Too many questions in a row. Give it a few minutes and ask again.',
 }
 
 /** The conversation, newest at the bottom, kept scrolled to the end as it streams. */
@@ -42,7 +42,11 @@ export function EngineerTranscript({
           </div>
         ) : (
           <div key={message.id} className="space-y-1.5">
-            <EngineerAnswer content={message.content} />
+            {message.notice ? (
+              <p className="text-muted-foreground font-data text-xs">{message.content}</p>
+            ) : (
+              <EngineerAnswer content={message.content} />
+            )}
             {message.ledgerId && (
               <div className="flex items-center gap-1">
                 <button

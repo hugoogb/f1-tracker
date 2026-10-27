@@ -1,6 +1,7 @@
 import Link from 'next/link'
 
 import { isSameOriginPath, tokenizeAnswer } from '@/lib/engineer-markdown'
+import { cn } from '@/lib/utils'
 
 /** How an answer's link renders: a site path is a link, anything else stays text. */
 export function linkTarget(href: string): 'internal' | 'text' {
@@ -33,12 +34,17 @@ export function EngineerAnswer({ content }: { content: string }) {
                 key={i}
                 href={token.href}
                 prefetch={false}
-                className="text-primary focus-ring underline underline-offset-2 hover:no-underline"
+                className={cn(
+                  'text-primary focus-ring underline underline-offset-2 hover:no-underline',
+                  token.bold && 'font-semibold',
+                )}
               >
                 {token.label}
               </Link>
             ) : (
-              <span key={i}>{token.label}</span>
+              <span key={i} className={cn(token.bold && 'text-foreground font-semibold')}>
+                {token.label}
+              </span>
             )
         }
       })}

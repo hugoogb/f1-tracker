@@ -44,6 +44,9 @@ export function EngineerSheet({
 
   const busy = status.kind === 'streaming' || status.kind === 'tool'
   const exhausted = turnsLeft <= 0
+  // Refused for now: a retry would only be refused again (and, for a cooldown,
+  // counted against the same window), so the composer waits it out.
+  const held = status.kind === 'cooldown' || status.kind === 'budget'
 
   // The input is disabled while an answer streams, which drops its focus; hand
   // it back once the engineer is done so the next question can follow.
@@ -52,7 +55,7 @@ export function EngineerSheet({
   }, [open, busy])
 
   const ask = (question: string) => {
-    if (busy || exhausted || !question.trim()) return
+    if (busy || held || exhausted || !question.trim()) return
     setDraft('')
     void send(question)
   }
@@ -86,7 +89,7 @@ export function EngineerSheet({
                     key={prompt}
                     variant="outline"
                     className="h-auto justify-start py-2 text-left whitespace-normal normal-case"
-                    disabled={busy}
+                    disabled={busy || held}
                     onClick={() => ask(prompt)}
                   >
                     {prompt}
@@ -131,7 +134,12 @@ export function EngineerSheet({
                   <Square aria-hidden />
                 </Button>
               ) : (
-                <Button type="submit" size="icon" aria-label="Send" disabled={!draft.trim()}>
+                <Button
+                  type="submit"
+                  size="icon"
+                  aria-label="Send"
+                  disabled={held || !draft.trim()}
+                >
                   <Send aria-hidden />
                 </Button>
               )}
