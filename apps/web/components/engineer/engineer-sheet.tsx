@@ -48,10 +48,13 @@ export function EngineerSheet({
   // counted against the same window), so the composer waits it out.
   const held = status.kind === 'cooldown' || status.kind === 'budget'
 
-  // The input is disabled while an answer streams, which drops its focus; hand
-  // it back once the engineer is done so the next question can follow.
+  // Opening is `initialFocus`'s job. The input is disabled while an answer
+  // streams, which drops its focus, so hand it back on the busy -> idle edge
+  // only, letting the next question follow.
+  const wasBusy = useRef(busy)
   useEffect(() => {
-    if (open && !busy) inputRef.current?.focus()
+    if (wasBusy.current && !busy && open) inputRef.current?.focus()
+    wasBusy.current = busy
   }, [open, busy])
 
   const ask = (question: string) => {

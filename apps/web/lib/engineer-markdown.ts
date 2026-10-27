@@ -4,8 +4,10 @@ export type AnswerToken =
   | { type: 'link'; label: string; href: string; bold?: true }
   | { type: 'break' }
 
-const LINK = /^\[([^\]\n]+)\]\(([^)\s]+)\)/
-const BOLD = /^\*\*([^*\n]+)\*\*/
+// Sticky: matched at `lastIndex` in the full text, so no per-position copy of the rest.
+const LINK = /\[([^\]\n]+)\]\(([^)\s]+)\)/y
+const BOLD = /\*\*([^*\n]+)\*\*/y
+const SPECIAL = /[[*\n]/g
 const LINKS = /\[([^\]\n]+)\]\(([^)\s]+)\)/g
 
 /** A bold run, with any links inside it kept as (bold) links. */
@@ -36,34 +38,37 @@ export function tokenizeAnswer(text: string): AnswerToken[] {
     plain = ''
   }
 
+  // Re-run on every streamed delta, so it jumps between the only characters
+  // that can start markup instead of walking (and re-slicing) one at a time.
   let i = 0
   while (i < text.length) {
-    const ch = text[i]
+    SPECIAL.lastIndex = i
+    const next = SPECIAL.exec(text)
+    if (next === null) {
+      plain += text.slice(i)
+      break
+    }
+    const at = next.index
+    plain += text.slice(i, at)
+    const ch = text[at]
     if (ch === '\n') {
       flush()
       tokens.push({ type: 'break' })
-      i += 1
+      i = at + 1
       continue
     }
-    if (ch === '[') {
-      const m = LINK.exec(text.slice(i))
-      if (m) {
-        flush()
-        tokens.push({ type: 'link', label: m[1], href: m[2] })
-        i += m[0].length
-        continue
-      }
-    } else if (ch === '*') {
-      const m = BOLD.exec(text.slice(i))
-      if (m) {
-        flush()
-        tokens.push(...boldTokens(m[1]))
-        i += m[0].length
-        continue
-      }
+    const pattern = ch === '[' ? LINK : BOLD
+    pattern.lastIndex = at
+    const m = pattern.exec(text)
+    if (m) {
+      flush()
+      if (ch === '[') tokens.push({ type: 'link', label: m[1], href: m[2] })
+      else tokens.push(...boldTokens(m[1]))
+      i = at + m[0].length
+      continue
     }
     plain += ch
-    i += 1
+    i = at + 1
   }
   flush()
   return tokens
@@ -71,7 +76,12 @@ export function tokenizeAnswer(text: string): AnswerToken[] {
 
 const SAFE_PATH = /^\/[A-Za-z0-9_\-./]*(\?[A-Za-z0-9_=&-]*)?$/
 
-/** True only for a plain in-site path; rejects protocol-relative, absolute and scripted URLs. */
+/**
+ * True only for a plain in-site path; rejects protocol-relative, absolute and
+ * scripted URLs, and any `..` segment (the browser would resolve it elsewhere).
+ * Mirrors the server's `navigate` allowlist.
+ */
 export function isSameOriginPath(href: string): boolean {
-  return SAFE_PATH.test(href) && !href.includes('//')
+  if (!SAFE_PATH.test(href) || href.includes('//')) return false
+  return !href.split('?', 1)[0].split('/').includes('..')
 }

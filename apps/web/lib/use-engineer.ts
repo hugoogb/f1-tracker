@@ -16,9 +16,26 @@ export const DISABLED_MESSAGE = 'The Engineer is not on the radio right now.'
  * How long a 429 holds the composer: the server's per-IP window (`RATE_WINDOW`
  * in `pipeline/src/chat/gates.py`). Every refused request is a ledger row that
  * counts against that window, so letting the reader retry sooner would only
- * extend their own lockout.
+ * extend their own lockout. The hook releases the cooldown on a timer of this
+ * length (the reducer's `release`), so keep it in step with `RATE_WINDOW`.
  */
 export const COOLDOWN_MS = 10 * 60 * 1000
+
+/** The page's heading as context: trimmed, capped at the server's 200, null when empty. */
+export function pageTitleFrom(text: string | null | undefined): string | null {
+  return text?.trim().slice(0, MAX_TITLE_CHARS).trim() || null
+}
+
+/**
+ * Whether `send` must do nothing: an empty question, no turns left, a request
+ * already in flight (a double Enter before the first dispatch lands), or a
+ * status that already refuses (streaming, cooldown, budget).
+ */
+export function sendBlocked(state: EngineerState, content: string, inFlight: boolean): boolean {
+  if (!content || state.turnsLeft <= 0 || inFlight) return true
+  const kind = state.status.kind
+  return kind === 'streaming' || kind === 'tool' || kind === 'cooldown' || kind === 'budget'
+}
 
 /**
  * The page path sent as context. The server accepts only a plain site path
@@ -269,10 +286,7 @@ export function useEngineer(options: { onNavigate: (href: string) => void }): {
   const send = useCallback(async (question: string) => {
     const content = question.trim().slice(0, MAX_CONTENT_CHARS).trim()
     const current = stateRef.current
-    if (!content || current.turnsLeft <= 0) return
-    if (controllerRef.current) return
-    if (current.status.kind === 'streaming' || current.status.kind === 'tool') return
-    if (current.status.kind === 'cooldown' || current.status.kind === 'budget') return
+    if (sendBlocked(current, content, controllerRef.current !== null)) return
 
     const history = outgoingMessages([...current.messages, { role: 'user', content }])
 
@@ -287,8 +301,7 @@ export function useEngineer(options: { onNavigate: (href: string) => void }): {
         body: JSON.stringify({
           messages: history,
           path: pagePath(window.location.pathname),
-          pageTitle:
-            document.querySelector('h1')?.textContent?.trim().slice(0, MAX_TITLE_CHARS) || null,
+          pageTitle: pageTitleFrom(document.querySelector('h1')?.textContent),
         }),
         signal: controller.signal,
       })

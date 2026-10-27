@@ -8,6 +8,14 @@ describe('suggestedPrompts', () => {
     expect(suggestedPrompts('/seasons/2024/races/5')[0]).toBe('Who gained the most places?')
     expect(suggestedPrompts('/attributions')).toHaveLength(3)
   })
+  it('treats /seasons/current as a season page (it redirects to the latest)', () => {
+    expect(suggestedPrompts('/seasons/current')).toEqual(suggestedPrompts('/seasons/2024'))
+  })
+  it('ignores a trailing slash, a query string and a hash', () => {
+    expect(suggestedPrompts('/seasons/2024/')).toEqual(suggestedPrompts('/seasons/2024'))
+    expect(suggestedPrompts('/seasons/2024/races/5/')[0]).toBe('Who gained the most places?')
+    expect(suggestedPrompts('/records/?entity=driver#top')).toEqual(suggestedPrompts('/records'))
+  })
   it.each([
     '/',
     '/seasons/2024',

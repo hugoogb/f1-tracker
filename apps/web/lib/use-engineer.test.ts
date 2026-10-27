@@ -1,13 +1,17 @@
 import { describe, expect, it } from 'vitest'
 import {
+  COOLDOWN_MS,
   DISABLED_MESSAGE,
   EMPTY_ANSWER,
   initialState,
   outgoingMessages,
   pagePath,
+  pageTitleFrom,
   reduce,
   refusalStatus,
+  sendBlocked,
 } from './use-engineer'
+import type { EngineerState } from './use-engineer'
 
 describe('engineer reducer', () => {
   it('streams text into one assistant message and records the ledger id', () => {
@@ -137,5 +141,51 @@ describe('pagePath', () => {
     ['/' + 'a'.repeat(200), '/'],
   ])('%s → %s', (path, sent) => {
     expect(pagePath(path)).toBe(sent)
+  })
+})
+
+describe('pageTitleFrom', () => {
+  it.each([
+    [null, null],
+    [undefined, null],
+    ['', null],
+    ['   ', null],
+    ['  2024 Season  ', '2024 Season'],
+  ])('%j → %j', (text, title) => {
+    expect(pageTitleFrom(text)).toBe(title)
+  })
+  it('caps the title at the server limit of 200', () => {
+    expect(pageTitleFrom('x'.repeat(500))).toHaveLength(200)
+    expect(pageTitleFrom(' '.repeat(10) + 'y'.repeat(195))).toHaveLength(195)
+  })
+})
+
+describe('sendBlocked', () => {
+  const idle = initialState
+  const as = (status: EngineerState['status']): EngineerState => ({ ...idle, status })
+  it('lets a question through only when idle (or after an error) with nothing in flight', () => {
+    expect(sendBlocked(idle, 'q', false)).toBe(false)
+    expect(sendBlocked(as({ kind: 'error', message: 'x' }), 'q', false)).toBe(false)
+  })
+  it('refuses a second send while the first is still in flight', () => {
+    expect(sendBlocked(idle, 'q', true)).toBe(true)
+  })
+  it.each([
+    { kind: 'streaming' },
+    { kind: 'tool', label: 'search' },
+    { kind: 'cooldown' },
+    { kind: 'budget' },
+  ] as EngineerState['status'][])('refuses while %j', (status) => {
+    expect(sendBlocked(as(status), 'q', false)).toBe(true)
+  })
+  it('refuses an empty question and a spent conversation', () => {
+    expect(sendBlocked(idle, '', false)).toBe(true)
+    expect(sendBlocked({ ...idle, turnsLeft: 0 }, 'q', false)).toBe(true)
+  })
+})
+
+describe('COOLDOWN_MS', () => {
+  it("is the server's ten-minute rate window", () => {
+    expect(COOLDOWN_MS).toBe(10 * 60 * 1000)
   })
 })

@@ -34,6 +34,25 @@ describe('tokenizeAnswer', () => {
   it('returns nothing for empty input', () => {
     expect(tokenizeAnswer('')).toEqual([])
   })
+  it('keeps stray markers between real markup as text', () => {
+    expect(tokenizeAnswer('a * b [c] **d** [e](/f) *')).toEqual([
+      { type: 'text', value: 'a * b [c] ' },
+      { type: 'bold', value: 'd' },
+      { type: 'text', value: ' ' },
+      { type: 'link', label: 'e', href: '/f' },
+      { type: 'text', value: ' *' },
+    ])
+  })
+  it('tokenises a 20 kB answer', () => {
+    const line = 'P1 [Max](/drivers/max_verstappen) took **pole** by 0.1s.\n'
+    const text = line.repeat(Math.ceil(20_000 / line.length))
+    expect(text.length).toBeGreaterThanOrEqual(20_000)
+    const tokens = tokenizeAnswer(text)
+    const lines = text.split('\n').length - 1
+    // text, link, text, bold, text, break per line
+    expect(tokens).toHaveLength(lines * 6)
+    expect(tokens.filter((t) => t.type === 'link')).toHaveLength(lines)
+  })
 })
 
 describe('isSameOriginPath', () => {
@@ -47,6 +66,11 @@ describe('isSameOriginPath', () => {
     ['/\\evil.com', false],
     ['/\t/evil', false],
     ['/a//b', false],
+    ['/../x', false],
+    ['/seasons/../../x', false],
+    ['/seasons/..', false],
+    ['/..?a=1', false],
+    ['/drivers/carlos-sainz-jr.', true],
   ])('%s → %s', (href, ok) => {
     expect(isSameOriginPath(href)).toBe(ok)
   })
