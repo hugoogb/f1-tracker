@@ -77,6 +77,7 @@ def test_status_returns_every_section_on_an_empty_database(client):
         "estimatedCounts",
         "ingest",
         "schemaVersion",
+        "chat",
     }
     assert data["coverage"]["firstSeason"] is None
     assert data["coverage"]["latestResult"] is None
