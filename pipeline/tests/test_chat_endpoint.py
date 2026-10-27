@@ -24,11 +24,17 @@ def chat_on(monkeypatch):
     monkeypatch.setattr(settings, "chat_ip_salt", "s")
 
 
-def script(turns):
-    """Each turn is a list of events; stream_turn pops the next one and records its inputs."""
+def script(turns, db=None):
+    """Each turn is a list of events; stream_turn pops the next one and records its inputs.
+
+    Given `db`, every model call also asserts no transaction is open on it: a
+    stream must not pin a pooled connection idle-in-transaction.
+    """
     seen = []
 
     def fake(*, system, tools, messages, max_tokens, tool_choice=None):
+        if db is not None:
+            assert not db.in_transaction()
         seen.append({"messages": messages, "tool_choice": tool_choice})
         yield from turns.pop(0)
 
@@ -64,7 +70,8 @@ def test_happy_path_streams_text_tool_usage_and_done_and_writes_one_row(
                 ),
             ],
             [TextDelta(answer), usage(), Done("end_turn", [{"type": "text", "text": answer}])],
-        ]
+        ],
+        db,
     )
     monkeypatch.setattr(chat_loop, "stream_turn", fake)
     r = client.post(
@@ -216,7 +223,11 @@ def test_provider_error_ends_with_an_error_event_and_an_error_row(client, db, ch
         {"code": "provider", "message": "The Engineer lost the radio. Try again."},
     )
     assert events[-1][1]["outcome"] == "error"
-    assert db.query(ChatUsage).one().outcome == "error"
+    row = db.query(ChatUsage).one()
+    assert row.outcome == "error"
+    # The failed turn never reported usage, so a conservative estimate is recorded.
+    assert row.input_tokens >= chat_loop.SYSTEM_AND_TOOLS_ESTIMATE
+    assert row.output_tokens == settings.chat_max_tokens == 600
 
 
 def test_client_disconnect_still_writes_the_row(db, chat_on, monkeypatch):
@@ -254,6 +265,22 @@ def test_client_disconnect_still_writes_the_row(db, chat_on, monkeypatch):
 def test_invalid_bodies_are_400_level_and_write_no_row(client, db, chat_on, body):
     assert client.post("/api/chat", json=body).status_code == 422
     assert db.query(ChatUsage).count() == 0
+
+
+@pytest.mark.parametrize(
+    "path", ["/" + "a" * 300, "/seasons/2024 x", "//evil.example", "/seasons//2024", "seasons"]
+)
+def test_paths_that_are_not_site_paths_are_422(client, db, chat_on, path):
+    body = {"messages": [{"role": "user", "content": "x"}], "path": path}
+    assert client.post("/api/chat", json=body).status_code == 422
+    assert db.query(ChatUsage).count() == 0
+
+
+def test_a_path_with_a_query_string_is_accepted():
+    body = chat_loop.ChatRequest(
+        messages=[{"role": "user", "content": "x"}], path="/seasons/2024?type=drivers&a=x&b=y"
+    )
+    assert body.path == "/seasons/2024?type=drivers&a=x&b=y"
 
 
 def test_rate_and_budget_refusals_are_json_not_streams(client, db, chat_on, monkeypatch):

@@ -37,6 +37,7 @@ def chat(body: ChatRequest, request: Request, db: Session = Depends(get_db)):
             status_code=refusal.status,
             content={"detail": {"code": refusal.code, "message": refusal.message}},
         )
+    db.rollback()  # end the gates' read transaction before the stream starts
     return StreamingResponse(
         run_chat(db, body, ip_hash=caller, now=now),
         media_type="text/event-stream",

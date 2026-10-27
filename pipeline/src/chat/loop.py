@@ -10,7 +10,7 @@ import logging
 from collections.abc import Iterator
 from typing import Literal
 
-from pydantic import BaseModel, Field, constr, model_validator
+from pydantic import BaseModel, Field, constr, field_validator, model_validator
 from sqlalchemy.orm import Session
 
 import src.chat.tools  # noqa: F401 - registers every tool
@@ -36,7 +36,15 @@ CAP_ERROR = "tool call limit reached; answer now"
 CAP_NUDGE = "Answer with what you have."
 
 
+# Measured size of the cached prefix (system prompt + 18 tool schemas), in tokens.
+# Stands in for the input of a turn that failed before reporting its usage.
+SYSTEM_AND_TOOLS_ESTIMATE = 2_000
+
+SITE_PATH = r"^/[A-Za-z0-9_\-./]*(\?[A-Za-z0-9_=&\-]*)?$"
+
+
 def utcnow() -> datetime.datetime:
+    """The one clock for the chat: the router, the loop and the tests all read it."""
     return datetime.datetime.now(datetime.UTC)
 
 
@@ -47,8 +55,15 @@ class ChatMessage(BaseModel):
 
 class ChatRequest(BaseModel):
     messages: list[ChatMessage] = Field(min_length=1, max_length=2 * MAX_CONVERSATION_TURNS)
-    path: str = "/"
+    path: str = Field(default="/", max_length=200, pattern=SITE_PATH)
     pageTitle: str | None = Field(default=None, max_length=200)  # noqa: N815 - wire name
+
+    @field_validator("path")
+    @classmethod
+    def _one_site_path(cls, path: str) -> str:
+        if "//" in path:
+            raise ValueError("path must be a site path")
+        return path
 
     @model_validator(mode="after")
     def _ends_with_the_question(self) -> "ChatRequest":
@@ -65,7 +80,8 @@ def build_messages(body: ChatRequest, today: datetime.date) -> list[Message]:
         history = history[1:]
 
     def tokens() -> int:
-        return (sum(len(m.content) for m in history) + len(question)) // 4
+        context = len(body.path) + len(body.pageTitle or "")
+        return (sum(len(m.content) for m in history) + len(question) + context) // 4
 
     while history and tokens() > INPUT_SOFT_CAP_TOKENS:
         history = history[2:]
@@ -84,13 +100,18 @@ def run_chat(
     usage = ledger.Usage()
     tool_calls = 0
     outcome = "ok"
+    # The gates read on this session; end that transaction so no pooled
+    # connection idles in one while the model streams.
+    db.rollback()
     messages = build_messages(body, now.date())
     tools = tool_specs()
+    turn_usage_seen = True
     try:
         tool_choice: dict | None = None
         while True:
             calls: list[ToolCall] = []
             done: Done | None = None
+            turn_usage_seen = False
             for event in stream_turn(
                 system=SYSTEM,
                 tools=tools,
@@ -104,6 +125,7 @@ def run_chat(
                     calls.append(event)
                 elif isinstance(event, UsageEvent):
                     usage.add(event.usage)
+                    turn_usage_seen = True
                 elif isinstance(event, Done):
                     done = event
             # The forced final turn is the last one, whatever the model does.
@@ -122,14 +144,15 @@ def run_chat(
                     )
                     result = run_tool(db, call.name, call.args)
                 parsed = json.loads(result)
-                if call.name == NAVIGATE and parsed.get("navigated") is True:
+                is_error = isinstance(parsed, dict) and "error" in parsed
+                if call.name == NAVIGATE and isinstance(parsed, dict) and parsed.get("navigated"):
                     yield sse("navigate", {"href": parsed["href"]})
                 results.append(
                     {
                         "type": "tool_result",
                         "tool_use_id": call.id,
                         "content": result,
-                        "is_error": "error" in parsed,
+                        "is_error": is_error,
                     }
                 )
             if tool_calls >= MAX_TOOL_CALLS:
@@ -144,6 +167,15 @@ def run_chat(
     except Exception:  # noqa: BLE001 - any provider failure ends the stream, not the server
         logger.exception("chat turn failed")
         outcome = "error"
+        if not turn_usage_seen:
+            # The turn died before its usage arrived; count it conservatively
+            # rather than as free, so the budget never under-counts.
+            usage.add(
+                ledger.Usage(
+                    input_tokens=len(json.dumps(messages)) // 4 + SYSTEM_AND_TOOLS_ESTIMATE,
+                    output_tokens=settings.chat_max_tokens,
+                )
+            )
         yield sse("error", {"code": "provider", "message": PROVIDER_ERROR})
     finally:
         # Runs on a client disconnect too (GeneratorExit), so spend is never lost.
