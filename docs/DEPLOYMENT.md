@@ -206,6 +206,21 @@ docker exec caddy caddy reload --config /etc/caddy/Caddyfile
 docker exec caddy caddy adapt --config /etc/caddy/Caddyfile 2>/dev/null | grep -o 'f1_api:[0-9]*'
 ```
 
+### 3a. Cloudflare rate limiting for the chat
+
+The API hostname is proxied by Cloudflare (orange cloud). Add one rate-limiting
+rule on the free plan:
+
+- Match: method `POST` and URI path equals `/api/chat`
+- Rate: 20 requests per 10 minutes, per IP
+- Action: Block
+
+This is the outer layer. The API applies its own per-IP limits and a daily
+spend budget, and it identifies the caller from the `Cf-Connecting-Ip` header
+(`X-Forwarded-For` and the socket address are forgeable or the proxy's own).
+That only holds while the origin is reachable solely through Cloudflare, so
+keep the VPS firewall closed to everything but Cloudflare's ranges.
+
 ### 4. Frontend on Vercel
 
 Set `NEXT_PUBLIC_API_URL` to `https://<api-host>/api` in the Vercel project and
