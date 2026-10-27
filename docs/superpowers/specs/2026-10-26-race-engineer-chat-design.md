@@ -281,7 +281,7 @@ shows bot traffic.
 - **Client hook**: `useEngineer()` in `lib/use-engineer.ts` — `fetch` with a
   `ReadableStream` reader over our SSE event format (`text`, `tool`, `navigate`,
   `usage`, `error`, `done`), transcript state, `sessionStorage` persistence,
-  abort on close, "new conversation". No AI SDK dependency.
+  abort on stop, reset or unmount (closing the sheet keeps a streaming answer going, since the sheet stays mounted across navigation), "new conversation". No AI SDK dependency.
 - **Clock/locale**: nothing in the sidebar is server-rendered, so `useNow()`
   rules do not bite; but no timestamps are shown in the transcript anyway.
 - **Feedback**: a thumbs up/down on each answer that posts to the ledger row
