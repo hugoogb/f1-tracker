@@ -211,7 +211,8 @@ docker exec caddy caddy adapt --config /etc/caddy/Caddyfile 2>/dev/null | grep -
 The API hostname is proxied by Cloudflare (orange cloud). Add one rate-limiting
 rule on the free plan:
 
-- Match: method `POST` and URI path equals `/api/chat`
+- Match: method `POST` and URI path starts with `/api/chat` (the question and
+  its feedback route, `/api/chat/feedback`)
 - Rate: 20 requests per 10 minutes, per IP
 - Action: Block
 
@@ -243,7 +244,15 @@ serves as a check that the frontend can reach the backend.
 ### 4a. Race Engineer (chat sidebar)
 
 The chat is off until the API has `ANTHROPIC_API_KEY`, `CHAT_MODEL` and
-`CHAT_IP_SALT` (rows in the env table above). To turn it on:
+`CHAT_IP_SALT` (rows in the env table above), and `CHAT_MODEL` has a price in
+`CHAT_PRICES_JSON` (the built-in table prices `claude-haiku-5-5`; an unpriced
+model would be billed without the budget seeing it, so it keeps the chat off).
+The keys reach the container through `compose.prod.yml`, whose `x-app-env`
+names each one: `--env-file .env` only substitutes variables into the compose
+file, so a key in `.env` that compose does not name never reaches the API.
+`CHAT_PRICES_JSON` is deliberately not named there (an empty value would
+replace the built-in table); add it to `x-app-env` alongside its value if you
+switch to a model the table does not price. To turn it on:
 
 1. In `/srv/apps/f1_api/.env` set the three keys (`CHAT_IP_SALT` from
    `openssl rand -hex 32`; `CHAT_MODEL=claude-haiku-5-5`, the model the eval in
@@ -258,6 +267,15 @@ The chat is off until the API has `ANTHROPIC_API_KEY`, `CHAT_MODEL` and
    the button.
 5. Check `GET /api/ops/status`: `chat.enabled` is `true`, and `requestsToday`,
    `costTodayUsd` against `budgetUsd`, `toolShare` and `errorsToday` show use.
+   From a laptop:
+
+   ```bash
+   curl -s https://<api-host>/api/ops/status | grep -o '"enabled":[a-z]*'
+   ```
+
+   `"enabled":false` after setting the keys means they did not reach the
+   container (check `x-app-env`, then `docker compose ... up -d --wait` to
+   recreate it) or the model is unpriced.
 
 To switch it off, blank any of the three keys (the API answers 503
 `disabled`) and unset the Vercel flag. The `chat_usage` table holds no

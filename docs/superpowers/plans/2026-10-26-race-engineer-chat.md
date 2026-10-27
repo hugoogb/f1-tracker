@@ -26,7 +26,7 @@
 
 ## Review Focus
 
-1. An empty or whitespace-only question, or a body whose last message is not a `user` turn, must return 400 without calling the model or writing a ledger row of cost (Task 8 tests).
+1. An empty or whitespace-only question, or a body whose last message is not a `user` turn, must return 422 without calling the model or writing a ledger row of cost (Task 8 tests).
 2. The model calling an unknown tool, or a known tool with arguments that fail validation, must get an error tool result and the loop must continue to a text answer (Task 5 and Task 8 tests).
 3. `navigate` with an external or protocol-relative href (`https://x`, `//x`) must never reach the client as a `navigate` event; the model gets a refusal result (Task 5 test; Task 10 test on the client-side guard).
 4. The client disconnecting mid-stream must still write the ledger row with the usage seen so far, so the budget cannot be bypassed by aborting (Task 8 test).
