@@ -364,3 +364,61 @@ def test_run_target_names_the_flags_that_were_asked_for():
     assert run_target_name(None) == "full"
     assert run_target_name({"base"}) == "base"
     assert run_target_name({"results", "base"}) == "base,results"
+
+
+def test_chat_section_is_present_and_empty_when_nothing_was_asked(client):
+    chat = client.get("/api/ops/status").json()["chat"]
+    assert chat == {
+        "enabled": False,
+        "requestsToday": 0,
+        "costTodayUsd": 0.0,
+        "budgetUsd": 0.5,
+        "toolShare": None,
+        "errorsToday": 0,
+    }
+
+
+def test_chat_section_reports_counts_and_dollars_only(client, db):
+    from src.chat.ledger import Usage, record
+
+    now = datetime.datetime.now(UTC)
+    record(
+        db,
+        model="claude-haiku-5-5",
+        usage=Usage(output_tokens=1_000_000),
+        tool_calls=1,
+        outcome="ok",
+        ip_hash="h",
+        now=now,
+    )
+    record(
+        db,
+        model="claude-haiku-5-5",
+        usage=Usage(),
+        tool_calls=0,
+        outcome="ok",
+        ip_hash="h",
+        now=now,
+    )
+    record(
+        db,
+        model="claude-haiku-5-5",
+        usage=Usage(),
+        tool_calls=0,
+        outcome="error",
+        ip_hash="h",
+        now=now,
+    )
+    chat = client.get("/api/ops/status").json()["chat"]
+    assert chat["requestsToday"] == 3
+    assert chat["costTodayUsd"] == 0.5
+    assert chat["toolShare"] == 0.5
+    assert chat["errorsToday"] == 1
+    assert set(chat) == {
+        "enabled",
+        "requestsToday",
+        "costTodayUsd",
+        "budgetUsd",
+        "toolShare",
+        "errorsToday",
+    }

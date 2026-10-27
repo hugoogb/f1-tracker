@@ -16,12 +16,15 @@ failed and when, and stops there.
 from datetime import UTC, date, datetime
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import func, select, text
+from sqlalchemy import case, func, select, text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
+from src.chat.ledger import day_start
+from src.config import settings
 from src.db.database import get_db
 from src.db.models import (
+    ChatUsage,
     Circuit,
     Constructor,
     ConstructorLineage,
@@ -265,6 +268,32 @@ def _schema_version(db: Session) -> str | None:
         return None
 
 
+def _chat(db: Session, now: datetime) -> dict:
+    """Today's Race Engineer usage: counts and dollars, never a prompt or an ip."""
+    requests, cost, ok_rows, ok_with_tools, errors = db.execute(
+        select(
+            func.count(),
+            func.coalesce(func.sum(ChatUsage.cost_usd), 0.0),
+            func.coalesce(func.sum(case((ChatUsage.outcome == "ok", 1), else_=0)), 0),
+            func.coalesce(
+                func.sum(
+                    case(((ChatUsage.outcome == "ok") & (ChatUsage.tool_calls >= 1), 1), else_=0)
+                ),
+                0,
+            ),
+            func.coalesce(func.sum(case((ChatUsage.outcome == "error", 1), else_=0)), 0),
+        ).where(ChatUsage.created_at >= day_start(now))
+    ).one()
+    return {
+        "enabled": settings.chat_enabled,
+        "requestsToday": requests,
+        "costTodayUsd": round(float(cost), 4),
+        "budgetUsd": settings.chat_daily_budget_usd,
+        "toolShare": ok_with_tools / ok_rows if ok_rows else None,
+        "errorsToday": errors,
+    }
+
+
 @router.get("/ops/status")
 def ops_status(
     runs: int = Query(DEFAULT_RUN_LIMIT, ge=1, le=MAX_RUN_LIMIT),
@@ -272,12 +301,14 @@ def ops_status(
 ):
     """Counts, timestamps and revision ids. Nothing that identifies a host."""
     counts, estimated = _row_counts(db)
+    now = datetime.now(UTC)
     return {
-        "generatedAt": _utc_iso(datetime.now(UTC)),
+        "generatedAt": _utc_iso(now),
         "coverage": _coverage(db),
         "fastf1": _fastf1_backlog(db),
         "rowCounts": counts,
         "estimatedCounts": estimated,
         "ingest": _ingest_runs(db, runs),
         "schemaVersion": _schema_version(db),
+        "chat": _chat(db, now),
     }
