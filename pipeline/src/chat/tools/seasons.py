@@ -8,7 +8,7 @@ directly.
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import UTC, datetime
 from typing import Literal
 
 from fastapi import HTTPException
@@ -38,7 +38,8 @@ Kind = Literal["drivers", "constructors"]
 _DROPPED_EPSILON = 0.01
 
 STANDINGS_NOTE = (
-    "official championship table after that round; `dropped` is what the best-N rule removed"
+    "official championship table after that round; for drivers, `dropped` (when present) is "
+    "what the best-N rule removed"
 )
 
 
@@ -150,11 +151,29 @@ def _standings_run(db: Session, args: StandingsArgs) -> dict:
     }
 
 
+def _today() -> str:
+    return str(datetime.now(UTC).date())
+
+
 def _champion(db: Session, year: int, races: list[dict], kind: str) -> dict | None:
-    """The title winner, only once the season's last round has been run."""
-    if not races or races[-1]["date"] is None or races[-1]["date"] > str(date.today()):
+    """The title winner, only once the last round has been run and is in the table.
+
+    Right after the final race but before the next ingest the table is still the
+    penultimate round's, and its leader is not yet the champion.
+    """
+    last = races[-1] if races else None
+    if last is None or last["date"] is None or last["date"] >= _today():
         return None
-    payload = driver_standings(year, db) if kind == "drivers" else constructor_standings(year, db)
+    drivers = kind == "drivers"
+    table = (
+        get_driver_standings_for_season(db, year)
+        if drivers
+        else get_constructor_standings_for_season(db, year)
+    )
+    as_of = _round_of(table)
+    if as_of is None or as_of["round"] != last["round"]:
+        return None
+    payload = driver_standings(year, db) if drivers else constructor_standings(year, db)
     top = next((r for r in payload["standings"] if r["position"] == 1), None)
     if top is None:
         return None
@@ -177,12 +196,12 @@ def _season_run(db: Session, args: YearArgs) -> dict:
             f"{note} {_driver_name(big['driver'])} scored {big['scored']:g} but "
             f"{big['counted']:g} counted ({dropped['driversAffected']} drivers dropped points)."
         ).strip()
-    today = str(date.today())
+    today = _today()
     return {
         "year": args.year,
         "href": _season_href(args.year),
         "rounds": len(races),
-        "completedRounds": sum(1 for r in races if r["date"] is None or r["date"] <= today),
+        "completedRounds": sum(1 for r in races if r["date"] is not None and r["date"] < today),
         "champion": _champion(db, args.year, races, "drivers"),
         "constructorsChampion": _champion(db, args.year, races, "constructors"),
         "scoring": {
