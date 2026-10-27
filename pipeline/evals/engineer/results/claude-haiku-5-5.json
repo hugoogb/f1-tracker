@@ -1,0 +1,672 @@
+{
+ "summary": {
+  "model": "claude-haiku-5-5",
+  "pass": 30,
+  "n": 30,
+  "by_tier": {
+   "casual": [
+    10,
+    10
+   ],
+   "enthusiast": [
+    20,
+    20
+   ]
+  },
+  "cost_total": 0.0078,
+  "cost_per_q": 0.00026,
+  "latency_median": 3.45,
+  "latency_p90": 3.86,
+  "tool_calls_avg": 1.33,
+  "href_rate": 1.0,
+  "errors": 0,
+  "usage": {
+   "input": 29840,
+   "output": 7520,
+   "cache_write": 0,
+   "cache_read": 106061
+  }
+ },
+ "outcomes": [
+  {
+   "id": 1,
+   "tier": "casual",
+   "passed": true,
+   "href_ok": true,
+   "missing": [],
+   "tools": [
+    "get_standings"
+   ],
+   "calls": 1,
+   "latency": 3.855016625000644,
+   "cost": 0.00021426,
+   "answer": "Kimi Antonelli (Mercedes) leads the 2026 drivers' championship with 292 points and 8 wins, after round 14, the Spanish Grand Prix. George Russell is second on 211 points and Lewis Hamilton third on 191.\n\nYou can see the full table on the [2026 season page](/seasons/2026), or the round itself on the [2026 Spanish Grand Prix](/seasons/2026/races/14).",
+   "error": null,
+   "usage": {
+    "input": 631,
+    "output": 239,
+    "cache_write": 0,
+    "cache_read": 3166
+   }
+  },
+  {
+   "id": 2,
+   "tier": "casual",
+   "passed": true,
+   "href_ok": true,
+   "missing": [],
+   "tools": [
+    "search",
+    "get_race"
+   ],
+   "calls": 2,
+   "latency": 3.3138066250012344,
+   "cost": 0.00034239,
+   "answer": "Max Verstappen (Red Bull) won the 2021 Monaco Grand Prix from second on the grid, ahead of Carlos Sainz Jr. (Ferrari) and Lando Norris (McLaren). You can see the full race weekend here: [2021 Monaco Grand Prix](/seasons/2021/races/5).",
+   "error": null,
+   "usage": {
+    "input": 1684,
+    "output": 253,
+    "cache_write": 0,
+    "cache_read": 4749
+   }
+  },
+  {
+   "id": 3,
+   "tier": "casual",
+   "passed": true,
+   "href_ok": true,
+   "missing": [],
+   "tools": [
+    "get_records"
+   ],
+   "calls": 1,
+   "latency": 3.2968882910008688,
+   "cost": 0.00023035999999999998,
+   "answer": "Lewis Hamilton holds the all-time record for race wins with 106, from 394 starts. Michael Schumacher is second with 91 wins, and Max Verstappen is third with 71. You can see the full wins table on the [records page](/records).",
+   "error": null,
+   "usage": {
+    "input": 652,
+    "output": 267,
+    "cache_write": 0,
+    "cache_read": 3166
+   }
+  },
+  {
+   "id": 4,
+   "tier": "casual",
+   "passed": true,
+   "href_ok": true,
+   "missing": [],
+   "tools": [
+    "site_map"
+   ],
+   "calls": 1,
+   "latency": 2.793482249999215,
+   "cost": 0.00022806,
+   "answer": "You can compare two drivers on the [Compare drivers page](/compare/drivers), which shows a side-by-side career comparison. If you want to compare them within a single season instead, use the [Compare page](/compare), which lets you pick two drivers or two constructors, or the in-season compare view for a given year. Pick the drivers on either page and the comparison loads from there.",
+   "error": null,
+   "usage": {
+    "input": 1109,
+    "output": 171,
+    "cache_write": 0,
+    "cache_read": 3166
+   }
+  },
+  {
+   "id": 5,
+   "tier": "casual",
+   "passed": true,
+   "href_ok": true,
+   "missing": [],
+   "tools": [
+    "get_standings"
+   ],
+   "calls": 1,
+   "latency": 3.544157415999507,
+   "cost": 0.00020346,
+   "answer": "Nico Rosberg was the 2016 world champion, driving for Mercedes. He finished on 385 points with 9 wins, edging teammate Lewis Hamilton (380 points, 10 wins) after the season's final round, the 2016 Abu Dhabi Grand Prix. You can see the full season on the [2016 season page](/seasons/2016).",
+   "error": null,
+   "usage": {
+    "input": 648,
+    "output": 214,
+    "cache_write": 0,
+    "cache_read": 3166
+   }
+  },
+  {
+   "id": 6,
+   "tier": "casual",
+   "passed": true,
+   "href_ok": true,
+   "missing": [],
+   "tools": [
+    "get_driver"
+   ],
+   "calls": 1,
+   "latency": 2.9593959579997318,
+   "cost": 0.00015556,
+   "answer": "Fernando Alonso (ALO) is a Spanish driver born 29 July 1981. He has 442 starts, 32 wins, 106 podiums, 23 pole positions, 26 fastest laps, 2 World Championships and 2,383 career points. You can see his full profile at [Fernando Alonso](/drivers/fernando-alonso).",
+   "error": null,
+   "usage": {
+    "input": 379,
+    "output": 172,
+    "cache_write": 0,
+    "cache_read": 3166
+   }
+  },
+  {
+   "id": 7,
+   "tier": "casual",
+   "passed": true,
+   "href_ok": true,
+   "missing": [],
+   "tools": [
+    "site_map"
+   ],
+   "calls": 1,
+   "latency": 2.7457974170010857,
+   "cost": 0.00019396000000000002,
+   "answer": "The countdown to the next race is on the Home page, which also shows the championship leader, top-5 standings, and the last podium. You can open it at [Home](/).",
+   "error": null,
+   "usage": {
+    "input": 1113,
+    "output": 102,
+    "cache_write": 0,
+    "cache_read": 3166
+   }
+  },
+  {
+   "id": 8,
+   "tier": "casual",
+   "passed": true,
+   "href_ok": true,
+   "missing": [],
+   "tools": [
+    "get_standings",
+    "get_race"
+   ],
+   "calls": 2,
+   "latency": 5.986243583000032,
+   "cost": 0.00047409000000000004,
+   "answer": "Kimi Antonelli won the most recent race, the 2026 Spanish Grand Prix (round 14, at Circuito de Madring), starting from second on the grid for Mercedes. Max Verstappen was second and Lando Norris third. You can see the full results on the [2026 Spanish Grand Prix](/seasons/2026/races/14) page.",
+   "error": null,
+   "usage": {
+    "input": 2286,
+    "output": 396,
+    "cache_write": 0,
+    "cache_read": 4749
+   }
+  },
+  {
+   "id": 9,
+   "tier": "casual",
+   "passed": true,
+   "href_ok": true,
+   "missing": [],
+   "tools": [
+    "get_driver"
+   ],
+   "calls": 1,
+   "latency": 3.3914310410000326,
+   "cost": 0.00014076,
+   "answer": "Lewis Hamilton has 7 World Championships, according to the driver profile on F1 Tracker. He also has 106 wins, 207 podiums and 394 starts in his career. You can see the full profile [here](/drivers/lewis-hamilton).",
+   "error": null,
+   "usage": {
+    "input": 386,
+    "output": 141,
+    "cache_write": 0,
+    "cache_read": 3166
+   }
+  },
+  {
+   "id": 10,
+   "tier": "casual",
+   "passed": true,
+   "href_ok": true,
+   "missing": [],
+   "tools": [
+    "site_map"
+   ],
+   "calls": 1,
+   "latency": 2.86583441699986,
+   "cost": 0.00020946000000000002,
+   "answer": "You can see the full list of drivers' and constructors' world champions on the Champions page, which covers every title winner. For a season-by-season view, each year's tile on the Seasons page shows that year's champion. [Champions](/champions)",
+   "error": null,
+   "usage": {
+    "input": 1118,
+    "output": 132,
+    "cache_write": 0,
+    "cache_read": 3166
+   }
+  },
+  {
+   "id": 11,
+   "tier": "enthusiast",
+   "passed": true,
+   "href_ok": true,
+   "missing": [],
+   "tools": [
+    "get_standings"
+   ],
+   "calls": 1,
+   "latency": 3.538845166998726,
+   "cost": 0.00019936,
+   "answer": "Lewis Hamilton (McLaren) won the 2008 drivers' title with 98 points, one point ahead of Felipe Massa (Ferrari) on 97. Hamilton took 5 wins to Massa's 6, and the standings are as of the final round, the 2008 Brazilian Grand Prix. See the full season table at [2008 season](/seasons/2008).",
+   "error": null,
+   "usage": {
+    "input": 577,
+    "output": 220,
+    "cache_write": 0,
+    "cache_read": 3166
+   }
+  },
+  {
+   "id": 12,
+   "tier": "enthusiast",
+   "passed": true,
+   "href_ok": true,
+   "missing": [],
+   "tools": [
+    "search",
+    "get_race",
+    "get_race"
+   ],
+   "calls": 3,
+   "latency": 3.1649370410013944,
+   "cost": 0.00039836000000000006,
+   "answer": "Max Verstappen took pole for the 2021 Abu Dhabi Grand Prix, and Lewis Hamilton finished second in the race, with Verstappen winning ahead of him. You can see the full weekend on the [2021 Abu Dhabi Grand Prix](/seasons/2021/races/22) page.",
+   "error": null,
+   "usage": {
+    "input": 1982,
+    "output": 337,
+    "cache_write": 0,
+    "cache_read": 3166
+   }
+  },
+  {
+   "id": 13,
+   "tier": "enthusiast",
+   "passed": true,
+   "href_ok": true,
+   "missing": [],
+   "tools": [
+    "search",
+    "search",
+    "get_driver"
+   ],
+   "calls": 3,
+   "latency": 3.4889318339992315,
+   "cost": 0.00032421999999999996,
+   "answer": "Ayrton Senna took 41 wins and 65 poles in his career, from 162 starts. He also finished on the podium 80 times and won 3 championships. You can see his full profile at [Ayrton Senna](/drivers/ayrton-senna).",
+   "error": null,
+   "usage": {
+    "input": 1304,
+    "output": 261,
+    "cache_write": 0,
+    "cache_read": 6332
+   }
+  },
+  {
+   "id": 14,
+   "tier": "enthusiast",
+   "passed": true,
+   "href_ok": true,
+   "missing": [],
+   "tools": [
+    "get_standings"
+   ],
+   "calls": 1,
+   "latency": 3.414848083000834,
+   "cost": 0.00033166,
+   "answer": "After the Brazilian Grand Prix (round 17), the top three in the 2007 drivers' standings were:\n\n1. Kimi R\u00e4ikk\u00f6nen (Ferrari): 110 points\n2. Lewis Hamilton (McLaren): 109 points\n3. Fernando Alonso (McLaren): 109 points\n\nSee the full table on the [2007 season page](/seasons/2007), or the [Brazilian Grand Prix](/seasons/2007/races/17).",
+   "error": null,
+   "usage": {
+    "input": 675,
+    "output": 465,
+    "cache_write": 0,
+    "cache_read": 3166
+   }
+  },
+  {
+   "id": 15,
+   "tier": "enthusiast",
+   "passed": true,
+   "href_ok": true,
+   "missing": [],
+   "tools": [
+    "get_records"
+   ],
+   "calls": 1,
+   "latency": 2.201858042000822,
+   "cost": 0.00023106,
+   "answer": "Lewis Hamilton holds the all-time record for pole positions with 105 from 394 starts. Michael Schumacher is second with 69, and Ayrton Senna third with 65. You can see the full poles ranking on the [records page](/records).",
+   "error": null,
+   "usage": {
+    "input": 659,
+    "output": 267,
+    "cache_write": 0,
+    "cache_read": 3166
+   }
+  },
+  {
+   "id": 16,
+   "tier": "enthusiast",
+   "passed": true,
+   "href_ok": true,
+   "missing": [],
+   "tools": [
+    "get_records"
+   ],
+   "calls": 1,
+   "latency": 3.543309833999956,
+   "cost": 0.00024996,
+   "answer": "Lewis Hamilton is the British driver with the most Grand Prix wins, with 106 from 394 starts. Nigel Mansell is second among British drivers with 31 wins from 191 starts, followed by Jackie Stewart on 27.\n\n[Lewis Hamilton's driver profile](/drivers/lewis-hamilton)",
+   "error": null,
+   "usage": {
+    "input": 688,
+    "output": 299,
+    "cache_write": 0,
+    "cache_read": 3166
+   }
+  },
+  {
+   "id": 17,
+   "tier": "enthusiast",
+   "passed": true,
+   "href_ok": true,
+   "missing": [],
+   "tools": [
+    "get_records"
+   ],
+   "calls": 1,
+   "latency": 3.5635284580002917,
+   "cost": 0.00024626000000000004,
+   "answer": "Michael Schumacher won the most races between 1990 and 1999, with 35 wins from 128 starts. Damon Hill was second with 22 wins, followed by Ayrton Senna with 21.\n\n[See the all-time wins records](/records)",
+   "error": null,
+   "usage": {
+    "input": 801,
+    "output": 269,
+    "cache_write": 0,
+    "cache_read": 3166
+   }
+  },
+  {
+   "id": 18,
+   "tier": "enthusiast",
+   "passed": true,
+   "href_ok": true,
+   "missing": [],
+   "tools": [
+    "get_records"
+   ],
+   "calls": 1,
+   "latency": 3.836543833000178,
+   "cost": 0.00029476000000000003,
+   "answer": "Juan Manuel Fangio has the highest win rate among drivers with at least 20 starts, at 43.1% (wins in 22 of his 51 starts, since 0.4314 \u00d7 51 \u2248 22). Alberto Ascari is next at 40.6% over 32 starts, followed by Jim Clark at 34.3%. You can see the full table on the [records page](/records), or Fangio's profile at [/drivers/juan-manuel-fangio](/drivers/juan-manuel-fangio).",
+   "error": null,
+   "usage": {
+    "input": 851,
+    "output": 356,
+    "cache_write": 0,
+    "cache_read": 3166
+   }
+  },
+  {
+   "id": 19,
+   "tier": "enthusiast",
+   "passed": true,
+   "href_ok": true,
+   "missing": [],
+   "tools": [
+    "get_standings"
+   ],
+   "calls": 1,
+   "latency": 3.562512374999642,
+   "cost": 0.00025126,
+   "answer": "Max Verstappen finished 1st in the 2024 drivers' standings, with 437 points and 9 wins, to take the championship. The table is official after the final round, the 2024 Abu Dhabi Grand Prix. You can see the full season here: [2024 season standings](/seasons/2024).",
+   "error": null,
+   "usage": {
+    "input": 1231,
+    "output": 193,
+    "cache_write": 0,
+    "cache_read": 3166
+   }
+  },
+  {
+   "id": 20,
+   "tier": "enthusiast",
+   "passed": true,
+   "href_ok": true,
+   "missing": [],
+   "tools": [
+    "get_race"
+   ],
+   "calls": 1,
+   "latency": 2.2631214579996595,
+   "cost": 0.00025386,
+   "answer": "The podium in round 1 of 2024 (the Bahrain Grand Prix) was Max Verstappen (Red Bull) in first, Sergio P\u00e9rez (Red Bull) in second, and Carlos Sainz Jr. (Ferrari) in third. You can see the full race weekend here: [2024 Bahrain Grand Prix](/seasons/2024/races/1).",
+   "error": null,
+   "usage": {
+    "input": 1137,
+    "output": 217,
+    "cache_write": 0,
+    "cache_read": 3166
+   }
+  },
+  {
+   "id": 21,
+   "tier": "enthusiast",
+   "passed": true,
+   "href_ok": true,
+   "missing": [],
+   "tools": [
+    "get_standings"
+   ],
+   "calls": 1,
+   "latency": 2.255184957999518,
+   "cost": 0.00020976000000000002,
+   "answer": "Lando Norris finished the 2025 season with 423 points, 7 wins, and he did win the title. He took the championship from Max Verstappen (421 points) by two points after the final round, the Abu Dhabi Grand Prix. You can see the full table at [2025 season standings](/seasons/2025).",
+   "error": null,
+   "usage": {
+    "input": 806,
+    "output": 195,
+    "cache_write": 0,
+    "cache_read": 3166
+   }
+  },
+  {
+   "id": 22,
+   "tier": "enthusiast",
+   "passed": true,
+   "href_ok": true,
+   "missing": [],
+   "tools": [
+    "get_standings"
+   ],
+   "calls": 1,
+   "latency": 2.919243500000448,
+   "cost": 0.00018135999999999998,
+   "answer": "McLaren won the 2024 constructors' championship with 666 points, six wins, after the final round (Abu Dhabi Grand Prix). Ferrari were second on 652 points. You can see the full table on the [2024 season page](/seasons/2024).",
+   "error": null,
+   "usage": {
+    "input": 602,
+    "output": 179,
+    "cache_write": 0,
+    "cache_read": 3166
+   }
+  },
+  {
+   "id": 23,
+   "tier": "enthusiast",
+   "passed": true,
+   "href_ok": true,
+   "missing": [],
+   "tools": [
+    "get_standings"
+   ],
+   "calls": 1,
+   "latency": 3.4887328330005403,
+   "cost": 0.00018296,
+   "answer": "Mercedes leads the 2026 constructors' standings with 468 points and 10 wins after round 14, the Spanish Grand Prix. Ferrari is second on 346 points with 2 wins. The standings are not final, so this can still change.\n\n[2026 Constructors' standings](/seasons/2026)",
+   "error": null,
+   "usage": {
+    "input": 533,
+    "output": 196,
+    "cache_write": 0,
+    "cache_read": 3166
+   }
+  },
+  {
+   "id": 24,
+   "tier": "enthusiast",
+   "passed": true,
+   "href_ok": true,
+   "missing": [],
+   "tools": [
+    "search",
+    "get_race"
+   ],
+   "calls": 2,
+   "latency": 4.968095958000049,
+   "cost": 0.00033949,
+   "answer": "Lewis Hamilton set the fastest lap at the 2021 Monaco Grand Prix, on lap 69 in 1:12.909. He finished 7th in that race, and Max Verstappen won it. See the full race page at [2021 Monaco Grand Prix](/seasons/2021/races/5).",
+   "error": null,
+   "usage": {
+    "input": 1705,
+    "output": 243,
+    "cache_write": 0,
+    "cache_read": 4749
+   }
+  },
+  {
+   "id": 25,
+   "tier": "enthusiast",
+   "passed": true,
+   "href_ok": true,
+   "missing": [],
+   "tools": [
+    "search",
+    "search"
+   ],
+   "calls": 2,
+   "latency": 3.9400098340011027,
+   "cost": 0.00021209000000000004,
+   "answer": "Kimi Antonelli is Italian, according to his driver entry on the site. You can see his full profile here: [Kimi Antonelli](/drivers/kimi-antonelli).",
+   "error": null,
+   "usage": {
+    "input": 641,
+    "output": 201,
+    "cache_write": 0,
+    "cache_read": 4749
+   }
+  },
+  {
+   "id": 26,
+   "tier": "enthusiast",
+   "passed": true,
+   "href_ok": true,
+   "missing": [],
+   "tools": [
+    "get_records"
+   ],
+   "calls": 1,
+   "latency": 2.657868124999368,
+   "cost": 0.00026066,
+   "answer": "The top five drivers by podium finishes are Lewis Hamilton (207), Michael Schumacher (155), Max Verstappen (133), Sebastian Vettel (122), and Fernando Alonso (106). Hamilton's total is well clear of the rest of the field. You can see the full all-time records table on the [Records page](/records).",
+   "error": null,
+   "usage": {
+    "input": 800,
+    "output": 298,
+    "cache_write": 0,
+    "cache_read": 3166
+   }
+  },
+  {
+   "id": 27,
+   "tier": "enthusiast",
+   "passed": true,
+   "href_ok": true,
+   "missing": [],
+   "tools": [
+    "get_driver",
+    "get_driver"
+   ],
+   "calls": 2,
+   "latency": 3.6089216669988673,
+   "cost": 0.00021876000000000003,
+   "answer": "Lewis Hamilton scored more career points: 5,126.5 compared with Michael Schumacher's 1,566. Hamilton also has more starts (394 to 308), while both drivers have seven championships. You can compare their full career stats on [Lewis Hamilton's profile](/drivers/lewis-hamilton) and [Michael Schumacher's profile](/drivers/michael-schumacher).",
+   "error": null,
+   "usage": {
+    "input": 661,
+    "output": 242,
+    "cache_write": 0,
+    "cache_read": 3166
+   }
+  },
+  {
+   "id": 28,
+   "tier": "enthusiast",
+   "passed": true,
+   "href_ok": true,
+   "missing": [],
+   "tools": [
+    "get_standings"
+   ],
+   "calls": 1,
+   "latency": 2.253601125001296,
+   "cost": 0.00019575999999999998,
+   "answer": "Ayrton Senna won the 1988 World Championship for McLaren with 90 points, eight wins ahead of teammate Alain Prost, who finished second on 87 points. Note that the official table counts only the best results under the rules of the time, so the 90 points is the official total. [1988 season standings](/seasons/1988)",
+   "error": null,
+   "usage": {
+    "input": 636,
+    "output": 201,
+    "cache_write": 0,
+    "cache_read": 3166
+   }
+  },
+  {
+   "id": 29,
+   "tier": "enthusiast",
+   "passed": true,
+   "href_ok": true,
+   "missing": [],
+   "tools": [
+    "get_standings"
+   ],
+   "calls": 1,
+   "latency": 3.541133082999295,
+   "cost": 0.00034526000000000007,
+   "answer": "Max Verstappen won the most races in 2025, with 8 wins. He did not win the title: Lando Norris finished first with 423 points to Verstappen's 421, and Norris had 7 wins. Oscar Piastri was third on 410 points. These are the standings after the final round, the 2025 Abu Dhabi Grand Prix. You can see the full season on the [2025 season page](/seasons/2025), or Verstappen's profile at [/drivers/max-verstappen](/drivers/max-verstappen).",
+   "error": null,
+   "usage": {
+    "input": 1246,
+    "output": 378,
+    "cache_write": 0,
+    "cache_read": 3166
+   }
+  },
+  {
+   "id": 30,
+   "tier": "enthusiast",
+   "passed": true,
+   "href_ok": true,
+   "missing": [],
+   "tools": [
+    "get_standings",
+    "get_race"
+   ],
+   "calls": 2,
+   "latency": 3.759180290999211,
+   "cost": 0.00048539,
+   "answer": "The most recent 2026 race with results is the Spanish Grand Prix (round 14, Circuito de Madring), and George Russell set the fastest lap, a 1:35.587 on lap 49. Kimi Antonelli won the race ahead of Max Verstappen and Lando Norris. You can see the full weekend on the [2026 Spanish Grand Prix](/seasons/2026/races/14) page.",
+   "error": null,
+   "usage": {
+    "input": 2299,
+    "output": 416,
+    "cache_write": 0,
+    "cache_read": 4749
+   }
+  }
+ ]
+}

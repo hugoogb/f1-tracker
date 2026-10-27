@@ -1,0 +1,687 @@
+{
+ "summary": {
+  "model": "openai/gpt-oss-20b",
+  "pass": 24,
+  "n": 30,
+  "by_tier": {
+   "casual": [
+    10,
+    10
+   ],
+   "enthusiast": [
+    14,
+    20
+   ]
+  },
+  "cost_total": 0.00615,
+  "cost_per_q": 0.000205,
+  "latency_median": 14.05,
+  "latency_p90": 25.42,
+  "tool_calls_avg": 1.43,
+  "href_rate": 0.8333333333333334,
+  "errors": 1,
+  "usage": {
+   "input": 63883,
+   "output": 3292,
+   "cache_write": 0,
+   "cache_read": 9984
+  }
+ },
+ "outcomes": [
+  {
+   "id": 1,
+   "tier": "casual",
+   "passed": true,
+   "href_ok": true,
+   "missing": [],
+   "tools": [
+    "get_standings"
+   ],
+   "calls": 1,
+   "latency": 0.8663966250005615,
+   "cost": 0.00016364999999999997,
+   "answer": "The current leader is **Kimi\u202fAntonelli** of Mercedes, sitting on 292\u202fpoints after the 14th round (Spanish Grand Prix).  \n[2026 Spanish Grand Prix](/seasons/2026/races/14)",
+   "error": null,
+   "usage": {
+    "input": 1794,
+    "output": 97,
+    "cache_write": 0,
+    "cache_read": 0
+   }
+  },
+  {
+   "id": 2,
+   "tier": "casual",
+   "passed": true,
+   "href_ok": true,
+   "missing": [],
+   "tools": [
+    "search",
+    "get_race"
+   ],
+   "calls": 2,
+   "latency": 1.237824499999988,
+   "cost": 0.00028635000000000005,
+   "answer": "Max\u202fVerstappen won the 2021 Monaco Grand Prix.  \n[2021 Monaco Grand Prix](/seasons/2021/races/5)",
+   "error": null,
+   "usage": {
+    "input": 3390,
+    "output": 107,
+    "cache_write": 0,
+    "cache_read": 0
+   }
+  },
+  {
+   "id": 3,
+   "tier": "casual",
+   "passed": true,
+   "href_ok": true,
+   "missing": [],
+   "tools": [
+    "get_records"
+   ],
+   "calls": 1,
+   "latency": 1.0182782499996392,
+   "cost": 0.000160725,
+   "answer": "Lewis\u202fHamilton holds the record for the most race wins ever, with 106 victories.  \n[See the full record page](/records)",
+   "error": null,
+   "usage": {
+    "input": 1771,
+    "output": 93,
+    "cache_write": 0,
+    "cache_read": 0
+   }
+  },
+  {
+   "id": 4,
+   "tier": "casual",
+   "passed": true,
+   "href_ok": true,
+   "missing": [],
+   "tools": [
+    "site_map"
+   ],
+   "calls": 1,
+   "latency": 10.962466458999188,
+   "cost": 0.00018554999999999998,
+   "answer": "You can compare two drivers on the site\u2019s dedicated comparison page:  \n[Compare drivers](/compare/drivers) \u2013 choose any two drivers to see a side\u2011by\u2011side career comparison.",
+   "error": null,
+   "usage": {
+    "input": 2206,
+    "output": 67,
+    "cache_write": 0,
+    "cache_read": 0
+   }
+  },
+  {
+   "id": 5,
+   "tier": "casual",
+   "passed": true,
+   "href_ok": true,
+   "missing": [],
+   "tools": [
+    "get_standings"
+   ],
+   "calls": 1,
+   "latency": 14.406160915999862,
+   "cost": 0.00016125,
+   "answer": "Nico\u202fRosberg was the 2016 World Champion.  \n[2016 season](/seasons/2016)",
+   "error": null,
+   "usage": {
+    "input": 1810,
+    "output": 85,
+    "cache_write": 0,
+    "cache_read": 0
+   }
+  },
+  {
+   "id": 6,
+   "tier": "casual",
+   "passed": true,
+   "href_ok": true,
+   "missing": [],
+   "tools": [
+    "get_driver"
+   ],
+   "calls": 1,
+   "latency": 13.400201959000697,
+   "cost": 0.00016327499999999997,
+   "answer": "Fernando Alonso (ALO) is a Spanish driver born on 29\u202fJuly\u202f1981. Over his career he has started 442 races, taken 32 wins, 106 podiums, 23 poles, 26 fastest laps, and has earned 2 World Championships, accumulating 2\u202f383 points.  \n[Fernando Alonso](/drivers/fernando-alonso)",
+   "error": null,
+   "usage": {
+    "input": 1733,
+    "output": 111,
+    "cache_write": 0,
+    "cache_read": 0
+   }
+  },
+  {
+   "id": 7,
+   "tier": "casual",
+   "passed": true,
+   "href_ok": true,
+   "missing": [],
+   "tools": [
+    "site_map"
+   ],
+   "calls": 1,
+   "latency": 15.99988654200024,
+   "cost": 0.0001815,
+   "answer": "The countdown to the next race is shown on the **Home** page.  \n[Home](/)",
+   "error": null,
+   "usage": {
+    "input": 2212,
+    "output": 52,
+    "cache_write": 0,
+    "cache_read": 0
+   }
+  },
+  {
+   "id": 8,
+   "tier": "casual",
+   "passed": true,
+   "href_ok": true,
+   "missing": [],
+   "tools": [
+    "search",
+    "search",
+    "get_standings",
+    "get_race"
+   ],
+   "calls": 4,
+   "latency": 42.44727370799956,
+   "cost": 0.00050805,
+   "answer": "The winner of the most recent race, the 2026 Spanish Grand Prix, was **Kimi Antonelli** driving for Mercedes.  \n[2026 Spanish Grand Prix](/seasons/2026/races/14)",
+   "error": null,
+   "usage": {
+    "input": 5402,
+    "output": 247,
+    "cache_write": 0,
+    "cache_read": 768
+   }
+  },
+  {
+   "id": 9,
+   "tier": "casual",
+   "passed": true,
+   "href_ok": true,
+   "missing": [],
+   "tools": [
+    "get_driver"
+   ],
+   "calls": 1,
+   "latency": 13.154092624999976,
+   "cost": 0.00014865,
+   "answer": "Lewis Hamilton has won **7** Formula\u202f1 World Championships.  \n[Lewis Hamilton profile](/drivers/lewis-hamilton)",
+   "error": null,
+   "usage": {
+    "input": 1738,
+    "output": 61,
+    "cache_write": 0,
+    "cache_read": 0
+   }
+  },
+  {
+   "id": 10,
+   "tier": "casual",
+   "passed": true,
+   "href_ok": true,
+   "missing": [],
+   "tools": [
+    "site_map"
+   ],
+   "calls": 1,
+   "latency": 17.193091791999905,
+   "cost": 0.00018194999999999998,
+   "answer": "You can view the full list of world champions on the **Champions** page: [/champions](/champions).",
+   "error": null,
+   "usage": {
+    "input": 2214,
+    "output": 53,
+    "cache_write": 0,
+    "cache_read": 0
+   }
+  },
+  {
+   "id": 11,
+   "tier": "enthusiast",
+   "passed": true,
+   "href_ok": true,
+   "missing": [],
+   "tools": [
+    "get_standings"
+   ],
+   "calls": 1,
+   "latency": 17.957172417000038,
+   "cost": 0.00020482499999999998,
+   "answer": "The 2008 Drivers\u2019 Championship was won by Lewis\u202fHamilton, who finished the season with 98\u202fpoints, one point ahead of second\u2011place Felipe\u202fMassa (97\u202fpoints).  \n[2008 Drivers\u2019 Standings](/seasons/2008)",
+   "error": null,
+   "usage": {
+    "input": 2323,
+    "output": 102,
+    "cache_write": 0,
+    "cache_read": 0
+   }
+  },
+  {
+   "id": 12,
+   "tier": "enthusiast",
+   "passed": true,
+   "href_ok": true,
+   "missing": [],
+   "tools": [
+    "search",
+    "search",
+    "get_race",
+    "get_race"
+   ],
+   "calls": 4,
+   "latency": 42.100423124999,
+   "cost": 0.00048285,
+   "answer": "Max\u202fVerstappen took pole for the 2021 Abu\u202fDhabi Grand Prix, and Lewis\u202fHamilton finished second in the race.  \n[2021 Abu Dhabi Grand Prix](/seasons/2021/races/22)",
+   "error": null,
+   "usage": {
+    "input": 5290,
+    "output": 191,
+    "cache_write": 0,
+    "cache_read": 768
+   }
+  },
+  {
+   "id": 13,
+   "tier": "enthusiast",
+   "passed": true,
+   "href_ok": true,
+   "missing": [],
+   "tools": [
+    "get_driver"
+   ],
+   "calls": 1,
+   "latency": 12.868729208001241,
+   "cost": 0.0001572,
+   "answer": "Ayrton\u202fSenna finished his Formula\u202f1 career with **41 wins** and **65 pole positions**\u3010assistant.get_driver\u3011.  \n[More on Ayrton\u202fSenna](/drivers/ayrton-senna)",
+   "error": null,
+   "usage": {
+    "input": 1760,
+    "output": 84,
+    "cache_write": 0,
+    "cache_read": 0
+   }
+  },
+  {
+   "id": 14,
+   "tier": "enthusiast",
+   "passed": true,
+   "href_ok": true,
+   "missing": [],
+   "tools": [
+    "get_standings"
+   ],
+   "calls": 1,
+   "latency": 15.119045082999946,
+   "cost": 0.00015232499999999998,
+   "answer": "The 2007 Drivers\u2019 Championship top three were: 1\ufe0f\u20e3\u202fKimi\u202fR\u00e4ikk\u00f6nen \u2013 110\u202fpts, 2\ufe0f\u20e3\u202fLewis\u202fHamilton \u2013 109\u202fpts, 3\ufe0f\u20e3\u202fFernando\u202fAlonso \u2013 109\u202fpts.  \n[2007 season](/seasons/2007)",
+   "error": null,
+   "usage": {
+    "input": 1167,
+    "output": 120,
+    "cache_write": 0,
+    "cache_read": 768
+   }
+  },
+  {
+   "id": 15,
+   "tier": "enthusiast",
+   "passed": false,
+   "href_ok": false,
+   "missing": [],
+   "tools": [
+    "get_records"
+   ],
+   "calls": 1,
+   "latency": 8.952223165999385,
+   "cost": 0.00013364999999999997,
+   "answer": "Lewis Hamilton holds the record for the most pole positions of all time, with 105 poles.  \n[Lewis Hamilton profile](/drivers/lewis-hamilton)",
+   "error": null,
+   "usage": {
+    "input": 1010,
+    "output": 97,
+    "cache_write": 0,
+    "cache_read": 768
+   }
+  },
+  {
+   "id": 16,
+   "tier": "enthusiast",
+   "passed": true,
+   "href_ok": true,
+   "missing": [],
+   "tools": [
+    "get_records"
+   ],
+   "calls": 1,
+   "latency": 12.099137207998865,
+   "cost": 0.0002016,
+   "answer": "The British driver with the most Grand\u202fPrix victories is **Lewis\u202fHamilton** (106 wins). The second\u2011ranked British driver is **Nigel\u202fMansell** (31 wins).  \n[See the full British driver wins record](/records)",
+   "error": null,
+   "usage": {
+    "input": 2208,
+    "output": 120,
+    "cache_write": 0,
+    "cache_read": 0
+   }
+  },
+  {
+   "id": 17,
+   "tier": "enthusiast",
+   "passed": true,
+   "href_ok": true,
+   "missing": [],
+   "tools": [
+    "get_records"
+   ],
+   "calls": 1,
+   "latency": 14.001195374999952,
+   "cost": 0.00017054999999999997,
+   "answer": "Michael\u202fSchumacher topped the 1990\u20111999 race\u2011win list with 35 victories (128 starts)\u202f\u3010assistant\u2011commentary:functions.get_records\u3011.  \n[1990\u20111999 race wins](/records)",
+   "error": null,
+   "usage": {
+    "input": 1794,
+    "output": 120,
+    "cache_write": 0,
+    "cache_read": 0
+   }
+  },
+  {
+   "id": 18,
+   "tier": "enthusiast",
+   "passed": true,
+   "href_ok": true,
+   "missing": [],
+   "tools": [
+    "get_records"
+   ],
+   "calls": 1,
+   "latency": 18.163245207999353,
+   "cost": 0.000207825,
+   "answer": "The driver with the highest win rate (at least 20 starts) is **Juan\u202fManuel\u202fFangio** with a 43.14\u202f% win rate from 51 starts.  \n[See the full record list](/records)",
+   "error": null,
+   "usage": {
+    "input": 2267,
+    "output": 126,
+    "cache_write": 0,
+    "cache_read": 0
+   }
+  },
+  {
+   "id": 19,
+   "tier": "enthusiast",
+   "passed": true,
+   "href_ok": true,
+   "missing": [],
+   "tools": [
+    "get_standings"
+   ],
+   "calls": 1,
+   "latency": 12.437260916000014,
+   "cost": 0.000141225,
+   "answer": "Max\u202fVerstappen finished 1st in the 2024 drivers\u2019 standings with 437\u202fpoints.  \n[2024 season](/seasons/2024)",
+   "error": null,
+   "usage": {
+    "input": 787,
+    "output": 82,
+    "cache_write": 0,
+    "cache_read": 1536
+   }
+  },
+  {
+   "id": 20,
+   "tier": "enthusiast",
+   "passed": true,
+   "href_ok": true,
+   "missing": [],
+   "tools": [
+    "search",
+    "search",
+    "get_race"
+   ],
+   "calls": 3,
+   "latency": 17.168225459001405,
+   "cost": 0.00033052499999999997,
+   "answer": "The podium at the 2024 Bahrain Grand Prix (Round\u202f1) was: 1\ufe0f\u20e3\u202fMax\u202fVerstappen, 2\ufe0f\u20e3\u202fSergio\u202fP\u00e9rez, 3\ufe0f\u20e3\u202fCarlos\u202fSainz\u202fJr.  \n[2024 Bahrain Grand Prix](/seasons/2024/races/1)",
+   "error": null,
+   "usage": {
+    "input": 2931,
+    "output": 177,
+    "cache_write": 0,
+    "cache_read": 1536
+   }
+  },
+  {
+   "id": 21,
+   "tier": "enthusiast",
+   "passed": false,
+   "href_ok": false,
+   "missing": [
+    "423"
+   ],
+   "tools": [
+    "get_driver"
+   ],
+   "calls": 1,
+   "latency": 13.812797750000755,
+   "cost": 0.00016027499999999998,
+   "answer": "Lando\u202fNorris finished the 2025 season with **1498\u202fpoints**. He did **not** win the drivers\u2019 title, as the championship was claimed by the driver in first place.  \n\n[2025 Drivers\u2019 Standings](/standings/2025/drivers)",
+   "error": null,
+   "usage": {
+    "input": 1761,
+    "output": 94,
+    "cache_write": 0,
+    "cache_read": 0
+   }
+  },
+  {
+   "id": 22,
+   "tier": "enthusiast",
+   "passed": true,
+   "href_ok": true,
+   "missing": [],
+   "tools": [
+    "get_standings"
+   ],
+   "calls": 1,
+   "latency": 8.830237292000675,
+   "cost": 0.000129525,
+   "answer": "McLaren clinched the 2024 Constructors\u2019 Championship with 666\u202fpoints.  \n[2024 season](/seasons/2024)",
+   "error": null,
+   "usage": {
+    "input": 1035,
+    "output": 77,
+    "cache_write": 0,
+    "cache_read": 768
+   }
+  },
+  {
+   "id": 23,
+   "tier": "enthusiast",
+   "passed": true,
+   "href_ok": true,
+   "missing": [],
+   "tools": [
+    "get_standings"
+   ],
+   "calls": 1,
+   "latency": 14.107535540999379,
+   "cost": 0.0001635,
+   "answer": "Mercedes leads the 2026 constructors' standings with 468 points, followed by Ferrari in second place with 346 points. [2026 Spanish Grand Prix](/seasons/2026/races/14)",
+   "error": null,
+   "usage": {
+    "input": 1836,
+    "output": 86,
+    "cache_write": 0,
+    "cache_read": 0
+   }
+  },
+  {
+   "id": 24,
+   "tier": "enthusiast",
+   "passed": true,
+   "href_ok": true,
+   "missing": [],
+   "tools": [
+    "search",
+    "get_race"
+   ],
+   "calls": 2,
+   "latency": 26.385719791000156,
+   "cost": 0.00028904999999999995,
+   "answer": "The fastest lap at the 2021 Monaco Grand Prix was set by Lewis\u202fHamilton on lap\u202f69, with a time of 1:12.909.  \n[2021 Monaco Grand Prix](/seasons/2021/races/5)",
+   "error": null,
+   "usage": {
+    "input": 3342,
+    "output": 128,
+    "cache_write": 0,
+    "cache_read": 0
+   }
+  },
+  {
+   "id": 25,
+   "tier": "enthusiast",
+   "passed": false,
+   "href_ok": false,
+   "missing": [
+    "Italian"
+   ],
+   "tools": [
+    "search",
+    "search"
+   ],
+   "calls": 2,
+   "latency": 9.254089542000656,
+   "cost": 0.000187275,
+   "answer": "I\u2019m sorry, but I couldn\u2019t find any record of a driver named Kimi Antonelli in the F1 Tracker database. If you have any other questions or need information on a different driver, feel free to ask!",
+   "error": null,
+   "usage": {
+    "input": 1085,
+    "output": 161,
+    "cache_write": 0,
+    "cache_read": 1536
+   }
+  },
+  {
+   "id": 26,
+   "tier": "enthusiast",
+   "passed": true,
+   "href_ok": true,
+   "missing": [],
+   "tools": [
+    "get_records"
+   ],
+   "calls": 1,
+   "latency": 15.482803917000638,
+   "cost": 0.00015772500000000003,
+   "answer": "The five drivers with the most podium finishes are: Lewis\u202fHamilton (207), Michael\u202fSchumacher (155), Max\u202fVerstappen (133), Sebastian\u202fVettel (122) and Fernando\u202fAlonso (106).  \n[Records \u2013 Podiums](/records)",
+   "error": null,
+   "usage": {
+    "input": 1199,
+    "output": 130,
+    "cache_write": 0,
+    "cache_read": 768
+   }
+  },
+  {
+   "id": 27,
+   "tier": "enthusiast",
+   "passed": false,
+   "href_ok": false,
+   "missing": [
+    "Hamilton",
+    "5,?126",
+    "1,?566"
+   ],
+   "tools": [
+    "get_driver"
+   ],
+   "calls": 1,
+   "latency": 7.687740332999965,
+   "cost": 6.975e-05,
+   "answer": "",
+   "error": "BadRequestError: Error code: 400 - {'error': {'message': \"Tool call validation failed: tool call validation failed: attempted to call tool 'get_driver<|channel|>commentary' which was not in request.tools\", 'type': 'invalid_request_error', 'code': 'tool_use_failed', 'failed_generation': '{\"name\": \"ge",
+   "usage": {
+    "input": 806,
+    "output": 31,
+    "cache_write": 0,
+    "cache_read": 0
+   }
+  },
+  {
+   "id": 28,
+   "tier": "enthusiast",
+   "passed": true,
+   "href_ok": true,
+   "missing": [],
+   "tools": [
+    "get_standings"
+   ],
+   "calls": 1,
+   "latency": 14.708976999998413,
+   "cost": 0.000162225,
+   "answer": "The 1988 Formula\u202f1 World Drivers\u2019 Champion was **Ayrton\u202fSenna**, finishing the season with **90\u202fpoints**.  \n[1988 season](/seasons/1988)",
+   "error": null,
+   "usage": {
+    "input": 1807,
+    "output": 89,
+    "cache_write": 0,
+    "cache_read": 0
+   }
+  },
+  {
+   "id": 29,
+   "tier": "enthusiast",
+   "passed": false,
+   "href_ok": true,
+   "missing": [
+    "Norris"
+   ],
+   "tools": [
+    "search",
+    "get_standings"
+   ],
+   "calls": 2,
+   "latency": 25.419585125000594,
+   "cost": 0.0002895,
+   "answer": "Max\u202fVerstappen won the most races in 2025 with eight victories, but he finished second in the championship and did not claim the title.  \n[2025 season](/seasons/2025)",
+   "error": null,
+   "usage": {
+    "input": 3280,
+    "output": 145,
+    "cache_write": 0,
+    "cache_read": 0
+   }
+  },
+  {
+   "id": 30,
+   "tier": "enthusiast",
+   "passed": false,
+   "href_ok": false,
+   "missing": [
+    "Russell"
+   ],
+   "tools": [
+    "search",
+    "search"
+   ],
+   "calls": 2,
+   "latency": 22.01484066699959,
+   "cost": 0.000220875,
+   "answer": "I\u2019m sorry, but I couldn\u2019t find any race data for the most recent 2026 event. You can check the latest season page for updates: [/seasons/2026](/seasons/2026).",
+   "error": null,
+   "usage": {
+    "input": 1925,
+    "output": 159,
+    "cache_write": 0,
+    "cache_read": 768
+   }
+  }
+ ]
+}

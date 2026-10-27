@@ -1,0 +1,316 @@
+[
+ {
+  "id": 1,
+  "tier": "casual",
+  "q": "Who is leading the championship right now?",
+  "expect": [
+   "Antonelli",
+   "292"
+  ],
+  "href": "/seasons/2026"
+ },
+ {
+  "id": 2,
+  "tier": "casual",
+  "q": "Who won the 2021 Monaco Grand Prix?",
+  "expect": [
+   "Verstappen"
+  ],
+  "href": "/seasons/2021/races/5"
+ },
+ {
+  "id": 3,
+  "tier": "casual",
+  "q": "Who has the most race wins ever?",
+  "expect": [
+   "Hamilton",
+   "106"
+  ],
+  "href": [
+   "/records",
+   "/drivers/lewis-hamilton"
+  ]
+ },
+ {
+  "id": 4,
+  "tier": "casual",
+  "q": "Where can I compare two drivers?",
+  "expect": [],
+  "href": "/compare/drivers"
+ },
+ {
+  "id": 5,
+  "tier": "casual",
+  "q": "Who was world champion in 2016?",
+  "expect": [
+   "Rosberg"
+  ],
+  "href": "/seasons/2016"
+ },
+ {
+  "id": 6,
+  "tier": "casual",
+  "q": "Tell me about Fernando Alonso",
+  "expect": [
+   "32",
+   "Spanish"
+  ],
+  "href": "/drivers/fernando-alonso"
+ },
+ {
+  "id": 7,
+  "tier": "casual",
+  "q": "Which page shows the countdown to the next race?",
+  "expect": [],
+  "href": "](/)"
+ },
+ {
+  "id": 8,
+  "tier": "casual",
+  "q": "Who won the last race?",
+  "expect": [
+   "Antonelli",
+   "Spanish"
+  ],
+  "href": "/seasons/2026/races/14"
+ },
+ {
+  "id": 9,
+  "tier": "casual",
+  "q": "How many championships does Lewis Hamilton have?",
+  "expect": [
+   "7|seven"
+  ],
+  "href": "/drivers/lewis-hamilton"
+ },
+ {
+  "id": 10,
+  "tier": "casual",
+  "q": "Where can I see the list of all world champions?",
+  "expect": [],
+  "href": "/champions"
+ },
+ {
+  "id": 11,
+  "tier": "enthusiast",
+  "q": "Who won the 2008 drivers' title and by how many points over second place?",
+  "expect": [
+   "Hamilton",
+   "Massa",
+   "\\b1\\b|one point|single point"
+  ],
+  "href": "/seasons/2008"
+ },
+ {
+  "id": 12,
+  "tier": "enthusiast",
+  "q": "Who took pole for the 2021 Abu Dhabi Grand Prix and who finished second in the race?",
+  "expect": [
+   "Verstappen",
+   "Hamilton"
+  ],
+  "href": "/seasons/2021/races/22"
+ },
+ {
+  "id": 13,
+  "tier": "enthusiast",
+  "q": "How many wins and poles did Ayrton Senna take in his career?",
+  "expect": [
+   "41",
+   "65"
+  ],
+  "href": "/drivers/ayrton-senna"
+ },
+ {
+  "id": 14,
+  "tier": "enthusiast",
+  "q": "Give me the top three of the 2007 drivers' standings with their points.",
+  "expect": [
+   "R(ä|a)ikk(ö|o)nen",
+   "110",
+   "Hamilton",
+   "Alonso",
+   "109"
+  ],
+  "href": "/seasons/2007"
+ },
+ {
+  "id": 15,
+  "tier": "enthusiast",
+  "q": "Who has the most pole positions of all time?",
+  "expect": [
+   "Hamilton",
+   "105"
+  ],
+  "href": "/records"
+ },
+ {
+  "id": 16,
+  "tier": "enthusiast",
+  "q": "Which British driver has the most Grand Prix wins, and who is second among British drivers?",
+  "expect": [
+   "Hamilton",
+   "106",
+   "Mansell",
+   "31"
+  ],
+  "href": [
+   "/records",
+   "/drivers/lewis-hamilton"
+  ]
+ },
+ {
+  "id": 17,
+  "tier": "enthusiast",
+  "q": "Who won the most races between 1990 and 1999?",
+  "expect": [
+   "Schumacher",
+   "35"
+  ],
+  "href": [
+   "/records",
+   "/drivers/michael-schumacher"
+  ]
+ },
+ {
+  "id": 18,
+  "tier": "enthusiast",
+  "q": "Which driver has the highest win rate with at least 20 starts?",
+  "expect": [
+   "Fangio"
+  ],
+  "href": [
+   "/records",
+   "/drivers/juan-manuel-fangio"
+  ]
+ },
+ {
+  "id": 19,
+  "tier": "enthusiast",
+  "q": "Where did Max Verstappen finish in the 2024 drivers' standings and with how many points?",
+  "expect": [
+   "Verstappen",
+   "437",
+   "first|1st|champion|won"
+  ],
+  "href": "/seasons/2024"
+ },
+ {
+  "id": 20,
+  "tier": "enthusiast",
+  "q": "Who was on the podium in round 1 of 2024?",
+  "expect": [
+   "Verstappen",
+   "P(é|e)rez",
+   "Sainz"
+  ],
+  "href": "/seasons/2024/races/1"
+ },
+ {
+  "id": 21,
+  "tier": "enthusiast",
+  "q": "How many points did Lando Norris finish 2025 with, and did he win the title?",
+  "expect": [
+   "423",
+   "champion|won|yes"
+  ],
+  "href": "/seasons/2025"
+ },
+ {
+  "id": 22,
+  "tier": "enthusiast",
+  "q": "Which constructor won the 2024 constructors' championship and with how many points?",
+  "expect": [
+   "McLaren",
+   "666"
+  ],
+  "href": "/seasons/2024"
+ },
+ {
+  "id": 23,
+  "tier": "enthusiast",
+  "q": "Who leads the 2026 constructors' standings and who is second?",
+  "expect": [
+   "Mercedes",
+   "468",
+   "Ferrari"
+  ],
+  "href": "/seasons/2026"
+ },
+ {
+  "id": 24,
+  "tier": "enthusiast",
+  "q": "Who set the fastest lap at the 2021 Monaco Grand Prix?",
+  "expect": [
+   "Hamilton"
+  ],
+  "href": "/seasons/2021/races/5"
+ },
+ {
+  "id": 25,
+  "tier": "enthusiast",
+  "q": "What nationality is Kimi Antonelli?",
+  "expect": [
+   "Italian"
+  ],
+  "href": "/drivers/kimi-antonelli"
+ },
+ {
+  "id": 26,
+  "tier": "enthusiast",
+  "q": "Who are the top five drivers by podium finishes?",
+  "expect": [
+   "Hamilton",
+   "207",
+   "Schumacher",
+   "Verstappen",
+   "Vettel",
+   "Alonso"
+  ],
+  "href": [
+   "/records",
+   "/drivers/lewis-hamilton"
+  ]
+ },
+ {
+  "id": 27,
+  "tier": "enthusiast",
+  "q": "Who scored more career points, Michael Schumacher or Lewis Hamilton, and how many each?",
+  "expect": [
+   "Hamilton",
+   "5,?126",
+   "1,?566"
+  ],
+  "href": "/drivers/"
+ },
+ {
+  "id": 28,
+  "tier": "enthusiast",
+  "q": "Who won the 1988 championship and with how many points?",
+  "expect": [
+   "Senna",
+   "90"
+  ],
+  "href": "/seasons/1988"
+ },
+ {
+  "id": 29,
+  "tier": "enthusiast",
+  "q": "Who won the most races in 2025, and did that driver win the title?",
+  "expect": [
+   "Verstappen",
+   "8|eight",
+   "Norris"
+  ],
+  "href": "/seasons/2025"
+ },
+ {
+  "id": 30,
+  "tier": "enthusiast",
+  "q": "Who set the fastest lap in the most recent race of 2026?",
+  "expect": [
+   "Russell"
+  ],
+  "href": "/seasons/2026/races/14"
+ }
+]
