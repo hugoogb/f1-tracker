@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { initialState, reduce } from './use-engineer'
+import { initialState, outgoingMessages, reduce } from './use-engineer'
 
 describe('engineer reducer', () => {
   it('streams text into one assistant message and records the ledger id', () => {
@@ -52,5 +52,25 @@ describe('engineer reducer', () => {
     const id = s.messages.at(-1)!.id
     s = reduce(s, { type: 'thumbs', messageId: id, thumbs: -1 })
     expect(s.messages.at(-1)?.thumbs).toBe(-1)
+  })
+})
+
+describe('outgoingMessages', () => {
+  it('trims, truncates to 2000, drops blanks, keeps 16 ending on the user turn', () => {
+    const msgs = Array.from({ length: 30 }, (_, i) => ({
+      role: i % 2 === 0 ? ('user' as const) : ('assistant' as const),
+      content: i === 3 ? '   ' : `  ${'x'.repeat(2500)}  `,
+    }))
+    msgs.push({ role: 'user', content: '  last  ' })
+    const out = outgoingMessages(msgs)
+    expect(out).toHaveLength(16)
+    expect(out.at(-1)).toEqual({ role: 'user', content: 'last' })
+    expect(out.slice(0, -1).every((m) => m.content.length === 2000)).toBe(true)
+    expect(
+      outgoingMessages([
+        { role: 'user', content: ' ' },
+        { role: 'user', content: 'a' },
+      ]),
+    ).toEqual([{ role: 'user', content: 'a' }])
   })
 })

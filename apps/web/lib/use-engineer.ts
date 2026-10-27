@@ -7,6 +7,21 @@ import type { EngineerEvent, EngineerMessage, EngineerStatus } from '@/lib/engin
 export const STORAGE_KEY = 'f1-engineer:v1'
 export const MAX_USER_TURNS = 20
 export const HISTORY_TURNS = 16
+export const MAX_CONTENT_CHARS = 2000
+export const MAX_TITLE_CHARS = 200
+
+/** The server's bounds: each entry stripped, 1..2000 chars, the last one a user turn. */
+export function outgoingMessages(
+  messages: Pick<EngineerMessage, 'role' | 'content'>[],
+): { role: 'user' | 'assistant'; content: string }[] {
+  return messages
+    .map(({ role, content }) => ({
+      role,
+      content: content.trim().slice(0, MAX_CONTENT_CHARS).trim(),
+    }))
+    .filter((m) => m.content !== '')
+    .slice(-HISTORY_TURNS)
+}
 
 export interface EngineerState {
   messages: EngineerMessage[]
@@ -114,7 +129,15 @@ function readStored(): EngineerMessage[] {
   try {
     const raw = window.sessionStorage.getItem(STORAGE_KEY)
     const parsed: unknown = raw ? JSON.parse(raw) : []
-    return Array.isArray(parsed) ? (parsed as EngineerMessage[]) : []
+    if (!Array.isArray(parsed)) return []
+    return parsed.filter(
+      (m): m is EngineerMessage =>
+        typeof m === 'object' &&
+        m !== null &&
+        typeof m.id === 'string' &&
+        (m.role === 'user' || m.role === 'assistant') &&
+        typeof m.content === 'string',
+    )
   } catch {
     return []
   }
@@ -174,15 +197,13 @@ export function useEngineer(options: { onNavigate: (href: string) => void }): {
   }, [])
 
   const send = useCallback(async (question: string) => {
-    const content = question.trim()
+    const content = question.trim().slice(0, MAX_CONTENT_CHARS).trim()
     const current = stateRef.current
     if (!content || current.turnsLeft <= 0) return
+    if (controllerRef.current) return
     if (current.status.kind === 'streaming' || current.status.kind === 'tool') return
 
-    const history = [...current.messages, { role: 'user' as const, content }]
-      .filter((m) => m.content !== '')
-      .slice(-HISTORY_TURNS)
-      .map(({ role, content: text }) => ({ role, content: text }))
+    const history = outgoingMessages([...current.messages, { role: 'user', content }])
 
     const controller = new AbortController()
     controllerRef.current = controller
@@ -195,7 +216,8 @@ export function useEngineer(options: { onNavigate: (href: string) => void }): {
         body: JSON.stringify({
           messages: history,
           path: window.location.pathname,
-          pageTitle: document.querySelector('h1')?.textContent ?? null,
+          pageTitle:
+            document.querySelector('h1')?.textContent?.trim().slice(0, MAX_TITLE_CHARS) || null,
         }),
         signal: controller.signal,
       })
