@@ -81,6 +81,7 @@ daily and on any purge, since it reads `f1-global`), `robots.ts`, `manifest.ts`,
 - `components/favourites/` - Star toggle, favourites view, home-page summary, stale-refresh hook
 - `components/ops/` - `time-ago.tsx` (relative timestamps on `/status`, via `useNow()`)
 - `components/seo/` - `json-ld.tsx` (schema.org graph) and `og-card.tsx` (shared card chrome for every `opengraph-image` route)
+- `components/engineer/` - The Race Engineer chat sidebar: `engineer-button.tsx` (mounted in the header only when `NEXT_PUBLIC_CHAT_ENABLED === 'true'`; `dynamic()`-imports `engineer-sheet.tsx` with `ssr: false` after the first open), transcript, answer renderer. State in `lib/use-engineer.ts` (SSE, transcript in `sessionStorage` `f1-engineer:v1`), with `lib/engineer-{types,sse,markdown,prompts}.ts`. ⌘J / Ctrl+J opens it
 - Root: pagination, list-filter, error-boundary
 
 ### Backend Endpoints
@@ -161,7 +162,12 @@ daily and on any purge, since it reads `f1-global`), `robots.ts`, `manifest.ts`,
   `/seasons/{year}` so it cannot be shadowed. `GET /api/best-seasons/{year}` is one season plus its rank
 - `GET /api/ops/status` - Data coverage, Fast-F1 backlog, row counts, Alembic revision and the
   latest `ingest_runs` rows, behind `/status`. Public, so it serves only counts, timestamps and
-  revision ids — never a hostname, path, env value or error message
+  revision ids — never a hostname, path, env value or error message. Its `chat` section
+  (`enabled`, `requestsToday`, `costTodayUsd`, `budgetUsd`, `toolShare`, `errorsToday`) is read from the ledger
+- `POST /api/chat` - The Race Engineer: a tool loop streamed over SSE (events `text`, `tool`, `navigate`,
+  `usage`, `error`, `done`). Refusals are JSON before the stream: 503 `{"detail":{"code":"disabled"}}` when
+  chat is off, 503 `budget`, 429 `rate_limited`, 422 for an invalid body. See the Conventions paragraph
+- `POST /api/chat/feedback` - `{id, thumbs: 1|-1}` on a ledger row; 204, or 404 for an unknown id
 
 ## Commands
 
@@ -198,6 +204,7 @@ daily and on any purge, since it reads `f1-global`), `robots.ts`, `manifest.ts`,
 - `/srv/apps/f1_api/backup.sh > f1_api.sql.gz` - Dump the whole production database to stdout, from a throwaway postgres container on the shared network against `DIRECT_URL`. It asks the server its version first and pulls the matching `postgres:<major>-alpine`, because pg_dump refuses to dump a server newer than itself; `PG_IMAGE` pins one instead. Driven from a laptop by `pnpm db:backup:prod`
 - Manual deploy/rollback on the box: `echo "TAG=<sha>" > .tag`, then `docker compose --env-file .env --env-file .tag pull && ... run --rm migrate && ... up -d --wait`
 - Env file: `/srv/apps/f1_api/.env` (created by the platform's `new-app.sh`; app-specific keys in `docker/.env.prod.example`) plus `.tag`, which carries only `TAG=<sha>`
+- Race Engineer keys in that file: `ANTHROPIC_API_KEY`, `CHAT_MODEL`, `CHAT_IP_SALT` (all three, or chat stays off), tuned by `CHAT_DAILY_BUDGET_USD`, `CHAT_IP_PER_10MIN`, `CHAT_IP_PER_DAY`, `CHAT_MAX_TOKENS`, `CHAT_PRICES_JSON`. The button needs `NEXT_PUBLIC_CHAT_ENABLED=true` in Vercel (build-time, redeploy). Runbook: `docs/DEPLOYMENT.md`
 - Database is the platform's shared PostgreSQL: the API uses `DATABASE_URL` (PgBouncer), migrations and ingest use `DIRECT_URL` (direct — transaction pooling cannot run a migration). Backups are the platform's job
 - Scheduling: `.github/workflows/ingest.yml` — Mondays 06:00 UTC, calendar-gated inside `ingest.sh`; run it by hand from the Actions tab with optional `force`/`flags` inputs. Its last step reports the Fast-F1 backlog, which is a manual job (`scripts/fastf1-sync.sh`)
 
@@ -425,6 +432,26 @@ Two f1db quirks the UI is built around:
   A segment config export must be a **literal** — Next reads it by static analysis
   without evaluating the module, so `export const revalidate = SOME_CONSTANT` fails
   the build with "Invalid segment configuration export detected"
+- **Race Engineer (chat sidebar)**: Claude Haiku 5.5 answering from the site's own data, chosen by the eval in
+  `pipeline/evals/engineer/` (`questions.json`, `run.py`; rerun it before changing `CHAT_MODEL` or the prompt).
+  Spec: `docs/superpowers/specs/2026-10-26-race-engineer-chat-design.md`. Code in `pipeline/src/chat/`
+  (`model.py` the Anthropic client, `loop.py`, `prompt.py`, `gates.py`, `ledger.py`, `sse.py`, `constants.py`,
+  `tools/`). Tools are thin wrappers over the router functions, called in-process with every argument passed
+  explicitly (never rely on a `Query(...)` default) — no second query layer to drift from the API. `run_tool` in
+  `tools/registry.py` validates with Pydantic, runs under `SET LOCAL statement_timeout` (PostgreSQL only), rolls
+  back after every call and caps the result at 6,000 chars; `navigate` accepts only site paths matching a strict
+  allowlist, and the frontend renders answer links only for same-origin site paths. Limits live in
+  `constants.py`: 20 user turns per conversation, 6 tool calls per turn, last 8 turns sent, ~12k input soft cap;
+  a message is 2,000 chars, the page path and title 200. The `chat_usage` ledger (migration `a1c4e7b2d905`)
+  stores **no content**: no question, answer, raw IP or error text — a daily-salted HMAC of the client IP
+  (`CHAT_IP_SALT`), token counts, cost, tool-call count, outcome and feedback. It is also the budget and rate counter
+  the gates read, so refused requests are rows too. The IP comes from `Cf-Connecting-Ip`, never
+  `request.client.host` (forgeable in production; probed 2026-10-26) — the origin is sealed behind Cloudflare.
+  The row is written after the stream, so concurrent in-flight requests can overshoot the daily budget by their
+  own cost; the Cloudflare rule and the Anthropic console cap bound that. Chat is off until `ANTHROPIC_API_KEY`,
+  `CHAT_MODEL` and `CHAT_IP_SALT` are all set, and the UI hides the button unless `NEXT_PUBLIC_CHAT_ENABLED` is
+  exactly `'true'`. Status tags in the sheet are RADIO CHECK / ON IT / CHECKING … / OFF THE RADIO / ON COOLDOWN /
+  RADIO FAULT; the transcript lives in `sessionStorage` only
 - Pre-commit: Husky runs lint-staged (prettier) + ruff check/format on staged `.py` files
 - CI: GitHub Actions `ci.yml` — frontend (audit, format, lint, typecheck, build) + backend (ruff, pip-audit, pytest) + backend image (docker build + smoke test)
 - CD: GitHub Actions `deploy.yml` — on push to `master` touching `pipeline|docker/compose.prod.yml|scripts/vps`, builds and pushes `ghcr.io/hugoogb/f1_api:<sha>`, joins the tailnet as `tag:ci`, then over Tailscale SSH ships `docker-compose.yml`+`ingest.sh`+`fastf1.sh`+`purge-cache.sh`, pulls, migrates, `up -d --wait` and checks `/api/health/db`. Secrets are `VPS_HOST`/`TS_OAUTH_CLIENT_ID`/`TS_OAUTH_SECRET` — there is no SSH key (Tailscale SSH authenticates by tailnet identity), and no DB credentials leave the server

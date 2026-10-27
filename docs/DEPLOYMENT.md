@@ -240,6 +240,29 @@ After the first deploy on a new domain, submit `https://<domain>/sitemap.xml`
 in Google Search Console — the sitemap is generated from the API, so it also
 serves as a check that the frontend can reach the backend.
 
+### 4a. Race Engineer (chat sidebar)
+
+The chat is off until the API has `ANTHROPIC_API_KEY`, `CHAT_MODEL` and
+`CHAT_IP_SALT` (rows in the env table above). To turn it on:
+
+1. In `/srv/apps/f1_api/.env` set the three keys (`CHAT_IP_SALT` from
+   `openssl rand -hex 32`; `CHAT_MODEL=claude-haiku-5-5`, the model the eval in
+   `pipeline/evals/engineer/` chose). Tune `CHAT_DAILY_BUDGET_USD` and the
+   per-IP limits only if needed. Recreate the container with `up -d --wait`.
+2. Set a monthly spend cap in the Anthropic console. The in-app daily budget
+   is written after each stream, so concurrent requests can overshoot it by
+   their own cost; the console cap is the hard stop.
+3. Add the Cloudflare rule from section 3a.
+4. Set `NEXT_PUBLIC_CHAT_ENABLED=true` in the Vercel project and redeploy
+   (build-time, like `NEXT_PUBLIC_API_URL`). Anything other than `true` hides
+   the button.
+5. Check `GET /api/ops/status`: `chat.enabled` is `true`, and `requestsToday`,
+   `costTodayUsd` against `budgetUsd`, `toolShare` and `errorsToday` show use.
+
+To switch it off, blank any of the three keys (the API answers 503
+`disabled`) and unset the Vercel flag. The `chat_usage` table holds no
+question, answer or raw IP, so there is nothing to purge.
+
 ### 5. Verify
 
 ```bash
