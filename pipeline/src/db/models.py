@@ -388,3 +388,42 @@ class IngestRun(Base):
 # the way that query is. Declared out here because the expression needs the
 # mapped attribute, which does not exist until the class body has run.
 Index("ix_ingest_runs_started_at_desc", IngestRun.started_at.desc())
+
+
+class ChatUsage(Base):
+    """One row per Race Engineer request: the ledger, the budget and the rate counter.
+
+    It is the only thing the server keeps about a chat request, and it holds
+    *no content*: never the question, the answer, a path, a raw IP or an error
+    message. What is here is the model, the token counts, the cost, how many
+    tools ran, how the request ended and a per-day salted hash of the caller.
+    The hash rotates daily, so a row cannot be followed from one day to the
+    next, and the IP cannot be recovered from it.
+
+    Refused requests (`budget`, `rate_limited`) are rows too, with zero cost:
+    the per-IP limits count requests, not spend, and a caller hammering a
+    closed gate must keep counting against their own limit.
+    """
+
+    __tablename__ = "chat_usage"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=new_uuid)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    model: Mapped[str] = mapped_column(String)
+    provider: Mapped[str] = mapped_column(String, default="anthropic")
+    input_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    output_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    cache_write_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    cache_read_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    cost_usd: Mapped[float] = mapped_column(Float, default=0.0)
+    tool_calls: Mapped[int] = mapped_column(Integer, default=0)
+    # "ok" | "budget" | "rate_limited" | "error"
+    outcome: Mapped[str] = mapped_column(String)
+    # HMAC of the client IP keyed by salt and day (see src/chat/ledger.py).
+    ip_hash: Mapped[str] = mapped_column(String)
+    # The reader's verdict on the answer: 1 or -1, NULL until they give one.
+    thumbs: Mapped[int | None] = mapped_column(Integer)
+
+
+# The per-IP limits ask "how many requests from this hash since T".
+Index("ix_chat_usage_ip_hash_created_at", ChatUsage.ip_hash, ChatUsage.created_at)
