@@ -1,0 +1,161 @@
+"""The Race Engineer's tool loop: model turns, tool runs and the SSE stream.
+
+Synchronous on purpose: `StreamingResponse` runs this generator in Starlette's
+threadpool, and the database layer is synchronous SQLAlchemy.
+"""
+
+import datetime
+import json
+import logging
+from collections.abc import Iterator
+from typing import Literal
+
+from pydantic import BaseModel, Field, constr, model_validator
+from sqlalchemy.orm import Session
+
+import src.chat.tools  # noqa: F401 - registers every tool
+from src.chat import ledger
+from src.chat.constants import (
+    HISTORY_TURNS,
+    INPUT_SOFT_CAP_TOKENS,
+    MAX_CONVERSATION_TURNS,
+    MAX_TOOL_CALLS,
+    NAVIGATE,
+)
+from src.chat.events import Done, TextDelta, ToolCall, UsageEvent
+from src.chat.model import Message, stream_turn
+from src.chat.prompt import SYSTEM, user_turn
+from src.chat.sse import sse
+from src.chat.tools.registry import run_tool, tool_label, tool_specs
+from src.config import settings
+
+logger = logging.getLogger(__name__)
+
+PROVIDER_ERROR = "The Engineer lost the radio. Try again."
+CAP_ERROR = "tool call limit reached; answer now"
+CAP_NUDGE = "Answer with what you have."
+
+
+def utcnow() -> datetime.datetime:
+    return datetime.datetime.now(datetime.UTC)
+
+
+class ChatMessage(BaseModel):
+    role: Literal["user", "assistant"]
+    content: constr(strip_whitespace=True, min_length=1, max_length=2000)
+
+
+class ChatRequest(BaseModel):
+    messages: list[ChatMessage] = Field(min_length=1, max_length=2 * MAX_CONVERSATION_TURNS)
+    path: str = "/"
+    pageTitle: str | None = Field(default=None, max_length=200)  # noqa: N815 - wire name
+
+    @model_validator(mode="after")
+    def _ends_with_the_question(self) -> "ChatRequest":
+        if self.messages[-1].role != "user":
+            raise ValueError("the last message must be the user's")
+        return self
+
+
+def build_messages(body: ChatRequest, today: datetime.date) -> list[Message]:
+    """The last `HISTORY_TURNS` exchanges plus the question, wrapped with today's date and page."""
+    question = body.messages[-1].content
+    history = body.messages[:-1][-2 * HISTORY_TURNS :]
+    while history and history[0].role != "user":
+        history = history[1:]
+
+    def tokens() -> int:
+        return (sum(len(m.content) for m in history) + len(question)) // 4
+
+    while history and tokens() > INPUT_SOFT_CAP_TOKENS:
+        history = history[2:]
+
+    turn = user_turn(question, path=body.path, page_title=body.pageTitle, today=today)
+    return [
+        *({"role": m.role, "content": m.content} for m in history),
+        {"role": "user", "content": turn},
+    ]
+
+
+def run_chat(
+    db: Session, body: ChatRequest, *, ip_hash: str, now: datetime.datetime
+) -> Iterator[str]:
+    """Stream one answer as SSE; the ledger row is written however the stream ends."""
+    usage = ledger.Usage()
+    tool_calls = 0
+    outcome = "ok"
+    messages = build_messages(body, now.date())
+    tools = tool_specs()
+    try:
+        tool_choice: dict | None = None
+        while True:
+            calls: list[ToolCall] = []
+            done: Done | None = None
+            for event in stream_turn(
+                system=SYSTEM,
+                tools=tools,
+                messages=messages,
+                max_tokens=settings.chat_max_tokens,
+                tool_choice=tool_choice,
+            ):
+                if isinstance(event, TextDelta):
+                    yield sse("text", {"delta": event.text})
+                elif isinstance(event, ToolCall):
+                    calls.append(event)
+                elif isinstance(event, UsageEvent):
+                    usage.add(event.usage)
+                elif isinstance(event, Done):
+                    done = event
+            # The forced final turn is the last one, whatever the model does.
+            final = tool_choice is not None
+            if final or done is None or done.stop_reason != "tool_use" or not calls:
+                break
+
+            results: list[dict] = []
+            for call in calls:
+                if tool_calls >= MAX_TOOL_CALLS:
+                    result = json.dumps({"error": CAP_ERROR})
+                else:
+                    tool_calls += 1
+                    yield sse(
+                        "tool", {"name": call.name, "label": tool_label(call.name, call.args)}
+                    )
+                    result = run_tool(db, call.name, call.args)
+                parsed = json.loads(result)
+                if call.name == NAVIGATE and parsed.get("navigated") is True:
+                    yield sse("navigate", {"href": parsed["href"]})
+                results.append(
+                    {
+                        "type": "tool_result",
+                        "tool_use_id": call.id,
+                        "content": result,
+                        "is_error": "error" in parsed,
+                    }
+                )
+            if tool_calls >= MAX_TOOL_CALLS:
+                tool_choice = {"type": "none"}
+                results.append({"type": "text", "text": CAP_NUDGE})
+            # A new list per turn: the list handed to a past turn is never mutated.
+            messages = [
+                *messages,
+                {"role": "assistant", "content": done.content},
+                {"role": "user", "content": results},
+            ]
+    except Exception:  # noqa: BLE001 - any provider failure ends the stream, not the server
+        logger.exception("chat turn failed")
+        outcome = "error"
+        yield sse("error", {"code": "provider", "message": PROVIDER_ERROR})
+    finally:
+        # Runs on a client disconnect too (GeneratorExit), so spend is never lost.
+        row = ledger.record(
+            db,
+            model=settings.chat_model,
+            usage=usage,
+            tool_calls=tool_calls,
+            outcome=outcome,
+            ip_hash=ip_hash,
+            now=now,
+        )
+    if outcome == "ok":
+        yield sse("usage", {"toolCalls": tool_calls, "costUsd": row.cost_usd})
+    yield sse("done", {"id": row.id, "outcome": outcome})
