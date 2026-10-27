@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
 
@@ -99,6 +101,10 @@ SITE_PAGES = [
 ]
 
 
+# Allowlist, not a prefix check: browsers read `/\\x` and `/<tab>/x` as `//x`, an external host.
+_SITE_PATH = re.compile(r"^/[A-Za-z0-9_\-./]*(\?[A-Za-z0-9_=&\-]*)?$")
+
+
 class _NoArgs(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -157,7 +163,7 @@ def _search_run(db: Session, args: SearchArgs) -> dict:
 
 
 def _navigate_run(db: Session, args: NavigateArgs) -> dict:
-    if args.href.startswith("/") and not args.href.startswith("//"):
+    if _SITE_PATH.fullmatch(args.href) and "//" not in args.href:
         return {"navigated": True, "href": args.href}
     return {"error": "only site paths can be opened"}
 

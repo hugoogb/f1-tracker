@@ -91,3 +91,33 @@ def test_navigate_sorts_last_even_when_registered_early(monkeypatch):
         {"navigate": TOOLS["navigate"], "search": TOOLS["search"]},
     )
     assert [s["name"] for s in registry.tool_specs()] == ["search", "navigate"]
+
+
+def test_navigate_allowlist_rejects_browser_normalised_external_hrefs(db):
+    for bad in ["/\\example.com", "/\t/example.com", "/\n/example.com"]:
+        assert "error" in json.loads(run_tool(db, "navigate", {"href": bad})), bad
+    for good in ["/seasons/2024?x=1", "/seasons/2021/races/22"]:
+        assert json.loads(run_tool(db, "navigate", {"href": good}))["navigated"] is True
+
+
+def test_strict_schema_flattens_bounded_and_literal_nullables_and_keeps_title_args():
+    from typing import Literal
+
+    from pydantic import BaseModel, ConfigDict, Field
+
+    from src.chat.tools.registry import strict_schema
+
+    class A(BaseModel):
+        model_config = ConfigDict(extra="forbid")
+        n: int | None = Field(default=None, ge=1)
+        k: Literal["a", "b"] | None = None
+        title: str = "x"
+
+    schema = strict_schema(A)
+    assert "anyOf" not in json.dumps(schema)
+    assert schema["properties"]["n"]["minimum"] == 1
+    assert schema["properties"]["n"]["type"] == ["integer", "null"]
+    assert {"a", "b"} <= set(schema["properties"]["k"]["enum"])
+    assert "title" in schema["properties"]
+    assert "default" not in json.dumps(schema)
+    assert sorted(schema["required"]) == ["k", "n", "title"]

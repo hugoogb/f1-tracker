@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
@@ -14,9 +15,13 @@ from sqlalchemy.orm import Session
 from src.chat.constants import MAX_TOOL_RESULT_CHARS, NAVIGATE, STATEMENT_TIMEOUT_MS
 from src.chat.model import ToolSpec
 
+logger = logging.getLogger(__name__)
+
 
 @dataclass(frozen=True)
 class Tool:
+    """One model-callable tool; the args model is both schema and validator, so they agree."""
+
     name: str
     description: str
     args: type[BaseModel]
@@ -28,26 +33,37 @@ TOOLS: dict[str, Tool] = {}
 
 
 def register(tool: Tool) -> Tool:
+    """Add a tool at import time; registering a name again replaces it."""
     TOOLS[tool.name] = tool
     return tool
 
 
+_MAPS = ("properties", "$defs")
+
+
 def _strictify(node: Any) -> Any:
+    """Rewrite one schema node; keys of `properties`/`$defs` are names, not keywords."""
     if isinstance(node, list):
         return [_strictify(n) for n in node]
     if not isinstance(node, dict):
         return node
-    out = {k: _strictify(v) for k, v in node.items() if k != "title"}
+    out: dict[str, Any] = {}
+    for key, value in node.items():
+        if key in ("title", "default"):
+            continue
+        if key in _MAPS and isinstance(value, dict):
+            out[key] = {name: _strictify(sub) for name, sub in value.items()}
+        else:
+            out[key] = _strictify(value)
     any_of = out.get("anyOf")
-    if (
-        isinstance(any_of, list)
-        and len(any_of) == 2
-        and {"type": "null"} in any_of
-        and all(set(o) == {"type"} for o in any_of)
-    ):
+    if isinstance(any_of, list) and len(any_of) == 2 and {"type": "null"} in any_of:
         other = next(o for o in any_of if o != {"type": "null"})
-        del out["anyOf"]
-        out["type"] = [other["type"], "null"]
+        if isinstance(other.get("type"), str):
+            del out["anyOf"]
+            out.update(other)
+            out["type"] = [other["type"], "null"]
+            if "enum" in out and None not in out["enum"]:
+                out["enum"] = [*out["enum"], None]
     if out.get("type") == "object" or "properties" in out:
         props = out.setdefault("properties", {})
         out["required"] = list(props)
@@ -56,6 +72,7 @@ def _strictify(node: Any) -> Any:
 
 
 def strict_schema(model: type[BaseModel]) -> dict:
+    """Pydantic's schema reshaped for Anthropic strict mode (all required, nullable types)."""
     return _strictify(model.model_json_schema())
 
 
@@ -72,6 +89,7 @@ def _error(message: str) -> str:
 
 
 def run_tool(db: Session, name: str, raw_args: dict) -> str:
+    """Run a tool read-only and bounded; failures come back as results the model can read."""
     tool = TOOLS.get(name)
     if tool is None:
         return _error(f"unknown tool {name}")
@@ -84,6 +102,7 @@ def run_tool(db: Session, name: str, raw_args: dict) -> str:
             db.execute(text(f"SET LOCAL statement_timeout = {int(STATEMENT_TIMEOUT_MS)}"))
         out = json.dumps(tool.run(db, args), default=str)
     except Exception as e:  # noqa: BLE001 - the model gets the error text
+        logger.warning("chat tool %s failed", name, exc_info=True)
         return _error(f"{type(e).__name__}: {e}"[:300])
     finally:
         db.rollback()
@@ -99,6 +118,7 @@ def run_tool(db: Session, name: str, raw_args: dict) -> str:
 
 
 def tool_label(name: str, raw_args: dict) -> str:
+    """Short status text for the UI while a tool runs; a bad call must not break the stream."""
     tool = TOOLS.get(name)
     if tool is None:
         return "working"
