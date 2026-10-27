@@ -27,3 +27,18 @@ def test_chat_limit_defaults_match_the_spec():
         s.chat_max_tokens,
     ) == (0.50, 10, 60, 600)
     assert '"claude-haiku-5-5"' in s.chat_prices_json
+
+
+def _on(**overrides):
+    values = {"anthropic_api_key": "k", "chat_model": "claude-haiku-5-5", "chat_ip_salt": "s"}
+    return Settings(_env_file=None, **{**values, **overrides})
+
+
+def test_chat_is_disabled_for_a_model_missing_from_the_price_table():
+    assert _on(chat_model="claude-unpriced-1").chat_enabled is False
+
+
+def test_chat_is_disabled_when_the_price_table_is_not_json():
+    assert _on(chat_prices_json="not json").chat_enabled is False
+    assert _on(chat_prices_json="").chat_enabled is False
+    assert _on(chat_prices_json="[]").chat_enabled is False

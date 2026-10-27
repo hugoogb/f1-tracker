@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 from pydantic_settings import BaseSettings
@@ -38,7 +39,22 @@ class Settings(BaseSettings):
 
     @property
     def chat_enabled(self) -> bool:
-        return bool(self.anthropic_api_key and self.chat_model and self.chat_ip_salt)
+        """On only with a key, a model, a salt and a price for that model: an
+        unpriced model would be billed without the budget ever seeing it."""
+        return bool(
+            self.anthropic_api_key
+            and self.chat_model
+            and self.chat_ip_salt
+            and self.chat_model_priced
+        )
+
+    @property
+    def chat_model_priced(self) -> bool:
+        try:
+            prices = json.loads(self.chat_prices_json)
+        except ValueError:
+            return False
+        return isinstance(prices, dict) and self.chat_model in prices
 
     # The root .env is shared across frontend/backend/scripts, so ignore keys
     # this settings model doesn't declare (e.g. NEXT_PUBLIC_API_URL, STACK_NAME).

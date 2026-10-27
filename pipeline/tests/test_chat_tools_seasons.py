@@ -216,3 +216,18 @@ def test_mid_season_has_no_champion_and_counts_only_past_rounds(db, race_seed_da
     out = _run(db, "get_season", {"year": 2023})
     assert out["champion"] is None
     assert out["completedRounds"] == 1 < out["rounds"]
+
+
+def test_no_constructors_champion_before_1958(db, season_1955):
+    out = _run(db, "get_season", {"year": 1955})
+    assert out["champion"]["ref"] == "max_verstappen"
+    assert out["constructorsChampion"] is None
+
+
+def test_pre_1958_constructor_standings_say_they_are_not_official(db, season_1955):
+    out = _run(db, "get_standings", {"year": 1955, "kind": "constructors", "focus_ref": None})
+    assert out["standings"][0]["ref"] == "red_bull"
+    assert out["note"].startswith("not an official championship table")
+    assert "1958" in out["note"]
+    drivers = _run(db, "get_standings", {"year": 1955, "kind": "drivers", "focus_ref": None})
+    assert drivers["note"].startswith("official championship table")

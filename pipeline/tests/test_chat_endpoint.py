@@ -1,5 +1,7 @@
 import json
+import threading
 
+import anyio
 import pytest
 
 from src.chat import loop as chat_loop
@@ -253,6 +255,58 @@ def test_client_disconnect_still_writes_the_row(db, chat_on, monkeypatch):
     assert db.query(ChatUsage).count() == 1
 
 
+def test_a_cancelled_response_still_closes_the_generator_and_writes_the_row(
+    db, chat_on, monkeypatch
+):
+    """What Starlette does on a client disconnect: cancel the task group while the
+    response waits for the next chunk. `_stream` must still close `run_chat`."""
+    from src.api.routers.chat import _stream
+
+    release = threading.Event()
+
+    def fake(**kwargs):
+        yield TextDelta("a")
+        release.wait(5)  # the model is mid-answer when the reader leaves
+        yield TextDelta("b")
+        yield usage()
+        yield Done("end_turn", [{"type": "text", "text": "ab"}])
+
+    monkeypatch.setattr(chat_loop, "stream_turn", fake)
+    gen = chat_loop.run_chat(
+        db,
+        chat_loop.ChatRequest(messages=[{"role": "user", "content": "x"}]),
+        ip_hash="h",
+        now=chat_loop.utcnow(),
+    )
+    got: list[str] = []
+
+    async def respond():
+        async for chunk in _stream(gen):
+            got.append(chunk)
+
+    async def main():
+        async with anyio.create_task_group() as tg:
+            tg.start_soon(respond)
+            with anyio.fail_after(5):
+                while not got:
+                    await anyio.sleep(0.01)
+            await anyio.sleep(0.05)  # `respond` is now waiting on the second chunk
+            tg.cancel_scope.cancel()
+            release.set()
+
+    anyio.run(main)
+    assert got and not any(c.startswith("event: done") for c in got)  # cut off mid-answer
+    assert gen.gi_frame is None  # closed, not merely abandoned
+    assert db.query(ChatUsage).one().outcome == "ok"
+
+
+def test_an_unpriced_model_is_503_disabled(client, db, chat_on, monkeypatch):
+    monkeypatch.setattr(settings, "chat_model", "claude-unpriced-1")
+    r = client.post("/api/chat", json={"messages": [{"role": "user", "content": "x"}]})
+    assert r.status_code == 503 and r.json() == {"detail": {"code": "disabled"}}
+    assert db.query(ChatUsage).count() == 0
+
+
 @pytest.mark.parametrize(
     "body",
     [
@@ -340,3 +394,13 @@ def test_feedback_sets_thumbs(client, db, chat_on):
     db.refresh(row)
     assert row.thumbs == -1
     assert client.post("/api/chat/feedback", json={"id": "nope", "thumbs": 1}).status_code == 404
+
+
+def test_feedback_is_503_while_the_chat_is_off(client, db):
+    r = client.post("/api/chat/feedback", json={"id": "x", "thumbs": 1})
+    assert r.status_code == 503 and r.json() == {"detail": {"code": "disabled"}}
+
+
+def test_feedback_id_is_bounded(client, db, chat_on):
+    r = client.post("/api/chat/feedback", json={"id": "x" * 65, "thumbs": 1})
+    assert r.status_code == 422

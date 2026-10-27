@@ -1,5 +1,6 @@
 import datetime
 
+import pytest
 from fastapi import Request
 
 from src.chat.gates import check_gates, client_ip
@@ -33,6 +34,24 @@ def test_client_ip_reads_cf_connecting_ip_and_ignores_x_forwarded_for():
 
 def test_client_ip_falls_back_to_the_socket_without_the_header():
     assert client_ip(make_request({"X-Forwarded-For": "203.0.113.9"})) == "10.0.0.1"
+
+
+@pytest.mark.parametrize(
+    ("header", "expected"),
+    [
+        ("  198.51.100.7  ", "198.51.100.7"),
+        ("2001:db8:1:2:3:4:5:6", "2001:db8:1:2::"),
+        ("2001:db8:1:2:ffff::1", "2001:db8:1:2::"),
+        ("::ffff:198.51.100.7", "198.51.100.7"),
+        ("not-an-ip", "not-an-ip"),
+    ],
+)
+def test_client_ip_normalises_the_header(header, expected):
+    assert client_ip(make_request({"Cf-Connecting-Ip": header})) == expected
+
+
+def test_a_blank_header_counts_as_absent():
+    assert client_ip(make_request({"Cf-Connecting-Ip": "   "})) == "10.0.0.1"
 
 
 def test_budget_gate_refuses_with_503_once_the_day_is_spent(db, monkeypatch):

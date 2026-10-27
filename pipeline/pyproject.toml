@@ -12,7 +12,7 @@ dependencies = [
     "psycopg2-binary>=2.9",
     "pydantic>=2.10",
     "pydantic-settings>=2.7",
-    "anthropic>=0.70",
+    "anthropic>=2.3",
 ]
 
 [project.optional-dependencies]

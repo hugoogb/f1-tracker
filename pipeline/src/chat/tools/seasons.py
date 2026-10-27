@@ -16,7 +16,7 @@ from pydantic import BaseModel, ConfigDict
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from src.api.constants import MAX_PROGRESSION_TOP
+from src.api.constants import FIRST_CONSTRUCTORS_CHAMPIONSHIP, MAX_PROGRESSION_TOP
 from src.api.routers.seasons import get_season as _get_season
 from src.api.routers.seasons import get_season_calendar as _get_calendar
 from src.api.routers.standings import (
@@ -41,6 +41,14 @@ STANDINGS_NOTE = (
     "official championship table after that round; for drivers, `dropped` (when present) is "
     "what the best-N rule removed"
 )
+UNOFFICIAL_CONSTRUCTORS_NOTE = (
+    "not an official championship table (constructors' championship began in "
+    f"{FIRST_CONSTRUCTORS_CHAMPIONSHIP}); summed from results"
+)
+
+
+def _no_constructors_title(kind: str, year: int) -> bool:
+    return kind == "constructors" and year < FIRST_CONSTRUCTORS_CHAMPIONSHIP
 
 
 class YearArgs(BaseModel):
@@ -146,7 +154,9 @@ def _standings_run(db: Session, args: StandingsArgs) -> dict:
         "kind": args.kind,
         "href": _season_href(args.year),
         "asOfRound": {**as_of, "href": _race_href(args.year, as_of["round"])},
-        "note": STANDINGS_NOTE,
+        "note": UNOFFICIAL_CONSTRUCTORS_NOTE
+        if _no_constructors_title(args.kind, args.year)
+        else STANDINGS_NOTE,
         "standings": out_rows,
     }
 
@@ -161,6 +171,8 @@ def _champion(db: Session, year: int, races: list[dict], kind: str) -> dict | No
     Right after the final race but before the next ingest the table is still the
     penultimate round's, and its leader is not yet the champion.
     """
+    if _no_constructors_title(kind, year):
+        return None
     last = races[-1] if races else None
     if last is None or last["date"] is None or last["date"] >= _today():
         return None

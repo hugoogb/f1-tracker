@@ -133,6 +133,14 @@ def test_champions_keep_driver_and_constructor_champions_apart(db, seed_data):
         assert set(s) >= {"year", "driver", "constructor", "href"}
 
 
+def test_champions_have_no_constructors_champion_before_1958(db, race_seed_data, season_1955):
+    out = call(db, "get_champions", {"year_from": None, "year_to": None})
+    by_year = {s["year"]: s for s in out["seasons"]}
+    assert by_year[1955]["driver"]["ref"] == "max_verstappen"
+    assert by_year[1955]["constructor"] is None
+    assert by_year[2023]["constructor"] == {"name": "Red Bull", "ref": "red_bull"}
+
+
 def test_best_seasons_is_ranked_and_bounded(db, race_seed_data):
     out = call(db, "get_best_seasons", {"limit": 99})
     assert out["href"] == "/best-seasons" and len(out["seasons"]) <= 10

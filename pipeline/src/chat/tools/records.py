@@ -13,6 +13,7 @@ from fastapi import HTTPException
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
 
+from src.api.constants import FIRST_CONSTRUCTORS_CHAMPIONSHIP
 from src.api.routers.best_seasons import best_seasons
 from src.api.routers.champions import list_champions
 from src.api.routers.records import explore_records
@@ -131,7 +132,11 @@ def _champions_run(db: Session, args: ChampionsArgs) -> dict:
                 }
                 if d
                 else None,
-                "constructor": {"name": con["name"], "ref": con["ref"]} if con else None,
+                # No constructors' title was awarded before 1958; the table the
+                # ingest summed for those years has a leader, not a champion.
+                "constructor": {"name": con["name"], "ref": con["ref"]}
+                if con and s["year"] >= FIRST_CONSTRUCTORS_CHAMPIONSHIP
+                else None,
                 "href": f"/seasons/{s['year']}",
             }
         )

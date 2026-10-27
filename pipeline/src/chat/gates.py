@@ -1,6 +1,7 @@
 """Pre-model gates: client identity, the daily budget and the per-IP rate."""
 
 import datetime
+import ipaddress
 from dataclasses import dataclass
 
 from fastapi import Request
@@ -23,10 +24,25 @@ def client_ip(request: Request) -> str:
     """The caller's address. Behind Cloudflare `request.client.host` is the
     proxy and X-Forwarded-For is forgeable, so identity is `Cf-Connecting-Ip`
     (the origin must be reachable only through Cloudflare)."""
-    forwarded = request.headers.get("cf-connecting-ip")
+    forwarded = (request.headers.get("cf-connecting-ip") or "").strip()
     if forwarded:
-        return forwarded
-    return request.client.host if request.client else "unknown"
+        return normalise_ip(forwarded)
+    return normalise_ip(request.client.host) if request.client else "unknown"
+
+
+def normalise_ip(ip: str) -> str:
+    """One identity per subscriber: an IPv6 caller is its /64 (one host can
+    rotate through the whole prefix), an IPv4-mapped IPv6 address is its IPv4.
+    A value that does not parse is kept as-is; it is still only ever hashed."""
+    try:
+        addr = ipaddress.ip_address(ip)
+    except ValueError:
+        return ip
+    if isinstance(addr, ipaddress.IPv6Address):
+        if addr.ipv4_mapped is not None:
+            return str(addr.ipv4_mapped)
+        return str(ipaddress.ip_network(f"{addr}/64", strict=False).network_address)
+    return str(addr)
 
 
 def check_gates(db: Session, ip_hash: str, now: datetime.datetime) -> Refusal | None:

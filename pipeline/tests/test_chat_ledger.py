@@ -1,5 +1,7 @@
 import datetime
 
+import pytest
+
 from src.chat.ledger import (
     Usage,
     cost_of,
@@ -31,6 +33,11 @@ def test_cost_uses_the_price_table_per_million_tokens():
         cache_read_tokens=1_000_000,
     )
     assert cost_of("claude-haiku-5-5", u) == 0.10 + 0.50 + 0.125 + 0.01
+
+
+def test_cost_of_an_unpriced_model_raises_key_error():
+    with pytest.raises(KeyError):
+        cost_of("claude-unpriced-1", Usage(input_tokens=1))
 
 
 def test_spent_today_sums_only_rows_since_midnight_utc(db):
