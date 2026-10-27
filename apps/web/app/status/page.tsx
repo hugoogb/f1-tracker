@@ -164,6 +164,8 @@ export default async function StatusPage() {
   // Which row counts came back as Postgres' own estimate rather than a real
   // COUNT(*). A Set because it is asked once per rendered row.
   const estimated = new Set(status?.estimatedCounts ?? [])
+  // An API deployed before the Engineer existed has no `chat` key; treat it as off.
+  const chat = status?.chat
 
   return (
     <div className="space-y-6">
@@ -415,30 +417,28 @@ export default async function StatusPage() {
 
           <FadeIn>
             <SectionCard title="Engineer" icon={Radio}>
-              {!status.chat.enabled ? (
+              {!chat?.enabled ? (
                 <p className="text-muted-foreground text-sm">Off</p>
               ) : (
                 <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
                   <Field label="Requests today">
                     <span className="font-data tabular-nums">
-                      {status.chat.requestsToday.toLocaleString('en-GB')}
+                      {chat.requestsToday.toLocaleString('en-GB')}
                     </span>
                   </Field>
                   <Field label="Cost today">
                     <span className="font-data tabular-nums">
-                      ${status.chat.costTodayUsd.toFixed(4)} of ${status.chat.budgetUsd.toFixed(2)}
+                      ${chat.costTodayUsd.toFixed(4)} of ${chat.budgetUsd.toFixed(2)}
                     </span>
                   </Field>
                   <Field label="Answers using tools">
                     <span className="font-data tabular-nums">
-                      {status.chat.toolShare === null
-                        ? '—'
-                        : `${Math.round(status.chat.toolShare * 100)}%`}
+                      {chat.toolShare === null ? '—' : `${Math.round(chat.toolShare * 100)}%`}
                     </span>
                   </Field>
                   <Field label="Errors today">
                     <span className="font-data tabular-nums">
-                      {status.chat.errorsToday.toLocaleString('en-GB')}
+                      {chat.errorsToday.toLocaleString('en-GB')}
                     </span>
                   </Field>
                 </div>

@@ -804,7 +804,8 @@ export interface OpsStatus {
   estimatedCounts: string[]
   ingest: OpsIngest
   schemaVersion: string | null
-  chat: OpsChat
+  /** Absent from an API older than the Engineer, so the page must not assume it. */
+  chat?: OpsChat
 }
 
 // ── In-season comparison (`/seasons/[year]/compare`) ────────────────────────
