@@ -20,6 +20,26 @@ class Settings(BaseSettings):
     f1db_version: str = "latest"
     f1db_cache_dir: str = ".f1db_cache"
 
+    # Race Engineer chat. It stays off until the key, the model and the salt
+    # are all set (see chat_enabled).
+    anthropic_api_key: str = ""
+    chat_model: str = ""
+    # Salts the per-day hash of client IPs; never stored or logged raw.
+    chat_ip_salt: str = ""
+    chat_daily_budget_usd: float = 0.50
+    chat_ip_per_10min: int = 10
+    chat_ip_per_day: int = 60
+    chat_max_tokens: int = 600
+    # Dollars per million tokens, keyed by model id.
+    chat_prices_json: str = (
+        '{"claude-haiku-5-5": {"input": 0.10, "output": 0.50, '
+        '"cache_write": 0.125, "cache_read": 0.01}}'
+    )
+
+    @property
+    def chat_enabled(self) -> bool:
+        return bool(self.anthropic_api_key and self.chat_model and self.chat_ip_salt)
+
     # The root .env is shared across frontend/backend/scripts, so ignore keys
     # this settings model doesn't declare (e.g. NEXT_PUBLIC_API_URL, STACK_NAME).
     # In Docker there is no .env at all — compose injects these as real env

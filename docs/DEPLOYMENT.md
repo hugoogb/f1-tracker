@@ -98,6 +98,13 @@ Two files, one per environment. Neither is committed.
 | `F1DB_VERSION` | | f1db release to ingest; pin a tag for reproducible seeds |
 | `IMAGE_REPO` | | Override the GHCR image (default `ghcr.io/hugoogb/f1_api`) |
 | `REVALIDATE_URL` / `REVALIDATE_SECRET` | | Cache purge after a successful ingest |
+| `ANTHROPIC_API_KEY` | | Race Engineer chat: Anthropic API key. Chat stays off until this, `CHAT_MODEL` and `CHAT_IP_SALT` are all set |
+| `CHAT_MODEL` | | Race Engineer chat: model id (e.g. `claude-haiku-5-5`) |
+| `CHAT_IP_SALT` | | Race Engineer chat: salt for the per-day client-IP hash (`openssl rand -hex 32`) |
+| `CHAT_DAILY_BUDGET_USD` | | Race Engineer chat: daily spend cap in dollars (default 0.50) |
+| `CHAT_IP_PER_10MIN` / `CHAT_IP_PER_DAY` | | Race Engineer chat: per-IP request limits (default 10 / 60) |
+| `CHAT_MAX_TOKENS` | | Race Engineer chat: max output tokens per reply (default 600) |
+| `CHAT_PRICES_JSON` | | Race Engineer chat: dollars per million tokens by model id, overriding the built-in `claude-haiku-5-5` prices |
 
 `TAG` is not in this file — the deploy writes it to `/srv/apps/f1_api/.tag`, and
 both env files are passed to every compose call.
