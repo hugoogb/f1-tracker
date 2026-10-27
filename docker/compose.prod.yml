@@ -1,10 +1,15 @@
 # F1 Tracker — production stack for the VPS.
 #
-# This file IS the server's compose file: the deploy workflow copies it to
-# /srv/apps/f1_api/docker-compose.yml on every run, so the stack stays version
-# controlled here rather than hand-edited on the box. It deliberately replaces
-# the one new-app.sh generated — one compose file per app directory, and the
-# platform's own runbook commands then address this same stack.
+# This file IS the server's compose file: the deploy workflow sends it to
+# infra-setup's deploy-app.sh, which checks it against the platform's deploy
+# policy (no privileged mode, no host mounts outside the app's directory, only
+# the `edge`/`data` platform networks, ...) and installs it as
+# /srv/apps/f1_api/docker-compose.yml. A change the policy refuses fails the
+# deploy with the reason (infra-setup/scripts/deploy-policy.py).
+#
+# Nothing else from this repository runs on the server: the jobs that used to
+# be shell scripts on the box are the `tasks` services below, run through
+# deploy-app.sh by scripts/lib/vps.sh.
 #
 #   cd /srv/apps/f1_api
 #   docker compose --env-file .env --env-file .tag up -d --wait
@@ -87,9 +92,10 @@ services:
           memory: ${API_MEMORY_LIMIT:-1g}
 
   # --- Task services -----------------------------------------------------------
-  # Behind a profile so `up` never starts them; both are invoked with
-  # `compose run --rm`. The deploy runs `migrate`; the systemd timer runs `ingest`
-  # through ingest.sh.
+  # Behind a profile so `up` never starts them; each runs with `compose run --rm`
+  # through deploy-app.sh. The deploy runs `migrate` itself, before anything
+  # restarts. scripts/vps-ingest.sh runs `ingest` and `job`; scripts/fastf1-sync.sh
+  # and scripts/db-backup.sh run `job` and `backup`.
 
   migrate:
     <<: *app-image
@@ -127,6 +133,47 @@ services:
     volumes:
       - f1dbcache:/app/.f1db_cache
       - fastf1cache:/app/.fastf1_cache
+
+  # One command per call, inside the app image -- the calendar check, the
+  # validation, the Fast-F1 status and import, the cache purge:
+  #   vps_task job python scripts/should_ingest.py --days 3 --exit-code
+  #   vps_task job bash scripts/purge_cache.sh --latest
+  # No default command on purpose: it does what the caller names, and only
+  # inside this container. REVALIDATE_* are for scripts/purge_cache.sh.
+  job:
+    <<: *app-image
+    profiles: ['tasks']
+    restart: 'no'
+    environment:
+      <<: *direct-env
+      REVALIDATE_URL: ${REVALIDATE_URL:-}
+      REVALIDATE_SECRET: ${REVALIDATE_SECRET:-}
+    entrypoint: ['/usr/bin/tini', '--']
+    volumes:
+      - f1dbcache:/app/.f1db_cache
+      - fastf1cache:/app/.fastf1_cache
+
+  # The whole production database as gzipped SQL on stdout -- the only place the
+  # Fast-F1 data can be dumped from, since payloads are imported straight into
+  # production. `pnpm db:backup:prod` streams it to docker/backups/.
+  #
+  # pg_dump refuses to dump a server of a newer MAJOR version than itself, so
+  # this image's major must match the platform's Postgres (infra-setup's
+  # data/docker-compose.yml). Bump the two together.
+  backup:
+    image: postgres:17.11-alpine
+    profiles: ['tasks']
+    restart: 'no'
+    logging: *default-logging
+    environment:
+      DUMP_URL: ${DIRECT_URL:-${DATABASE_URL}}
+      PGCONNECT_TIMEOUT: '30'
+    entrypoint:
+      - sh
+      - -c
+      # pipefail: without it a pg_dump that dies halfway still exits 0 through
+      # gzip, and a truncated dump looks like a good one.
+      - set -o pipefail; pg_dump --dbname="$$DUMP_URL" --format=plain --no-owner --no-privileges --clean --if-exists | gzip -9
 
 volumes:
   f1dbcache:

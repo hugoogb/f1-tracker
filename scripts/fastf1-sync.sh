@@ -7,9 +7,9 @@
 # docs/DEPLOYMENT.md). A residential connection still works, so the fetch runs
 # wherever you are and only the database half runs on the box:
 #
-#   1. ask the server what is missing   ssh … fastf1.sh status  → targets.json
+#   1. ask the server what is missing   job fastf1_status.py     → targets.json
 #   2. fetch it here                    pipeline/scripts/fastf1_fetch.py
-#   3. load it there                    ssh … fastf1.sh import  < payload
+#   3. load it there                    job fastf1_import.py     < payload
 #
 # Run it after a race weekend, once the Monday ingest has created the race rows
 # (that run's job summary says how many races are waiting).
@@ -46,8 +46,10 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ENV_FILE="${ENV_FILE:-$ROOT/.env}"
 PAYLOAD_DIR="${PAYLOAD_DIR:-$ROOT/.fastf1_payloads}"
-APP_DIR="${APP_DIR:-/srv/apps/f1_api}"
-SSH_OPTS=(-o StrictHostKeyChecking=accept-new -o ConnectTimeout=30)
+# Every server-side step is a task container run through infra-setup's
+# deploy-app.sh -- nothing runs on the server's host.
+# shellcheck source=lib/vps.sh
+source "$ROOT/scripts/lib/vps.sh"
 
 # Read one KEY=value out of .env. The file is shared with the frontend, the
 # backend and docker compose, so it is parsed rather than sourced — no eval of
@@ -112,15 +114,15 @@ EOF
   exit 2
 fi
 case "$HOST" in
-  *@*) TARGET="$HOST" ;;
-  *) TARGET="${USER_NAME:-hugo}@$HOST" ;;
+  *@*) VPS_TARGET="$HOST" ;;
+  *) VPS_TARGET="${USER_NAME:-hugo}@$HOST" ;;
 esac
+TARGET="$VPS_TARGET"
 
 if [ "$PURGE" = "1" ]; then
-  # Straight to purge-cache.sh rather than through fastf1.sh: it has been on
-  # the box longer, so this works even before a deploy ships a newer fastf1.sh.
   echo "==> Purging the frontend cache from $TARGET..."
-  exec ssh "${SSH_OPTS[@]}" "$TARGET" "$APP_DIR/purge-cache.sh"
+  vps_task job bash scripts/purge_cache.sh --all </dev/null
+  exit $?
 fi
 
 status_args=(--need "$NEED")
@@ -132,9 +134,9 @@ status_args=(--need "$NEED")
 echo "==> Asking $TARGET what is missing..."
 targets="$(mktemp)"
 trap 'rm -f "$targets"' EXIT
-# fastf1.sh keeps its progress on stderr; stdout is the single JSON line. Take
-# the last line starting with `{` in case docker compose narrates on stdout too.
-ssh "${SSH_OPTS[@]}" "$TARGET" "$APP_DIR/fastf1.sh status ${status_args[*]}" \
+# The status script keeps its progress on stderr; stdout is the single JSON
+# line. Take the last line starting with `{` in case anything narrates on stdout.
+vps_task job python scripts/fastf1_status.py "${status_args[@]}" </dev/null \
   | grep '^{' | tail -1 > "$targets"
 
 count="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["count"])' "$targets")"
@@ -160,22 +162,33 @@ if [ ! -s "$payload" ]; then
 fi
 echo "    Payload: $payload ($(du -h "$payload" | cut -f1))"
 
-import_args=""
-[ "$DRY_RUN" = "1" ] && import_args="--dry-run"
+import_args=()
+[ "$DRY_RUN" = "1" ] && import_args+=(--dry-run)
 
 # Only the seasons in this payload need their pages expired. The target list is
 # a superset of what was fetched (the fetch may stop early), which can only
-# over-purge. fastf1.sh hands the environment on to purge-cache.sh; an older
-# copy on the box ignores it and purges everything, as it always did.
+# over-purge.
 purge_years="$(python3 -c 'import json,sys; print(",".join(str(y) for y in sorted({t["year"] for t in json.load(open(sys.argv[1]))["targets"]})))' "$targets")"
 
 echo "==> Loading it on $TARGET..."
 import_status=0
-ssh "${SSH_OPTS[@]}" "$TARGET" "PURGE_YEARS=$purge_years $APP_DIR/fastf1.sh import $import_args" < "$payload" \
+vps_task job python scripts/fastf1_import.py --payload - "${import_args[@]}" < "$payload" \
   || import_status=$?
 
-# 3 is fastf1.sh's "data loaded, cache not purged": the import itself worked,
-# but the site will not show it until the purge does, so say so and fail.
+if [ "$import_status" = "0" ]; then
+  echo "==> Validating (informational)..."
+  vps_task job python scripts/validate.py </dev/null >&2 || true
+  if [ "$DRY_RUN" != "1" ]; then
+    # 3 = "data loaded, cache not purged": the import worked, but the site will
+    # not show it until the purge does.
+    if [ -n "$purge_years" ]; then
+      vps_task job bash scripts/purge_cache.sh --years "$purge_years" </dev/null || import_status=3
+    else
+      vps_task job bash scripts/purge_cache.sh --all </dev/null || import_status=3
+    fi
+  fi
+fi
+
 if [ "$import_status" = "3" ]; then
   echo ""
   echo "==> The data is loaded, but the frontend cache was NOT purged — race pages"

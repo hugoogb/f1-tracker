@@ -71,7 +71,7 @@ EXPOSE 8000
 
 # Liveness only — /api/health does not touch PostgreSQL, so a database blip
 # doesn't mark a perfectly healthy API as dead. /api/health/db is the readiness
-# probe (used by scripts/vps/deploy.sh).
+# probe (checked through Cloudflare by .github/workflows/deploy.yml).
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
     CMD curl -fsS http://127.0.0.1:8000/api/health || exit 1
 

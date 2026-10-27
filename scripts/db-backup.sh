@@ -41,8 +41,6 @@ trap 'status=$?; echo "Error: $(basename "$0") failed at line $LINENO (exit $sta
 . "$(cd "$(dirname "$0")" && pwd)/lib/db.sh"
 
 BACKUP_DIR="${BACKUP_DIR:-$PROJECT_DIR/docker/backups}"
-APP_DIR="${APP_DIR:-/srv/apps/f1_api}"
-SSH_OPTS=(-o StrictHostKeyChecking=accept-new -o ConnectTimeout=30)
 
 REMOTE=0
 PUBLISH=0
@@ -106,14 +104,17 @@ EOF
     exit 2
   fi
   case "$HOST" in
-    *@*) TARGET="$HOST" ;;
-    *) TARGET="${USER_NAME:-hugo}@$HOST" ;;
+    *@*) VPS_TARGET="$HOST" ;;
+    *) VPS_TARGET="${USER_NAME:-hugo}@$HOST" ;;
   esac
 
-  echo "Dumping the production database on $TARGET..."
-  # backup.sh writes the gzipped dump to stdout and narrates on stderr, so the
-  # redirect here is the whole transfer.
-  ssh "${SSH_OPTS[@]}" "$TARGET" "$APP_DIR/backup.sh" > "$PARTIAL"
+  echo "Dumping the production database on $VPS_TARGET..."
+  # The `backup` task (docker/compose.prod.yml) writes the gzipped dump to
+  # stdout and narrates on stderr, so the redirect here is the whole transfer.
+  # It runs as a task container through infra-setup's deploy-app.sh.
+  # shellcheck source=lib/vps.sh
+  source "$PROJECT_DIR/scripts/lib/vps.sh"
+  vps_task backup </dev/null > "$PARTIAL"
 else
   db_require_container
   echo "Dumping $POSTGRES_DB from container $DB_CONTAINER..."

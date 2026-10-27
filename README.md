@@ -125,7 +125,7 @@ Full detail, including what to do if your own connection gets blocked, is in
 | `cd pipeline && uv run pytest -v` | Run backend tests |
 | `cd pipeline && uv run ruff check . && uv run ruff format --check .` | Lint + format check |
 | `docker compose -f docker/docker-compose.yml up -d` | Start PostgreSQL |
-| `/srv/apps/f1_api/ingest.sh` | Run a data ingest on the VPS (calendar-gated); scheduled weekly by `.github/workflows/ingest.yml` |
+| `VPS_TARGET=hugo@<vps> scripts/vps-ingest.sh` | Run a data ingest on the VPS (calendar-gated, as task containers); scheduled weekly by `.github/workflows/ingest.yml` |
 | `pnpm fastf1` | Fetch lap times + qualifying sectors here and load them on the VPS — see [Keeping production data fresh](#keeping-production-data-fresh) |
 
 ### Pre-commit Hooks

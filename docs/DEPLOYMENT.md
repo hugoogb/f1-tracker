@@ -164,7 +164,7 @@ The database starts empty. The f1db ingestors upsert the whole dataset from one
 release download, so they populate it directly (about two minutes):
 
 ```bash
-/srv/apps/f1_api/ingest.sh --force -- \
+VPS_TARGET=hugo@<vps> ./scripts/vps-ingest.sh --force -- \
   --base --layouts --colors --results --qualifying \
   --sprints --standings --pitstops --postprocess
 ```
@@ -306,18 +306,17 @@ stamp and the materialized views.
 ./scripts/db-restore.sh path/to.sql.gz # restore a specific file
 ```
 
-`--remote` runs `/srv/apps/f1_api/backup.sh` on the box over Tailscale SSH and
-streams the dump back into `docker/backups/`. It reads `VPS_HOST` from `.env`,
-the same key `pnpm fastf1` uses. On the server the dump runs from a throwaway
-throwaway postgres container on the shared network, against `DIRECT_URL` —
-the app image carries Python, not the PostgreSQL client, and a dump has no
-business going through PgBouncer's transaction pooling.
+`--remote` runs the `backup` task (`docker/compose.prod.yml`) on the box through
+the platform's `deploy-app.sh` and streams the dump back into `docker/backups/`.
+It reads `VPS_HOST` from `.env`, the same key `pnpm fastf1` uses. The task is a
+throwaway `postgres` container on the shared network, dumping against
+`DIRECT_URL` — the app image carries Python, not the PostgreSQL client, and a
+dump has no business going through PgBouncer's transaction pooling.
 
 **Versions have to match.** `pg_dump` refuses outright to dump a server newer
-than itself, and the platform upgrades its cluster on its own schedule — so
-`backup.sh` asks the server its version (`SHOW server_version_num`, via `psql`,
-which does not mind the gap) and pulls the matching `postgres:<major>-alpine`.
-Pin `PG_IMAGE` to override. In the other direction a dump is only guaranteed to
+than itself, so the `backup` task's image (`postgres:17.11-alpine`) must have
+the same major as the platform's Postgres (infra-setup's
+`data/docker-compose.yml`). Bump the two together. In the other direction a dump is only guaranteed to
 load into a server of the same or a later version, which is why
 `docker/docker-compose.yml` and the CI service container track the same major as
 the VPS: a 17 dump fails on a 16 server at `SET transaction_timeout`.
@@ -357,7 +356,8 @@ New race data has to be ingested after each race weekend.
 ### On the VPS (scheduled)
 
 `.github/workflows/ingest.yml` fires Mondays at 06:00 UTC, joins the tailnet and
-runs `/srv/apps/f1_api/ingest.sh` (placed there by the deploy), which:
+runs `scripts/vps-ingest.sh`, which runs each step below as a task container on
+the box through the platform's `deploy-app.sh` (`scripts/lib/vps.sh`):
 
 1. **Calendar gate** — `pipeline/scripts/should_ingest.py --exit-code` skips the
    run unless a race ran in the last 3 days, so off-weekends cost nothing. It
@@ -371,7 +371,7 @@ runs `/srv/apps/f1_api/ingest.sh` (placed there by the deploy), which:
    constructors and circuits, and the global lists — and leaves finished seasons
    alone (`revalidateTag(..., { expire: 0 })`: the next request renders fresh).
    Custom seed flags purge everything instead; so does
-   `/srv/apps/f1_api/purge-cache.sh --all`, which is the one to run after a
+   `pnpm fastf1 --purge`, which is the one to run after a
    historical backfill or an f1db correction to an old season. A
    purge that does not land — unset URL/secret, or a 401 because the VPS's
    `REVALIDATE_SECRET` differs from Vercel's — does not fail the run but adds a
@@ -383,9 +383,10 @@ runs `/srv/apps/f1_api/ingest.sh` (placed there by the deploy), which:
 Manual runs:
 
 ```bash
-/srv/apps/f1_api/ingest.sh                            # calendar-gated
-/srv/apps/f1_api/ingest.sh --force                    # ignore the gate
-/srv/apps/f1_api/ingest.sh --force -- --results --current-year   # custom seed flags
+export VPS_TARGET=hugo@<vps>
+./scripts/vps-ingest.sh                               # calendar-gated
+./scripts/vps-ingest.sh --force                       # ignore the gate
+./scripts/vps-ingest.sh --force -- --results --current-year   # custom seed flags
 ```
 
 Or from the Actions tab: **ingest → Run workflow**, with optional `force` and
@@ -416,9 +417,9 @@ the database half runs on the box:
 
 ```
 your machine                                 VPS
-                     fastf1.sh status  ──▶   what is still missing? (JSON)
-  fastf1_fetch.py  ◀──────────────────────
-  payload.ndjson.gz ──▶ fastf1.sh import ─▶  fastf1_import.py → PostgreSQL
+                fastf1_status.py (job task) ──▶  what is still missing? (JSON)
+  fastf1_fetch.py  ◀──────────────────────────
+  payload.ndjson.gz ──▶ fastf1_import.py (job) ─▶  PostgreSQL
                                              → validate → purge Vercel cache
 ```
 
@@ -458,10 +459,10 @@ The three steps are also available separately, which is what to reach for when
 something goes wrong:
 
 ```bash
-ssh hugo@<vps> '/srv/apps/f1_api/fastf1.sh status --limit 10' > targets.json
-cd pipeline
-uv run python scripts/fastf1_fetch.py --targets targets.json --out payload.ndjson.gz
-ssh hugo@<vps> '/srv/apps/f1_api/fastf1.sh import' < payload.ndjson.gz
+export VPS_TARGET=hugo@<vps>; source scripts/lib/vps.sh
+vps_task job python scripts/fastf1_status.py --limit 10 </dev/null > targets.json
+(cd pipeline && uv run python scripts/fastf1_fetch.py --targets ../targets.json --out ../payload.ndjson.gz)
+vps_task job python scripts/fastf1_import.py --payload - < payload.ndjson.gz
 ```
 
 The payload is newline-delimited JSON (gzipped), one line per session, streamed
@@ -517,17 +518,21 @@ Dockerfile fails in CI instead of on the server.
 ### Deploying
 
 `.github/workflows/deploy.yml` deploys the backend on every push to `master`
-that touches `pipeline/`, `docker/compose.prod.yml`, `scripts/vps/` or the
+that touches `pipeline/`, `docker/compose.prod.yml` or the
 workflow itself, and on demand from the Actions tab (with an optional **ingest**
 checkbox). It:
 
 1. builds `ghcr.io/hugoogb/f1_api` for `linux/amd64` and pushes it tagged with
    the commit SHA and `latest`
 2. joins the tailnet as an ephemeral node tagged `tag:ci`
-3. ships `docker-compose.yml`, `ingest.sh`, `fastf1.sh`, `backup.sh` and
-   `purge-cache.sh` into `/srv/apps/f1_api/`
-4. writes `TAG=<sha>` to `.tag`, pulls, runs migrations, `up -d --wait`, and
-   verifies `/api/health/db`
+3. logs in over Tailscale SSH as `deploy` — a user that can run the platform's
+   `deploy-app.sh` and nothing else — and sends `docker/compose.prod.yml` to
+   `deploy-app.sh deploy f1_api <sha>`, which checks it against the platform's
+   deploy policy, installs it, pulls, runs the `migrate` task, and `up -d --wait`s
+4. verifies `/api/health/db` through Cloudflare
+
+Nothing else from this repository reaches the server: the jobs that used to be
+shell scripts copied onto the box are now `tasks` services in the compose file.
 
 Deploys are serialised with a `concurrency` group, and never cancelled in
 flight — a half-applied migration is worse than waiting.
@@ -586,7 +591,6 @@ dc ps                      # what's running, and its health
 dc logs -f --tail 100      # follow the API
 dc exec -T f1_api curl -fsS http://127.0.0.1:8000/api/health/db
 
-./ingest.sh --force        # ingest now, ignoring the calendar gate
 
 dc run --rm -T --entrypoint python ingest scripts/validate.py </dev/null  # data completeness
 dc run --rm -T migrate </dev/null                                         # re-run migrations

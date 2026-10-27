@@ -8,7 +8,7 @@ table was created and stayed empty.
 
 Two targets are missing from that list on purpose. Formula 1 answers this
 server's IP with a 403, so lap times and qualifying sectors cannot be fetched
-there at all; they arrive off-box through `fastf1.sh`. Everything else should
+there at all; they arrive off-box through `pnpm fastf1`. Everything else should
 be in the list, and this fails when it is not.
 
 Parsed out of the file as text rather than with a YAML library: the only
@@ -25,7 +25,7 @@ from scripts.seed import INGESTOR_FLAGS
 
 COMPOSE = pathlib.Path(__file__).resolve().parents[2] / "docker" / "compose.prod.yml"
 
-# Fetched off-box because F1 blocks the server — see `scripts/vps/fastf1.sh`.
+# Fetched off-box because F1 blocks the server — see `scripts/fastf1-sync.sh`.
 OFF_BOX_TARGETS = {"laptimes", "qualifying-sectors"}
 
 

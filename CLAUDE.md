@@ -18,8 +18,8 @@ Deployment: frontend on Vercel; the API runs as a Docker container (`f1_api`) on
 
 - `apps/web/` - Next.js frontend (20 routes, 36+ components)
 - `pipeline/` - Python data pipeline + FastAPI backend (14 routers, 50 endpoints); `Dockerfile` builds the API/migrate/ingest image
-- `docker/` - `docker-compose.yml` (local dev DB), `compose.prod.yml` (the VPS stack — shipped to `/srv/apps/f1_api/docker-compose.yml` by the deploy), `.env.prod.example`, backups
-- `scripts/` - `bootstrap.sh`, `db-backup.sh`, `db-restore.sh`, `seed-fetch.sh` (download the seed dump from its release), `fastf1-sync.sh` (laptop-side Fast-F1 fetch), `lib/db.sh` (shared container resolution + dump inspection + seed release location), `vps/ingest.sh`, `vps/fastf1.sh`, `vps/backup.sh`, `vps/purge-cache.sh` (copied to the VPS by the deploy)
+- `docker/` - `docker-compose.yml` (local dev DB), `compose.prod.yml` (the VPS stack — sent by the deploy to the platform's `deploy-app.sh`, which checks it against the deploy policy and installs it as `/srv/apps/f1_api/docker-compose.yml`), `.env.prod.example`, backups
+- `scripts/` - `bootstrap.sh`, `db-backup.sh`, `db-restore.sh`, `seed-fetch.sh` (download the seed dump from its release), `fastf1-sync.sh` (laptop-side Fast-F1 fetch), `lib/db.sh` (shared container resolution + dump inspection + seed release location), `lib/vps.sh` (`vps_task`: every server-side step, run as a task container through the platform's `deploy-app.sh`), `vps-ingest.sh` (sequences an ingest from the runner or a laptop). Nothing from this repo runs on the server's host
 
 ### Frontend Routes
 
@@ -192,14 +192,15 @@ daily and on any purge, since it reads `f1-global`), `robots.ts`, `manifest.ts`,
 ### VPS (production backend)
 - App name is `f1_api` everywhere: compose project, container, database, GHCR image. It lives at `/srv/apps/f1_api` on the box
 - Deploys: push to `master`, or Actions -> deploy -> Run workflow (optional `ingest` input). CI builds the image and the server pulls it — nothing is built on the VPS and the repo is not checked out there
-- `/srv/apps/f1_api/ingest.sh [--force] [-- <seed flags>]` - Calendar-gated f1db ingest + Vercel cache purge (newest season only; everything when custom seed flags are given; `PURGE_SCOPE=--all|--latest` overrides); copied there by the deploy
-- `/srv/apps/f1_api/purge-cache.sh [--all | --latest | --years Y,Y]` - Vercel cache purge on its own; `--all` (the default) after a historical backfill or correction
-- `/srv/apps/f1_api/fastf1.sh status|import` - The database half of the Fast-F1 path: report what is missing (JSON on stdout), or load a payload arriving on stdin. Formula 1 blocks the VPS's IP, so nothing here fetches from Fast-F1
-- `/srv/apps/f1_api/backup.sh > f1_api.sql.gz` - Dump the whole production database to stdout, from a throwaway postgres container on the shared network against `DIRECT_URL`. It asks the server its version first and pulls the matching `postgres:<major>-alpine`, because pg_dump refuses to dump a server newer than itself; `PG_IMAGE` pins one instead. Driven from a laptop by `pnpm db:backup:prod`
-- Manual deploy/rollback on the box: `echo "TAG=<sha>" > .tag`, then `docker compose --env-file .env --env-file .tag pull && ... run --rm migrate && ... up -d --wait`
+- Server access is one command: the platform's `/srv/scripts/deploy-app.sh` (CI logs in as `deploy`, which can run only that). `deploy <app> <sha> < compose` checks the compose file against the deploy policy, then pulls, runs the `migrate` task and `up -d --wait`s; `task <app> <service> [args]` runs a `tasks`-profile service. `scripts/lib/vps.sh` wraps it as `vps_task <service> [args]`; set `VPS_TARGET=hugo@<vps>` to use it from a laptop
+- `VPS_TARGET=hugo@<vps> scripts/vps-ingest.sh [--force] [-- <seed flags>]` - Calendar-gated f1db ingest + Vercel cache purge (newest season only; everything when custom seed flags are given; `PURGE_SCOPE=--all|--latest` overrides). Every step is a task container: `job` (should_ingest, validate, purge) and `ingest`
+- `vps_task job bash scripts/purge_cache.sh [--all | --latest | --years Y,Y]` - Vercel cache purge on its own (`pnpm fastf1 --purge` does `--all`); `--all` after a historical backfill or correction
+- `vps_task job python scripts/fastf1_status.py` / `... fastf1_import.py --payload - < payload` - The database half of the Fast-F1 path; `pnpm fastf1` drives both. Formula 1 blocks the VPS's IP, so nothing there fetches from Fast-F1
+- `vps_task backup > f1_api.sql.gz` - Dump the whole production database to stdout (the `backup` task: `postgres:17.11-alpine`, whose major must match the platform's Postgres — pg_dump refuses to dump a newer server). Driven from a laptop by `pnpm db:backup:prod`
+- Manual rollback on the box: `cd /srv/apps/f1_api && cp docker-compose.yml.prev docker-compose.yml && cp .tag.prev .tag && docker compose --env-file .env --env-file .tag up -d --wait` (or Actions -> deploy on an older commit)
 - Env file: `/srv/apps/f1_api/.env` (created by the platform's `new-app.sh`; app-specific keys in `docker/.env.prod.example`) plus `.tag`, which carries only `TAG=<sha>`
 - Database is the platform's shared PostgreSQL: the API uses `DATABASE_URL` (PgBouncer), migrations and ingest use `DIRECT_URL` (direct — transaction pooling cannot run a migration). Backups are the platform's job
-- Scheduling: `.github/workflows/ingest.yml` — Mondays 06:00 UTC, calendar-gated inside `ingest.sh`; run it by hand from the Actions tab with optional `force`/`flags` inputs. Its last step reports the Fast-F1 backlog, which is a manual job (`scripts/fastf1-sync.sh`)
+- Scheduling: `.github/workflows/ingest.yml` — Mondays 06:00 UTC, calendar-gated inside `scripts/vps-ingest.sh`; run it by hand from the Actions tab with optional `force`/`flags` inputs. Its last step reports the Fast-F1 backlog, which is a manual job (`scripts/fastf1-sync.sh`)
 
 ### Weekend schedules and pit stop timing
 
@@ -236,8 +237,8 @@ Two f1db quirks the UI is built around:
   race in one bar.
 
 ### Data Updates
-- **Automated (f1db)**: `.github/workflows/ingest.yml` runs Mondays 06:00 UTC — joins the tailnet and runs `/srv/apps/f1_api/ingest.sh` on the box, calendar-gated, straight into PostgreSQL, then purges the Vercel cache. The f1db ingestors upsert from one release download, so they can bootstrap an empty DB as well as update one.
-- **Manual (Fast-F1)**: `pnpm fastf1` from a machine on a residential connection (`VPS_HOST` in `.env`) — asks the box what is missing (`fastf1.sh status`), fetches those sessions locally (`pipeline/scripts/fastf1_fetch.py`, ~45 s each), ships the payload back and loads it (`fastf1.sh import`). This cannot be automated in CI: `livetiming.formula1.com` returns 403 to the VPS *and* to GitHub's runners (measured — see `docs/DEPLOYMENT.md`). The Monday ingest run reports how many races are waiting, since nothing else will remind you.
+- **Automated (f1db)**: `.github/workflows/ingest.yml` runs Mondays 06:00 UTC — joins the tailnet and runs `scripts/vps-ingest.sh`, which runs task containers on the box through `deploy-app.sh`, calendar-gated, straight into PostgreSQL, then purges the Vercel cache. The f1db ingestors upsert from one release download, so they can bootstrap an empty DB as well as update one.
+- **Manual (Fast-F1)**: `pnpm fastf1` from a machine on a residential connection (`VPS_HOST` in `.env`) — asks the box what is missing (the `job` task running `fastf1_status.py`), fetches those sessions locally (`pipeline/scripts/fastf1_fetch.py`, ~45 s each), ships the payload back and loads it (`fastf1_import.py` in the same task). This cannot be automated in CI: `livetiming.formula1.com` returns 403 to the VPS *and* to GitHub's runners (measured — see `docs/DEPLOYMENT.md`). The Monday ingest run reports how many races are waiting, since nothing else will remind you.
 - Every run of `run_full_load` writes an `ingest_runs` row (target, start/finish, status,
   `f1db_version`, truncated error) from its **own** session — the ingest's session is unusable
   after a failed statement, so a shared one could only ever log failures that did not involve
@@ -414,12 +415,12 @@ Two f1db quirks the UI is built around:
   `app/api/revalidate` takes no body / `{"scope":"all"}` (expire `f1-data`), `{"scope":"latest"}`
   or `{"years":[...]}` (expire those seasons, their entrants' and circuits' entity tags, and
   `f1-global`; it falls back to everything if it cannot ask the API who took part). The weekly
-  `ingest.sh` sends `--latest`, `pnpm fastf1` sends the payload's years via `PURGE_YEARS`, and
-  `purge-cache.sh --all` is the manual full purge (after a backfill or an f1db correction to an
+  `vps-ingest.sh` sends `--latest`, `pnpm fastf1` sends the payload's years (`--years`), and
+  `purge_cache.sh --all` is the manual full purge (after a backfill or an f1db correction to an
   old season). Add a new endpoint under the path that matches its scope, or teach
   `cacheScopeFor` about it. The purge calls `revalidateTag(tag, { expire: 0 })`, never `'max'`:
   `'max'` is stale-while-revalidate, so the next visitor would still get the page rendered before
-  the import. `purge-cache.sh` exits non-zero and prints a `::warning::` when the purge does not
+  the import. `pipeline/scripts/purge_cache.sh` exits non-zero and prints a `::warning::` when the purge does not
   land (unset URL/secret, 401 from a mismatched `REVALIDATE_SECRET`), and its callers report it.
   The `[ref]`/`[year]` detail routes each export an empty `generateStaticParams()` — without one a
   dynamic segment never enters the full route cache, and with one returning `[]` nothing is
@@ -440,7 +441,7 @@ Two f1db quirks the UI is built around:
   the build with "Invalid segment configuration export detected"
 - Pre-commit: Husky runs lint-staged (prettier) + ruff check/format on staged `.py` files
 - CI: GitHub Actions `ci.yml` — frontend (audit, format, lint, typecheck, build) + backend (ruff, pip-audit, pytest) + backend image (docker build + smoke test)
-- CD: GitHub Actions `deploy.yml` — on push to `master` touching `pipeline|docker/compose.prod.yml|scripts/vps`, builds and pushes `ghcr.io/hugoogb/f1_api:<sha>`, joins the tailnet as `tag:ci`, then over Tailscale SSH ships `docker-compose.yml`+`ingest.sh`+`fastf1.sh`+`purge-cache.sh`, pulls, migrates, `up -d --wait` and checks `/api/health/db`. Secrets are `VPS_HOST`/`TS_OAUTH_CLIENT_ID`/`TS_OAUTH_SECRET` — there is no SSH key (Tailscale SSH authenticates by tailnet identity), and no DB credentials leave the server
+- CD: GitHub Actions `deploy.yml` — on push to `master` touching `pipeline|docker/compose.prod.yml`, builds and pushes `ghcr.io/hugoogb/f1_api:<sha>`, joins the tailnet as `tag:ci`, then runs one command over Tailscale SSH as `deploy`: `deploy-app.sh deploy f1_api <sha> < docker/compose.prod.yml` (policy check, pull, `migrate` task, `up -d --wait`), and checks `/api/health/db` through Cloudflare. `TS_OAUTH_CLIENT_ID`/`TS_OAUTH_SECRET` live in the `vps` environment (master only), `VPS_HOST` is a repository secret — there is no SSH key (Tailscale SSH authenticates by tailnet identity), and no DB credentials leave the server
 - Docker naming: local dev is prefixed with `STACK_NAME` (default `f1-tracker`); on the VPS the platform's convention wins and everything is named `f1_api`, so the project stays distinguishable on a box running several apps
 - Shell scripts resolve the DB container via `scripts/lib/db.sh` (`STACK_NAME`/`DB_CONTAINER`) — never hardcode a container name
 

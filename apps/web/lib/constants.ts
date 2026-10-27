@@ -6,7 +6,7 @@ export const REVALIDATE_SECONDS = 86400
 
 // TTL for responses about a season that is over (any year before the current
 // one). Nothing the weekly ingest does changes them, so re-rendering them daily
-// only spends function time; a full purge (`purge-cache.sh --all`) still
+// only spends function time; a full purge (`purge_cache.sh --all`) still
 // reaches them through `F1_DATA_TAG` when a backfill or an f1db correction does.
 export const HISTORICAL_REVALIDATE_SECONDS = 2592000 // 30 days
 

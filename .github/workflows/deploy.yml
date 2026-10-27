@@ -5,15 +5,18 @@
 # own stored GHCR credentials. Nothing is built on the box, and no registry
 # credentials are passed to it.
 #
-# Repository secrets required:
-#   TS_OAUTH_CLIENT_ID / TS_OAUTH_SECRET   join the tailnet as tag:ci
-#   VPS_HOST                               the server's tailnet IP (100.x.y.z)
+# Secrets required:
+#   TS_OAUTH_CLIENT_ID / TS_OAUTH_SECRET   in the `vps` environment (master only)
+#   VPS_HOST                               repository secret, the server's 100.x.y.z
 #
 # There is deliberately NO SSH key here. The server runs Tailscale SSH, which
 # owns port 22 on the tailnet address and authenticates by tailnet identity
-# rather than authorized_keys — so a key would be ignored. What grants access is
-# the `ssh` rule in the tailnet policy file saying tag:ci may SSH to tag:server
-# as hugo. Revoking CI is editing that rule or deleting the OAuth client.
+# rather than authorized_keys. What grants access is the `ssh` rule in the
+# tailnet policy file saying tag:ci may SSH to tag:server as `deploy` -- a user
+# that can run infra-setup's deploy-app.sh and nothing else. This job sends
+# docker/compose.prod.yml to it; the server checks it against its deploy policy,
+# then pulls, migrates (the `migrate` task) and restarts. Nothing else from this
+# repository runs on the server.
 name: deploy
 
 on:
@@ -25,7 +28,6 @@ on:
     paths:
       - 'pipeline/**'
       - 'docker/compose.prod.yml'
-      - 'scripts/vps/**'
       - '.github/workflows/deploy.yml'
   workflow_dispatch:
     inputs:
@@ -45,7 +47,7 @@ env:
   # Must match the name passed to new-app.sh: it is the container name, the
   # compose project, the database and the GHCR image name.
   APP_NAME: f1_api
-  APP_DIR: /srv/apps/f1_api
+  PUBLIC_API: https://f1-api.hugoogb.dev
 
 # Action versions are pinned to the majors this repository's ci.yml already runs
 # green (checkout@v5, setup-buildx@v3, build-push@v6), not the newer ones in the
@@ -54,6 +56,11 @@ env:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    # The Tailscale OAuth secrets live in the `vps` environment, not the
+    # repository, and that environment only releases them to runs on master.
+    # A workflow edited on a branch and started with workflow_dispatch gets
+    # nothing to join the tailnet with.
+    environment: vps
     timeout-minutes: 30
     permissions:
       contents: read
@@ -117,91 +124,26 @@ jobs:
       # inside WireGuard between two authenticated tailnet peers. Do not carry
       # this into a deploy that reaches a host over the public internet.
       #
-      # The stack definition lives in this repository rather than being
-      # hand-maintained on the box, so it is shipped here before anything runs.
-      # It is written as docker-compose.yml — the name new-app.sh uses — so the
-      # app directory holds exactly one compose file and the platform's own
-      # runbook commands address the same stack this deploy does.
-      # Written to a temp file and moved into place, so a truncated transfer
-      # cannot leave a half-written compose file behind.
-      - name: Ship the stack definition
+      # One command, with the stack definition as its stdin. deploy-app.sh reads
+      # all of it before running anything -- so the old hazard of a `compose run`
+      # swallowing the rest of a `bash -s` script cannot happen: there is no
+      # script -- checks it against the platform's deploy policy, installs it as
+      # docker-compose.yml, pulls, runs the `migrate` task against DIRECT_URL
+      # (PgBouncer's transaction pooling cannot run a migration), and
+      # `up -d --wait`s on the healthcheck. On failure it says why and exits
+      # non-zero, leaving the previous compose file and tag as .prev.
+      - name: Deploy
         env:
           SSH_OPTS: -o StrictHostKeyChecking=accept-new -o ConnectTimeout=30
         run: |
-          set -euo pipefail
-          target="hugo@${{ secrets.VPS_HOST }}"
+          ssh $SSH_OPTS "deploy@${{ secrets.VPS_HOST }}" \
+            sudo -u hugo /srv/scripts/deploy-app.sh deploy "$APP_NAME" "${{ github.sha }}" \
+            < docker/compose.prod.yml
 
-          ssh $SSH_OPTS "$target" \
-            "cat > '$APP_DIR/docker-compose.yml.tmp'" < docker/compose.prod.yml
-          ssh $SSH_OPTS "$target" \
-            "cat > '$APP_DIR/ingest.sh.tmp'" < scripts/vps/ingest.sh
-          # fastf1.sh loads session data fetched off-box (Formula 1 blocks the
-          # server's IP); purge-cache.sh is the Vercel purge both scripts share.
-          ssh $SSH_OPTS "$target" \
-            "cat > '$APP_DIR/fastf1.sh.tmp'" < scripts/vps/fastf1.sh
-          ssh $SSH_OPTS "$target" \
-            "cat > '$APP_DIR/purge-cache.sh.tmp'" < scripts/vps/purge-cache.sh
-          # backup.sh dumps the production database to stdout. It is the only
-          # place the Fast-F1 data can be dumped from, since payloads are
-          # imported straight into production.
-          ssh $SSH_OPTS "$target" \
-            "cat > '$APP_DIR/backup.sh.tmp'" < scripts/vps/backup.sh
-
-          ssh $SSH_OPTS "$target" bash -s <<REMOTE
-          set -euo pipefail
-          mv "$APP_DIR/docker-compose.yml.tmp" "$APP_DIR/docker-compose.yml"
-          mv "$APP_DIR/ingest.sh.tmp"          "$APP_DIR/ingest.sh"
-          mv "$APP_DIR/fastf1.sh.tmp"          "$APP_DIR/fastf1.sh"
-          mv "$APP_DIR/purge-cache.sh.tmp"     "$APP_DIR/purge-cache.sh"
-          mv "$APP_DIR/backup.sh.tmp"          "$APP_DIR/backup.sh"
-          chmod +x "$APP_DIR/ingest.sh" "$APP_DIR/fastf1.sh" \
-                   "$APP_DIR/purge-cache.sh" "$APP_DIR/backup.sh"
-          REMOTE
-
-      - name: Deploy over Tailscale SSH
-        run: |
-          ssh -o StrictHostKeyChecking=accept-new \
-              -o ConnectTimeout=30 \
-              "hugo@${{ secrets.VPS_HOST }}" 'bash -s' <<'REMOTE'
-          set -euo pipefail
-
-          cd /srv/apps/f1_api
-          echo "TAG=${{ github.sha }}" > .tag
-
-          dc() { docker compose --env-file .env --env-file .tag "$@"; }
-
-          # The server pulls with its own stored GHCR credentials. Nothing is
-          # passed from here.
-          dc pull
-
-          # Schema first, and against DIRECT_URL — PgBouncer's transaction
-          # pooling cannot run a migration. `run --rm` rather than a startup
-          # hook, so a failed migration fails the deploy instead of leaving the
-          # API crash-looping against a half-migrated database.
-          #
-          # </dev/null is load-bearing. This whole script arrives on the SSH
-          # session's stdin, and `compose run` and `compose exec` both attach
-          # stdin — so without it they swallow the remaining lines, bash never
-          # runs them, and the deploy exits 0 having only migrated. That failed
-          # silently for four deploys: the API container was never created and
-          # the health check below never executed.
-          dc run --rm -T migrate </dev/null
-
-          # --wait blocks on the healthcheck, so a broken image fails the
-          # workflow instead of quietly sitting there crash-looping.
-          dc up -d --wait
-
-          # Liveness got us this far; confirm the API can actually reach
-          # PostgreSQL before calling the deploy good.
-          dc exec -T f1_api curl -fsS http://127.0.0.1:8000/api/health/db </dev/null
-
-          # Belt and braces against the above ever regressing: assert the API
-          # container is actually running. A deploy that reports success while
-          # having started nothing is worse than one that fails.
-          dc ps --status running --services | grep -qx f1_api
-
-          docker image prune -f
-          REMOTE
+      # Liveness got us this far; confirm the API can actually reach PostgreSQL,
+      # through Cloudflare and Caddy exactly as the frontend does.
+      - name: Assert the API reaches its database
+        run: curl -fsS --retry 12 --retry-delay 5 --retry-all-errors "${PUBLIC_API}/api/health/db"
 
       # Opt-in from the "Run workflow" button. The scheduled path is
       # f1-tracker-ingest.timer on the server; this is the manual override, so it
@@ -209,8 +151,6 @@ jobs:
       # and Fast-F1 sessions, which is slow — hence the long timeout upstream.
       - name: Ingest
         if: inputs.ingest
-        run: |
-          ssh -o StrictHostKeyChecking=accept-new \
-              -o ConnectTimeout=30 \
-              "hugo@${{ secrets.VPS_HOST }}" \
-              "/srv/apps/f1_api/ingest.sh --force"
+        env:
+          VPS_TARGET: deploy@${{ secrets.VPS_HOST }}
+        run: ./scripts/vps-ingest.sh --force
