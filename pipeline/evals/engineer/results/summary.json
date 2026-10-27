@@ -1,7 +1,7 @@
 [
  {
   "model": "claude-haiku-5-5",
-  "pass": 27,
+  "pass": 30,
   "n": 30,
   "by_tier": {
    "casual": [
@@ -9,106 +9,22 @@
     10
    ],
    "enthusiast": [
-    17,
+    20,
     20
    ]
   },
-  "cost_total": 0.0078,
-  "cost_per_q": 0.00026,
-  "latency_median": 3.45,
-  "latency_p90": 3.86,
-  "tool_calls_avg": 1.33,
-  "href_rate": 0.9666666666666667,
-  "errors": 0,
-  "usage": {
-   "input": 29840,
-   "output": 7520,
-   "cache_write": 0,
-   "cache_read": 106061
-  }
- },
- {
-  "model": "openai/gpt-oss-120b",
-  "pass": 26,
-  "n": 30,
-  "by_tier": {
-   "casual": [
-    10,
-    10
-   ],
-   "enthusiast": [
-    16,
-    20
-   ]
-  },
-  "cost_total": 0.01299,
-  "cost_per_q": 0.000433,
-  "latency_median": 10.81,
-  "latency_p90": 24.93,
-  "tool_calls_avg": 1.63,
-  "href_rate": 0.9333333333333333,
-  "errors": 1,
-  "usage": {
-   "input": 52425,
-   "output": 4006,
-   "cache_write": 0,
-   "cache_read": 36352
-  }
- },
- {
-  "model": "openai/gpt-oss-20b",
-  "pass": 24,
-  "n": 30,
-  "by_tier": {
-   "casual": [
-    10,
-    10
-   ],
-   "enthusiast": [
-    14,
-    20
-   ]
-  },
-  "cost_total": 0.00615,
-  "cost_per_q": 0.000205,
-  "latency_median": 14.05,
-  "latency_p90": 25.42,
-  "tool_calls_avg": 1.43,
-  "href_rate": 0.8333333333333334,
-  "errors": 1,
-  "usage": {
-   "input": 63883,
-   "output": 3292,
-   "cache_write": 0,
-   "cache_read": 9984
-  }
- },
- {
-  "model": "claude-sonnet-5-5",
-  "pass": 28,
-  "n": 30,
-  "by_tier": {
-   "casual": [
-    10,
-    10
-   ],
-   "enthusiast": [
-    18,
-    20
-   ]
-  },
-  "cost_total": 0.14308,
-  "cost_per_q": 0.004769,
-  "latency_median": 3.2,
-  "latency_p90": 4.04,
-  "tool_calls_avg": 1.27,
+  "cost_total": 0.01237,
+  "cost_per_q": 0.000412,
+  "latency_median": 3.52,
+  "latency_p90": 5.54,
+  "tool_calls_avg": 1.73,
   "href_rate": 1.0,
   "errors": 0,
   "usage": {
-   "input": 27092,
-   "output": 6436,
-   "cache_write": 1583,
-   "cache_read": 102895
+   "input": 49570,
+   "output": 9694,
+   "cache_write": 0,
+   "cache_read": 256303
   }
  }
 ]
