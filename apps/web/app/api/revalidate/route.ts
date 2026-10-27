@@ -23,7 +23,7 @@ function safeEqual(a: string, b: string): boolean {
  *
  * - no body, an empty body, or `{"scope":"all"}`: everything (the `f1-data`
  *   tag). This is what every caller sent before scoped purges existed, so an
- *   old `purge-cache.sh` still gets the purge it always got.
+ *   old caller still gets the purge it always got.
  * - `{"scope":"latest"}`: the newest season the API knows, as below.
  * - `{"years":[2025,2026]}`: those seasons, the drivers, constructors and
  *   circuits that took part in them, and the global lists.

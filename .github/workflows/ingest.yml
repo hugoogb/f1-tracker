@@ -1,16 +1,17 @@
 # Weekly F1 data ingest.
 #
 # The database is only reachable from the VPS, so the work happens there: this
-# joins the tailnet and runs /srv/apps/f1_api/ingest.sh, which the deploy keeps
-# up to date on the box. Same credentials and same SSH path as deploy.yml — see
-# its header for the secrets and why there is no SSH key.
+# joins the tailnet and runs scripts/vps-ingest.sh, which sequences task
+# containers on the box through infra-setup's deploy-app.sh. Same credentials and
+# same SSH path as deploy.yml -- see its header for the secrets and why there is
+# no SSH key.
 #
 # This covers the f1db dataset only. Lap times and qualifying sector times come
 # from Fast-F1, which refuses both this runner and the server, so they are
 # fetched by hand (`pnpm fastf1`); the last step here reports how many
 # races are waiting.
 #
-# ingest.sh applies its own calendar gate (skip unless a race ran in the last 3
+# vps-ingest.sh applies its own calendar gate (skip unless a race ran in the last 3
 # days), so this schedule can be dumb: it fires every Monday and most weeks does
 # nothing. GitHub's scheduled runs drift by minutes to hours under load, which
 # does not matter for a weekly job with a 3-day window.
@@ -53,6 +54,12 @@ jobs:
     timeout-minutes: 360
 
     steps:
+      # vps-ingest.sh and scripts/lib/vps.sh come from the checkout; nothing is
+      # copied to the server.
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
       - uses: tailscale/github-action@v3
         with:
           oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
@@ -71,8 +78,8 @@ jobs:
             exit 1
           fi
 
-      # ingest.sh ends by purging the Vercel cache. A failed purge does not fail
-      # this step (the data is in), but purge-cache.sh prints a `::warning::`
+      # vps-ingest.sh ends by purging the Vercel cache. A failed purge does not
+      # fail this step (the data is in), but purge_cache.sh prints a `::warning::`
       # workflow command, which Actions picks up from the ssh output and shows as
       # an annotation on the run — so an unset or mismatched REVALIDATE_SECRET is
       # visible here rather than as pages that quietly stay a day behind.
@@ -82,17 +89,19 @@ jobs:
           # On the schedule both are empty, giving a plain gated run.
           FORCE: ${{ inputs.force && '--force' || '' }}
           FLAGS: ${{ inputs.flags }}
+          VPS_TARGET: deploy@${{ secrets.VPS_HOST }}
         run: |
           set -euo pipefail
-
-          cmd="/srv/apps/f1_api/ingest.sh $FORCE"
+          args=()
+          [ -n "$FORCE" ] && args+=("$FORCE")
+          # FLAGS is free text from the Run-workflow form: split on spaces into
+          # separate words (never eval'd), each of which becomes one argument to
+          # seed.py inside the ingest container.
           if [ -n "$FLAGS" ]; then
-            cmd="$cmd -- $FLAGS"
+            read -r -a seed <<< "$FLAGS"
+            args+=(-- "${seed[@]}")
           fi
-
-          ssh -o StrictHostKeyChecking=accept-new \
-              -o ConnectTimeout=30 \
-              "hugo@${{ secrets.VPS_HOST }}" "$cmd"
+          ./scripts/vps-ingest.sh "${args[@]}"
 
       # Lap times and qualifying sectors are not part of the run above and never
       # can be: Formula 1 answers livetiming.formula1.com with a 403 for the
@@ -104,17 +113,20 @@ jobs:
       - name: Report the Fast-F1 backlog
         if: always() && steps.ingest.outcome == 'success'
         continue-on-error: true
+        env:
+          VPS_TARGET: deploy@${{ secrets.VPS_HOST }}
         run: |
           set -uo pipefail
+          source scripts/lib/vps.sh
 
-          status=$(ssh -o StrictHostKeyChecking=accept-new \
-                       -o ConnectTimeout=30 \
-                       "hugo@${{ secrets.VPS_HOST }}" \
-                       "/srv/apps/f1_api/fastf1.sh status --limit 200" 2>/dev/null \
+          # The status script prints one JSON line on stdout; progress goes to
+          # stderr. Take the last line starting with `{` in case anything else
+          # narrates on stdout.
+          status=$(vps_task job python scripts/fastf1_status.py --limit 200 </dev/null 2>/dev/null \
                    | grep '^{' | tail -1) || true
 
           if [ -z "$status" ]; then
-            echo "Could not read the Fast-F1 backlog (is fastf1.sh deployed?)."
+            echo "Could not read the Fast-F1 backlog."
             exit 0
           fi
 
