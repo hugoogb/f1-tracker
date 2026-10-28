@@ -1,0 +1,30 @@
+[
+ {
+  "model": "claude-haiku-5-5",
+  "pass": 30,
+  "n": 30,
+  "by_tier": {
+   "casual": [
+    10,
+    10
+   ],
+   "enthusiast": [
+    20,
+    20
+   ]
+  },
+  "cost_total": 0.01237,
+  "cost_per_q": 0.000412,
+  "latency_median": 3.52,
+  "latency_p90": 5.54,
+  "tool_calls_avg": 1.73,
+  "href_rate": 1.0,
+  "errors": 0,
+  "usage": {
+   "input": 49570,
+   "output": 9694,
+   "cache_write": 0,
+   "cache_read": 256303
+  }
+ }
+]

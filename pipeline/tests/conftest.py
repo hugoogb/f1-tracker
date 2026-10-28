@@ -252,3 +252,45 @@ def race_seed_data(seed_data, db):
         "race": race,
         "status": status,
     }
+
+
+@pytest.fixture()
+def season_1955(seed_data, db):
+    """A one-round 1955 season with a driver and a (summed) constructor table."""
+    db.add(Season(year=1955))
+    db.add(
+        Race(
+            id="race-1955",
+            season_year=1955,
+            round=1,
+            name="Italian Grand Prix",
+            circuit_id="circuit-1",
+            date=datetime.date(1955, 9, 11),
+        )
+    )
+    db.add(
+        RaceResult(
+            id="result-1955",
+            race_id="race-1955",
+            driver_id="driver-1",
+            constructor_id="constructor-1",
+            position=1,
+            position_text="1",
+            points=8.0,
+        )
+    )
+    db.add(
+        DriverStanding(
+            id="ds-1955", race_id="race-1955", driver_id="driver-1", points=8.0, position=1
+        )
+    )
+    db.add(
+        ConstructorStanding(
+            id="cs-1955",
+            race_id="race-1955",
+            constructor_id="constructor-1",
+            points=8.0,
+            position=1,
+        )
+    )
+    db.commit()

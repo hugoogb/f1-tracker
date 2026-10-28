@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from src.api.routers import (
     best_seasons,
     champions,
+    chat,
     circuits,
     compare,
     constructors,
@@ -36,7 +37,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[o.strip() for o in settings.cors_origins.split(",")],
     allow_credentials=True,
-    allow_methods=["GET", "OPTIONS"],
+    allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
 )
 
@@ -54,3 +55,4 @@ app.include_router(season_compare.router, prefix="/api", tags=["compare"])
 app.include_router(records.router, prefix="/api", tags=["records"])
 app.include_router(ops.router, prefix="/api", tags=["ops"])
 app.include_router(best_seasons.router, prefix="/api", tags=["best-seasons"])
+app.include_router(chat.router, prefix="/api", tags=["chat"])

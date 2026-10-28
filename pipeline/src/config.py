@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 from pydantic_settings import BaseSettings
@@ -19,6 +20,43 @@ class Settings(BaseSettings):
     # pin an exact tag (e.g. "v2026.5.0") for reproducible seeds.
     f1db_version: str = "latest"
     f1db_cache_dir: str = ".f1db_cache"
+
+    # Race Engineer chat. It stays off until the key, the model and the salt
+    # are all set (see chat_enabled).
+    anthropic_api_key: str = ""
+    chat_model: str = ""
+    # Salts the per-day hash of client IPs; never stored or logged raw.
+    chat_ip_salt: str = ""
+    chat_daily_budget_usd: float = 0.50
+    chat_ip_per_10min: int = 10
+    chat_ip_per_day: int = 60
+    chat_max_tokens: int = 600
+    # Dollars per million tokens, keyed by model id.
+    chat_prices_json: str = (
+        '{"claude-haiku-5-5": {"input": 0.10, "output": 0.50, '
+        '"cache_write": 0.125, "cache_read": 0.01}}'
+    )
+
+    @property
+    def chat_enabled(self) -> bool:
+        """On only with a key, a model, a salt and a price for that model: an
+        unpriced model would be billed without the budget ever seeing it. A
+        whitespace-only value is unset: an env file line like `CHAT_MODEL= `
+        must not switch the chat on."""
+        return bool(
+            self.anthropic_api_key.strip()
+            and self.chat_model.strip()
+            and self.chat_ip_salt.strip()
+            and self.chat_model_priced
+        )
+
+    @property
+    def chat_model_priced(self) -> bool:
+        try:
+            prices = json.loads(self.chat_prices_json)
+        except ValueError:
+            return False
+        return isinstance(prices, dict) and self.chat_model in prices
 
     # The root .env is shared across frontend/backend/scripts, so ignore keys
     # this settings model doesn't declare (e.g. NEXT_PUBLIC_API_URL, STACK_NAME).

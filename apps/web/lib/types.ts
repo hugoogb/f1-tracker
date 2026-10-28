@@ -780,6 +780,17 @@ export interface OpsIngest {
   lastSuccessAt: string | null
 }
 
+/** Today's Race Engineer usage (UTC day): counts and dollars, never a prompt. */
+export interface OpsChat {
+  enabled: boolean
+  requestsToday: number
+  costTodayUsd: number
+  budgetUsd: number
+  /** Share of successful answers that called at least one tool; null with none yet. */
+  toolShare: number | null
+  errorsToday: number
+}
+
 export interface OpsStatus {
   generatedAt: string
   coverage: OpsCoverage
@@ -794,6 +805,8 @@ export interface OpsStatus {
   estimatedCounts: string[]
   ingest: OpsIngest
   schemaVersion: string | null
+  /** Absent from an API older than the Engineer, so the page must not assume it. */
+  chat?: OpsChat
 }
 
 // ── In-season comparison (`/seasons/[year]/compare`) ────────────────────────

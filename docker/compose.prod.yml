@@ -46,6 +46,20 @@ x-app-env: &app-env
   F1DB_VERSION: ${F1DB_VERSION:-latest}
   F1DB_CACHE_DIR: /app/.f1db_cache
   FASTF1_CACHE_DIR: /app/.fastf1_cache
+  # Race Engineer chat. The service's environment is this explicit list, so a
+  # key in .env reaches the container only if it is named here. The chat stays
+  # off (503 `disabled`) while the key, model or salt is blank.
+  ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+  CHAT_MODEL: ${CHAT_MODEL:-claude-haiku-5-5}
+  CHAT_IP_SALT: ${CHAT_IP_SALT:-}
+  CHAT_DAILY_BUDGET_USD: ${CHAT_DAILY_BUDGET_USD:-0.50}
+  CHAT_IP_PER_10MIN: ${CHAT_IP_PER_10MIN:-10}
+  CHAT_IP_PER_DAY: ${CHAT_IP_PER_DAY:-60}
+  CHAT_MAX_TOKENS: ${CHAT_MAX_TOKENS:-600}
+  # CHAT_PRICES_JSON is deliberately absent: an empty value would replace the
+  # built-in price table. To override it, add
+  #   CHAT_PRICES_JSON: ${CHAT_PRICES_JSON}
+  # here together with the value in .env.
 
 # Schema changes and bulk ingest both go direct, bypassing PgBouncer: its
 # transaction pooling cannot carry a migration, and a multi-minute ingest has no

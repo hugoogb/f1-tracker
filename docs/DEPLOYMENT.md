@@ -98,6 +98,13 @@ Two files, one per environment. Neither is committed.
 | `F1DB_VERSION` | | f1db release to ingest; pin a tag for reproducible seeds |
 | `IMAGE_REPO` | | Override the GHCR image (default `ghcr.io/hugoogb/f1_api`) |
 | `REVALIDATE_URL` / `REVALIDATE_SECRET` | | Cache purge after a successful ingest |
+| `ANTHROPIC_API_KEY` | | Race Engineer chat: Anthropic API key. Chat stays off until this, `CHAT_MODEL` and `CHAT_IP_SALT` are all set |
+| `CHAT_MODEL` | | Race Engineer chat: model id (e.g. `claude-haiku-5-5`) |
+| `CHAT_IP_SALT` | | Race Engineer chat: salt for the per-day client-IP hash (`openssl rand -hex 32`) |
+| `CHAT_DAILY_BUDGET_USD` | | Race Engineer chat: daily spend cap in dollars (default 0.50) |
+| `CHAT_IP_PER_10MIN` / `CHAT_IP_PER_DAY` | | Race Engineer chat: per-IP request limits (default 10 / 60) |
+| `CHAT_MAX_TOKENS` | | Race Engineer chat: max output tokens per reply (default 600) |
+| `CHAT_PRICES_JSON` | | Race Engineer chat: dollars per million tokens by model id, overriding the built-in `claude-haiku-5-5` prices |
 
 `TAG` is not in this file — the deploy writes it to `/srv/apps/f1_api/.tag`, and
 both env files are passed to every compose call.
@@ -199,6 +206,22 @@ docker exec caddy caddy reload --config /etc/caddy/Caddyfile
 docker exec caddy caddy adapt --config /etc/caddy/Caddyfile 2>/dev/null | grep -o 'f1_api:[0-9]*'
 ```
 
+### 3a. Cloudflare rate limiting for the chat
+
+The API hostname is proxied by Cloudflare (orange cloud). Add one rate-limiting
+rule on the free plan:
+
+- Match: method `POST` and URI path starts with `/api/chat` (the question and
+  its feedback route, `/api/chat/feedback`)
+- Rate: 20 requests per 10 minutes, per IP
+- Action: Block
+
+This is the outer layer. The API applies its own per-IP limits and a daily
+spend budget, and it identifies the caller from the `Cf-Connecting-Ip` header
+(`X-Forwarded-For` and the socket address are forgeable or the proxy's own).
+That only holds while the origin is reachable solely through Cloudflare, so
+keep the VPS firewall closed to everything but Cloudflare's ranges.
+
 ### 4. Frontend on Vercel
 
 Set `NEXT_PUBLIC_API_URL` to `https://<api-host>/api` in the Vercel project and
@@ -217,6 +240,46 @@ value degrades to the right host rather than the alias.
 After the first deploy on a new domain, submit `https://<domain>/sitemap.xml`
 in Google Search Console — the sitemap is generated from the API, so it also
 serves as a check that the frontend can reach the backend.
+
+### 4a. Race Engineer (chat sidebar)
+
+The chat is off until the API has `ANTHROPIC_API_KEY`, `CHAT_MODEL` and
+`CHAT_IP_SALT` (rows in the env table above), and `CHAT_MODEL` has a price in
+`CHAT_PRICES_JSON` (the built-in table prices `claude-haiku-5-5`; an unpriced
+model would be billed without the budget seeing it, so it keeps the chat off).
+The keys reach the container through `compose.prod.yml`, whose `x-app-env`
+names each one: `--env-file .env` only substitutes variables into the compose
+file, so a key in `.env` that compose does not name never reaches the API.
+`CHAT_PRICES_JSON` is deliberately not named there (an empty value would
+replace the built-in table); add it to `x-app-env` alongside its value if you
+switch to a model the table does not price. To turn it on:
+
+1. In `/srv/apps/f1_api/.env` set the three keys (`CHAT_IP_SALT` from
+   `openssl rand -hex 32`; `CHAT_MODEL=claude-haiku-5-5`, the model the eval in
+   `pipeline/evals/engineer/` chose). Tune `CHAT_DAILY_BUDGET_USD` and the
+   per-IP limits only if needed. Recreate the container with `up -d --wait`.
+2. Set a monthly spend cap in the Anthropic console. The in-app daily budget
+   is written after each stream, so concurrent requests can overshoot it by
+   their own cost; the console cap is the hard stop.
+3. Add the Cloudflare rule from section 3a.
+4. Set `NEXT_PUBLIC_CHAT_ENABLED=true` in the Vercel project and redeploy
+   (build-time, like `NEXT_PUBLIC_API_URL`). Anything other than `true` hides
+   the button.
+5. Check `GET /api/ops/status`: `chat.enabled` is `true`, and `requestsToday`,
+   `costTodayUsd` against `budgetUsd`, `toolShare` and `errorsToday` show use.
+   From a laptop:
+
+   ```bash
+   curl -s https://<api-host>/api/ops/status | grep -o '"enabled":[a-z]*'
+   ```
+
+   `"enabled":false` after setting the keys means they did not reach the
+   container (check `x-app-env`, then `docker compose ... up -d --wait` to
+   recreate it) or the model is unpriced.
+
+To switch it off, blank any of the three keys (the API answers 503
+`disabled`) and unset the Vercel flag. The `chat_usage` table holds no
+question, answer or raw IP, so there is nothing to purge.
 
 ### 5. Verify
 

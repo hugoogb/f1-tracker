@@ -1,6 +1,7 @@
-import { AlertTriangle, Calendar, CheckCircle2, Database, Flag, Timer } from 'lucide-react'
+import { AlertTriangle, Calendar, CheckCircle2, Database, Flag, Radio, Timer } from 'lucide-react'
 
 import { api } from '@/lib/api'
+import { formatEngineerStatus } from '@/lib/engineer-status'
 import { buildMetadata } from '@/lib/seo'
 import type { OpsIngestRun, OpsStatus } from '@/lib/types'
 import { Breadcrumbs } from '@/components/layout/breadcrumbs'
@@ -164,6 +165,7 @@ export default async function StatusPage() {
   // Which row counts came back as Postgres' own estimate rather than a real
   // COUNT(*). A Set because it is asked once per rendered row.
   const estimated = new Set(status?.estimatedCounts ?? [])
+  const engineer = formatEngineerStatus(status?.chat)
 
   return (
     <div className="space-y-6">
@@ -410,6 +412,29 @@ export default async function StatusPage() {
                 or in CI. It is pulled from a residential connection and pushed back, which makes
                 this backlog a manual job — the oldest few are shown as a sample.
               </p>
+            </SectionCard>
+          </FadeIn>
+
+          <FadeIn>
+            <SectionCard title="Engineer" icon={Radio}>
+              {engineer.off ? (
+                <p className="text-muted-foreground text-sm">{engineer.label}</p>
+              ) : (
+                <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+                  <Field label="Requests today">
+                    <span className="font-data tabular-nums">{engineer.requests}</span>
+                  </Field>
+                  <Field label="Cost today">
+                    <span className="font-data tabular-nums">{engineer.cost}</span>
+                  </Field>
+                  <Field label="Answers using tools">
+                    <span className="font-data tabular-nums">{engineer.toolShare}</span>
+                  </Field>
+                  <Field label="Errors today">
+                    <span className="font-data tabular-nums">{engineer.errors}</span>
+                  </Field>
+                </div>
+              )}
             </SectionCard>
           </FadeIn>
 
