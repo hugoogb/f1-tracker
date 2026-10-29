@@ -172,7 +172,8 @@ purge_years="$(python3 -c 'import json,sys; print(",".join(str(y) for y in sorte
 
 echo "==> Loading it on $TARGET..."
 import_status=0
-vps_task job python scripts/fastf1_import.py --payload - "${import_args[@]}" < "$payload" \
+# ${a[@]+"${a[@]}"}: macOS's bash 3.2 calls an empty array unbound under set -u.
+vps_task job python scripts/fastf1_import.py --payload - ${import_args[@]+"${import_args[@]}"} < "$payload" \
   || import_status=$?
 
 if [ "$import_status" = "0" ]; then
