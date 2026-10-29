@@ -13,7 +13,8 @@ import json
 
 import pandas as pd
 import pytest
-from fastf1.exceptions import DataNotLoadedError
+from fastf1.exceptions import DataNotLoadedError, F1AuthError
+from fastf1.internals.f1account import SubscriptionToken
 
 from scripts.fastf1_import import import_record
 from scripts.fastf1_status import find_targets
@@ -517,10 +518,14 @@ def test_a_refused_session_reads_as_no_data_not_a_crash():
 
 @pytest.mark.parametrize(
     ("status", "reachable"),
-    [(200, True), (404, True), (403, False), (429, False), (451, False)],
+    [(200, True), (401, True), (404, True), (403, False), (429, False), (451, False)],
 )
 def test_http_check_treats_only_refusals_as_unreachable(monkeypatch, status, reachable):
-    """A 404 still proves the host answered; a 403 is what a block looks like."""
+    """A 404 still proves the host answered; a 403 is what a block looks like.
+
+    A 401 is live timing answering and asking for an F1 TV account — reading it
+    as a block sent the fix to the wrong place (another machine, not a sign-in).
+    """
 
     class _Response:
         status_code = status
@@ -534,6 +539,18 @@ def test_http_check_treats_only_refusals_as_unreachable(monkeypatch, status, rea
     assert str(status) in detail
 
 
+def test_http_check_says_a_401_wants_an_account(monkeypatch):
+    class _Response:
+        status_code = 401
+        text = ""
+
+    monkeypatch.setattr("src.ingestion.fastf1_sessions.requests.get", lambda *a, **k: _Response())
+
+    _, detail = http_check("https://example.invalid")
+
+    assert "account" in detail
+
+
 def test_http_check_reports_a_connection_failure(monkeypatch):
     def _boom(*args, **kwargs):
         raise ConnectionError("connection reset by peer")
@@ -544,3 +561,45 @@ def test_http_check_reports_a_connection_failure(monkeypatch):
 
     assert ok is False
     assert "ConnectionError" in detail
+
+
+def _no_account():
+    raise F1AuthError("Access token contains no subscription token.")
+
+
+def test_fetch_stops_before_any_session_without_an_account(tmp_path, monkeypatch):
+    """No account means every session loads empty; stop before the first one.
+
+    Fast-F1 does not raise when it cannot sign in — it sends the request
+    unauthenticated and gets an empty session back — so without this check the
+    run spends 45 s per session producing a payload of nothing.
+    """
+    from scripts import fastf1_fetch
+
+    targets = tmp_path / "targets.json"
+    targets.write_text(json.dumps({"targets": [{"year": 2026, "round": 18}]}))
+    out = tmp_path / "payload.ndjson.gz"
+    fetched: list = []
+
+    monkeypatch.setattr(fastf1_fetch, "require_f1_account", _no_account)
+    monkeypatch.setattr(fastf1_fetch, "fetch_session", lambda *a: fetched.append(a))
+    monkeypatch.setattr(
+        "sys.argv", ["fastf1_fetch.py", "--targets", str(targets), "--out", str(out)]
+    )
+
+    assert fastf1_fetch.main() == fastf1_fetch.EXIT_NO_ACCOUNT
+    assert fetched == []
+    assert not out.exists()
+
+
+def test_check_auth_exit_status(monkeypatch):
+    from scripts import fastf1_fetch
+
+    monkeypatch.setattr("sys.argv", ["fastf1_fetch.py", "--check-auth"])
+    monkeypatch.setattr(fastf1_fetch, "require_f1_account", _no_account)
+    assert fastf1_fetch.main() == fastf1_fetch.EXIT_NO_ACCOUNT
+
+    token = SubscriptionToken(value="x", expires_at=4_102_444_800)  # 2100
+    monkeypatch.setattr(fastf1_fetch, "require_f1_account", lambda: token)
+    monkeypatch.setattr(SubscriptionToken, "claims", property(lambda self: {}))
+    assert fastf1_fetch.main() == 0

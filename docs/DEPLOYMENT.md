@@ -476,7 +476,30 @@ Checking Fast-F1's sources from this host...      (ubuntu-latest)
 ```
 
 A residential connection still works, so the fetch runs on a laptop and only
-the database half runs on the box:
+the database half runs on the box.
+
+**It also needs a Formula 1 account with an F1 TV subscription** (Access or
+higher). Since October 2026 every file in the archive answers 401 without one,
+from any IP; Fast-F1 3.9 (the minimum in `pyproject.toml`) is the first
+version that signs in. Sign in once on the laptop — the token is stored in
+Fast-F1's user data dir and lasts about four days:
+
+```bash
+cd pipeline && uv run python -m fastf1 auth f1tv --authenticate   # --status to check
+```
+
+or export `F1_USERNAME` / `F1_PASSWORD` and it signs in again by itself when the
+token runs out. Without either, `pnpm fastf1` prompts for the account when run
+in a terminal and otherwise stops with exit 4 before asking the server
+anything. An account without a subscription fails the same way ("contains no
+subscription token"). A login does not get round the datacentre block: GitHub's
+runners still get the CloudFront 403 with a valid token (Fast-F1 issue #988).
+
+```
+Checking Fast-F1's sources from this host...      (no account, 2026-10-29)
+  live timing archive:      HTTP 401 — answered, wants an F1 TV account
+  Jolpica/Ergast (control): HTTP 200
+```
 
 ```
 your machine                                 VPS
@@ -513,6 +536,9 @@ pnpm fastf1 --dry-run                        # fetch, but write nothing
 pnpm fastf1 --probe                          # can this machine fetch at all?
 ```
 
+`pnpm fastf1` exits 1 for a blocked host, 3 when the data loaded but the cache
+purge did not, and 4 for no usable Formula 1 account.
+
 Each session costs ~45 s of rate-limit throttle, so a full 2018-onward backfill
 is hours of wall clock. It does not have to happen in one sitting: the payload
 is written as it is fetched, Ctrl-C is safe, and the next run asks the server
@@ -537,10 +563,15 @@ or ids ever leave the server. Payloads are kept in `.fastf1_payloads/`
 (gitignored) so a failed import can be retried without re-fetching.
 
 > **If a fetch produces nothing.** Fast-F1 does not raise when it is refused —
-> it logs a one-line warning per source and hands back an empty session. Three
-> empty sessions in a row therefore stop the run with a blocked-host message,
-> and `--probe` prints the HTTP status codes behind it. If your own connection
-> starts returning 403, the fetch has to move to one that does not.
+> it logs a one-line warning per source and hands back an empty session. That
+> is also what happens when it cannot sign in, which is why every fetch path
+> checks the account first (`require_f1_account()` in `fastf1_sessions.py`).
+> Past that check, three empty sessions in a row stop the run with a
+> blocked-host message, and `--probe` prints the HTTP status codes behind it: a
+> 401 is the account, a 403 is the IP. If your own connection starts returning
+> 403, the fetch has to move to one that does not. A payload with no sessions
+> is not imported and does not purge the cache — the usual cause after a race
+> that just finished is timing Formula 1 has not published yet.
 
 ### Locally
 

@@ -3,7 +3,8 @@
 Formula 1's live timing endpoints refuse datacentre IPs — the VPS's and
 GitHub's runners alike — so lap times and qualifying sector times are fetched
 from a machine on a residential connection and shipped to the box as a payload
-for `scripts/fastf1_import.py` to load. This is the fetching half;
+for `scripts/fastf1_import.py` to load. That machine also needs a Formula 1
+account with an F1 TV subscription (see `require_f1_account`). This is the fetching half;
 `pnpm fastf1` (scripts/fastf1-sync.sh) drives all three steps.
 
 It deliberately touches no database: the target list comes from
@@ -21,6 +22,12 @@ Usage:
 
     # is this host allowed to talk to Fast-F1 at all?
     uv run python scripts/fastf1_fetch.py --probe
+
+    # is there a usable F1 TV sign-in? (prompts for one when there is not)
+    uv run python scripts/fastf1_fetch.py --check-auth
+
+Exit status: 0 done, 1 this host is blocked, 2 bad arguments, 4 no usable
+Formula 1 account — sign in and re-run.
 
 The payload is streamed and flushed per session, so a run stopped by the rate
 limit, a timeout or Ctrl-C still leaves every session it had already fetched.
@@ -43,9 +50,11 @@ from src.ingestion.fastf1_payload import (  # noqa: E402
     payload_writer,
 )
 from src.ingestion.fastf1_sessions import (  # noqa: E402
+    AUTH_HELP,
     EMPTY_STREAK_LIMIT,
     PROBE_URLS,
     THROTTLE_DELAY,
+    F1AuthError,
     configure_logging,
     enable_cache,
     fetch_qualifying_bests,
@@ -54,6 +63,7 @@ from src.ingestion.fastf1_sessions import (  # noqa: E402
     is_blocked_error,
     is_rate_limit_error,
     raise_load_errors,
+    require_f1_account,
     throttle,
 )
 
@@ -63,6 +73,10 @@ logger = logging.getLogger("fastf1_fetch")
 # result says something about this host's access rather than the calendar.
 PROBE_YEAR = 2023
 PROBE_ROUND = 1
+
+# Distinct from a block (1): the host is fine, the account is not, and the fix
+# is a sign-in rather than another machine.
+EXIT_NO_ACCOUNT = 4
 
 
 class _StopFetchError(Exception):
@@ -86,6 +100,27 @@ def _gha_output(**values: object) -> None:
             if isinstance(value, bool):
                 value = str(value).lower()
             f.write(f"{key}={value}\n")
+
+
+def check_account() -> bool:
+    """Make sure Fast-F1 has a live timing token before anything is fetched.
+
+    Without one every session "loads" empty and the run looks like a race whose
+    data has not been published, 45 seconds at a time.
+    """
+    try:
+        token = require_f1_account()
+    except F1AuthError as e:
+        logger.error(f"No usable Formula 1 account: {e}")
+        logger.error(AUTH_HELP)
+        _gha_output(account=False)
+        return False
+
+    expires = datetime.fromtimestamp(token.expires_at, UTC).strftime("%Y-%m-%d %H:%M UTC")
+    product = token.claims.get("SubscribedProduct") or "unknown plan"
+    logger.info(f"Formula 1 account OK ({product}), token valid until {expires}")
+    _gha_output(account=True)
+    return True
 
 
 def load_targets(path: Path, need: set[str]) -> list[dict]:
@@ -186,13 +221,15 @@ def fetch_session(target: dict, kind: str) -> tuple[SessionRecord | None, float]
 
 
 def probe() -> int:
-    """Check whether this host can reach Fast-F1 at all. 0 = yes, 1 = no.
+    """Check whether this host can fetch from Fast-F1. 0 = yes, 1 = blocked,
+    `EXIT_NO_ACCOUNT` = reachable but no usable F1 TV sign-in.
 
-    Two parts, because they answer different questions. The HTTP checks say
+    Three parts, because they answer different questions. The HTTP checks say
     whether Formula 1's servers will talk to this IP — a 403 there is a block,
     an answer from the control host but not from live timing is a block aimed at
-    this project's data specifically. The session load then says whether a real
-    fetch works end to end.
+    this project's data specifically, and a 401 is live timing answering and
+    asking for an account. The account check says whether there is one. The
+    session load then says whether a real fetch works end to end.
     """
     # Without this, a refused request is a one-line warning and an empty
     # session, which is indistinguishable from a session that has no data.
@@ -219,6 +256,10 @@ def probe() -> int:
         logger.error(BLOCKED_HELP)
         _gha_output(reachable=False, blocked=control_ok, rate_limited=False)
         return 1
+
+    if not check_account():
+        _gha_output(reachable=False, blocked=False, rate_limited=False)
+        return EXIT_NO_ACCOUNT
 
     logger.info(f"Loading {PROBE_YEAR} round {PROBE_ROUND} to confirm a real fetch works...")
     try:
@@ -293,6 +334,11 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Only check whether Fast-F1 answers this host, then exit",
     )
+    parser.add_argument(
+        "--check-auth",
+        action="store_true",
+        help="Only check for a usable F1 TV sign-in (signing in if needed), then exit",
+    )
     return parser.parse_args()
 
 
@@ -309,6 +355,8 @@ def main() -> int:
 
     if args.probe:
         return probe()
+    if args.check_auth:
+        return 0 if check_account() else EXIT_NO_ACCOUNT
 
     need = {k.strip() for k in args.need.split(",") if k.strip()}
     unknown = need - set(KINDS)
@@ -317,15 +365,22 @@ def main() -> int:
         return 2
 
     year_range = parse_year_range(args.year_range)
+    if not args.targets and not year_range:
+        logger.error("Pass --targets or --year-range")
+        return 2
+
+    # Before the calendar call too: without a token Fast-F1 would prompt for a
+    # sign-in on every request it sends to live timing.
+    if not check_account():
+        _gha_output(sessions=0, partial=False, blocked=False)
+        return EXIT_NO_ACCOUNT
+
     if args.targets:
         targets = load_targets(args.targets, need)
         source = f"targets:{args.targets}"
-    elif year_range:
+    else:
         targets = targets_from_schedule(year_range, need)
         source = f"schedule:{year_range[0]}-{year_range[1]}"
-    else:
-        logger.error("Pass --targets or --year-range")
-        return 2
 
     if not targets:
         logger.info("Nothing to fetch.")

@@ -101,6 +101,7 @@ def test_direct_ingestor_agrees_on_what_is_outstanding(db, seed_data, two_races,
 
     monkeypatch.setattr(lap_times, "fetch_race_laps", fake_fetch)
     monkeypatch.setattr(lap_times, "throttle", lambda *a, **k: None)
+    monkeypatch.setattr(lap_times, "require_f1_account", lambda: None)
 
     lap_times.LapTimeIngestor(db).ingest(refresh_positions=True)
     assert attempted == ["2024_02"]
@@ -108,3 +109,30 @@ def test_direct_ingestor_agrees_on_what_is_outstanding(db, seed_data, two_races,
     attempted.clear()
     lap_times.LapTimeIngestor(db).ingest()
     assert attempted == []
+
+
+def test_direct_ingestor_stops_without_an_account(db, seed_data, two_races, monkeypatch):
+    """No F1 TV sign-in: say so once and fetch nothing, rather than load every
+    outstanding session empty. And a run with nothing outstanding never asks."""
+    from fastf1.exceptions import F1AuthError
+
+    from src.ingestion import lap_times
+
+    attempted: list[str] = []
+    checks: list[int] = []
+
+    def no_account():
+        checks.append(1)
+        raise F1AuthError("No F1 account credentials available.")
+
+    monkeypatch.setattr(
+        lap_times, "fetch_race_laps", lambda year, rnd: attempted.append(f"{year}_{rnd:02d}")
+    )
+    monkeypatch.setattr(lap_times, "require_f1_account", no_account)
+
+    lap_times.LapTimeIngestor(db).ingest(refresh_positions=True)
+    assert attempted == []
+    assert checks == [1]
+
+    lap_times.LapTimeIngestor(db).ingest()  # both races already have laps
+    assert checks == [1]
