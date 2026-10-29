@@ -14,6 +14,15 @@
 # Run it after a race weekend, once the Monday ingest has created the race rows
 # (that run's job summary says how many races are waiting).
 #
+# Since October 2026 the live timing archive also needs a Formula 1 account with
+# an F1 TV subscription (Access or higher). The script checks for one before it
+# asks the server anything and prompts for a sign-in when there is none; to
+# sign in ahead of time (the token lasts about four days):
+#
+#   cd pipeline && uv run python -m fastf1 auth f1tv --authenticate
+#
+# or export F1_USERNAME / F1_PASSWORD. Exit status 4 means no usable account.
+#
 # Usage:
 #   pnpm fastf1                      # the whole job: 8 most recent sessions
 #   pnpm fastf1 --all                # everything still missing (hours; safe to stop)
@@ -71,7 +80,7 @@ PROBE=0
 PURGE=0
 
 usage() {
-  sed -n '2,43p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+  sed -n '2,52p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
   exit "${1:-2}"
 }
 
@@ -125,6 +134,12 @@ if [ "$PURGE" = "1" ]; then
   exit $?
 fi
 
+# Before the server is asked anything: without an account every session would
+# come back empty, 45 s at a time, and look like data that is not out yet.
+# Exits 4 when there is none; a sign-in prompt, if any, happens here.
+echo "==> Checking the Formula 1 account..."
+(cd "$ROOT/pipeline" && uv run python scripts/fastf1_fetch.py --check-auth)
+
 status_args=(--need "$NEED")
 [ -n "$LIMIT" ] && status_args+=(--limit "$LIMIT")
 [ -n "$ORDER" ] && status_args+=("$ORDER")
@@ -156,8 +171,17 @@ echo "==> Fetching here (~45s per session, Ctrl-C is safe)..."
 cd "$ROOT/pipeline"
 uv run python scripts/fastf1_fetch.py "${fetch_args[@]}"
 
-if [ ! -s "$payload" ]; then
-  echo "==> Nothing was fetched — no payload to load." >&2
+# The payload always has its header line, so "not empty" is not enough: a run
+# where every session came back empty must not go on to import nothing and
+# expire the cache for it.
+sessions=0
+if [ -s "$payload" ]; then
+  sessions="$(python3 -c 'import gzip,sys; print(sum(1 for _ in gzip.open(sys.argv[1])) - 1)' "$payload")"
+fi
+if [ "$sessions" -le 0 ]; then
+  rm -f "$payload"
+  echo "==> Nothing was fetched — nothing to load, and the cache is left alone." >&2
+  echo "    If the race only just finished, its timing may not be published yet: re-run later." >&2
   exit 1
 fi
 echo "    Payload: $payload ($(du -h "$payload" | cut -f1))"

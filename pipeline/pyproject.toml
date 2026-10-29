@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "F1 Tracker data pipeline and API"
 requires-python = ">=3.12"
 dependencies = [
-    "fastf1>=3.4",
+    "fastf1>=3.9",
     "fastapi[standard]>=0.115",
     "uvicorn[standard]>=0.34",
     "sqlalchemy[asyncio]>=2.0",

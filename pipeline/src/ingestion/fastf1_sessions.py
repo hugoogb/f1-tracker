@@ -14,6 +14,12 @@ JSON-safe values:
 
 One parser, two transports — so the offline path can never drift from the
 direct one.
+
+Since October 2026 the live timing archive also wants an F1 TV account (Access
+or higher): every file answers 401 without one. Fast-F1 3.9 signs in for us,
+but when it cannot it logs a warning and sends the request anyway, so a missing
+account looks exactly like a session with no data. `require_f1_account()` is
+the check every fetch path runs first, to turn that into one clear error.
 """
 
 import logging
@@ -24,7 +30,10 @@ from pathlib import Path
 import fastf1
 import pandas as pd
 import requests
-from fastf1.exceptions import DataNotLoadedError
+
+# F1AuthError is re-exported: it is what require_f1_account raises.
+from fastf1.exceptions import DataNotLoadedError, F1AuthError  # noqa: F401
+from fastf1.internals.f1account import SubscriptionToken, get_token
 
 from src.config import settings
 
@@ -56,6 +65,31 @@ PROBE_URLS = (
     ("live timing archive", "https://livetiming.formula1.com/static/2023/Index.json"),
     ("Jolpica/Ergast (control)", "https://api.jolpi.ca/ergast/f1/2023/1/results.json?limit=1"),
 )
+
+
+AUTH_HELP = (
+    "Fast-F1 needs a Formula 1 account with an active F1 TV subscription (Access "
+    "or higher): the live timing archive answers 401 without one since October "
+    "2026. Sign in once with `uv run python -m fastf1 auth f1tv --authenticate` "
+    "(from pipeline/; the token lasts about four days), or set F1_USERNAME and "
+    "F1_PASSWORD so it can sign in again on its own."
+)
+
+
+def require_f1_account() -> SubscriptionToken:
+    """Return a valid live timing token, signing in if there is none.
+
+    The stored token is reused while it is valid, so this costs no request on a
+    run within a few days of the last sign-in. Otherwise Fast-F1 signs in with
+    F1_USERNAME/F1_PASSWORD, or prompts when stdin is a terminal. Raises
+    `F1AuthError` when that fails — including for an account that signs in fine
+    but has no subscription, which Fast-F1 reports the same way.
+
+    Run it before the first session load, not inside the loop: Fast-F1's own
+    adapter retries the sign-in on *every* request that has no token, so a
+    missing account would otherwise prompt once per file.
+    """
+    return get_token()
 
 
 class _RecoveredRequestFilter(logging.Filter):
@@ -112,7 +146,7 @@ def enable_cache() -> None:
     if _cache_enabled:
         return
     Path(settings.fastf1_cache_dir).mkdir(parents=True, exist_ok=True)
-    fastf1.Cache.enable_cache(settings.fastf1_cache_dir)
+    fastf1.Cache.configure(cache_dir=settings.fastf1_cache_dir)
     _cache_enabled = True
 
 
@@ -164,7 +198,9 @@ def http_check(url: str, timeout: float = 20.0) -> tuple[bool, str]:
     """GET a URL and describe what came back: `(reachable, description)`.
 
     Reachable means the host answered at all — a 404 still proves the request
-    was not refused, which is the distinction that matters here.
+    was not refused, which is the distinction that matters here. So does a 401:
+    live timing asks every unauthenticated request for an account, and saying
+    so is an answer, not a refusal.
     """
     try:
         response = requests.get(url, timeout=timeout)
@@ -173,9 +209,11 @@ def http_check(url: str, timeout: float = 20.0) -> tuple[bool, str]:
 
     # 403 (and 451) is what an IP block looks like from the outside; 429 is the
     # rate limit, which is a different problem.
-    ok = response.status_code not in (401, 403, 429, 451)
+    ok = response.status_code not in (403, 429, 451)
     detail = f"HTTP {response.status_code}"
-    if not ok:
+    if response.status_code == 401:
+        detail = f"{detail} — answered, wants an F1 TV account"
+    elif not ok:
         body = response.text[:120].replace("\n", " ").strip()
         if body:
             detail = f"{detail} — {body}"

@@ -16,10 +16,13 @@ from sqlalchemy.orm import Session
 from src.db.models import LapTime, Race, Season
 from src.ingestion.base import BaseIngestor, is_interrupted
 from src.ingestion.fastf1_sessions import (
+    AUTH_HELP,
     EMPTY_STREAK_LIMIT,
+    F1AuthError,
     fetch_race_laps,
     is_blocked_error,
     is_rate_limit_error,
+    require_f1_account,
     throttle,
 )
 
@@ -139,6 +142,7 @@ class LapTimeIngestor(BaseIngestor):
         # Fast-F1 answers a refused request with a warning and no laps, so a run
         # of empty sessions is how a blocked host looks from in here.
         empty_streak = 0
+        account_checked = False
         for season in seasons:
             races = (
                 self.db.execute(
@@ -163,6 +167,15 @@ class LapTimeIngestor(BaseIngestor):
                     continue
                 if race.date and race.date > today:
                     continue
+                # Only once there is something to fetch: a run with nothing
+                # outstanding should not ask anyone to sign in.
+                if not account_checked:
+                    try:
+                        require_f1_account()
+                    except F1AuthError as e:
+                        self.log(f"No usable Formula 1 account ({e}). {AUTH_HELP}")
+                        return
+                    account_checked = True
 
                 try:
                     self.log(f"{season.year} R{race.round}: fetching lap times...")
