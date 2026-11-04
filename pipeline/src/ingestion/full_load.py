@@ -207,7 +207,7 @@ def refresh_materialized_views(db: Session) -> None:
         FROM driver_standings ds
         JOIN races r ON ds.race_id = r.id
         LEFT JOIN constructor_standings cs
-            ON cs.race_id = r.id AND cs.position = 1
+            ON cs.race_id = r.id AND cs.position = 1 AND r.season_year >= 1958
         WHERE ds.position = 1
         AND r.round = (
             SELECT MAX(r2.round)

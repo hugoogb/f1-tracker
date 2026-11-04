@@ -388,6 +388,7 @@ Two f1db quirks the UI is built around:
   years split the calendar into halves scored separately, and none of that is in
   f1db. State the era rule generally and let the data supply the example; never
   assert a specific N
+- Standings store one row per entity, f1db's tables do not: it ranks constructor-engine pairings (Cooper-Climax and Cooper-Maserati, 1960), so `best_official_rows()` keeps a constructor's best one, at the final round and every earlier round. An entry f1db lists with no position was disqualified or excluded (Schumacher 1997, Tyrrell 1984, McLaren 2007, Force India 2018) and stores a null `position`, sorting last; one it does not list at all (Watson, the Indianapolis 500) is ranked below its table. A constructors' title is P1 in the final table of a season from 1958 (`FIRST_CONSTRUCTORS_CHAMPIONSHIP`): earlier tables only sum points, and every title reader filters them out
 - Best seasons: champion, runner-up and margins come from the official final standings; the
   round-by-round metrics (lead changes, finale contenders) walk the official table after every
   round, the same one `/standings/progression` draws. The deciding round is f1db's flag
@@ -520,7 +521,6 @@ Rules to preserve when changing code:
 
 ## Known Issues
 
-- **Constructor championships are wrong in the stored standings.** `constructor_standings` is unique on `(race_id, constructor_id)` but f1db lists one row per constructor-engine pairing, so the last row wins: Cooper-Climax's 1960 title is overwritten by a Cooper entry on 3 points, and `/api/champions` has no constructors' champion for 1960, 1963, 1965, 1966 and 1967. Tables before 1958 count as titles (Ferrari shows 20, not 16), and 2007 has two P1 rows, which is why McLaren's stripped title counts in `/records/explore` (11, not 10). Until the ingest keeps the best row and the readers ignore pre-1958 tables, `lib/page-summary.ts` and `RECORD_RANKINGS` state no constructors' title on purpose
 - A shared-drive win can have no P1 row: the 1951 French Grand Prix's results start at P2 and its calendar winner is null
 - Next.js 16 build requires `NODE_ENV=production` to avoid `_global-error` prerender bug
 - "Invalid segment configuration export detected" names no file under Turbopack. Re-run with

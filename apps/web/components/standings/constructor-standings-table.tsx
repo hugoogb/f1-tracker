@@ -43,7 +43,7 @@ export function ConstructorStandingsTable({ standings, limit }: ConstructorStand
               highlight={entry.position === 1 ? 'leader' : undefined}
             >
               <TableCell>
-                <PositionBadge position={entry.position} size="sm" />
+                <PositionBadge position={entry.position ?? '–'} size="sm" />
               </TableCell>
               <TableCell>
                 <div className="flex items-center gap-2">

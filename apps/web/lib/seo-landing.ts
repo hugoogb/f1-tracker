@@ -33,8 +33,6 @@ const team = (
   unit: string,
 ): RecordRanking => ({ entity: 'teams', slug, category, title, unit })
 
-// No constructors' championships: that count is wrong until the ingest keeps each
-// season's best team-engine row and ignores tables from before 1958.
 export const RECORD_RANKINGS: readonly RecordRanking[] = [
   driver('most-wins', 'wins', 'Most F1 Wins by a Driver', { unit: 'wins' }),
   driver('most-pole-positions', 'poles', 'Most F1 Pole Positions by a Driver', {
@@ -58,6 +56,12 @@ export const RECORD_RANKINGS: readonly RecordRanking[] = [
   team('most-wins', 'wins', 'Most F1 Wins by a Team', 'wins'),
   team('most-pole-positions', 'poles', 'Most F1 Pole Positions by a Team', 'pole positions'),
   team('most-podiums', 'podiums', 'Most F1 Podiums by a Team', 'podiums'),
+  team(
+    'most-constructors-championships',
+    'championships',
+    "Most F1 Constructors' Championships",
+    "constructors' championships",
+  ),
   team('most-fastest-laps', 'fastest_laps', 'Most F1 Fastest Laps by a Team', 'fastest laps'),
   team('most-points', 'points', 'Most F1 Points by a Team', 'points'),
   team('most-car-entries', 'starts', 'Most F1 Car Entries by a Team', 'car entries'),

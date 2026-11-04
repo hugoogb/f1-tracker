@@ -127,23 +127,31 @@ function driverPeak(
   return `Best championship finish: P${best.championshipPosition} in ${best.year}.`
 }
 
-/**
- * No titles here, on purpose: `constructor_standings` holds one row per team per
- * race while f1db lists one per team-engine pairing, so a season can lose its
- * champion's row (Cooper, 1960), and tables before 1958 are not a championship.
- * Add them once the ingest keeps the best row.
- */
+/** The first constructors' title. A table before this year only sums points. */
+const FIRST_CONSTRUCTORS_CHAMPIONSHIP = 1958
+
 export function constructorSummary(input: {
   name: string
   nationality: string | null
   stats: { total_entries: number; wins: number; podiums: number }
   seasons: readonly ConstructorSeasonSummary[]
+  /** Seasons before this are over, so a P1 in one of them is a title and not a lead. */
+  currentYear: number
 }): string {
-  const { name, nationality, stats, seasons } = input
+  const { name, nationality, stats, seasons, currentYear } = input
   const who = nationality ? `${nationality} team ${name}` : name
   if (seasons.length === 0) return `${who} is in the Formula 1 record with no race entry.`
 
   const best = seasons.reduce((a, b) => (b.wins > a.wins ? b : a))
+  const titles = seasons
+    .filter(
+      (s) =>
+        s.championshipPosition === 1 &&
+        s.year >= FIRST_CONSTRUCTORS_CHAMPIONSHIP &&
+        s.year < currentYear,
+    )
+    .map((s) => s.year)
+    .sort((a, b) => a - b)
   const parts = [
     `${who}'s Formula 1 history ${careerSpan(seasons.map((s) => s.year))}.`,
     tally(plural(stats.total_entries, 'race entry', 'race entries'), [
@@ -153,6 +161,15 @@ export function constructorSummary(input: {
   ]
   if (best.wins > 0) {
     parts.push(`Most wins in one season: ${group(best.wins)}, in ${best.year}.`)
+  }
+  if (titles.length > 0) {
+    parts.push(
+      `Constructors' champion ${
+        titles.length === 1
+          ? `in ${titles[0]}`
+          : `${titles.length} times, most recently in ${titles[titles.length - 1]}`
+      }.`,
+    )
   }
   return parts.join(' ')
 }
@@ -193,7 +210,7 @@ export function circuitSummary(input: {
 
 interface StandingRow {
   points: number
-  position: number
+  position: number | null
 }
 
 /** "8 points ahead of X", or that the two finished level. */
@@ -204,7 +221,6 @@ function margin(leader: StandingRow, second: StandingRow | undefined, secondName
   return `, ${points(gap)} ${gap === 1 ? 'point' : 'points'} ahead of ${secondName}`
 }
 
-/** Drivers only, for the reason `constructorSummary` gives: 1960's table has no P1. */
 export function seasonSummary(input: {
   year: number
   calendar: SeasonCalendarResponse
@@ -212,8 +228,9 @@ export function seasonSummary(input: {
     driver: { firstName: string; lastName: string }
     constructor: { name: string } | null
   })[]
+  constructors: readonly (StandingRow & { constructor: { name: string } })[]
 }): string | null {
-  const { year, calendar, drivers } = input
+  const { year, calendar, drivers, constructors } = input
   const { rounds, totalKm } = calendar
   if (rounds.length === 0) return null
 
@@ -229,6 +246,9 @@ export function seasonSummary(input: {
   const name = (row: (typeof drivers)[number]) => `${row.driver.firstName} ${row.driver.lastName}`
   const champion = drivers.find((d) => d.position === 1)
   const second = drivers.find((d) => d.position === 2)
+  const hasTitle = year >= FIRST_CONSTRUCTORS_CHAMPIONSHIP
+  const team = hasTitle ? constructors.find((c) => c.position === 1) : undefined
+  const teamSecond = constructors.find((c) => c.position === 2)
   const parts = [opening]
 
   if (champion) {
@@ -238,6 +258,14 @@ export function seasonSummary(input: {
       complete
         ? `${name(champion)}${car} won the drivers' championship on ${points(champion.points)} points${gap}.`
         : `After ${run.length} of ${rounds.length} rounds, ${name(champion)}${car} leads the drivers' championship on ${points(champion.points)} points${gap}.`,
+    )
+  }
+  if (team) {
+    const gap = margin(team, teamSecond, teamSecond?.constructor.name)
+    parts.push(
+      complete
+        ? `${team.constructor.name} took the constructors' title on ${points(team.points)} points${gap}.`
+        : `${team.constructor.name} leads the constructors' championship on ${points(team.points)} points${gap}.`,
     )
   }
   const winners = new Set(run.map((r) => r.winner?.driver.ref))

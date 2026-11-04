@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
 
-from src.api.constants import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE
+from src.api.constants import DEFAULT_PAGE_SIZE, FIRST_CONSTRUCTORS_CHAMPIONSHIP, MAX_PAGE_SIZE
 from src.api.pagination import paginate
 from src.api.serializers import constructor_detail, constructor_summary, driver_summary
 from src.db.database import get_db
@@ -192,6 +192,8 @@ def get_constructor_lineage(ref: str, db: Session = Depends(get_db)):
         .where(
             ConstructorStanding.constructor_id.in_(member_ids),
             ConstructorStanding.position == 1,
+            # A pre-1958 table is a sum of points, not a championship anyone won.
+            Race.season_year >= FIRST_CONSTRUCTORS_CHAMPIONSHIP,
         )
     ).all()
 

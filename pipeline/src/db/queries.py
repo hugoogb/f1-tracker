@@ -4,6 +4,7 @@ from datetime import date
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from src.api.constants import FIRST_CONSTRUCTORS_CHAMPIONSHIP
 from src.db.models import (
     Circuit,
     Constructor,
@@ -104,7 +105,8 @@ def get_driver_standings_for_season(db: Session, year: int) -> list[DriverStandi
         db.execute(
             select(DriverStanding)
             .where(DriverStanding.race_id == last_race.id)
-            .order_by(DriverStanding.position)
+            # An excluded driver's position is null; they read after the table.
+            .order_by(DriverStanding.position.asc().nulls_last())
         )
         .scalars()
         .all()
@@ -127,7 +129,8 @@ def get_constructor_standings_for_season(db: Session, year: int) -> list[Constru
         db.execute(
             select(ConstructorStanding)
             .where(ConstructorStanding.race_id == last_race.id)
-            .order_by(ConstructorStanding.position)
+            # An excluded team's position is null; they read after the table.
+            .order_by(ConstructorStanding.position.asc().nulls_last())
         )
         .scalars()
         .all()
@@ -413,6 +416,12 @@ def get_season_champions(db: Session) -> list[dict]:
         .scalars()
         .all()
     )
+    # A pre-1958 table is a sum of points, not a championship anyone won.
+    constructor_standings = [
+        cs
+        for cs in constructor_standings
+        if race_year_map[cs.race_id] >= FIRST_CONSTRUCTORS_CHAMPIONSHIP
+    ]
     cs_by_race = {cs.race_id: cs for cs in constructor_standings}
 
     # Bulk-fetch all referenced drivers and constructors

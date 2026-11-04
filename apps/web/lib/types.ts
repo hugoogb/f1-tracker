@@ -153,14 +153,16 @@ export interface DriverStanding {
   driver: Driver
   constructor: Constructor
   points: number
-  position: number
+  /** Null for a driver disqualified from the championship (Schumacher, 1997). */
+  position: number | null
   wins: number
 }
 
 export interface ConstructorStanding {
   constructor: Constructor
   points: number
-  position: number
+  /** Null for a team excluded from the championship (McLaren, 2007). */
+  position: number | null
   wins: number
 }
 
