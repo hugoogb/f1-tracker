@@ -20,6 +20,9 @@ import { buttonVariants } from '@/components/ui/button-variants'
 import { PageHero } from '@/components/ui/page-hero'
 import { compareHref } from '@/lib/compare-prefill'
 import { RecordVisit } from '@/components/layout/record-visit'
+import { PageSummary } from '@/components/ui/page-summary'
+import { constructorSummary } from '@/lib/page-summary'
+import { pairHref, pairsFor } from '@/lib/curated-comparisons'
 import { WhereNext } from '@/components/layout/where-next'
 import { liveryStyle } from '@/lib/livery'
 
@@ -62,7 +65,7 @@ export async function generateMetadata({ params }: { params: Promise<{ ref: stri
 
   const { total_entries: entries, wins, podiums, total_points: points } = constructor.stats
   return buildMetadata({
-    title: constructor.name,
+    title: `${constructor.name} F1 Team: Stats, Wins & History`,
     description:
       `${constructor.name}'s complete Formula 1 record: ${entries} race entries, ${wins} wins, ` +
       `${podiums} podiums and ${points} championship points, season by season with the full driver roster.`,
@@ -160,6 +163,15 @@ export default async function ConstructorDetailPage({
         }
       />
 
+      <PageSummary
+        text={constructorSummary({
+          name: constructor.name,
+          nationality: constructor.nationality,
+          stats: constructor.stats,
+          seasons,
+        })}
+      />
+
       <StaggerList className="grid grid-cols-2 gap-4 md:grid-cols-4">
         <StaggerItem>
           <StatCard
@@ -250,6 +262,13 @@ export default async function ConstructorDetailPage({
       </FadeIn>
       <WhereNext
         links={[
+          ...pairsFor('constructors', ref)
+            .slice(0, 3)
+            .map((pair) => ({
+              label: pair.label,
+              href: pairHref('constructors', pair),
+              description: 'Head-to-head record',
+            })),
           {
             label: 'Compare head to head',
             href: compareHref('constructor', ref, constructor.name),

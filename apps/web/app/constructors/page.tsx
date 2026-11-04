@@ -16,14 +16,24 @@ import { Pagination } from '@/components/pagination'
 import { ListFilter } from '@/components/list-filter'
 import { FadeIn } from '@/components/ui/motion'
 import { FavouriteButton } from '@/components/favourites/favourite-button'
-import { buildMetadata } from '@/lib/seo'
+import { buildListMetadata } from '@/lib/seo'
 
-export const metadata = buildMetadata({
-  title: 'Constructors',
-  description:
-    'Every Formula 1 constructor in the history of the championship, filterable by nationality, with wins, poles, podiums and titles.',
-  path: '/constructors',
-})
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string; nationality?: string }>
+}) {
+  const { page, nationality } = await searchParams
+  return buildListMetadata(
+    {
+      title: 'F1 Teams: Every Formula 1 Constructor Since 1950',
+      description:
+        'Every Formula 1 constructor in the history of the championship, filterable by nationality, with wins, poles, podiums and titles.',
+      path: '/constructors',
+    },
+    { page, filter: nationality },
+  )
+}
 
 export default async function ConstructorsPage({
   searchParams,

@@ -43,12 +43,15 @@ Deployment: frontend on Vercel; the API runs as a Docker container (`f1_api`) on
 | `/compare` | Driver and constructor comparison selector |
 | `/compare/drivers` | Side-by-side driver comparison |
 | `/compare/constructors` | Side-by-side constructor comparison |
+| `/compare/drivers/[pair]`, `/compare/constructors/[pair]` | The curated, cached, indexable head-to-heads (`senna-vs-prost` style, from `lib/curated-comparisons.ts`); anything off the list is a 404. Every other pairing stays on the `noindex`, `no-store` query-string views above |
+| `/records/[entity]/[slug]` | One all-time ranking as a landing page (`drivers\|teams`, `most-wins`...), fixed list in `lib/seo-landing.ts` |
+| `/drivers/nationality/[slug]` | A nationality's drivers and race winners, for the 25 nationalities with at least five drivers (`lib/seo-landing.ts`) |
 | `/attributions` | Data sources, licences, trademark notice (compliance) |
 | `/favourites` | Starred drivers, constructors and circuits (localStorage only, noindex) |
 | `/status` | Data freshness, ingest run log, Fast-F1 backlog, row counts (public, noindex) |
 
 Metadata routes (Next file conventions, all under `apps/web/app/`): `sitemap.ts`
-(static routes + every season, driver, constructor, circuit and race, rebuilt
+(static routes + every season, driver, constructor, circuit and race, plus the curated head-to-heads and landing pages, rebuilt
 daily and on any purge, since it reads `f1-global`), `robots.ts`, `manifest.ts`,
 `opengraph-image.tsx` + `twitter-image.tsx` (1200x630 card via `next/og`),
 `icon.svg`, `favicon.ico`, `apple-icon.png`.
@@ -320,6 +323,8 @@ Two f1db quirks the UI is built around:
   through `useHydrated()`/`useNow()` in `lib/client-only.ts` (and the
   `LocalDate`/`LocalDateTime`/`LocalTime` components) so the server pass and the
   first client render agree. Never format a date with a hardcoded locale
+- Crawl paths: the sitemap walks the list endpoints in `MAX_API_PAGE_SIZE` pages (mirrors the API's `MAX_PAGE_SIZE`; above it the API answers 422 and that whole section vanishes from a 200 sitemap, logged as `sitemap: dropped the ...`). `/seasons/{year}` race rows carry no `seasonYear`, whatever the `Race` type says, so race URLs are built from the season being walked (`raceSitemapEntry`). List pagination is real links (`pageHref`) and each later page is its own canonical (`buildListMetadata`)
+- `lib/page-summary.ts` writes the paragraph under the hero on detail, head-to-head and landing pages. Pure functions of the page's own data, so it goes in cached HTML: no clock (a caller passes `currentYear`), no locale (`group()`), no pronoun for a driver. Check any new claim against the Known Issues below before adding it: it is published on thousands of pages
 - Page metadata goes through `buildMetadata()` in `lib/seo.ts` — it fills in the
   canonical URL, Open Graph and Twitter cards from one title/description, and
   the root layout's `%s | F1 Tracker` template appends the suffix, so a page
@@ -515,6 +520,8 @@ Rules to preserve when changing code:
 
 ## Known Issues
 
+- **Constructor championships are wrong in the stored standings.** `constructor_standings` is unique on `(race_id, constructor_id)` but f1db lists one row per constructor-engine pairing, so the last row wins: Cooper-Climax's 1960 title is overwritten by a Cooper entry on 3 points, and `/api/champions` has no constructors' champion for 1960, 1963, 1965, 1966 and 1967. Tables before 1958 count as titles (Ferrari shows 20, not 16), and 2007 has two P1 rows, which is why McLaren's stripped title counts in `/records/explore` (11, not 10). Until the ingest keeps the best row and the readers ignore pre-1958 tables, `lib/page-summary.ts` and `RECORD_RANKINGS` state no constructors' title on purpose
+- A shared-drive win can have no P1 row: the 1951 French Grand Prix's results start at P2 and its calendar winner is null
 - Next.js 16 build requires `NODE_ENV=production` to avoid `_global-error` prerender bug
 - "Invalid segment configuration export detected" names no file under Turbopack. Re-run with
   `NEXT_COMPILER_NAME=server` to get the offending route. The cause is always a non-literal

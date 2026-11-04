@@ -12,6 +12,10 @@ def test_list_seasons_with_data(client, seed_data):
     assert data[0]["year"] == 2023
 
 
+def test_get_unknown_season_is_404(client, seed_data):
+    assert client.get("/api/seasons/1900").status_code == 404
+
+
 def test_get_season(client, seed_data):
     response = client.get("/api/seasons/2023")
     assert response.status_code == 200

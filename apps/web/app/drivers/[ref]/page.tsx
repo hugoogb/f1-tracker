@@ -23,6 +23,10 @@ import { PageHero } from '@/components/ui/page-hero'
 import { Tag } from '@/components/ui/tag'
 import { compareHref } from '@/lib/compare-prefill'
 import { RecordVisit } from '@/components/layout/record-visit'
+import { PageSummary } from '@/components/ui/page-summary'
+import { driverSummary } from '@/lib/page-summary'
+import { pairHref, pairsFor } from '@/lib/curated-comparisons'
+import { findNationalityPage, nationalityHref } from '@/lib/seo-landing'
 import { WhereNext } from '@/components/layout/where-next'
 
 interface DriverDetail extends Driver {
@@ -71,7 +75,7 @@ export async function generateMetadata({ params }: { params: Promise<{ ref: stri
     championships === 1 ? '1 world championship' : `${championships} world championships`
 
   return buildMetadata({
-    title: name,
+    title: `${name}: F1 Stats, Wins & Career Record`,
     description:
       `${name}'s complete Formula 1 career: ${races} race starts, ${wins} wins, ${poles} poles, ` +
       `${podiums} podiums and ${titles}, with points by season and qualifying vs race pace.`,
@@ -109,6 +113,7 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ r
   const latestTeam = latestSeason?.constructor
   const teamColor = latestTeamColor(seasons) ?? undefined
   const fullName = `${driverData.firstName} ${driverData.lastName}`
+  const nationalityPage = findNationalityPage(driverData.nationality)
 
   return (
     <div className="space-y-8" style={liveryStyle(teamColor)}>
@@ -180,6 +185,17 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ r
             </Link>
           </>
         }
+      />
+
+      <PageSummary
+        text={driverSummary({
+          name: fullName,
+          nationality: driverData.nationality,
+          stats: driverData.stats,
+          seasons,
+          // Only decides whether a table is final; changes on 1 January.
+          currentYear: new Date().getUTCFullYear(),
+        })}
       />
 
       <StaggerList className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
@@ -288,6 +304,22 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ r
 
       <WhereNext
         links={[
+          ...pairsFor('drivers', ref)
+            .slice(0, 3)
+            .map((pair) => ({
+              label: pair.label,
+              href: pairHref('drivers', pair),
+              description: 'Head-to-head record',
+            })),
+          ...(nationalityPage
+            ? [
+                {
+                  label: `${nationalityPage.label} F1 drivers`,
+                  href: nationalityHref(nationalityPage),
+                  description: 'Everyone from the same country',
+                },
+              ]
+            : []),
           {
             label: 'Compare head to head',
             href: compareHref('driver', ref, fullName),

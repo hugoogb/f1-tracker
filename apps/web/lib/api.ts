@@ -273,13 +273,31 @@ export const api = {
         // `Cache-Control` caches the popular ones for free instead.
         cache: 'no-store',
       }),
+    /**
+     * A landing page's fixed query (`lib/seo-landing.ts`). Bounded by that list,
+     * so unlike `explore` it is cached like any other `f1-global` endpoint.
+     */
+    ranking: (params: RecordsExploreParams) =>
+      fetchApi<RecordsExploreResponse>(`/records/explore?${recordsExploreQuery(params)}`),
   }),
   /**
    * Head-to-heads. Not cached: any pair of ~900 drivers is a valid URL, so a
    * cache entry per pair is an unbounded number of ISR writes, almost none of
    * which is ever read twice. The pages reading these are dynamic anyway.
+   *
+   * The `curated*` pair are the exception: `lib/curated-comparisons.ts` bounds
+   * them. Tagged with both entities and not `f1-global`, so a weekly purge only
+   * re-renders a head-to-head when one of its two sides actually raced.
    */
   compare: {
+    curatedDrivers: (d1: string, d2: string) =>
+      fetchApi(`/compare/drivers?${new URLSearchParams({ d1, d2 })}`, {
+        next: { tags: [F1_DATA_TAG, entityTag('driver', d1), entityTag('driver', d2)] },
+      }),
+    curatedConstructors: (c1: string, c2: string) =>
+      fetchApi(`/compare/constructors?${new URLSearchParams({ c1, c2 })}`, {
+        next: { tags: [F1_DATA_TAG, entityTag('constructor', c1), entityTag('constructor', c2)] },
+      }),
     drivers: (d1: string, d2: string, teammate?: boolean) => {
       const params = new URLSearchParams({ d1, d2 })
       if (teammate) params.set('teammate', 'true')

@@ -39,13 +39,15 @@ import { TitlePermutations } from '@/components/seasons/title-permutations'
 import { NormalisedStandings } from '@/components/seasons/normalised-standings'
 import { SeasonCalendarMapWrapper } from '@/components/seasons/season-calendar-map-wrapper'
 import { FadeIn } from '@/components/ui/motion'
-import { buildMetadata } from '@/lib/seo'
+import { buildMetadata, SITE_DESCRIPTION } from '@/lib/seo'
 import { LocalDate } from '@/components/ui/local-date'
 import { SeasonRankBadge } from '@/components/best-seasons/season-rank-badge'
 import { buttonVariants } from '@/components/ui/button-variants'
 import { PageHero } from '@/components/ui/page-hero'
 import { Tag } from '@/components/ui/tag'
 import { RecordVisit } from '@/components/layout/record-visit'
+import { PageSummary } from '@/components/ui/page-summary'
+import { seasonSummary } from '@/lib/page-summary'
 import { WhereNext } from '@/components/layout/where-next'
 import { seasonNeighbours } from '@/lib/neighbours'
 
@@ -80,9 +82,24 @@ export function generateStaticParams() {
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ year: string }> }) {
-  const { year } = await params
+  const { year: yearStr } = await params
+  const year = parseInt(yearStr, 10)
+  // The page decides between 404 and error; this keeps a missing year out of
+  // the index, since streaming ships its 404 body with a 200. Parsing first
+  // also gives `/seasons/2021abc`, which renders 2021, that season's canonical.
+  try {
+    if (isNaN(year)) throw new Error('not a year')
+    await api.seasons.get(year)
+  } catch {
+    return buildMetadata({
+      title: 'Season',
+      description: SITE_DESCRIPTION,
+      path: `/seasons/${yearStr}`,
+      noindex: true,
+    })
+  }
   return buildMetadata({
-    title: `${year} F1 Season`,
+    title: `${year} F1 Season Results & Standings`,
     description:
       `The ${year} Formula 1 season: full race calendar and results, final driver and constructor ` +
       'standings, round-by-round championship progression and a season results heatmap.',
@@ -234,6 +251,16 @@ export default async function SeasonDetailPage({ params }: { params: Promise<{ y
           </>
         }
       />
+
+      {calendar && (
+        <PageSummary
+          text={seasonSummary({
+            year,
+            calendar,
+            drivers: driverStandingsData.standings,
+          })}
+        />
+      )}
 
       {seasonData.scoring && (
         <FadeIn>

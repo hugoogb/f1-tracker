@@ -1,4 +1,5 @@
 DEFAULT_PAGE_SIZE = 50
+# Mirrored by MAX_API_PAGE_SIZE in apps/web/lib/paged-fetch.ts; change both or neither.
 MAX_PAGE_SIZE = 200
 DEFAULT_RECORD_LIMIT = 10
 MAX_RECORD_LIMIT = 50

@@ -26,6 +26,8 @@ import { FavouriteButton } from '@/components/favourites/favourite-button'
 import { PageHero } from '@/components/ui/page-hero'
 import { FastestLapCard } from '@/components/races/fastest-lap-card'
 import { RecordVisit } from '@/components/layout/record-visit'
+import { PageSummary } from '@/components/ui/page-summary'
+import { circuitSummary } from '@/lib/page-summary'
 import { WhereNext } from '@/components/layout/where-next'
 
 interface CircuitRace {
@@ -77,7 +79,7 @@ export async function generateMetadata({ params }: { params: Promise<{ ref: stri
   const span = first === null ? '' : first === last ? ` in ${first}` : ` from ${first} to ${last}`
 
   return buildMetadata({
-    title: circuit.name,
+    title: `${circuit.name}: F1 Track & Race Winners`,
     description:
       `${circuit.name}${where ? ` in ${where}` : ''} — track layout, lap record and every Formula 1 ` +
       `Grand Prix held there${span}, with the drivers and constructors that won them.`,
@@ -157,6 +159,16 @@ export default async function CircuitDetailPage({ params }: { params: Promise<{ 
             size="icon"
           />
         }
+      />
+
+      <PageSummary
+        text={circuitSummary({
+          name: circuit.name,
+          location: circuit.location,
+          country: circuit.country,
+          raceYears: circuit.races.map((race) => race.seasonYear),
+          stats: circuitStats,
+        })}
       />
 
       {/* Track Layout */}
