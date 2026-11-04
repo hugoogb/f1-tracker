@@ -258,6 +258,7 @@ export default async function SeasonDetailPage({ params }: { params: Promise<{ y
             year,
             calendar,
             drivers: driverStandingsData.standings,
+            constructors: constructorStandingsData.standings,
           })}
         />
       )}

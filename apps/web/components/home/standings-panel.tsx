@@ -4,7 +4,7 @@ import { Panel, PanelContent, PanelHeader, PanelTitle, PanelAction } from '@/com
 import { cn, teamColorOf } from '@/lib/utils'
 
 export interface StandingsRow {
-  position: number
+  position: number | null
   name: string
   sub?: string
   color: string | null
@@ -57,7 +57,7 @@ export function StandingsPanel({
                         !leader && 'text-muted-foreground',
                       )}
                     >
-                      {row.position}
+                      {row.position ?? '–'}
                     </span>
                     <span
                       aria-hidden

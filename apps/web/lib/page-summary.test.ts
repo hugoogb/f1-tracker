@@ -152,17 +152,18 @@ describe('constructorSummary', () => {
     championshipPosition: pos,
   })
 
-  it('reports the record and never a title, which the standings cannot support', () => {
+  it('counts titles only from finished seasons of the championship', () => {
     const text = constructorSummary({
       name: 'Ferrari',
       nationality: 'Italian',
       stats: { total_entries: 1143, wins: 250, podiums: 849 },
-      seasons: [row(2008, 8, 1), row(2004, 15, 1)],
+      seasons: [row(2008, 8, 1), row(2004, 15, 1), row(2026, 2, 1), row(1952, 7, 1)],
+      currentYear: 2026,
     })
-    expect(text).toContain("Italian team Ferrari's Formula 1 history spans 2 seasons")
+    expect(text).toContain("Italian team Ferrari's Formula 1 history spans 4 seasons")
     expect(text).toContain('1,143 race entries brought 250 wins and 849 podiums.')
     expect(text).toContain('Most wins in one season: 15, in 2004.')
-    expect(text).not.toMatch(/champion/i)
+    expect(text).toContain("Constructors' champion 2 times, most recently in 2008.")
   })
 })
 
@@ -210,6 +211,10 @@ describe('seasonSummary', () => {
       name: `GP ${i + 1}`,
       winner: w ? { driver: { ref: w } } : null,
     })) as unknown as SeasonCalendarResponse['rounds']
+  const constructors = [
+    { position: 1, points: 613.5, constructor: { name: 'Mercedes' } },
+    { position: 2, points: 585.5, constructor: { name: 'Red Bull' } },
+  ]
   const drivers = [
     {
       position: 1,
@@ -230,12 +235,15 @@ describe('seasonSummary', () => {
       year: 2021,
       calendar: { year: 2021, totalKm: 63214, rounds: rounds(['a', 'a', 'b']) },
       drivers,
+      constructors,
     })
     expect(text).toContain('ran over 3 rounds, from the GP 1 to the GP 3, 63,214 km')
     expect(text).toContain(
       "Max Verstappen (Red Bull) won the drivers' championship on 395.5 points, 8 points ahead of Lewis Hamilton.",
     )
-    expect(text).not.toMatch(/constructors/i)
+    expect(text).toContain(
+      "Mercedes took the constructors' title on 613.5 points, 28 points ahead of Red Bull.",
+    )
     expect(text).toContain('2 different drivers won a race.')
   })
 
@@ -244,6 +252,7 @@ describe('seasonSummary', () => {
       year: 2026,
       calendar: { year: 2026, totalKm: 0, rounds: rounds(['a', null]) },
       drivers,
+      constructors,
     })
     expect(text).toContain('After 1 of 2 rounds, Max Verstappen (Red Bull) leads')
     expect(text).not.toContain('won the drivers')
@@ -254,8 +263,25 @@ describe('seasonSummary', () => {
       year: 2027,
       calendar: { year: 2027, totalKm: 0, rounds: rounds([null, null]) },
       drivers: [],
+      constructors: [],
     })
     expect(text).toBe('The 2027 Formula 1 calendar has 2 rounds, from the GP 1 to the GP 2.')
+  })
+})
+
+describe('seasonSummary before the constructors championship', () => {
+  it('names no constructors champion', () => {
+    const text = seasonSummary({
+      year: 1950,
+      calendar: {
+        year: 1950,
+        totalKm: 0,
+        rounds: [{ round: 1, name: 'GP', winner: { driver: { ref: 'a' } } }],
+      } as unknown as SeasonCalendarResponse,
+      drivers: [],
+      constructors: [{ position: 1, points: 89, constructor: { name: 'Alfa Romeo' } }],
+    })
+    expect(text).not.toContain('Alfa Romeo')
   })
 })
 

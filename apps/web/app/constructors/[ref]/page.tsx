@@ -169,6 +169,8 @@ export default async function ConstructorDetailPage({
           nationality: constructor.nationality,
           stats: constructor.stats,
           seasons,
+          // Only decides whether a P1 is a title or a lead; changes on 1 January.
+          currentYear: new Date().getUTCFullYear(),
         })}
       />
 
