@@ -18,14 +18,25 @@ import { Pagination } from '@/components/pagination'
 import { ListFilter } from '@/components/list-filter'
 import { FadeIn } from '@/components/ui/motion'
 import { FavouriteButton } from '@/components/favourites/favourite-button'
-import { buildMetadata } from '@/lib/seo'
+import { buildListMetadata } from '@/lib/seo'
+import { NATIONALITY_PAGES, nationalityHref } from '@/lib/seo-landing'
 
-export const metadata = buildMetadata({
-  title: 'Drivers',
-  description:
-    'Every driver to have started a Formula 1 Grand Prix since 1950, filterable by nationality, with career stats, wins, poles and championships.',
-  path: '/drivers',
-})
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string; nationality?: string }>
+}) {
+  const { page, nationality } = await searchParams
+  return buildListMetadata(
+    {
+      title: 'F1 Drivers: Every Formula 1 Driver Since 1950',
+      description:
+        'Every driver to have started a Formula 1 Grand Prix since 1950, filterable by nationality, with career stats, wins, poles and championships.',
+      path: '/drivers',
+    },
+    { page, filter: nationality },
+  )
+}
 
 export default async function DriversPage({
   searchParams,
@@ -113,6 +124,23 @@ export default async function DriversPage({
       <Suspense>
         <Pagination total={total} page={page} pageSize={pageSize} />
       </Suspense>
+
+      <nav aria-labelledby="by-nationality-heading" className="space-y-3">
+        <h2 id="by-nationality-heading">F1 drivers by nationality</h2>
+        <ul className="flex flex-wrap gap-2">
+          {NATIONALITY_PAGES.map((n) => (
+            <li key={n.slug}>
+              <Link
+                href={nationalityHref(n)}
+                prefetch={false}
+                className="border-hairline bg-surface-1 hover:bg-surface-2 focus-ring block border px-3 py-1.5 text-sm transition-colors"
+              >
+                {n.label}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </nav>
     </div>
   )
 }

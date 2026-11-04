@@ -106,3 +106,51 @@ export function buildMetadata({
     ...(noindex ? { robots: { index: false, follow: true } } : {}),
   }
 }
+
+/**
+ * Metadata for a paginated list. Each later page is its own canonical: pointing
+ * them at page one tells Google to treat them as duplicates, and it then stops
+ * following the links that are the only crawl path to the entries listed there.
+ * A filtered view is a variation of the same list, so it canonicalises to it.
+ */
+export function buildListMetadata(
+  input: SeoInput,
+  { page, filter }: { page?: string; filter?: string },
+): Metadata {
+  const n = Number(page)
+  if (filter || !Number.isInteger(n) || n <= 1) return buildMetadata(input)
+  return buildMetadata({
+    ...input,
+    title: `${input.title}, page ${n}`,
+    path: `${input.path}?page=${n}`,
+  })
+}
+
+/** A pagination link's URL. Page one has no parameter, so it has a single URL. */
+export function pageHref(pathname: string, search: string, page: number): string {
+  const params = new URLSearchParams(search)
+  if (page <= 1) params.delete('page')
+  else params.set('page', String(page))
+  const qs = params.toString()
+  return qs ? `${pathname}?${qs}` : pathname
+}
+
+/** What `/seasons/{year}` lists per race. It has no year: the season it came from is the year. */
+export interface SeasonRace {
+  round: number
+  date: string | null
+}
+
+/**
+ * One race's sitemap entry. A date still ahead is left out: a future `lastmod` is
+ * invalid, and the calendar lists races not yet run.
+ */
+export function raceSitemapEntry(year: number, race: SeasonRace, now: number) {
+  const raced = race.date ? new Date(race.date) : null
+  return {
+    url: absoluteUrl(`/seasons/${year}/races/${race.round}`),
+    lastModified: raced && raced.getTime() <= now ? raced : undefined,
+    changeFrequency: 'monthly' as const,
+    priority: 0.6,
+  }
+}

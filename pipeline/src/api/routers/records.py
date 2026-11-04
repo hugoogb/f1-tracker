@@ -9,6 +9,7 @@ from src.api.constants import (
     DEFAULT_EXPLORE_LIMIT,
     DEFAULT_EXPLORE_MIN_STARTS,
     DEFAULT_RECORD_LIMIT,
+    FIRST_CONSTRUCTORS_CHAMPIONSHIP,
     MAX_RECORD_LIMIT,
 )
 from src.api.pagination import paginate_rows
@@ -147,6 +148,10 @@ def get_records(
         .where(
             ConstructorStanding.position == 1,
             ConstructorStanding.race_id.in_(select(last_race_ids)),
+            # A pre-1958 table is a sum of points, not a championship anyone won.
+            ConstructorStanding.race_id.in_(
+                select(Race.id).where(Race.season_year >= FIRST_CONSTRUCTORS_CHAMPIONSHIP)
+            ),
         )
         .group_by(ConstructorStanding.constructor_id)
         .order_by(func.count().desc())
@@ -332,6 +337,8 @@ def _metric_subquery(entity: str, category: str, year_clauses: list) -> Subquery
             *year_clauses,
             standing.position == 1,
             standing.race_id.in_(select(_final_round_race_ids())),
+            # A pre-1958 table is a sum of points, not a championship anyone won.
+            *([] if is_driver else [Race.season_year >= FIRST_CONSTRUCTORS_CHAMPIONSHIP]),
         )
         .group_by(standing_column)
         .subquery()

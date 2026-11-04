@@ -12,6 +12,7 @@ from src.db.models import (
     DriverStanding,
     Race,
     RaceResult,
+    Season,
     SprintResult,
 )
 from src.db.queries import (
@@ -101,6 +102,10 @@ def list_seasons(db: Session = Depends(get_db)):
 
 @router.get("/seasons/{year}")
 def get_season(year: int, db: Session = Depends(get_db)):
+    # Keyed on the season row, not its races: a season just ingested can have no
+    # races yet and still exists. A 200 here makes `/seasons/1900` an indexable page.
+    if db.get(Season, year) is None:
+        raise HTTPException(status_code=404, detail="Season not found")
     races = get_season_races(db, year)
     return {
         "year": year,

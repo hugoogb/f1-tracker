@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useState } from 'react'
+import { Suspense, useCallback, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { DriverSelect } from '@/components/compare/driver-select'
@@ -11,23 +11,18 @@ import { PageHero } from '@/components/ui/page-hero'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { FadeIn } from '@/components/ui/motion'
 import { comparePrefill, type PrefillSide } from '@/lib/compare-prefill'
+import {
+  CURATED_CONSTRUCTOR_PAIRS,
+  CURATED_DRIVER_PAIRS,
+  pairHref,
+  type ComparisonKind,
+  type CuratedPair,
+} from '@/lib/curated-comparisons'
 
-// f1db ids, which are hyphenated and use the driver's full name — not Ergast's
-// (`hamilton`, `max_verstappen`, `red_bull`). Every one of these was an Ergast
-// ref, so the comparison 404'd and the page redirected straight back here,
-// which looked like the links did nothing at all.
-const suggestedDriverComparisons = [
-  { d1: 'lewis-hamilton', d2: 'max-verstappen', label: 'Hamilton vs Verstappen' },
-  { d1: 'michael-schumacher', d2: 'lewis-hamilton', label: 'Schumacher vs Hamilton' },
-  { d1: 'ayrton-senna', d2: 'alain-prost', label: 'Senna vs Prost' },
-  { d1: 'juan-manuel-fangio', d2: 'jim-clark', label: 'Fangio vs Clark' },
-]
-
-const suggestedConstructorComparisons = [
-  { c1: 'ferrari', c2: 'mclaren', label: 'Ferrari vs McLaren' },
-  { c1: 'mercedes', c2: 'red-bull', label: 'Mercedes vs Red Bull' },
-  { c1: 'ferrari', c2: 'williams', label: 'Ferrari vs Williams' },
-]
+// The first few of the curated head-to-heads, as quick picks beside each form;
+// `AllHeadToHeads` below lists the rest.
+const suggestedDriverComparisons = CURATED_DRIVER_PAIRS.slice(0, 4)
+const suggestedConstructorComparisons = CURATED_CONSTRUCTOR_PAIRS.slice(0, 3)
 
 function DriverCompareForm({ prefill }: { prefill: PrefillSide }) {
   const router = useRouter()
@@ -84,7 +79,7 @@ function DriverCompareForm({ prefill }: { prefill: PrefillSide }) {
           {suggestedDriverComparisons.map((comp) => (
             <Link
               key={comp.label}
-              href={`/compare/drivers?d1=${comp.d1}&d2=${comp.d2}`}
+              href={pairHref('drivers', comp)}
               className="border-hairline bg-surface-1 hover:bg-surface-2 focus-ring border px-3 py-1.5 text-sm transition-colors"
             >
               {comp.label}
@@ -153,7 +148,7 @@ function ConstructorCompareForm({ prefill }: { prefill: PrefillSide }) {
           {suggestedConstructorComparisons.map((comp) => (
             <Link
               key={comp.label}
-              href={`/compare/constructors?c1=${comp.c1}&c2=${comp.c2}`}
+              href={pairHref('constructors', comp)}
               className="border-hairline bg-surface-1 hover:bg-surface-2 focus-ring border px-3 py-1.5 text-sm transition-colors"
             >
               {comp.label}
@@ -219,38 +214,92 @@ function SeasonCompareLinks() {
   )
 }
 
-export default function ComparePage() {
+function PairLinks({ kind, pairs }: { kind: ComparisonKind; pairs: readonly CuratedPair[] }) {
+  return (
+    <ul className="flex flex-wrap gap-2">
+      {pairs.map((pair) => (
+        <li key={pair.label}>
+          <Link
+            href={pairHref(kind, pair)}
+            prefetch={false}
+            className="border-hairline bg-surface-1 hover:bg-surface-2 focus-ring block border px-3 py-1.5 text-sm transition-colors"
+          >
+            {pair.label}
+          </Link>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+/** Outside the Suspense below, so these reach a crawler: the only links to these pages. */
+function AllHeadToHeads() {
+  return (
+    <Panel>
+      <PanelHeader>
+        <PanelTitle>F1 rivalries, head to head</PanelTitle>
+      </PanelHeader>
+      <PanelContent className="space-y-5">
+        <div className="space-y-2">
+          <h2>Drivers</h2>
+          <PairLinks kind="drivers" pairs={CURATED_DRIVER_PAIRS} />
+        </div>
+        <div className="space-y-2">
+          <h2>Teams</h2>
+          <PairLinks kind="constructors" pairs={CURATED_CONSTRUCTOR_PAIRS} />
+        </div>
+      </PanelContent>
+    </Panel>
+  )
+}
+
+/**
+ * `useSearchParams` bails out of server rendering up to the nearest Suspense
+ * boundary. Keeping that boundary around the forms alone leaves the heading and
+ * links in the HTML, rather than a page a crawler sees as blank.
+ */
+function ComparePicker() {
   const searchParams = useSearchParams()
   const prefill = comparePrefill(searchParams)
 
   return (
+    <Tabs defaultValue={prefill.tab}>
+      <TabsList variant="line">
+        <TabsTrigger value={0}>Drivers</TabsTrigger>
+        <TabsTrigger value={1}>Constructors</TabsTrigger>
+      </TabsList>
+      <TabsContent value={0}>
+        <FadeIn>
+          <div className="space-y-8">
+            <DriverCompareForm prefill={prefill.d1} />
+          </div>
+        </FadeIn>
+      </TabsContent>
+      <TabsContent value={1}>
+        <FadeIn>
+          <div className="space-y-8">
+            <ConstructorCompareForm prefill={prefill.c1} />
+          </div>
+        </FadeIn>
+      </TabsContent>
+    </Tabs>
+  )
+}
+
+export default function ComparePage() {
+  return (
     <div className="space-y-8">
       <PageHero
         eyebrow="Head to head"
-        title="Compare"
+        title="Compare F1 drivers and teams"
         description="Select two drivers or constructors to compare their career stats and head-to-head record"
       />
 
-      <Tabs defaultValue={prefill.tab}>
-        <TabsList variant="line">
-          <TabsTrigger value={0}>Drivers</TabsTrigger>
-          <TabsTrigger value={1}>Constructors</TabsTrigger>
-        </TabsList>
-        <TabsContent value={0}>
-          <FadeIn>
-            <div className="space-y-8">
-              <DriverCompareForm prefill={prefill.d1} />
-            </div>
-          </FadeIn>
-        </TabsContent>
-        <TabsContent value={1}>
-          <FadeIn>
-            <div className="space-y-8">
-              <ConstructorCompareForm prefill={prefill.c1} />
-            </div>
-          </FadeIn>
-        </TabsContent>
-      </Tabs>
+      <Suspense>
+        <ComparePicker />
+      </Suspense>
+
+      <AllHeadToHeads />
 
       <SeasonCompareLinks />
     </div>

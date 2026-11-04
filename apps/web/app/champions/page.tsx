@@ -10,7 +10,7 @@ import { FadeIn, StaggerList, StaggerItem } from '@/components/ui/motion'
 import { buildMetadata } from '@/lib/seo'
 
 export const metadata = buildMetadata({
-  title: 'Champions',
+  title: 'F1 World Champions: Full List Since 1950',
   description:
     "Every Formula 1 World Drivers' and Constructors' Champion since 1950, season by season, with points and title counts.",
   path: '/champions',

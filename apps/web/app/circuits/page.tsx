@@ -17,14 +17,24 @@ import { ListFilter } from '@/components/list-filter'
 import { WorldMapWrapper } from '@/components/circuits/world-map-wrapper'
 import { FadeIn } from '@/components/ui/motion'
 import { FavouriteButton } from '@/components/favourites/favourite-button'
-import { buildMetadata } from '@/lib/seo'
+import { buildListMetadata } from '@/lib/seo'
 
-export const metadata = buildMetadata({
-  title: 'Circuits',
-  description:
-    'Every circuit to have hosted a Formula 1 Grand Prix, filterable by country, with track layouts, locations and full race history.',
-  path: '/circuits',
-})
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string; country?: string }>
+}) {
+  const { page, country } = await searchParams
+  return buildListMetadata(
+    {
+      title: 'F1 Circuits: Every Formula 1 Track Since 1950',
+      description:
+        'Every circuit to have hosted a Formula 1 Grand Prix, filterable by country, with track layouts, locations and full race history.',
+      path: '/circuits',
+    },
+    { page, filter: country },
+  )
+}
 
 export default async function CircuitsPage({
   searchParams,

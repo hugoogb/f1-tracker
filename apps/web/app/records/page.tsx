@@ -26,9 +26,10 @@ import { PositionBadge } from '@/components/ui/position-badge'
 import { FadeIn, StaggerList, StaggerItem } from '@/components/ui/motion'
 import { RecordsTabs } from './records-tabs'
 import { buildMetadata } from '@/lib/seo'
+import { RECORD_RANKINGS, rankingHref } from '@/lib/seo-landing'
 
 export const metadata = buildMetadata({
-  title: 'Records',
+  title: 'F1 Records: Most Wins, Poles, Podiums & Titles',
   description:
     'All-time Formula 1 records — most wins, pole positions, podiums, fastest laps, championships and race starts, for drivers and constructors.',
   path: '/records',
@@ -275,6 +276,23 @@ export default async function RecordsPage() {
           </Suspense>
         }
       />
+
+      <nav aria-labelledby="full-rankings-heading" className="space-y-3">
+        <h2 id="full-rankings-heading">Full all-time rankings</h2>
+        <ul className="flex flex-wrap gap-2">
+          {RECORD_RANKINGS.map((ranking) => (
+            <li key={rankingHref(ranking)}>
+              <Link
+                href={rankingHref(ranking)}
+                prefetch={false}
+                className="border-hairline bg-surface-1 hover:bg-surface-2 focus-ring block border px-3 py-1.5 text-sm transition-colors"
+              >
+                {ranking.title}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </nav>
     </div>
   )
 }

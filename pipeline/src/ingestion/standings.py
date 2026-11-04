@@ -14,6 +14,11 @@ where a driver's counted total is not the sum of their results so far. Those
 rows are official or absent: a round f1db has no table for is left empty rather
 than filled with a sum, so nothing downstream mistakes one for the other.
 Consumers that want the final table keep reading the season's last round.
+
+f1db ranks constructor-engine pairings while `constructor_standings` holds one
+row per constructor, so a constructor with two engines in a season (Cooper-Climax
+and Cooper-Maserati, 1960) keeps its best row. An entry f1db ranks with no position
+was disqualified or excluded (Schumacher 1997, McLaren 2007) and stores a null one.
 """
 
 from collections import defaultdict
@@ -33,6 +38,23 @@ from src.db.models import (
 from src.ingestion import f1db
 from src.ingestion.base import BaseIngestor
 from src.ingestion.races import race_id
+
+
+def best_official_rows(rows: list[dict], key: str) -> list[dict]:
+    """One row per entity: its best position, a classified row beating an unranked one."""
+    best: dict[str, dict] = {}
+    for row in rows:
+        entity_id = row.get(key)
+        if not entity_id:
+            continue
+        held = best.get(entity_id)
+        position = row.get("positionNumber")
+        if held is None or (
+            position is not None
+            and (held.get("positionNumber") is None or position < held["positionNumber"])
+        ):
+            best[entity_id] = row
+    return list(best.values())
 
 
 class StandingsIngestor(BaseIngestor):
@@ -150,10 +172,10 @@ class StandingsIngestor(BaseIngestor):
             wrote_any = False
             for rows, model, key, prefix in tables:
                 known = known_drivers if prefix == "DS" else known_constructors
-                for row in rows:
-                    entity_id = row.get(key)
+                for row in best_official_rows(rows, key):
+                    entity_id = row[key]
                     position = row.get("positionNumber")
-                    if not entity_id or entity_id not in known:
+                    if entity_id not in known:
                         continue
                     fields = {
                         "id": f"{race.id}_{prefix}_{entity_id}",
@@ -174,7 +196,9 @@ class StandingsIngestor(BaseIngestor):
         """Overlay f1db's official points and positions onto the computed rows.
 
         Locally counted wins are preserved. Returns False when f1db carries no
-        standings for the season, leaving the computed values in place.
+        standings for the season, leaving the computed values in place. An entry
+        f1db does not list at all sits below its table, so a computed position can
+        neither collide with an official one nor claim a place it was not given.
         """
         if not season:
             return False
@@ -188,17 +212,35 @@ class StandingsIngestor(BaseIngestor):
             (driver_rows, DriverStanding, "driverId", "DS"),
             (constructor_rows, ConstructorStanding, "constructorId", "CS"),
         ):
-            for row in rows:
-                entity_id = row.get(key)
+            official_rows = best_official_rows(rows, key)
+            if not official_rows:
+                continue
+
+            listed = set()
+            lowest = 0
+            for row in official_rows:
+                entity_id = row[key]
                 position = row.get("positionNumber")
-                if not entity_id or position is None:
-                    continue
+                listed.add(f"{last_race_id}_{prefix}_{entity_id}")
+                if position is not None:
+                    lowest = max(lowest, int(position))
 
                 standing = self.db.get(model, f"{last_race_id}_{prefix}_{entity_id}")
                 if standing is None:
                     continue
                 standing.points = float(row.get("points") or 0)
-                standing.position = int(position)
+                standing.position = int(position) if position is not None else None
+
+            unlisted = [
+                standing
+                for standing in self.db.execute(select(model).where(model.race_id == last_race_id))
+                .scalars()
+                .all()
+                if standing.id not in listed
+            ]
+            unlisted.sort(key=lambda s: (s.points, s.wins), reverse=True)
+            for offset, standing in enumerate(unlisted, 1):
+                standing.position = lowest + offset
 
         self.db.commit()
         return True

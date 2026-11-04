@@ -8,7 +8,7 @@ import { teamColorOf } from '@/lib/utils'
 import { buildMetadata } from '@/lib/seo'
 
 export const metadata = buildMetadata({
-  title: 'Seasons',
+  title: 'F1 Seasons: Every Formula 1 Season Since 1950',
   description:
     'Browse every Formula 1 season from 1950 to today — race calendars, driver and constructor standings, and championship progression.',
   path: '/seasons',

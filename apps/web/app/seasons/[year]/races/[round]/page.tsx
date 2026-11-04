@@ -40,6 +40,8 @@ import { PageHero } from '@/components/ui/page-hero'
 import { Tag } from '@/components/ui/tag'
 import { buttonVariants } from '@/components/ui/button-variants'
 import { RecordVisit } from '@/components/layout/record-visit'
+import { PageSummary } from '@/components/ui/page-summary'
+import { raceSummary } from '@/lib/page-summary'
 import { WhereNext } from '@/components/layout/where-next'
 import { roundNeighbours } from '@/lib/neighbours'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
@@ -128,9 +130,9 @@ export async function generateMetadata({
     .map((result) => `${result.driver.firstName} ${result.driver.lastName}`)
 
   return buildMetadata({
-    title: `${race.name} ${year}`,
+    title: winner ? `${year} ${race.name} Results` : `${year} ${race.name}`,
     description:
-      `Full results for the ${year} ${race.name} at ${race.circuit.name}` +
+      `${winner ? 'Full results for' : 'Schedule and results for'} the ${year} ${race.name} at ${race.circuit.name}` +
       (winner ? `, won by ${winner.driver.firstName} ${winner.driver.lastName}` : '') +
       `${podium.length === 3 ? ` ahead of ${podium[1]} and ${podium[2]}` : ''}. ` +
       'Qualifying, grid, pit stops and lap-by-lap analysis.',
@@ -311,6 +313,16 @@ export default async function RaceDetailPage({
             )}
           </>
         }
+      />
+
+      <PageSummary
+        text={raceSummary({
+          year,
+          raceName: race.name,
+          circuit: race.circuit,
+          results: race.results,
+          fastestLap: race.fastestLap,
+        })}
       />
 
       <PodiumCard podium={podium} />

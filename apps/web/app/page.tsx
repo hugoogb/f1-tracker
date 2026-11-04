@@ -207,7 +207,15 @@ export default async function Home() {
                 </Tag>
               )}
             </div>
-            <h1 id="now-heading">
+            {/* The page's topic. The headline below changes with every race, so it
+                cannot be the h1, which is what a search engine reads as the subject. */}
+            <h1
+              id="now-heading"
+              className="font-data text-muted-foreground text-sm leading-normal font-semibold tracking-wider not-italic lg:text-sm"
+            >
+              Formula 1 stats, results and history since 1950
+            </h1>
+            <p className="font-display text-5xl leading-[0.9] font-extrabold uppercase italic lg:text-6xl">
               {leader ? (
                 <>
                   {leader.driver.lastName}{' '}
@@ -220,7 +228,7 @@ export default async function Home() {
               ) : (
                 <>Formula 1 {latestYear}</>
               )}
-            </h1>
+            </p>
             <p className="text-muted-foreground max-w-2xl">
               {leader && runnerUp
                 ? `${leader.driver.firstName} ${leader.driver.lastName} leads ${runnerUp.driver.lastName} in the drivers' championship. Every season since 1950 is here too.`

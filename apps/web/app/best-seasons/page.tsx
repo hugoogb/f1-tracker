@@ -20,7 +20,7 @@ import { ScoreLegend, componentColor } from '@/components/best-seasons/score-bre
 import { formatPoints } from '@/components/best-seasons/format'
 
 export const metadata = buildMetadata({
-  title: 'Best Seasons',
+  title: 'Best F1 Seasons Ever, Ranked by Title Fight',
   description:
     'Every Formula 1 season since 1950 ranked by how good a title fight it was — title margin, how late it was decided, finale contenders, different winners and lead changes.',
   path: '/best-seasons',
