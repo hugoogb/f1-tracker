@@ -98,6 +98,17 @@ export function Footer() {
             marks are trade marks of Formula One Licensing B.V. This is a free, non-commercial fan
             project.
           </p>
+          <p>
+            Built by{' '}
+            <a
+              href="https://hugoogb.dev/"
+              rel="author"
+              className="hover:text-foreground underline underline-offset-2"
+            >
+              Hugo García Benjumea
+            </a>
+            .
+          </p>
         </div>
       </Container>
     </footer>
