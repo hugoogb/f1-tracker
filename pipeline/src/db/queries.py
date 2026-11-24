@@ -5,6 +5,7 @@ from sqlalchemy import Select, func, select
 from sqlalchemy.orm import Session
 
 from src.api.constants import FIRST_CONSTRUCTORS_CHAMPIONSHIP
+from src.api.serializers import constructor_compact
 from src.db.models import (
     Circuit,
     Constructor,
@@ -454,23 +455,9 @@ def get_season_champions(db: Session) -> list[dict]:
                 if driver
                 else None,
                 "driverPoints": ds.points,
-                "constructor": {
-                    "id": constructor.id,
-                    "ref": constructor.ref,
-                    "name": constructor.name,
-                    "color": constructor.color,
-                }
-                if constructor
-                else None,
+                "constructor": constructor_compact(constructor) if constructor else None,
                 "constructorPoints": cs.points if cs else None,
-                "driverConstructor": {
-                    "id": driver_team.id,
-                    "ref": driver_team.ref,
-                    "name": driver_team.name,
-                    "color": driver_team.color,
-                }
-                if driver_team
-                else None,
+                "driverConstructor": constructor_compact(driver_team) if driver_team else None,
             }
         )
 

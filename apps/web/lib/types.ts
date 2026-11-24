@@ -168,15 +168,21 @@ export interface ConstructorStanding {
   wins: number
 }
 
+type ChampionTeam = Pick<Constructor, 'id' | 'ref' | 'name' | 'color'>
+
 export interface SeasonChampion {
   year: number
-  driver: Driver
-  /** The constructors' champion — not necessarily the drivers' champion's team. */
-  constructor: Constructor
+  driver: Pick<Driver, 'id' | 'ref' | 'firstName' | 'lastName'>
+  /**
+   * The constructors' champion — not necessarily the drivers' champion's team.
+   * Null before 1958, when there was no constructors' championship.
+   */
+  constructor: ChampionTeam | null
   /** The team the drivers' champion raced for most that season. */
-  driverConstructor: Pick<Constructor, 'id' | 'ref' | 'name' | 'color'> | null
+  driverConstructor: ChampionTeam | null
   driverPoints: number
-  constructorPoints: number
+  /** Null with `constructor`. */
+  constructorPoints: number | null
 }
 
 export interface SprintResult {

@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import {
   CartesianGrid,
   Line,
@@ -11,7 +11,8 @@ import {
   YAxis,
 } from 'recharts'
 import { NEUTRAL, axisProps, gridProps, lineCursor } from '@/lib/chart-theme'
-import { driverCode, teamColorOf } from '@/lib/utils'
+import { teamColorOf } from '@/lib/utils'
+import { DriverToggles, useDriverToggles } from './driver-toggles'
 import { formatLapTime } from '@/lib/lap-distribution'
 import type { DriverGaps } from '@/lib/types'
 
@@ -77,17 +78,7 @@ function CustomTooltip({
  * stops short, which is the case that usually explains a line ending early.
  */
 export function GapChart({ drivers, totalLaps, coveredLaps }: GapChartProps) {
-  const [enabled, setEnabled] = useState<Set<string>>(
-    () => new Set(drivers.slice(0, DEFAULT_DRIVERS).map((d) => d.driver.ref)),
-  )
-
-  const toggle = (ref: string) =>
-    setEnabled((prev) => {
-      const next = new Set(prev)
-      if (next.has(ref)) next.delete(ref)
-      else next.add(ref)
-      return next
-    })
+  const [enabled, toggle] = useDriverToggles(drivers, DEFAULT_DRIVERS)
 
   const { data, active, yMax } = useMemo(() => {
     const active = drivers.filter((d) => enabled.has(d.driver.ref))
@@ -115,27 +106,7 @@ export function GapChart({ drivers, totalLaps, coveredLaps }: GapChartProps) {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap gap-2">
-        {drivers.map((d) => {
-          const color = teamColorOf(d.constructor.color)
-          const on = enabled.has(d.driver.ref)
-          return (
-            <button
-              key={d.driver.ref}
-              onClick={() => toggle(d.driver.ref)}
-              aria-pressed={on}
-              className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-all ${
-                on
-                  ? 'border-transparent text-white'
-                  : 'border-border text-muted-foreground opacity-50 hover:opacity-75'
-              }`}
-              style={on ? { backgroundColor: color } : undefined}
-            >
-              {driverCode(d.driver)}
-            </button>
-          )
-        })}
-      </div>
+      <DriverToggles drivers={drivers} enabled={enabled} onToggle={toggle} />
 
       {data.length > 0 && (
         <div className="h-[28rem] w-full" role="img" aria-label="Gap to leader chart">

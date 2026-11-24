@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import {
   CartesianGrid,
   Line,
@@ -11,7 +11,8 @@ import {
   YAxis,
 } from 'recharts'
 import { NEUTRAL, axisProps, gridProps, lineCursor } from '@/lib/chart-theme'
-import { driverCode, teamColorOf } from '@/lib/utils'
+import { teamColorOf } from '@/lib/utils'
+import { DriverToggles, useDriverToggles } from './driver-toggles'
 import type { DriverPositions } from '@/lib/types'
 
 interface PositionChartProps {
@@ -20,10 +21,6 @@ interface PositionChartProps {
   totalLaps: number
   /** How many laps the reconstruction covers; short of `totalLaps` when timing is patchy. */
   coveredLaps?: number
-}
-
-function getDriverColor(driver: DriverPositions): string {
-  return teamColorOf(driver.constructor.color)
 }
 
 function CustomTooltip({
@@ -61,21 +58,7 @@ function CustomTooltip({
 }
 
 export function PositionChart({ drivers, totalLaps, coveredLaps }: PositionChartProps) {
-  const [enabledDrivers, setEnabledDrivers] = useState<Set<string>>(() => {
-    return new Set(drivers.slice(0, 5).map((d) => d.driver.ref))
-  })
-
-  const toggleDriver = (ref: string) => {
-    setEnabledDrivers((prev) => {
-      const next = new Set(prev)
-      if (next.has(ref)) {
-        next.delete(ref)
-      } else {
-        next.add(ref)
-      }
-      return next
-    })
-  }
+  const [enabledDrivers, toggleDriver] = useDriverToggles(drivers, 5)
 
   const { data, activeDrivers } = useMemo(() => {
     const activeDrivers = drivers.filter((d) => enabledDrivers.has(d.driver.ref))
@@ -111,27 +94,7 @@ export function PositionChart({ drivers, totalLaps, coveredLaps }: PositionChart
           after lap {coveredLaps} of {totalLaps}.
         </p>
       )}
-      {/* Driver toggles */}
-      <div className="flex flex-wrap gap-2">
-        {drivers.map((d) => {
-          const color = getDriverColor(d)
-          const active = enabledDrivers.has(d.driver.ref)
-          return (
-            <button
-              key={d.driver.ref}
-              onClick={() => toggleDriver(d.driver.ref)}
-              className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-all ${
-                active
-                  ? 'border-transparent text-white'
-                  : 'border-border text-muted-foreground opacity-50 hover:opacity-75'
-              }`}
-              style={active ? { backgroundColor: color } : undefined}
-            >
-              {driverCode(d.driver)}
-            </button>
-          )
-        })}
-      </div>
+      <DriverToggles drivers={drivers} enabled={enabledDrivers} onToggle={toggleDriver} />
 
       {data.length > 0 && (
         <div className="h-[28rem] w-full" role="img" aria-label="Race positions chart">
@@ -177,7 +140,7 @@ export function PositionChart({ drivers, totalLaps, coveredLaps }: PositionChart
                   key={d.driver.ref}
                   type="linear"
                   dataKey={d.driver.lastName}
-                  stroke={getDriverColor(d)}
+                  stroke={teamColorOf(d.constructor.color)}
                   strokeWidth={2}
                   dot={false}
                   connectNulls={false}
