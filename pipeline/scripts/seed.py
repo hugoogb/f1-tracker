@@ -1,4 +1,10 @@
-"""Run the full initial data load."""
+"""Run the data load: every ingestor, or the ones named by `--<target>` flags.
+
+It touches the database only. `--restore` first loads docker/backups/latest.sql.gz
+over it (so a long load starts from the seed instead of from nothing) and
+`--backup` dumps it there afterwards; both are opt-in, because a run that only
+rebuilds one table has no business replacing the database or the seed copy.
+"""
 
 import argparse
 import logging
@@ -26,9 +32,8 @@ BACKUP_FILE = Path(__file__).parent.parent.parent / "docker" / "backups" / "late
 
 # The restore/backup helpers shell out to the database *container*. Which one
 # they pick is theirs to decide (scripts/lib/db.sh reads STACK_NAME/DB_CONTAINER
-# from the environment or .env). Both are skipped entirely when there is no
-# Docker CLI — e.g. when seed.py runs inside the ingest container, which passes
-# --no-restore --no-backup anyway. DB_CONTAINER is read here only to name it in the log.
+# from the environment or .env). Both are skipped when there is no Docker CLI,
+# as in the ingest container. DB_CONTAINER is read here only to name it in the log.
 DB_CONTAINER = os.environ.get("DB_CONTAINER", f"{os.environ.get('STACK_NAME', 'f1-tracker')}-db")
 
 
@@ -93,7 +98,7 @@ def _handle_signal(signum, frame):
     """Signal handler for graceful shutdown."""
     set_interrupted()
     sig_name = signal.Signals(signum).name
-    logger.warning(f"{sig_name} received, finishing current operation then backing up...")
+    logger.warning(f"{sig_name} received, finishing the current operation...")
 
 
 INGESTOR_FLAGS = [
@@ -112,12 +117,20 @@ INGESTOR_FLAGS = [
 ]
 
 
-def parse_args() -> argparse.Namespace:
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="F1 Tracker data ingestion")
     for flag in INGESTOR_FLAGS:
         parser.add_argument(f"--{flag}", action="store_true", help=f"Run {flag} ingestion")
-    parser.add_argument("--no-restore", action="store_true", help="Skip backup restore")
-    parser.add_argument("--no-backup", action="store_true", help="Skip backup after completion")
+    parser.add_argument(
+        "--restore",
+        action="store_true",
+        help="First restore docker/backups/latest.sql.gz over the local database",
+    )
+    parser.add_argument(
+        "--backup",
+        action="store_true",
+        help="Afterwards dump the local database to docker/backups/latest.sql.gz",
+    )
     parser.add_argument(
         "--year-range",
         type=str,
@@ -134,10 +147,10 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Re-fetch lap data stored before per-lap positions were kept",
     )
-    return parser.parse_args()
+    return parser.parse_args(argv)
 
 
-if __name__ == "__main__":
+def main() -> None:
     setup_logging()
     configure_logging()
 
@@ -150,8 +163,8 @@ if __name__ == "__main__":
 
     year_range = parse_year_range(args.year_range, current_year=args.current_year)
 
-    # 1. Restore existing backup so we don't re-fetch data we already have
-    if not args.no_restore:
+    # 1. Start from the seed rather than from nothing, when asked
+    if args.restore:
         restore_backup()
 
     # 2. Run the load
@@ -160,6 +173,10 @@ if __name__ == "__main__":
     except (InterruptedError, KeyboardInterrupt):
         logger.warning("Seed interrupted by user")
 
-    # 3. Backup (even on interrupt, to preserve progress)
-    if not args.no_backup:
+    # 3. Backup (even on interrupt, to preserve progress), when asked
+    if args.backup:
         create_backup()
+
+
+if __name__ == "__main__":
+    main()

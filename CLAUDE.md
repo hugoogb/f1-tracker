@@ -190,7 +190,7 @@ daily and on any purge, since it reads `f1-global`), `robots.ts`, `manifest.ts`,
 - `uv run uvicorn src.api.main:app --reload` - Start FastAPI dev server
 - `uv run alembic upgrade head` - Run database migrations
 - `uv run alembic revision --autogenerate -m "description"` - Generate migration
-- `uv run python scripts/seed.py` - Run data ingestion (locally this includes `--laptimes` / `--qualifying-sectors`; on the VPS those two cannot run — see below)
+- `uv run python scripts/seed.py` - Run data ingestion (locally this includes `--laptimes` / `--qualifying-sectors`; on the VPS those two cannot run — see below). It touches the database only: `--restore` first loads the seed dump over it, `--backup` dumps it to `docker/backups/latest.sql.gz` afterwards
 - `uv run python scripts/fastf1_fetch.py --probe` - Check whether this host may talk to Fast-F1 at all (prints HTTP status for live timing and a control host — 401 is the account, 403 the IP — then checks the sign-in)
 - `uv run python -m fastf1 auth f1tv --authenticate` / `--status` - Sign Fast-F1 in to an F1 TV account (token ~4 days); `scripts/fastf1_fetch.py --check-auth` is the same check the fetch runs, exit 4 without one
 - `uv run python scripts/fastf1_fetch.py --targets targets.json --out payload.ndjson.gz` - Fetch Fast-F1 sessions into a payload (no DB needed)

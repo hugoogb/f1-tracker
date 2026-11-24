@@ -424,7 +424,7 @@ the box through the platform's `deploy-app.sh` (`scripts/lib/vps.sh`):
    run unless a race ran in the last 3 days, so off-weekends cost nothing. It
    fails *open*: if the schedule can't be fetched, it ingests anyway.
 2. **Ingest** — runs the `ingest` compose service (the API image, `seed.py` with
-   `--current-year --no-restore --no-backup`) against `DIRECT_URL`, bypassing
+   `--current-year`) against `DIRECT_URL`, bypassing
    PgBouncer. The ingestors are idempotent (`db.merge`), so re-runs are safe.
 3. **Validate** — `scripts/validate.py`, informational.
 4. **Purge** — POSTs `{"scope":"latest"}` to `REVALIDATE_URL` so Vercel expires
