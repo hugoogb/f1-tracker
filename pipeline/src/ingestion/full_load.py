@@ -10,7 +10,7 @@ from collections.abc import Collection, Iterator
 from contextlib import contextmanager
 from datetime import UTC, datetime
 
-from sqlalchemy import text, update
+from sqlalchemy import event, text, update
 from sqlalchemy.orm import Session
 
 from src.config import settings
@@ -42,16 +42,26 @@ STATUS_ERROR = "error"
 ERROR_MAX_CHARS = 200
 
 
-class IngestRunHandle:
-    """What a running ingest can report back into its own log row.
+_WRITE_VERBS = frozenset({"INSERT", "UPDATE", "DELETE"})
 
-    Only `rows_written`, and only for a caller that genuinely counts what it
-    wrote: the f1db ingestors merge row by row and return no total, so theirs
-    stays NULL rather than being guessed at.
+
+class IngestRunHandle:
+    """Counts the rows a running ingest writes, for its own log row.
+
+    Counted at the driver, from each INSERT/UPDATE/DELETE's rowcount, so it
+    needs no cooperation from the ingestors and counts only real changes: a
+    merged row whose values did not change emits no UPDATE at all. A standings
+    round that is deleted and rewritten counts both halves. Statements whose
+    driver reports no rowcount (-1) are left out rather than guessed at.
     """
 
     def __init__(self) -> None:
-        self.rows_written: int | None = None
+        self.rows_written = 0
+
+    def after_cursor_execute(self, conn, cursor, statement, parameters, context, executemany):
+        words = statement.lstrip().split(None, 1)
+        if words and words[0].upper() in _WRITE_VERBS and cursor.rowcount > 0:
+            self.rows_written += cursor.rowcount
 
 
 def _error_text(exc: BaseException) -> str:
@@ -143,19 +153,35 @@ def record_ingest_run(target: str, session_factory=SessionLocal) -> Iterator[Ing
     It keeps its own session, deliberately. The ingest's session is unusable
     after a failed statement, so sharing one would mean the error row could
     only ever be written for the failures that did not involve the database.
+
+    Rows written are counted on the log session's engine — the one the ingest
+    writes through — between opening the row and closing it, so the log's own
+    two writes are not among them. A failed run records what it got through.
     """
     handle = IngestRunHandle()
     db, run_id = _open_run(target, session_factory)
+    engine = db.get_bind() if db is not None else None
+    if engine is not None:
+        event.listen(engine, "after_cursor_execute", handle.after_cursor_execute)
     try:
         yield handle
     except BaseException as exc:
+        _stop_counting(engine, handle)
         _close_run(db, run_id, STATUS_ERROR, handle.rows_written, exc)
         raise
     else:
+        _stop_counting(engine, handle)
         _close_run(db, run_id, STATUS_OK, handle.rows_written, None)
     finally:
         if db is not None:
             _quietly(db.close)
+
+
+def _stop_counting(engine, handle: IngestRunHandle) -> None:
+    if engine is not None and event.contains(
+        engine, "after_cursor_execute", handle.after_cursor_execute
+    ):
+        event.remove(engine, "after_cursor_execute", handle.after_cursor_execute)
 
 
 def backfill_driver_numbers(db: Session) -> None:
@@ -447,12 +473,3 @@ def run_full_load(
         raise
     finally:
         db.close()
-
-
-if __name__ == "__main__":
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s %(levelname)-5s %(message)s",
-        datefmt="%H:%M:%S",
-    )
-    run_full_load()

@@ -391,14 +391,12 @@ this box or from CI at all, so they are precisely the data a backup has to
 carry. `db-backup.sh` prints the row counts of what it wrote and warns when
 `lap_times` is empty.
 
-`db-restore.sh` detects which flavour of dump it was handed. A full dump is
-loaded first and Alembic runs afterwards, to carry an older backup up to the
+`db-restore.sh` takes full dumps only (it refuses one without a schema). The
+dump is loaded first and Alembic runs afterwards, to carry an older backup up to the
 current head; the dump's own `REFRESH MATERIALIZED VIEW` statements bring the
-career-stats, records and champions views back populated. The **data-only**
-dumps this repo used to write are still accepted and still get the old order:
-migrate, load, then rebuild the views by hand.
+career-stats, records and champions views back populated.
 
-Both paths verify the archive before dropping anything, and load it with
+It verifies the archive before dropping anything, and load it with
 `--single-transaction -v ON_ERROR_STOP=1`, so a restore is all-or-nothing rather
 than a partial one reported as success.
 

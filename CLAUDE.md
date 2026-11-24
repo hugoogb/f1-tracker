@@ -253,7 +253,8 @@ Two f1db quirks the UI is built around:
 - **Automated (f1db)**: `.github/workflows/ingest.yml` runs Mondays 06:00 UTC — joins the tailnet and runs `scripts/vps-ingest.sh`, which runs task containers on the box through `deploy-app.sh`, calendar-gated, straight into PostgreSQL, then purges the Vercel cache. The f1db ingestors upsert from one release download, so they can bootstrap an empty DB as well as update one.
 - **Manual (Fast-F1)**: `pnpm fastf1` from a machine on a residential connection (`VPS_HOST` in `.env`) — asks the box what is missing (the `job` task running `fastf1_status.py`), fetches those sessions locally (`pipeline/scripts/fastf1_fetch.py`, ~45 s each), ships the payload back and loads it (`fastf1_import.py` in the same task). This cannot be automated in CI: `livetiming.formula1.com` returns 403 to the VPS *and* to GitHub's runners (measured — see `docs/DEPLOYMENT.md`). The Monday ingest run reports how many races are waiting, since nothing else will remind you.
 - Every run of `run_full_load` writes an `ingest_runs` row (target, start/finish, status,
-  `f1db_version`, truncated error) from its **own** session — the ingest's session is unusable
+  `f1db_version`, rows written — counted at the driver from each write's rowcount, so an unchanged
+  merge counts nothing — and a truncated error) from its **own** session — the ingest's session is unusable
   after a failed statement, so a shared one could only ever log failures that did not involve
   the database. Logging is best-effort: a missing table warns and the ingest continues. This is
   what answers "did Monday's ingest run?", which no amount of derived data can — a successful
@@ -264,7 +265,7 @@ Two f1db quirks the UI is built around:
 ### Database
 - `pnpm db:backup` / `pnpm db:backup:prod` - Full dump (schema + every table + Alembic stamp + materialized views) of the local dev container, or of production over Tailscale SSH. Use `:prod` for the published seed — Fast-F1 payloads go straight into production, so the server is the only host with the complete dataset
 - `pnpm db:seed:fetch` / `pnpm db:seed:publish` - Download the seed dump, or dump production and upload it. **The dump is not tracked by git**: it is an asset on one rolling release tag (`seed`), so the download URL is a constant and a refresh never grows the pack. `db:seed:publish` is `db-backup.sh --remote --publish` and needs `gh` authenticated; it refuses to publish a dump with no lap times
-- `pnpm db:restore` - Restore a dump. Detects full vs legacy data-only dumps and orders the migrate/load/refresh steps accordingly; `SKIP_MIGRATE=1 SKIP_VIEWS=1` restores a full dump with nothing but `psql`
+- `pnpm db:restore` - Restore a full dump (load, then migrate, then refresh views; a dump without a schema is refused); `SKIP_MIGRATE=1 SKIP_VIEWS=1` restores with nothing but `psql`
 - `docker compose -f docker/docker-compose.yml up -d` - Start PostgreSQL (container `f1-tracker-db`)
 - `docker compose -f docker/docker-compose.yml down` - Stop PostgreSQL
 - `docker compose --env-file .env --env-file .tag <cmd>` - Production stack, run from `/srv/apps/f1_api` on the VPS

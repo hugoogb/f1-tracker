@@ -60,8 +60,7 @@ def restore_backup() -> None:
         # Non-fatal, and safely so: db-restore.sh loads the dump with
         # --single-transaction, so a failure leaves the database exactly as it
         # was rather than half-replaced, and the ingest below upserts either
-        # way. The usual cause is a legacy data-only dump meeting a database
-        # that already holds the same rows.
+        # way.
         logger.warning(f"Restore skipped — continuing with the ingest: {result.stderr.strip()}")
     else:
         logger.info("Backup restored successfully")

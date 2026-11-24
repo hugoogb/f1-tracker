@@ -4,16 +4,9 @@
 # Usage: ./scripts/db-restore.sh [backup_file]
 # If no file is provided, restores docker/backups/latest.sql.gz.
 #
-# Handles both dump flavours, because which one you have decides the order of
-# operations:
-#
-#   full        (what db-backup.sh writes now) — schema, data, the Alembic
-#               stamp and the materialized views are all in the file. It is
-#               loaded first and Alembic runs afterwards, to carry a dump older
-#               than the current head up to it.
-#   data-only   (what this repo used to write) — the schema has to be migrated
-#               into place first, and the materialized views rebuilt afterwards,
-#               since a data-only dump carries neither.
+# The dump is a full one (what db-backup.sh writes): schema, data, the Alembic
+# stamp and the materialized views are all in the file. It is loaded first and
+# Alembic runs afterwards, to carry a dump older than the current head up to it.
 #
 # Env:
 #   DB_CONTAINER    target container (default: ${STACK_NAME:-f1-tracker}-db)
@@ -22,7 +15,7 @@
 #                   psql, e.g. on a machine without uv)
 #   SKIP_VIEWS=1    don't rebuild the materialized views
 #   SKIP_SCHEMA_RESET=1
-#                   don't drop and recreate `public` before loading a full dump.
+#                   don't drop and recreate `public` before loading the dump.
 #                   Leaves behind any object the dump does not own — see below.
 set -euo pipefail
 
@@ -47,13 +40,13 @@ db_require_container
 # current data is still there, not halfway through replacing it.
 dump_verify_gzip "$BACKUP_FILE"
 
-if dump_is_full "$BACKUP_FILE"; then
-  FLAVOUR="full"
-else
-  FLAVOUR="data-only"
+if ! dump_is_full "$BACKUP_FILE"; then
+  echo "Error: $BACKUP_FILE carries no schema. Only full dumps (db-backup.sh)" >&2
+  echo "       restore; the old data-only format is no longer supported." >&2
+  exit 1
 fi
 
-echo "Restoring from: $BACKUP_FILE ($FLAVOUR dump)"
+echo "Restoring from: $BACKUP_FILE"
 echo "Target:         $DB_CONTAINER / $POSTGRES_DB"
 if [ "${FORCE:-0}" != "1" ]; then
   echo "WARNING: This will overwrite current data. Press Ctrl+C to cancel."
@@ -72,9 +65,9 @@ run_migrations() {
   (cd "$PROJECT_DIR/pipeline" && uv run alembic upgrade head)
 }
 
-# Emitted ahead of a full dump so the load starts from an empty schema.
+# Emitted ahead of the dump so the load starts from an empty schema.
 #
-# A full dump is `pg_dump --clean --if-exists`, so it drops every object *it*
+# The dump is `pg_dump --clean --if-exists`, so it drops every object *it*
 # owns — but it has never heard of anything a newer migration added, and those
 # survive the load as orphans. The dump then stamps `alembic_version` back to
 # its own revision, so the `alembic upgrade head` below replays that migration
@@ -99,57 +92,31 @@ load_dump() {
   # ON_ERROR_STOP so a failed statement fails the restore. Without it psql
   # reports success having skipped whatever did not apply, which is the one
   # thing a restore must never do. --single-transaction makes it all-or-nothing:
-  # DDL is transactional in PostgreSQL, so a full dump either lands completely
-  # or leaves the database as it was.
-  local reset=""
-  if [ "$FLAVOUR" = "full" ]; then
-    reset="$(schema_reset_sql)"
-  fi
+  # DDL is transactional in PostgreSQL, so the dump either lands completely or
+  # leaves the database as it was.
+  local reset
+  reset="$(schema_reset_sql)"
   { [ -n "$reset" ] && printf '%s' "$reset"; gunzip -c "$BACKUP_FILE"; } \
     | db_psql --single-transaction -v ON_ERROR_STOP=1 -q
 }
 
-if [ "$FLAVOUR" = "full" ]; then
-  # `public` is recreated first (see schema_reset_sql), so the load starts from
-  # nothing and cannot inherit an object the dump does not know about. The dump
-  # carries its own alembic_version, which is why Alembic runs after it rather
-  # than before.
-  echo "Restoring schema, data and materialized views..."
-  load_dump
+# `public` is recreated first (see schema_reset_sql), so the load starts from
+# nothing and cannot inherit an object the dump does not know about. The dump
+# carries its own alembic_version, which is why Alembic runs after it rather than
+# before.
+echo "Restoring schema, data and materialized views..."
+load_dump
 
-  # A no-op when the dump is current. It matters when restoring an older backup
-  # into a checkout that has since gained migrations.
-  run_migrations
+# A no-op when the dump is current. It matters when restoring an older backup
+# into a checkout that has since gained migrations.
+run_migrations
 
-  # The dump already refreshed the views (pg_dump emits REFRESH MATERIALIZED
-  # VIEW for every populated one), so this only has work to do when the
-  # migrations above changed something underneath them.
-  if [ "${SKIP_VIEWS:-0}" != "1" ]; then
-    echo "Rebuilding materialized views..."
-    (cd "$PROJECT_DIR/pipeline" && uv run python scripts/refresh_views.py)
-  fi
-else
-  # Legacy path: the schema has to exist before the data can go into it.
-  run_migrations
-
-  # The dump is --data-only and excludes alembic_version, so the stamp written
-  # by the migration step above is left alone deliberately: clearing it would
-  # leave the schema unstamped and make the next `alembic upgrade head` try to
-  # replay every migration from scratch.
-  echo "Restoring data..."
-  load_dump
-
-  # The computed stats views (driver_career_stats, constructor_career_stats,
-  # season_champions) are materialized views created by the ingest, not by
-  # Alembic, and pg_dump --data-only does not carry their contents. Without this
-  # step a restored database has no career stats, records or champions at all.
+# The dump already refreshed the views (pg_dump emits REFRESH MATERIALIZED VIEW
+# for every populated one), so this only has work to do when the migrations
+# above changed something underneath them.
+if [ "${SKIP_VIEWS:-0}" != "1" ]; then
   echo "Rebuilding materialized views..."
-  if [ "${SKIP_VIEWS:-0}" != "1" ]; then
-    (cd "$PROJECT_DIR/pipeline" && uv run python scripts/refresh_views.py)
-  else
-    echo "SKIP_VIEWS=1 set - skipping. Run scripts/refresh_views.py yourself,"
-    echo "or seed.py --postprocess, or the API will serve empty career stats."
-  fi
+  (cd "$PROJECT_DIR/pipeline" && uv run python scripts/refresh_views.py)
 fi
 
 echo ""

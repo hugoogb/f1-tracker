@@ -89,10 +89,8 @@ db_wait_ready() {
 # with SIGPIPE, and under `set -o pipefail` that failure would be read as an
 # answer.
 
-# Is the file a full dump (schema, data, Alembic stamp, materialized views) or
-# one of the data-only dumps this repo used to write? That decides the restore
-# order — a full dump brings its own schema, a data-only one needs the schema
-# migrated into place first.
+# Is the file a full dump (schema, data, Alembic stamp, materialized views)?
+# db-restore.sh refuses anything else.
 dump_is_full() {
   local matches
   matches="$(gunzip -c "$1" | grep -c '^CREATE TABLE ' || true)"

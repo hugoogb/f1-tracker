@@ -145,11 +145,6 @@ echo "Backup saved: $BACKUP_FILE ($SIZE)"
 echo "              also copied to $LATEST_COPY"
 echo ""
 
-if ! dump_is_full "$BACKUP_FILE"; then
-  echo "Warning: this dump carries no schema, so it can only be restored over a" >&2
-  echo "         database Alembic has already migrated." >&2
-fi
-
 echo "Contents:"
 COUNTS="$(dump_row_counts "$BACKUP_FILE")"
 echo "$COUNTS"
