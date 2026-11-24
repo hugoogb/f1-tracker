@@ -103,9 +103,9 @@ visible.
 
 **Worth doing after a backfill.** `pnpm db:backup:prod` pulls a full dump of the
 production database into `docker/backups/latest.sql.gz` — schema, data, Alembic
-stamp and materialized views, Fast-F1 lap times included. Committing it is what
-makes those hours of fetching survivable: restoring takes seconds and re-fetching
-does not.
+stamp and materialized views, Fast-F1 lap times included. Publishing it as the seed
+(`pnpm db:seed:publish`) is what makes those hours of fetching survivable: restoring
+takes seconds and re-fetching does not.
 
 Full detail, including what to do if your own connection gets blocked, is in
 [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md#fast-f1-data-lap-times-qualifying-sectors).
@@ -120,6 +120,7 @@ Full detail, including what to do if your own connection gets blocked, is in
 | `pnpm build` | Build frontend for production |
 | `pnpm lint` | Run ESLint |
 | `pnpm typecheck` | Run TypeScript type checking |
+| `pnpm test` | Run frontend unit tests (Vitest) |
 | `pnpm format` | Format all files with Prettier |
 | `cd pipeline && uv run uvicorn src.api.main:app --reload` | Start FastAPI dev server |
 | `cd pipeline && uv run pytest -v` | Run backend tests |
@@ -138,11 +139,11 @@ Husky runs automatically on `git commit`:
 
 ```
 f1-tracker/
-├── apps/web/              # Next.js frontend (15 routes, 36+ components)
+├── apps/web/              # Next.js frontend
 │   ├── app/               # App Router pages
 │   ├── components/        # UI, charts, races, standings, compare, layout
 │   └── lib/               # API client, types, utils, constants
-├── pipeline/              # Python data pipeline + FastAPI (38 endpoints)
+├── pipeline/              # Python data pipeline + FastAPI
 │   ├── Dockerfile         # API image (also runs migrations + ingest)
 │   ├── src/api/           # REST API (routers, constants, serializers, pagination)
 │   ├── src/db/            # SQLAlchemy models, queries, migrations
@@ -156,15 +157,15 @@ f1-tracker/
 
 ## Testing & CI
 
-- **Backend**: pytest suite across 14 test files (SQLite in-memory with StaticPool)
-- **Frontend**: TypeScript type checking (`tsc --noEmit`) + ESLint + production build verification
-- **CI**: GitHub Actions runs on push/PR to master — prettier, eslint, typecheck, build, ruff, pytest, security audits (`pnpm audit`, `pip-audit`), and a backend Docker image build + smoke test
+- **Backend**: pytest suite (SQLite in-memory with StaticPool)
+- **Frontend**: Vitest unit tests, TypeScript type checking (`tsc --noEmit`), ESLint and a compile-only build
+- **CI**: GitHub Actions runs on push/PR to master — prettier, eslint, typecheck, vitest, build, ruff, pytest, security audits (`pnpm audit`, `pip-audit`), and a backend Docker image build + smoke test
 
 ## Documentation
 
 - **API Docs**: Interactive Swagger UI at [http://localhost:8000/docs](http://localhost:8000/docs) when the backend is running
 - **Deployment**: See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for local dev and the Vercel + VPS production setup
-- **Backend**: See [pipeline/README.md](pipeline/README.md) for API endpoints, testing, and project structure
+- **Backend**: See [pipeline/README.md](pipeline/README.md) for setup, testing, and project structure
 
 ## Licence & Attribution
 

@@ -581,9 +581,9 @@ uv run python scripts/seed.py --base --layouts --colors --results --qualifying -
 cd .. && ./scripts/db-backup.sh
 ```
 
-> That backup covers the local database. The committed
-> `docker/backups/latest.sql.gz` should come from `./scripts/db-backup.sh
-> --remote` instead — production is where the Fast-F1 data is.
+> That backup covers the local database. The published seed (the `seed`
+> release asset) should come from `pnpm db:seed:publish` instead — production
+> is where the Fast-F1 data is.
 
 > The dataset is one f1db release download per run, cached in `F1DB_CACHE_DIR`
 > — no rate limit. Set `F1DB_VERSION` to a release tag for a reproducible seed,
