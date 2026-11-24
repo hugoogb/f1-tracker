@@ -17,9 +17,9 @@
 #
 # Env:
 #   DB_CONTAINER    target container (default: ${STACK_NAME:-f1-tracker}-db)
-#   FORCE=1         skip the interactive confirmation (for scripted/VPS use)
-#   SKIP_MIGRATE=1  don't run `alembic upgrade head` (the VPS stack has a
-#                   dedicated `migrate` service, and uv isn't installed there)
+#   FORCE=1         skip the interactive confirmation (for scripted use)
+#   SKIP_MIGRATE=1  don't run `alembic upgrade head` (restore with nothing but
+#                   psql, e.g. on a machine without uv)
 #   SKIP_VIEWS=1    don't rebuild the materialized views
 #   SKIP_SCHEMA_RESET=1
 #                   don't drop and recreate `public` before loading a full dump.

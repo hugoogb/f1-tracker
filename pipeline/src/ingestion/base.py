@@ -7,8 +7,8 @@ mapping a session's driver abbreviations onto our driver ids.
 
 The Fast-F1 side — loading sessions, parsing them, and the rate-limit throttle
 — lives in `src/ingestion/fastf1_sessions.py`, which imports nothing from the
-database so it can also run on a host that has no access to one (a GitHub
-runner fetching sessions the VPS is blocked from; see `fastf1_payload.py`).
+database so it can also run on a host that has no access to one (a laptop
+fetching sessions the VPS is blocked from; see `fastf1_payload.py`).
 `THROTTLE_DELAY` is re-exported here because that is where the licensing notes
 say to find it.
 """

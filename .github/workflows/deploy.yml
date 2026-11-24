@@ -145,10 +145,9 @@ jobs:
       - name: Assert the API reaches its database
         run: curl -fsS --retry 12 --retry-delay 5 --retry-all-errors "${PUBLIC_API}/api/health/db"
 
-      # Opt-in from the "Run workflow" button. The scheduled path is
-      # f1-tracker-ingest.timer on the server; this is the manual override, so it
-      # skips the calendar gate. Ingesting a race weekend pulls the f1db release
-      # and Fast-F1 sessions, which is slow — hence the long timeout upstream.
+      # Opt-in from the "Run workflow" button. The scheduled path is ingest.yml;
+      # this is the manual override, so it skips the calendar gate. It is an f1db
+      # ingest only: Fast-F1 is fetched from a laptop (`pnpm fastf1`).
       - name: Ingest
         if: inputs.ingest
         env:

@@ -179,6 +179,7 @@ class QualifyingSectorIngestor(BaseIngestor):
                         return
                     account_checked = True
 
+                load_elapsed = None
                 try:
                     self.log(f"{season.year} R{race.round}: fetching qualifying sectors...")
                     abbrs, bests, load_elapsed = fetch_qualifying_bests(season.year, race.round)
@@ -203,6 +204,7 @@ class QualifyingSectorIngestor(BaseIngestor):
                     )
                     if not abbr_to_id:
                         self.log(f"{season.year} R{race.round}: no driver mapping")
+                        throttle(load_elapsed, log=self.log)
                         continue
 
                     race_updated = write_quali_sectors(self.db, race.id, bests, abbr_to_id)
@@ -244,6 +246,9 @@ class QualifyingSectorIngestor(BaseIngestor):
                         return
                     else:
                         self.log(f"Qualifying sectors {season.year} R{race.round}: ERROR - {e}")
+                        # The load may have hit the network before the failure.
+                        if load_elapsed is not None:
+                            throttle(load_elapsed, log=self.log)
                         continue
 
             if is_interrupted():

@@ -9,8 +9,7 @@
 # Everything is overridable by environment variable or by a key in the repo-root
 # .env:
 #
-#   local  : STACK_NAME=f1-tracker            → container f1-tracker-db
-#   staging: STACK_NAME=f1-tracker-staging    → container f1-tracker-staging-db
+#   STACK_NAME=f1-tracker   → container f1-tracker-db (the default)
 
 # shellcheck disable=SC2034  # these are consumed by the sourcing script
 

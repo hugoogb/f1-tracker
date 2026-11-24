@@ -25,10 +25,9 @@ BACKUP_FILE = Path(__file__).parent.parent.parent / "docker" / "backups" / "late
 
 # The restore/backup helpers shell out to the database *container*. Which one
 # they pick is theirs to decide (scripts/lib/db.sh reads STACK_NAME/DB_CONTAINER
-# from the environment or .env), so it works against local dev and the VPS stack
-# alike. Both are skipped entirely when there is no Docker CLI — e.g. when
-# seed.py runs inside the ingest container, which passes --no-restore
-# --no-backup anyway. DB_CONTAINER is read here only to name it in the log.
+# from the environment or .env). Both are skipped entirely when there is no
+# Docker CLI — e.g. when seed.py runs inside the ingest container, which passes
+# --no-restore --no-backup anyway. DB_CONTAINER is read here only to name it in the log.
 DB_CONTAINER = os.environ.get("DB_CONTAINER", f"{os.environ.get('STACK_NAME', 'f1-tracker')}-db")
 
 

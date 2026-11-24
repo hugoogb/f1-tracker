@@ -54,7 +54,7 @@ else
   echo "==> Running database migrations..."
   uv run alembic upgrade head
   echo "    Run the full ingestion to fill it (slow — downloads the f1db release):"
-  echo "      cd pipeline && uv run python scripts/seed.py --base --layouts --colors --results --qualifying --sprints --standings --pitstops --postprocess"
+  echo "      cd pipeline && uv run python scripts/seed.py --base --layouts --colors --lineages --results --qualifying --sprints --standings --pitstops --postprocess"
   echo "    Lap times and qualifying sectors need Fast-F1 on top: pnpm fastf1"
 fi
 

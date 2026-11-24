@@ -177,6 +177,7 @@ class LapTimeIngestor(BaseIngestor):
                         return
                     account_checked = True
 
+                load_elapsed = None
                 try:
                     self.log(f"{season.year} R{race.round}: fetching lap times...")
                     abbrs, rows, load_elapsed = fetch_race_laps(season.year, race.round)
@@ -201,6 +202,7 @@ class LapTimeIngestor(BaseIngestor):
                     )
                     if not abbr_to_id:
                         self.log(f"{season.year} R{race.round}: no driver mapping available")
+                        throttle(load_elapsed, log=self.log)
                         continue
 
                     race_records = write_lap_rows(self.db, race.id, rows, abbr_to_id)
@@ -241,6 +243,9 @@ class LapTimeIngestor(BaseIngestor):
                         return
                     else:
                         self.log(f"Lap times {season.year} R{race.round}: ERROR - {e}")
+                        # The load may have hit the network before the failure.
+                        if load_elapsed is not None:
+                            throttle(load_elapsed, log=self.log)
                         continue
 
             if is_interrupted():

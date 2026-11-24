@@ -14,8 +14,8 @@
 #
 # --remote is the one that matters for the published seed. Fast-F1 payloads
 # are imported straight into production (`pnpm fastf1`), so the server is the
-# only place the complete dataset exists. It runs `backup.sh` on the box over
-# Tailscale SSH and streams the dump back here; VPS_HOST comes from .env, the
+# only place the complete dataset exists. It runs the `backup` task on the box
+# (`vps_task backup`, scripts/lib/vps.sh) and streams the dump back here; VPS_HOST comes from .env, the
 # same key scripts/fastf1-sync.sh reads.
 #
 # Add --publish to upload the result to the seed release, which is where

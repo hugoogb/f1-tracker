@@ -172,7 +172,7 @@ release download, so they populate it directly (about two minutes):
 
 ```bash
 VPS_TARGET=hugo@<vps> ./scripts/vps-ingest.sh --force -- \
-  --base --layouts --colors --results --qualifying \
+  --base --layouts --colors --lineages --results --qualifying \
   --sprints --standings --pitstops --postprocess
 ```
 
@@ -577,7 +577,7 @@ or ids ever leave the server. Payloads are kept in `.fastf1_payloads/`
 
 ```bash
 cd pipeline
-uv run python scripts/seed.py --base --layouts --colors --results --qualifying --sprints --standings --pitstops --postprocess
+uv run python scripts/seed.py --base --layouts --colors --lineages --results --qualifying --sprints --standings --pitstops --postprocess
 cd .. && ./scripts/db-backup.sh
 ```
 
