@@ -19,6 +19,28 @@ def test_compare_drivers(client, race_seed_data):
     assert 2023 in data["teammateSeasons"]
 
 
+def test_teammate_filter_keeps_shared_team_races(client, race_seed_data):
+    data = client.get("/api/compare/drivers?d1=max_verstappen&d2=perez&teammate=true").json()
+    assert data["headToHead"]["totalRaces"] == 1
+    assert data["qualifyingHeadToHead"]["totalRaces"] == 1
+
+
+def test_teammate_filter_for_drivers_who_never_shared_a_team_is_empty(client, db, race_seed_data):
+    """Not the whole-career head-to-head under a 'teammates only' label."""
+    from src.db.models import QualifyingResult, RaceResult
+
+    db.query(RaceResult).filter_by(driver_id="driver-2").update({"constructor_id": "constructor-2"})
+    db.query(QualifyingResult).filter_by(driver_id="driver-2").update(
+        {"constructor_id": "constructor-2"}
+    )
+    db.commit()
+
+    data = client.get("/api/compare/drivers?d1=max_verstappen&d2=perez&teammate=true").json()
+    assert data["teammateSeasons"] == []
+    assert data["headToHead"] == {"driver1Wins": 0, "driver2Wins": 0, "totalRaces": 0}
+    assert data["qualifyingHeadToHead"]["totalRaces"] == 0
+
+
 def test_compare_constructors(client, race_seed_data):
     response = client.get("/api/compare/constructors?c1=red_bull&c2=ferrari")
     assert response.status_code == 200

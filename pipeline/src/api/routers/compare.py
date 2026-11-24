@@ -142,8 +142,9 @@ def compare_drivers(d1: str, d2: str, teammate: bool = False, db: Session = Depe
     )
     teammate_seasons = list(tm_season_rows)
 
-    # Recompute head-to-head if teammate filter is applied
-    if teammate and teammate_race_ids:
+    # Under the teammate filter only shared-team races count — none at all for
+    # two drivers who never shared a team.
+    if teammate:
         head_to_head = _compute_driver_h2h(db, driver1.id, driver2.id, teammate_race_ids)
 
     # Qualifying head-to-head
@@ -151,7 +152,7 @@ def compare_drivers(d1: str, d2: str, teammate: bool = False, db: Session = Depe
     q2_alias = QualifyingResult.__table__.alias("q2")
 
     quali_filter_clause = []
-    if teammate and teammate_race_ids:
+    if teammate:
         quali_filter_clause.append(q1_alias.c.race_id.in_(teammate_race_ids))
 
     quali_h2h = db.execute(
