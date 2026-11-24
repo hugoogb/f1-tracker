@@ -34,8 +34,12 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from src.api.constants import FIRST_CONSTRUCTORS_CHAMPIONSHIP, SEASON_COMPARE_MIN_CLEAN_LAPS
-from src.api.routers.races import _CLEAN_LAP_THRESHOLD, _cumulative_lap_times
+from src.api.constants import (
+    CLEAN_LAP_THRESHOLD,
+    FIRST_CONSTRUCTORS_CHAMPIONSHIP,
+    SEASON_COMPARE_MIN_CLEAN_LAPS,
+)
+from src.api.routers.races import _cumulative_lap_times
 from src.api.serializers import constructor_compact, constructor_summary, driver_summary
 from src.db.database import get_db
 from src.db.models import (
@@ -287,7 +291,7 @@ def _race_pace(laps: list, a_drivers: set[str], b_drivers: set[str]) -> dict | N
     """
     if not laps:
         return None
-    threshold = statistics.median(lap.time_millis for lap in laps) * _CLEAN_LAP_THRESHOLD
+    threshold = statistics.median(lap.time_millis for lap in laps) * CLEAN_LAP_THRESHOLD
     a_clean = [
         lap.time_millis
         for lap in laps

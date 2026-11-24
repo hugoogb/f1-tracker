@@ -1,6 +1,6 @@
 from typing import Any, Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy import Float, cast, func, select
 from sqlalchemy.orm import Session
 from sqlalchemy.sql import Subquery
@@ -12,6 +12,7 @@ from src.api.constants import (
     FIRST_CONSTRUCTORS_CHAMPIONSHIP,
     MAX_RECORD_LIMIT,
 )
+from src.api.eras import era_payload, resolve_era
 from src.api.pagination import paginate_rows
 from src.api.serializers import constructor_summary, driver_summary
 from src.db.database import get_db
@@ -25,7 +26,6 @@ from src.db.models import (
     RaceResult,
 )
 from src.db.queries import final_round_race_ids
-from src.scoring import SYSTEMS, era_bounds
 
 router = APIRouter()
 
@@ -379,23 +379,7 @@ def explore_records(
     those are a documented fact about the sport rather than an invented boundary.
     Passing `era` is exactly equivalent to passing that system's year range.
     """
-    era_system = None
-    if era is not None:
-        if year_from is not None or year_to is not None:
-            raise HTTPException(
-                status_code=400,
-                detail="Pass either era or a year_from/year_to range, not both.",
-            )
-        era_system = SYSTEMS.get(era)
-        if era_system is None:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Unknown era '{era}'. The ids come from /api/points-systems.",
-            )
-        year_from, year_to = era_bounds(era_system.id)
-
-    if year_from is not None and year_to is not None and year_from > year_to:
-        raise HTTPException(status_code=400, detail="year_from must not be later than year_to.")
+    era_system, year_from, year_to = resolve_era(era, year_from, year_to)
 
     year_clauses = []
     if year_from is not None:
@@ -492,11 +476,7 @@ def explore_records(
         "category": category,
         "label": label,
         "format": value_format,
-        "era": (
-            {"id": era_system.id, "label": era_system.label, "era": era_system.era}
-            if era_system
-            else None
-        ),
+        "era": era_payload(era_system),
         "yearFrom": year_from,
         "yearTo": year_to,
         "nationality": nationality if entity == "driver" else country,

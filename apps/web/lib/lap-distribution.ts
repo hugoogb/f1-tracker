@@ -5,8 +5,8 @@ import { jitter, kde, median, quantile, type ViolinColumn, type ViolinDot } from
 
 /**
  * A lap slower than this multiple of the race's median is a pit stop, a safety
- * car or traffic, not pace. Mirrors `_CLEAN_LAP_THRESHOLD` in
- * `pipeline/src/api/routers/races.py`; change both or neither.
+ * car or traffic, not pace. Mirrors `CLEAN_LAP_THRESHOLD` in
+ * `pipeline/src/api/constants.py`; change both or neither.
  */
 export const CLEAN_LAP_THRESHOLD = 1.07
 

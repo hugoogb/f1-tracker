@@ -15,7 +15,7 @@ questions, and is labelled as such everywhere it surfaces.
 """
 
 from collections.abc import Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 
 @dataclass(frozen=True)
@@ -43,18 +43,9 @@ class PointsSystem:
             return 0.0
         return self.race_points[position - 1]
 
-    def sprint_points_for(self, position: int | None) -> float:
-        if position is None or position < 1 or position > len(self.sprint_points):
-            return 0.0
-        return self.sprint_points[position - 1]
-
     @property
     def win_points(self) -> float:
         return self.race_points[0]
-
-    @property
-    def sprint_win_points(self) -> float:
-        return self.sprint_points[0] if self.sprint_points else 0.0
 
     @property
     def max_per_round(self) -> float:
@@ -164,7 +155,7 @@ _ERAS: tuple[tuple[int, int | None, str], ...] = (
 # So the rule is stated at era level, and the specifics are read back off the
 # data instead: a driver whose championship total is lower than the points they
 # actually scored dropped the difference, which is a fact the results already
-# carry. See `dropped_points` in the seasons router.
+# carry. See `_season_scoring` in the seasons router.
 LAST_DROPPED_SCORES_SEASON = 1990
 
 
@@ -212,9 +203,9 @@ def sprint_system_for_year(year: int) -> tuple[float, ...]:
 # The one season whose finale paid double: Abu Dhabi 2014, 50 for the win.
 DOUBLE_POINTS_FINALES = frozenset({2014})
 
-# The constructors' championship began in 1958, and until 1978 only a team's
-# best-placed car scored; from 1979 every car's points counted.
-FIRST_CONSTRUCTORS_SEASON = 1958
+# Until 1978 only a team's best-placed car scored for the constructors'
+# championship (first run in 1958, FIRST_CONSTRUCTORS_CHAMPIONSHIP); from 1979
+# every car's points counted.
 FIRST_SEASON_EVERY_CAR_SCORES = 1979
 
 
@@ -309,13 +300,3 @@ def still_in_contention(
     if best != leader_points:
         return best > leader_points
     return countback is not False
-
-
-@dataclass
-class SeasonEntrant:
-    """One competitor's re-scored season, built up race by race."""
-
-    points: float = 0.0
-    wins: int = 0
-    podiums: int = 0
-    per_round: dict[int, float] = field(default_factory=dict)

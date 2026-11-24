@@ -5,9 +5,11 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from src.api.constants import CLEAN_LAP_THRESHOLD
 from src.api.serializers import constructor_compact, driver_summary, race_schedule
 from src.db.database import get_db
 from src.db.models import Driver, LapTime, PitStop, QualifyingResult, Race, RaceResult, SprintResult
+from src.db.queries import get_race_results
 
 router = APIRouter()
 
@@ -72,21 +74,20 @@ def _cumulative_lap_times(race_id: str):
     )
 
 
-@router.get("/seasons/{year}/races/{round}")
-def get_race(year: int, round: int, db: Session = Depends(get_db)):
+def _race_or_404(db: Session, year: int, round: int) -> Race:
     race = db.execute(
         select(Race).where(Race.season_year == year, Race.round == round)
     ).scalar_one_or_none()
     if not race:
         raise HTTPException(status_code=404, detail="Race not found")
+    return race
 
-    results = (
-        db.execute(
-            select(RaceResult).where(RaceResult.race_id == race.id).order_by(RaceResult.position)
-        )
-        .scalars()
-        .all()
-    )
+
+@router.get("/seasons/{year}/races/{round}")
+def get_race(year: int, round: int, db: Session = Depends(get_db)):
+    race = _race_or_404(db, year, round)
+
+    results = get_race_results(db, race.id)
 
     fastest_lap_data = None
     if race.fastest_lap_driver:
@@ -144,11 +145,7 @@ def get_race(year: int, round: int, db: Session = Depends(get_db)):
 
 @router.get("/seasons/{year}/races/{round}/qualifying")
 def get_qualifying(year: int, round: int, db: Session = Depends(get_db)):
-    race = db.execute(
-        select(Race).where(Race.season_year == year, Race.round == round)
-    ).scalar_one_or_none()
-    if not race:
-        raise HTTPException(status_code=404, detail="Race not found")
+    race = _race_or_404(db, year, round)
 
     results = (
         db.execute(
@@ -219,11 +216,7 @@ def get_qualifying(year: int, round: int, db: Session = Depends(get_db)):
 
 @router.get("/seasons/{year}/races/{round}/sprint")
 def get_sprint(year: int, round: int, db: Session = Depends(get_db)):
-    race = db.execute(
-        select(Race).where(Race.season_year == year, Race.round == round)
-    ).scalar_one_or_none()
-    if not race:
-        raise HTTPException(status_code=404, detail="Race not found")
+    race = _race_or_404(db, year, round)
 
     results = (
         db.execute(
@@ -256,11 +249,7 @@ def get_sprint(year: int, round: int, db: Session = Depends(get_db)):
 
 @router.get("/seasons/{year}/races/{round}/pitstops")
 def get_pitstops(year: int, round: int, db: Session = Depends(get_db)):
-    race = db.execute(
-        select(Race).where(Race.season_year == year, Race.round == round)
-    ).scalar_one_or_none()
-    if not race:
-        raise HTTPException(status_code=404, detail="Race not found")
+    race = _race_or_404(db, year, round)
 
     stops = (
         db.execute(
@@ -314,11 +303,7 @@ def get_pitstops(year: int, round: int, db: Session = Depends(get_db)):
 
 @router.get("/seasons/{year}/races/{round}/laps")
 def get_laps(year: int, round: int, db: Session = Depends(get_db)):
-    race = db.execute(
-        select(Race).where(Race.season_year == year, Race.round == round)
-    ).scalar_one_or_none()
-    if not race:
-        raise HTTPException(status_code=404, detail="Race not found")
+    race = _race_or_404(db, year, round)
 
     laps = (
         db.execute(
@@ -331,13 +316,7 @@ def get_laps(year: int, round: int, db: Session = Depends(get_db)):
     )
 
     # Build constructor lookup from race results (LapTime has no constructor_id)
-    results = (
-        db.execute(
-            select(RaceResult).where(RaceResult.race_id == race.id).order_by(RaceResult.position)
-        )
-        .scalars()
-        .all()
-    )
+    results = get_race_results(db, race.id)
     driver_constructor = {r.driver_id: r.constructor for r in results}
     driver_position = {r.driver_id: r.position for r in results}
 
@@ -386,11 +365,7 @@ def get_laps(year: int, round: int, db: Session = Depends(get_db)):
 
 @router.get("/seasons/{year}/races/{round}/positions")
 def get_positions(year: int, round: int, db: Session = Depends(get_db)):
-    race = db.execute(
-        select(Race).where(Race.season_year == year, Race.round == round)
-    ).scalar_one_or_none()
-    if not race:
-        raise HTTPException(status_code=404, detail="Race not found")
+    race = _race_or_404(db, year, round)
 
     # Get race results for grid positions, constructor info, and final position
     results = db.execute(select(RaceResult).where(RaceResult.race_id == race.id)).scalars().all()
@@ -454,11 +429,7 @@ def get_gaps(year: int, round: int, db: Session = Depends(get_db)):
     zero and every other line is positive — the chart reads downwards as "time
     lost", which is the way people talk about it.
     """
-    race = db.execute(
-        select(Race).where(Race.season_year == year, Race.round == round)
-    ).scalar_one_or_none()
-    if not race:
-        raise HTTPException(status_code=404, detail="Race not found")
+    race = _race_or_404(db, year, round)
 
     results = db.execute(select(RaceResult).where(RaceResult.race_id == race.id)).scalars().all()
     if not results:
@@ -517,13 +488,6 @@ def get_gaps(year: int, round: int, db: Session = Depends(get_db)):
     }
 
 
-# A lap slower than this much of the race's median is not a representative
-# green-flag lap: it is a pit stop, a safety car, or traffic. Degradation is a
-# tyre effect and those laps drown it out completely. Mirrored in
-# apps/web/lib/lap-distribution.ts; change both or neither.
-_CLEAN_LAP_THRESHOLD = 1.07
-
-
 @router.get("/seasons/{year}/races/{round}/degradation")
 def get_degradation(year: int, round: int, db: Session = Depends(get_db)):
     """How lap time decays with tyre age, per compound (2018+).
@@ -542,11 +506,7 @@ def get_degradation(year: int, round: int, db: Session = Depends(get_db)):
     The payload reports how many laps survived that filter so the UI can say
     when a compound's line rests on almost nothing.
     """
-    race = db.execute(
-        select(Race).where(Race.season_year == year, Race.round == round)
-    ).scalar_one_or_none()
-    if not race:
-        raise HTTPException(status_code=404, detail="Race not found")
+    race = _race_or_404(db, year, round)
 
     laps = db.execute(
         select(LapTime.compound, LapTime.tyre_life, LapTime.time_millis).where(
@@ -570,7 +530,7 @@ def get_degradation(year: int, round: int, db: Session = Depends(get_db)):
         }
 
     median_ms = statistics.median(lap.time_millis for lap in laps)
-    threshold = median_ms * _CLEAN_LAP_THRESHOLD
+    threshold = median_ms * CLEAN_LAP_THRESHOLD
     clean = [lap for lap in laps if lap.time_millis <= threshold]
 
     by_compound: dict[str, list] = defaultdict(list)
@@ -648,11 +608,7 @@ def get_pitstops_analysis(year: int, round: int, db: Session = Depends(get_db)):
     everyone, so whatever is left over is time genuinely lost. Both are
     reported, and the distribution buckets the gap rather than the total.
     """
-    race = db.execute(
-        select(Race).where(Race.season_year == year, Race.round == round)
-    ).scalar_one_or_none()
-    if not race:
-        raise HTTPException(status_code=404, detail="Race not found")
+    race = _race_or_404(db, year, round)
 
     stops = (
         db.execute(select(PitStop).where(PitStop.race_id == race.id).order_by(PitStop.duration_ms))

@@ -109,13 +109,13 @@ def get_race_results(db: Session, race_id: str) -> list[RaceResult]:
     )
 
 
-def get_driver_standings_for_season(db: Session, year: int) -> list[DriverStanding]:
+def _final_standings[S: (DriverStanding, ConstructorStanding)](
+    db: Session, year: int, model: type[S]
+) -> list[S]:
+    """The latest table of the season: its final one, or the current one mid-season."""
     last_race = db.execute(
         select(Race)
-        .where(
-            Race.season_year == year,
-            Race.id.in_(select(DriverStanding.race_id)),
-        )
+        .where(Race.season_year == year, Race.id.in_(select(model.race_id)))
         .order_by(Race.round.desc())
         .limit(1)
     ).scalar_one_or_none()
@@ -123,38 +123,22 @@ def get_driver_standings_for_season(db: Session, year: int) -> list[DriverStandi
         return []
     return (
         db.execute(
-            select(DriverStanding)
-            .where(DriverStanding.race_id == last_race.id)
-            # An excluded driver's position is null; they read after the table.
-            .order_by(DriverStanding.position.asc().nulls_last())
+            select(model)
+            .where(model.race_id == last_race.id)
+            # An excluded entry's position is null; it reads after the table.
+            .order_by(model.position.asc().nulls_last())
         )
         .scalars()
         .all()
     )
+
+
+def get_driver_standings_for_season(db: Session, year: int) -> list[DriverStanding]:
+    return _final_standings(db, year, DriverStanding)
 
 
 def get_constructor_standings_for_season(db: Session, year: int) -> list[ConstructorStanding]:
-    last_race = db.execute(
-        select(Race)
-        .where(
-            Race.season_year == year,
-            Race.id.in_(select(ConstructorStanding.race_id)),
-        )
-        .order_by(Race.round.desc())
-        .limit(1)
-    ).scalar_one_or_none()
-    if not last_race:
-        return []
-    return (
-        db.execute(
-            select(ConstructorStanding)
-            .where(ConstructorStanding.race_id == last_race.id)
-            # An excluded team's position is null; they read after the table.
-            .order_by(ConstructorStanding.position.asc().nulls_last())
-        )
-        .scalars()
-        .all()
-    )
+    return _final_standings(db, year, ConstructorStanding)
 
 
 def get_driver_by_ref(db: Session, ref: str) -> Driver | None:

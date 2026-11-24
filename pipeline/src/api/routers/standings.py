@@ -4,7 +4,11 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from src.api.constants import DEFAULT_PROGRESSION_TOP, MAX_PROGRESSION_TOP
+from src.api.constants import (
+    DEFAULT_PROGRESSION_TOP,
+    FIRST_CONSTRUCTORS_CHAMPIONSHIP,
+    MAX_PROGRESSION_TOP,
+)
 from src.api.serializers import constructor_compact, constructor_summary, driver_summary
 from src.db.database import get_db
 from src.db.models import (
@@ -17,17 +21,16 @@ from src.db.models import (
 from src.db.queries import (
     get_constructor_standings_for_season,
     get_driver_standings_for_season,
+    get_season_races,
     official_running_totals,
 )
 from src.scoring import (
     DOUBLE_POINTS_FINALES,
-    FIRST_CONSTRUCTORS_SEASON,
     FIRST_SEASON_EVERY_CAR_SCORES,
     SYSTEMS,
     PointsSystem,
     max_per_round,
     max_points_remaining,
-    sprint_system_for_year,
     still_in_contention,
     system_for_year,
     wins_countback,
@@ -139,11 +142,7 @@ def standings_progression(
     db: Session = Depends(get_db),
 ):
     """Round-by-round championship progression for the season."""
-    races = (
-        db.execute(select(Race).where(Race.season_year == year).order_by(Race.round))
-        .scalars()
-        .all()
-    )
+    races = get_season_races(db, year)
     if not races:
         return {"year": year, "rounds": [], "drivers": []}
 
@@ -258,11 +257,7 @@ def constructor_standings_progression(
     db: Session = Depends(get_db),
 ):
     """Round-by-round constructor championship progression for the season."""
-    races = (
-        db.execute(select(Race).where(Race.season_year == year).order_by(Race.round))
-        .scalars()
-        .all()
-    )
+    races = get_season_races(db, year)
     if not races:
         return {"year": year, "rounds": [], "constructors": []}
 
@@ -386,11 +381,7 @@ def normalised_standings(
             detail=f"Unknown points system '{system}'",
         )
 
-    races = (
-        db.execute(select(Race).where(Race.season_year == year).order_by(Race.round))
-        .scalars()
-        .all()
-    )
+    races = get_season_races(db, year)
     if not races:
         raise HTTPException(status_code=404, detail="Season not found")
 
@@ -402,13 +393,11 @@ def normalised_standings(
     points: dict[str, float] = defaultdict(float)
     wins: dict[str, int] = defaultdict(int)
     podiums: dict[str, int] = defaultdict(int)
-    finishes: dict[str, int] = defaultdict(int)
 
     for result in results:
         if result.position is None:
             continue
         points[result.driver_id] += points_system.points_for(result.position)
-        finishes[result.driver_id] += 1
         if result.position == 1:
             wins[result.driver_id] += 1
         if result.position <= 3:
@@ -431,7 +420,7 @@ def normalised_standings(
     # Sprints only exist from 2021, and only score if the chosen system has a
     # sprint scale at all — scoring a 2023 sprint under 1961's rules would be
     # inventing a race that system never had to deal with.
-    sprint_scale = points_system.sprint_points or sprint_system_for_year(year)
+    sprint_scale = points_system.sprint_points
     sprints_counted = 0
     if points_system.sprint_points:
         sprint_results = (
@@ -522,17 +511,15 @@ def _finishing_counts(db: Session, year: int, up_to_round: int, column) -> dict[
 
 def _permutations(db: Session, year: int, *, constructors: bool) -> dict:
     """Who can still win one of the two titles. See `title_permutations`."""
-    races = (
-        db.execute(select(Race).where(Race.season_year == year).order_by(Race.round))
-        .scalars()
-        .all()
-    )
+    races = get_season_races(db, year)
     if not races:
         raise HTTPException(status_code=404, detail="Season not found")
-    if constructors and year < FIRST_CONSTRUCTORS_SEASON:
+    if constructors and year < FIRST_CONSTRUCTORS_CHAMPIONSHIP:
         raise HTTPException(
             status_code=404,
-            detail=f"There was no constructors' championship before {FIRST_CONSTRUCTORS_SEASON}",
+            detail=(
+                f"There was no constructors' championship before {FIRST_CONSTRUCTORS_CHAMPIONSHIP}"
+            ),
         )
 
     race_ids = [r.id for r in races]

@@ -274,7 +274,7 @@ Two f1db quirks the UI is built around:
 - Use conventional commits (feat:, fix:, docs:, refactor:, test:, chore:)
 - Frontend: shadcn/ui components in `components/ui/`, feature components in `components/<feature>/`
 - Backend: FastAPI routers in `src/api/routers/`, SQLAlchemy models in `src/db/models.py`
-- Backend shared helpers: `src/api/constants.py` (magic numbers), `src/api/serializers.py` (driver/constructor dict builders), `src/api/pagination.py` (generic paginator), `src/scoring.py` (historical points systems)
+- Backend shared helpers: `src/api/constants.py` (magic numbers), `src/api/eras.py` (the era / year-range filter), `src/api/serializers.py` (driver/constructor dict builders), `src/api/pagination.py` (generic paginator), `src/scoring.py` (historical points systems)
 - Fast-F1 code is split by what it needs: `src/ingestion/fastf1_sessions.py` is network-only (no DB import, so it runs on a host with no database), `src/ingestion/fastf1_targets.py` holds `find_targets()` — the one definition of what is outstanding, shared by `scripts/fastf1_status.py` and `/api/ops/status` so the page and `pnpm fastf1` can never disagree, `src/ingestion/fastf1_payload.py` is the NDJSON wire format between the two hosts, and the writers (`write_lap_rows`, `write_quali_sectors`) are shared by the direct ingestors and the payload importer — keep it that way so the off-box path cannot drift from the local one
 - All API endpoints prefixed with `/api/`
 - Next.js frontend calls FastAPI at `NEXT_PUBLIC_API_URL` (default: http://localhost:8000/api)
@@ -370,7 +370,7 @@ Two f1db quirks the UI is built around:
 - The race page's lap time distribution applies the same clean-lap filter in the
   browser (`lib/lap-distribution.ts`), from the median of every timed lap after
   lap 1 as the season compare's race pace does. Its `CLEAN_LAP_THRESHOLD` and
-  `MIN_CLEAN_LAPS` mirror `_CLEAN_LAP_THRESHOLD` and `SEASON_COMPARE_MIN_CLEAN_LAPS`,
+  `MIN_CLEAN_LAPS` mirror `CLEAN_LAP_THRESHOLD` and `SEASON_COMPARE_MIN_CLEAN_LAPS`,
   and `lib/violin.ts` (Silverman bandwidth, grid padded by two bandwidths, widest
   point = 1) is the reference any server-side density must reproduce — change
   both or neither. Dot spread is hashed from the driver and lap (`jitter()`),

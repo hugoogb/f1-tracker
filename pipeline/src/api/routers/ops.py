@@ -20,6 +20,7 @@ from sqlalchemy import case, func, select, text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
+from src.api.serializers import utc_iso
 from src.chat.ledger import day_start
 from src.config import settings
 from src.db.database import get_db
@@ -70,19 +71,6 @@ _COUNTED_TABLES = {
     "lapTimes": LapTime,
     "constructorLineages": ConstructorLineage,
 }
-
-
-def _utc_iso(moment: datetime | None) -> str | None:
-    """Render a timestamp as an explicit UTC instant.
-
-    `ingest_runs` is written with tz-aware UTC values, but a driver that drops
-    the offset on the way back (SQLite does) would otherwise hand the browser a
-    naive string it reads as local time.
-    """
-    if moment is None:
-        return None
-    aware = moment if moment.tzinfo else moment.replace(tzinfo=UTC)
-    return aware.astimezone(UTC).isoformat().replace("+00:00", "Z")
 
 
 def _coverage(db: Session) -> dict:
@@ -221,8 +209,8 @@ def _serialise_run(run: IngestRun) -> dict:
     return {
         "target": run.target,
         "status": run.status,
-        "startedAt": _utc_iso(run.started_at),
-        "finishedAt": _utc_iso(run.finished_at),
+        "startedAt": utc_iso(run.started_at),
+        "finishedAt": utc_iso(run.finished_at),
         "rowsWritten": run.rows_written,
         "f1dbVersion": run.f1db_version,
         # Deliberately a flag and not the message — see the module docstring.
@@ -255,7 +243,7 @@ def _ingest_runs(db: Session, limit: int) -> dict:
     return {
         "available": True,
         "runs": [_serialise_run(r) for r in runs],
-        "lastSuccessAt": _utc_iso(last_success),
+        "lastSuccessAt": utc_iso(last_success),
     }
 
 
@@ -303,7 +291,7 @@ def ops_status(
     counts, estimated = _row_counts(db)
     now = datetime.now(UTC)
     return {
-        "generatedAt": _utc_iso(now),
+        "generatedAt": utc_iso(now),
         "coverage": _coverage(db),
         "fastf1": _fastf1_backlog(db),
         "rowCounts": counts,
