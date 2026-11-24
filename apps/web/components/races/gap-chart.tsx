@@ -12,6 +12,7 @@ import {
 } from 'recharts'
 import { NEUTRAL, axisProps, gridProps, lineCursor } from '@/lib/chart-theme'
 import { teamColorOf } from '@/lib/utils'
+import { formatLapTime } from '@/lib/lap-distribution'
 import type { DriverGaps } from '@/lib/types'
 
 interface GapChartProps {
@@ -25,10 +26,8 @@ const DEFAULT_DRIVERS = 6
 /** Seconds behind, the way a pit wall says it: "+1.4", "+12.8". */
 function formatGap(seconds: number): string {
   if (seconds === 0) return 'Leader'
-  if (seconds >= 60) {
-    const minutes = Math.floor(seconds / 60)
-    return `+${minutes}:${(seconds % 60).toFixed(1).padStart(4, '0')}`
-  }
+  // Rounded as a whole first, so 119.96 s reads "+2:00.0", never "+1:60.0".
+  if (Math.round(seconds * 10) >= 600) return `+${formatLapTime(seconds * 1000, 1)}`
   return `+${seconds.toFixed(1)}s`
 }
 

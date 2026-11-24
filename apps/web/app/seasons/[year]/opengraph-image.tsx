@@ -76,8 +76,8 @@ export default async function Image({ params }: { params: Promise<{ year: string
       eyebrow={`${yearNum} Season`}
       title={title}
       subtitle={leader ? (decided ? 'World Champion' : 'Championship leader') : null}
-      meta={leader?.constructor.name ?? null}
-      accent={leader ? teamColorOf(leader.constructor.color, null) : null}
+      meta={leader?.constructor?.name ?? null}
+      accent={leader?.constructor ? teamColorOf(leader.constructor.color, null) : null}
       stats={[
         { label: 'Rounds', value: races.length },
         ...(leader

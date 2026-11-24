@@ -279,7 +279,7 @@ export function raceSummary(input: {
   circuit: { name: string; location: string | null }
   results: readonly {
     position: number | null
-    grid: number
+    grid: number | null
     driver: { firstName: string; lastName: string }
     constructor: { name: string }
   }[]
@@ -302,7 +302,11 @@ export function raceSummary(input: {
   } else {
     const [winner] = winners
     const from =
-      winner.grid === 1 ? ' from pole position' : winner.grid > 1 ? ` from P${winner.grid}` : ''
+      winner.grid === 1
+        ? ' from pole position'
+        : winner.grid != null && winner.grid > 1
+          ? ` from P${winner.grid}`
+          : ''
     parts.push(
       `${name(winner.driver)} won the ${year} ${raceName} at ${place} for ${winner.constructor.name}${from}.`,
     )

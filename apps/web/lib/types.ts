@@ -76,7 +76,8 @@ export interface RaceResult {
   raceId: string
   driver: Driver
   constructor: Constructor
-  grid: number
+  /** Null for a pit-lane start. */
+  grid: number | null
   position: number | null
   positionText: string
   points: number
@@ -151,7 +152,8 @@ export interface FastestSectors {
 
 export interface DriverStanding {
   driver: Driver
-  constructor: Constructor
+  /** Null for a driver who did not race the table's round (Rindt, 1970). */
+  constructor: Constructor | null
   points: number
   /** Null for a driver disqualified from the championship (Schumacher, 1997). */
   position: number | null
@@ -191,7 +193,8 @@ export interface SeasonChampion {
 export interface SprintResult {
   position: number | null
   positionText: string
-  grid: number
+  /** Null for a pit-lane start. */
+  grid: number | null
   points: number
   laps: number
   time: string | null
