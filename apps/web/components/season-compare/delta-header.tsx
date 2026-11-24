@@ -3,7 +3,8 @@ import { ArrowLeftRight } from 'lucide-react'
 import type { SeasonCompareResponse } from '@/lib/types'
 import { AnimatedNumber } from '@/components/ui/motion'
 import { Badge } from '@/components/ui/badge'
-import { formatPoints, type SideInfo } from './sides'
+import { formatPoints } from '@/lib/utils'
+import type { SideInfo } from './sides'
 import { buttonVariants } from '@/components/ui/button-variants'
 
 /**

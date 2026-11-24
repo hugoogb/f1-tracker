@@ -10,14 +10,11 @@ import type {
   TitleContender,
   ConstructorTitleContender,
 } from '@/lib/types'
+import { formatPoints } from '@/lib/utils'
 
 interface TitlePermutationsProps {
   drivers: PermutationsResponse | null
   constructors?: ConstructorPermutationsResponse | null
-}
-
-function points(value: number): string {
-  return Number.isInteger(value) ? String(value) : value.toFixed(1)
 }
 
 /** A season with rounds left to run; a finished one's standings already answer it. */
@@ -138,7 +135,7 @@ function PermutationsBody({
         />
         <Stat
           label="Points available"
-          value={points(data.maxRemaining ?? 0)}
+          value={formatPoints(data.maxRemaining ?? 0)}
           hint={
             data.doublePointsFinale
               ? 'finale pays double'
@@ -152,7 +149,7 @@ function PermutationsBody({
           value={
             data.decided
               ? leader.short
-              : points(rows.find((r) => !r.contender.isLeader)?.contender.deficit ?? 0)
+              : formatPoints(rows.find((r) => !r.contender.isLeader)?.contender.deficit ?? 0)
           }
         />
       </div>
@@ -168,8 +165,8 @@ function PermutationsBody({
 
       {data.decided && (
         <p className="text-sm">
-          Nobody else can overhaul {leader.name} with {points(data.maxRemaining ?? 0)} points left,
-          so the title is settled with {data.racesRemaining}{' '}
+          Nobody else can overhaul {leader.name} with {formatPoints(data.maxRemaining ?? 0)} points
+          left, so the title is settled with {data.racesRemaining}{' '}
           {data.racesRemaining === 1 ? 'round' : 'rounds'} to spare.
         </p>
       )}
@@ -195,9 +192,9 @@ function PermutationsBody({
                 Out
               </Badge>
             )}
-            <span className="ml-auto text-sm tabular-nums">{points(contender.points)}</span>
+            <span className="ml-auto text-sm tabular-nums">{formatPoints(contender.points)}</span>
             <span className="text-muted-foreground w-20 text-right text-xs tabular-nums">
-              max {points(contender.maxPossible)}
+              max {formatPoints(contender.maxPossible)}
             </span>
           </li>
         ))}

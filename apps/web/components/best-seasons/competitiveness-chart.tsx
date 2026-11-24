@@ -95,7 +95,7 @@ export function CompetitivenessChart({
       score: s.score.total,
       champion: s.champion ? s.champion.driver.lastName : null,
       rival: s.runnerUp ? s.runnerUp.driver.lastName : null,
-      color: teamColorOf(s.champion?.constructor?.color)!,
+      color: teamColorOf(s.champion?.constructor?.color),
       margin: s.titleMargin,
       decider: deciderLabel(s),
     }))

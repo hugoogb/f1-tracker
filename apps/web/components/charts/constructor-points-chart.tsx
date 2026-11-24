@@ -49,7 +49,7 @@ export function ConstructorPointsChart({ standings }: ConstructorPointsChartProp
   const data = standings.map((s) => ({
     name: s.constructor.name,
     points: s.points,
-    color: teamColorOf(s.constructor.color)!,
+    color: teamColorOf(s.constructor.color),
   }))
 
   if (data.length === 0) return null

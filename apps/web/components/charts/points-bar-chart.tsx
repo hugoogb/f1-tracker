@@ -49,7 +49,7 @@ export function PointsBarChart({ standings }: PointsBarChartProps) {
   const data = standings.slice(0, 10).map((s) => ({
     name: s.driver.lastName,
     points: s.points,
-    color: teamColorOf(s.constructor?.color)!,
+    color: teamColorOf(s.constructor?.color),
   }))
 
   if (data.length === 0) return null

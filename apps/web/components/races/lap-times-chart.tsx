@@ -11,7 +11,7 @@ import {
   YAxis,
 } from 'recharts'
 import { NEUTRAL, axisProps, gridProps, lineCursor } from '@/lib/chart-theme'
-import { teamColorOf } from '@/lib/utils'
+import { driverCode, teamColorOf } from '@/lib/utils'
 import type { ChartDriverLaps } from '@/lib/types'
 
 interface LapTimesChartProps {
@@ -28,7 +28,7 @@ function formatSeconds(s: number): string {
 }
 
 function getDriverColor(driver: ChartDriverLaps): string {
-  return teamColorOf(driver.constructor.color)!
+  return teamColorOf(driver.constructor.color)
 }
 
 function CustomTooltip({
@@ -131,7 +131,7 @@ export function LapTimesChart({ drivers }: LapTimesChartProps) {
               }`}
               style={active ? { backgroundColor: color } : undefined}
             >
-              {d.driver.code ?? d.driver.lastName.slice(0, 3).toUpperCase()}
+              {driverCode(d.driver)}
             </button>
           )
         })}

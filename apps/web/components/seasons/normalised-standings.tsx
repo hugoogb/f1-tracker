@@ -14,15 +14,12 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { PositionBadge } from '@/components/ui/position-badge'
 import type { NormalisedStandingsResponse } from '@/lib/types'
+import { formatPoints } from '@/lib/utils'
 
 interface NormalisedStandingsProps {
   /** One re-scored table per points system, in era order. */
   results: NormalisedStandingsResponse[]
   year: number
-}
-
-function points(value: number): string {
-  return Number.isInteger(value) ? String(value) : value.toFixed(1)
 }
 
 function DeltaCell({ delta }: { delta: number | null }) {
@@ -151,7 +148,7 @@ export function NormalisedStandings({ results, year }: NormalisedStandingsProps)
                 </Link>
               </TableCell>
               <TableCell className="text-right font-medium tabular-nums">
-                {points(row.points)}
+                {formatPoints(row.points)}
               </TableCell>
               <TableCell className="hidden text-right tabular-nums sm:table-cell">
                 {row.wins}
@@ -159,7 +156,7 @@ export function NormalisedStandings({ results, year }: NormalisedStandingsProps)
               <TableCell className="text-muted-foreground text-right tabular-nums">
                 {row.officialPosition ?? '—'}
                 {row.officialPoints !== null && (
-                  <span className="hidden sm:inline"> ({points(row.officialPoints)})</span>
+                  <span className="hidden sm:inline"> ({formatPoints(row.officialPoints)})</span>
                 )}
               </TableCell>
               <TableCell className="text-right">

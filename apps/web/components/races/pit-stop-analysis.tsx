@@ -123,7 +123,7 @@ export function PitStopAnalysisView({ analysis }: PitStopAnalysisProps) {
     avgDuration: parseFloat(t.avgDuration),
     bestDuration: parseFloat(t.bestDuration),
     avgTimeLost: parseFloat(t.avgTimeLost),
-    color: teamColorOf(t.constructor.color)!,
+    color: teamColorOf(t.constructor.color),
     stopCount: t.stopCount,
   }))
 

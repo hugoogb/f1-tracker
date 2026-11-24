@@ -11,7 +11,7 @@ import {
   YAxis,
 } from 'recharts'
 import { NEUTRAL, axisProps, gridProps, lineCursor } from '@/lib/chart-theme'
-import { teamColorOf } from '@/lib/utils'
+import { driverCode, teamColorOf } from '@/lib/utils'
 import { formatLapTime } from '@/lib/lap-distribution'
 import type { DriverGaps } from '@/lib/types'
 
@@ -117,7 +117,7 @@ export function GapChart({ drivers, totalLaps, coveredLaps }: GapChartProps) {
     <div className="space-y-4">
       <div className="flex flex-wrap gap-2">
         {drivers.map((d) => {
-          const color = teamColorOf(d.constructor.color)!
+          const color = teamColorOf(d.constructor.color)
           const on = enabled.has(d.driver.ref)
           return (
             <button
@@ -131,7 +131,7 @@ export function GapChart({ drivers, totalLaps, coveredLaps }: GapChartProps) {
               }`}
               style={on ? { backgroundColor: color } : undefined}
             >
-              {d.driver.code ?? d.driver.lastName.slice(0, 3).toUpperCase()}
+              {driverCode(d.driver)}
             </button>
           )
         })}
@@ -183,7 +183,7 @@ export function GapChart({ drivers, totalLaps, coveredLaps }: GapChartProps) {
                   key={d.driver.ref}
                   type="monotone"
                   dataKey={d.driver.lastName}
-                  stroke={teamColorOf(d.constructor.color)!}
+                  stroke={teamColorOf(d.constructor.color)}
                   strokeWidth={1.5}
                   dot={false}
                   connectNulls={false}

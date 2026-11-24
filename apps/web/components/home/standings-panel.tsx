@@ -62,7 +62,7 @@ export function StandingsPanel({
                     <span
                       aria-hidden
                       className="h-5 -skew-x-12"
-                      style={{ backgroundColor: teamColorOf(row.color) ?? undefined }}
+                      style={{ backgroundColor: teamColorOf(row.color) }}
                     />
                     <span className="min-w-0">
                       <span className="block truncate font-semibold uppercase">{row.name}</span>

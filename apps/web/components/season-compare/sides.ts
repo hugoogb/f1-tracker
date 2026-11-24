@@ -1,5 +1,5 @@
 import { sideColor } from '@/lib/chart-theme'
-import { teamColorOf } from '@/lib/utils'
+import { formatPoints, teamColorOf } from '@/lib/utils'
 import type { SeasonCompareEntity, SeasonCompareResponse } from '@/lib/types'
 
 export interface SideInfo {
@@ -63,11 +63,6 @@ export function describeSides(data: SeasonCompareResponse): [SideInfo, SideInfo]
   const b = make(data.b, 'b')
   if (a.color.toLowerCase() === b.color.toLowerCase()) b.color = lighten(b.color, 0.45)
   return [a, b]
-}
-
-/** Points can be fractional (half points, shared drives); show decimals only then. */
-export function formatPoints(value: number): string {
-  return Number.isInteger(value) ? String(value) : value.toFixed(1)
 }
 
 export function signed(value: number, digits = 0): string {

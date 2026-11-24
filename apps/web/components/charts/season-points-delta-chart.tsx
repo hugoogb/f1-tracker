@@ -23,6 +23,7 @@ import {
   tooltipContentStyle,
   tooltipLabelStyle,
 } from '@/lib/chart-theme'
+import { formatPoints } from '@/lib/utils'
 
 interface Side {
   name: string
@@ -36,10 +37,6 @@ interface RoundPoint {
   a: number
   b: number
   delta: number
-}
-
-function fmt(value: number): string {
-  return Number.isInteger(value) ? String(value) : value.toFixed(1)
 }
 
 /**
@@ -80,7 +77,7 @@ export function SeasonPointsDeltaChart({
                 const race = payload?.[0]?.payload as RoundPoint | undefined
                 return `R${label}${race ? ` — ${race.raceName}` : ''}`
               }}
-              formatter={(value) => `${fmt(Number(value))} pts`}
+              formatter={(value) => `${formatPoints(Number(value))} pts`}
             />
             <Legend wrapperStyle={{ fontSize: '13px', paddingTop: '8px' }} />
             <Line
@@ -132,7 +129,7 @@ export function SeasonPointsDeltaChart({
                 const delta = Number(value)
                 if (delta === 0) return ['Level', 'Gap']
                 const leader = delta > 0 ? sideA : sideB
-                return [`${leader.short} +${fmt(Math.abs(delta))} pts`, 'Gap']
+                return [`${leader.short} +${formatPoints(Math.abs(delta))} pts`, 'Gap']
               }}
             />
             <ReferenceLine

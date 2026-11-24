@@ -1,14 +1,11 @@
 import { Info } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import type { SeasonScoring } from '@/lib/types'
+import { formatPoints } from '@/lib/utils'
 
 interface ScoringNoteProps {
   scoring: SeasonScoring
   year: number
-}
-
-function points(value: number): string {
-  return Number.isInteger(value) ? String(value) : value.toFixed(1)
 }
 
 /**
@@ -69,9 +66,9 @@ export function ScoringNote({ scoring, year }: ScoringNoteProps) {
           <span className="font-medium">
             {driver.firstName} {driver.lastName}
           </span>{' '}
-          scored <span className="tabular-nums">{points(largest.scored)}</span> but kept{' '}
-          <span className="tabular-nums">{points(largest.counted)}</span>, dropping{' '}
-          <span className="tabular-nums">{points(largest.dropped)}</span>
+          scored <span className="tabular-nums">{formatPoints(largest.scored)}</span> but kept{' '}
+          <span className="tabular-nums">{formatPoints(largest.counted)}</span>, dropping{' '}
+          <span className="tabular-nums">{formatPoints(largest.dropped)}</span>
           {droppedPoints.driversAffected > 1 && (
             <> — one of {droppedPoints.driversAffected} drivers whose total was cut</>
           )}

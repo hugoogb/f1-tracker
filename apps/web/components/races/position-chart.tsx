@@ -11,7 +11,7 @@ import {
   YAxis,
 } from 'recharts'
 import { NEUTRAL, axisProps, gridProps, lineCursor } from '@/lib/chart-theme'
-import { teamColorOf } from '@/lib/utils'
+import { driverCode, teamColorOf } from '@/lib/utils'
 import type { DriverPositions } from '@/lib/types'
 
 interface PositionChartProps {
@@ -23,7 +23,7 @@ interface PositionChartProps {
 }
 
 function getDriverColor(driver: DriverPositions): string {
-  return teamColorOf(driver.constructor.color)!
+  return teamColorOf(driver.constructor.color)
 }
 
 function CustomTooltip({
@@ -127,7 +127,7 @@ export function PositionChart({ drivers, totalLaps, coveredLaps }: PositionChart
               }`}
               style={active ? { backgroundColor: color } : undefined}
             >
-              {d.driver.code ?? d.driver.lastName.slice(0, 3).toUpperCase()}
+              {driverCode(d.driver)}
             </button>
           )
         })}

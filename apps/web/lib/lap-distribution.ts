@@ -1,6 +1,6 @@
 import { TYRE_COLORS } from '@/lib/constants'
 import type { ChartDriverLaps } from '@/lib/types'
-import { teamColorOf } from '@/lib/utils'
+import { driverCode, teamColorOf } from '@/lib/utils'
 import { jitter, kde, median, quantile, type ViolinColumn, type ViolinDot } from '@/lib/violin'
 
 /**
@@ -83,10 +83,6 @@ export function axisLapLabel(ms: number): string {
   return formatLapTime(ms, ms % 100 === 0 ? 1 : 2)
 }
 
-function driverLabel(driver: ChartDriverLaps['driver']): string {
-  return driver.code ?? driver.lastName.slice(0, 3).toUpperCase()
-}
-
 /**
  * A race's laps reduced to one violin per driver or per constructor: lap 1
  * and anything slower than 107% of the race median dropped, teammates pooled
@@ -115,7 +111,7 @@ export function raceDistribution(
     if (groups.has(key)) continue
     groups.set(key, {
       key,
-      label: mode === 'drivers' ? driverLabel(d.driver) : d.constructor.name,
+      label: mode === 'drivers' ? driverCode(d.driver) : d.constructor.name,
       color: teamColorOf(d.constructor.color) as string,
       entity:
         mode === 'drivers'
@@ -141,7 +137,7 @@ export function raceDistribution(
       x: jitter(`${driver.driver.ref}-${lap.lapNumber}`),
       color: (legacy && LEGACY_COLORS[compound]) || TYRE_COLORS[compound],
       meta: {
-        driver: driverLabel(driver.driver),
+        driver: driverCode(driver.driver),
         lap: String(lap.lapNumber),
         compound: compound.charAt(0) + compound.slice(1).toLowerCase(),
       },

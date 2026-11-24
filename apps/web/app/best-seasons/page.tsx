@@ -106,7 +106,7 @@ export default async function BestSeasonsPage() {
               value={`${formatPoints(closest.titleMargin)} pt${closest.titleMargin === 1 ? '' : 's'}`}
               icon={Swords}
               href={`/seasons/${closest.year}`}
-              color={teamColorOf(closest.champion?.constructor?.color) ?? undefined}
+              color={teamColorOf(closest.champion?.constructor?.color)}
               description={`${closest.year} · ${closest.champion?.driver.lastName} over ${closest.runnerUp?.driver.lastName}`}
             />
           )}
@@ -116,7 +116,7 @@ export default async function BestSeasonsPage() {
               value={mostWinners.distinctWinners}
               icon={Trophy}
               href={`/seasons/${mostWinners.year}`}
-              color={teamColorOf(mostWinners.champion?.constructor?.color) ?? undefined}
+              color={teamColorOf(mostWinners.champion?.constructor?.color)}
               description={`${mostWinners.year}, in ${mostWinners.totalRounds} rounds`}
             />
           )}
@@ -126,7 +126,7 @@ export default async function BestSeasonsPage() {
               value={mostLeads.leadChanges}
               icon={Gauge}
               href={`/seasons/${mostLeads.year}`}
-              color={teamColorOf(mostLeads.champion?.constructor?.color) ?? undefined}
+              color={teamColorOf(mostLeads.champion?.constructor?.color)}
               description={`${mostLeads.year}, ${mostLeads.distinctLeaders} different leaders`}
             />
           )}
