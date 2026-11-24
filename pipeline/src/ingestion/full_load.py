@@ -18,10 +18,9 @@ from src.db.database import SessionLocal
 from src.db.models import Driver, IngestRun, QualifyingResult, Race, RaceResult, new_uuid
 from src.ingestion.colors import ConstructorColorIngestor
 from src.ingestion.drivers import ConstructorIngestor, DriverIngestor, StatusIngestor
-from src.ingestion.lap_times import LapTimeIngestor
+from src.ingestion.fastf1_ingest import LapTimeIngestor, QualifyingSectorIngestor
 from src.ingestion.lineages import ConstructorLineageIngestor
 from src.ingestion.pit_stops import PitStopIngestor
-from src.ingestion.qualifying_sectors import QualifyingSectorIngestor
 from src.ingestion.races import RaceIngestor
 from src.ingestion.results import QualifyingIngestor, RaceResultIngestor, SprintResultIngestor
 from src.ingestion.seasons import CircuitIngestor, CircuitLayoutIngestor, SeasonIngestor

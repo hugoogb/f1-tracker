@@ -78,13 +78,3 @@ class BaseIngestor(ABC):
 
     def log(self, message: str) -> None:
         logger.info(f"[{self.__class__.__name__}] {message}")
-
-    def build_abbr_to_driver_id(
-        self,
-        abbrs: Iterable[str],
-        code_to_id: dict[str, str],
-    ) -> dict[str, str]:
-        return build_abbr_to_driver_id(abbrs, code_to_id)
-
-    def race_entrant_codes(self, race_id: str) -> dict[str, str]:
-        return race_entrant_codes(self.db, race_id)
