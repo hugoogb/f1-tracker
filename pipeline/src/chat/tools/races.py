@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 
 from src.api.routers.races import get_pitstops, get_qualifying, get_race, get_sprint
 from src.chat.constants import TOP_N
-from src.chat.tools.registry import Tool, register
+from src.chat.tools.registry import Tool, driver_name, register
 
 Section = Literal["results", "qualifying", "sprint", "pitstops"]
 
@@ -30,13 +30,9 @@ class RaceArgs(BaseModel):
     section: Section
 
 
-def _name(d: dict) -> str:
-    return f"{d['firstName']} {d['lastName']}"
-
-
 def _who(row: dict) -> dict:
     return {
-        "name": _name(row["driver"]),
+        "name": driver_name(row["driver"]),
         "ref": row["driver"]["ref"],
         "constructor": row["constructor"]["name"] if row.get("constructor") else None,
     }
@@ -120,7 +116,7 @@ def _run(db: Session, args: RaceArgs) -> dict:
     fastest = race["fastestLap"]
     if args.section == "results" and fastest:
         out["fastestLap"] = {
-            "name": _name(fastest["driver"]),
+            "name": driver_name(fastest["driver"]),
             "ref": fastest["driver"]["ref"],
             "time": fastest["time"],
             "lap": fastest["lapNumber"],

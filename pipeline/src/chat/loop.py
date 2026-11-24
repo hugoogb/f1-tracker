@@ -21,6 +21,7 @@ from src.chat.constants import (
     MAX_CONVERSATION_TURNS,
     MAX_TOOL_CALLS,
     NAVIGATE,
+    SITE_PATH,
 )
 from src.chat.events import Done, TextDelta, ToolCall, UsageEvent
 from src.chat.model import Message, stream_turn
@@ -40,8 +41,6 @@ CAP_NUDGE = "Answer with what you have."
 # Measured size of the cached prefix (system prompt + 18 tool schemas), in tokens.
 # Stands in for the input of a turn that failed before reporting its usage.
 SYSTEM_AND_TOOLS_ESTIMATE = 2_000
-
-SITE_PATH = r"^/[A-Za-z0-9_\-./]*(\?[A-Za-z0-9_=&\-]*)?$"
 
 
 class ProviderError(Exception):

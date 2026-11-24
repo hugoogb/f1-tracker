@@ -29,7 +29,7 @@ from src.api.routers.standings import (
 )
 from src.api.serializers import constructor_summary, driver_summary
 from src.chat.constants import TOP_N
-from src.chat.tools.registry import Tool, register
+from src.chat.tools.registry import Tool, driver_name, register
 from src.db.models import Race, RaceResult, SprintResult
 from src.db.queries import get_constructor_standings_for_season, get_driver_standings_for_season
 
@@ -70,10 +70,6 @@ class StandingsArgs(BaseModel):
     focus_ref: str | None
 
 
-def _driver_name(d: dict) -> str:
-    return f"{d['firstName']} {d['lastName']}"
-
-
 def _season_href(year: int) -> str:
     return f"/seasons/{year}"
 
@@ -97,7 +93,7 @@ def _entity(kind: str, row: dict) -> dict:
     """Name, ref and href of a standings row, whichever title it is for."""
     if kind == "drivers":
         d = row["driver"]
-        return {"name": _driver_name(d), "ref": d["ref"], "href": f"/drivers/{d['ref']}"}
+        return {"name": driver_name(d), "ref": d["ref"], "href": f"/drivers/{d['ref']}"}
     c = row["constructor"]
     return {"name": c["name"], "ref": c["ref"], "href": f"/constructors/{c['ref']}"}
 
@@ -211,7 +207,7 @@ def _season_run(db: Session, args: YearArgs) -> dict:
     if dropped and dropped["largest"]["driver"]:
         big = dropped["largest"]
         note = (
-            f"{note} {_driver_name(big['driver'])} scored {big['scored']:g} but "
+            f"{note} {driver_name(big['driver'])} scored {big['scored']:g} but "
             f"{big['counted']:g} counted ({dropped['driversAffected']} drivers dropped points)."
         ).strip()
     today = _today()
@@ -240,7 +236,7 @@ def _progression_run(db: Session, args: YearKindArgs) -> dict:
     entities = payload["drivers"] if drivers else payload["constructors"]
     if not payload["rounds"] or not entities:
         return {"error": f"no {args.kind} progression for {args.year}"}
-    names = {e["ref"]: _driver_name(e) if drivers else e["name"] for e in entities}
+    names = {e["ref"]: driver_name(e) if drivers else e["name"] for e in entities}
     leaders = []
     changes = 0
     previous = None
@@ -323,7 +319,7 @@ def _calendar_run(db: Session, args: YearArgs) -> dict:
                 "circuit": r["circuit"]["name"],
                 "country": r["circuit"]["country"],
                 "date": r["date"],
-                "winner": {"name": _driver_name(w["driver"]), "ref": w["driver"]["ref"]}
+                "winner": {"name": driver_name(w["driver"]), "ref": w["driver"]["ref"]}
                 if w
                 else None,
                 "href": _race_href(args.year, r["round"]),

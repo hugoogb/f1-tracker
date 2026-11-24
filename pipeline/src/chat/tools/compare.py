@@ -15,7 +15,7 @@ from src.api.routers.compare import compare_constructors as _compare_constructor
 from src.api.routers.compare import compare_drivers as _compare_drivers
 from src.api.routers.season_compare import season_compare_constructors, season_compare_drivers
 from src.chat.tools.entities import career_of_constructor, career_of_driver
-from src.chat.tools.registry import Tool, register
+from src.chat.tools.registry import Tool, driver_name, register
 
 SEASON_NOTE = (
     "points are the official championship totals (not summed race points); every delta is "
@@ -38,7 +38,7 @@ class SeasonPairArgs(BaseModel):
 
 
 def _side(entity: dict, kind: str) -> dict:
-    name = f"{entity['firstName']} {entity['lastName']}" if kind == "drivers" else entity["name"]
+    name = driver_name(entity) if kind == "drivers" else entity["name"]
     return {"name": name, "ref": entity["ref"], "href": f"/{kind}/{entity['ref']}"}
 
 

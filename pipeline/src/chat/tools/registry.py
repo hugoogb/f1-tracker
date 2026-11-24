@@ -32,6 +32,11 @@ class Tool:
 TOOLS: dict[str, Tool] = {}
 
 
+def driver_name(d: dict) -> str:
+    """A driver payload's full name, as every tool writes it."""
+    return f"{d['firstName']} {d['lastName']}"
+
+
 def register(tool: Tool) -> Tool:
     """Add a tool at import time; registering a name again replaces it."""
     TOOLS[tool.name] = tool
