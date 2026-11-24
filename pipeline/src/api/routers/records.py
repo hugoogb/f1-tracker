@@ -24,35 +24,10 @@ from src.db.models import (
     Race,
     RaceResult,
 )
+from src.db.queries import final_round_race_ids
 from src.scoring import SYSTEMS, era_bounds
 
 router = APIRouter()
-
-
-def _final_round_race_ids() -> Subquery:
-    """The race that closed each season — where the championship was decided.
-
-    Titles are read off the standings at that race, which carry f1db's official
-    points. They are never re-derived from race results: until 1990 only part of
-    a driver's record counted, so a sum of races crowns the wrong champion.
-    """
-    last_rounds = (
-        select(
-            Race.season_year,
-            func.max(Race.round).label("max_round"),
-        )
-        .group_by(Race.season_year)
-        .subquery()
-    )
-    return (
-        select(Race.id)
-        .join(
-            last_rounds,
-            (Race.season_year == last_rounds.c.season_year)
-            & (Race.round == last_rounds.c.max_round),
-        )
-        .subquery()
-    )
 
 
 @router.get("/records")
@@ -101,7 +76,6 @@ def get_records(
     ).all()
 
     # Most championships
-    last_race_ids = _final_round_race_ids()
     most_championships = db.execute(
         select(
             DriverStanding.driver_id,
@@ -109,7 +83,7 @@ def get_records(
         )
         .where(
             DriverStanding.position == 1,
-            DriverStanding.race_id.in_(select(last_race_ids)),
+            DriverStanding.race_id.in_(final_round_race_ids()),
         )
         .group_by(DriverStanding.driver_id)
         .order_by(func.count().desc())
@@ -147,7 +121,7 @@ def get_records(
         )
         .where(
             ConstructorStanding.position == 1,
-            ConstructorStanding.race_id.in_(select(last_race_ids)),
+            ConstructorStanding.race_id.in_(final_round_race_ids()),
             # A pre-1958 table is a sum of points, not a championship anyone won.
             ConstructorStanding.race_id.in_(
                 select(Race.id).where(Race.season_year >= FIRST_CONSTRUCTORS_CHAMPIONSHIP)
@@ -327,7 +301,7 @@ def _metric_subquery(entity: str, category: str, year_clauses: list) -> Subquery
         )
 
     # Championships. Read off the official standings after the season's final
-    # round, never from a sum of race points — see `_final_round_race_ids`.
+    # round, never from a sum of race points — see `final_round_race_ids`.
     standing = DriverStanding if is_driver else ConstructorStanding
     standing_column = standing.driver_id if is_driver else standing.constructor_id
     return (
@@ -336,7 +310,7 @@ def _metric_subquery(entity: str, category: str, year_clauses: list) -> Subquery
         .where(
             *year_clauses,
             standing.position == 1,
-            standing.race_id.in_(select(_final_round_race_ids())),
+            standing.race_id.in_(final_round_race_ids()),
             # A pre-1958 table is a sum of points, not a championship anyone won.
             *([] if is_driver else [Race.season_year >= FIRST_CONSTRUCTORS_CHAMPIONSHIP]),
         )

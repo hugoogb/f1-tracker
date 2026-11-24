@@ -1,7 +1,7 @@
 from collections import Counter, defaultdict
 from datetime import date
 
-from sqlalchemy import func, select
+from sqlalchemy import Select, func, select
 from sqlalchemy.orm import Session
 
 from src.api.constants import FIRST_CONSTRUCTORS_CHAMPIONSHIP
@@ -65,6 +65,26 @@ def official_running_totals(
         running.update(tables[race.id])
         out[race.id] = dict(running)
     return out
+
+
+def final_round_race_ids() -> Select:
+    """The race that closes each season on the calendar — where a title is decided.
+
+    Titles are read off the standings at that race, which carry f1db's official
+    points, never re-derived from race results: until 1990 only part of a
+    driver's record counted, so a sum of races crowns the wrong champion. A
+    season still running has no table at its final round yet, so its current
+    leader is never counted as a champion.
+    """
+    last_rounds = (
+        select(Race.season_year, func.max(Race.round).label("max_round"))
+        .group_by(Race.season_year)
+        .subquery()
+    )
+    return select(Race.id).join(
+        last_rounds,
+        (Race.season_year == last_rounds.c.season_year) & (Race.round == last_rounds.c.max_round),
+    )
 
 
 def get_all_seasons(db: Session) -> list[Season]:
@@ -164,20 +184,11 @@ def get_driver_career_stats(db: Session, driver_id: str) -> dict:
     fastest_laps = db.execute(
         select(func.count()).where(Race.fastest_lap_driver_id == driver_id)
     ).scalar()
-    last_rounds = (
-        select(Race.season_year, func.max(Race.round).label("max_round"))
-        .group_by(Race.season_year)
-        .subquery()
-    )
-    last_race_ids = select(Race.id).join(
-        last_rounds,
-        (Race.season_year == last_rounds.c.season_year) & (Race.round == last_rounds.c.max_round),
-    )
     championships = db.execute(
         select(func.count()).where(
             DriverStanding.driver_id == driver_id,
             DriverStanding.position == 1,
-            DriverStanding.race_id.in_(last_race_ids),
+            DriverStanding.race_id.in_(final_round_race_ids()),
         )
     ).scalar()
 
@@ -361,23 +372,10 @@ def main_constructors(
 def get_season_champions(db: Session) -> list[dict]:
     today = date.today()
 
-    # Subquery: last race per season
-    last_rounds = (
-        select(
-            Race.season_year,
-            func.max(Race.round).label("max_round"),
-        )
-        .group_by(Race.season_year)
-        .subquery()
-    )
     last_races = (
         db.execute(
             select(Race)
-            .join(
-                last_rounds,
-                (Race.season_year == last_rounds.c.season_year)
-                & (Race.round == last_rounds.c.max_round),
-            )
+            .where(Race.id.in_(final_round_race_ids()))
             .order_by(Race.season_year.desc())
         )
         .scalars()

@@ -14,7 +14,11 @@ from src.db.models import (
     Race,
     RaceResult,
 )
-from src.db.queries import get_constructor_by_ref, get_constructor_career_stats
+from src.db.queries import (
+    final_round_race_ids,
+    get_constructor_by_ref,
+    get_constructor_career_stats,
+)
 
 router = APIRouter()
 
@@ -172,24 +176,13 @@ def get_constructor_lineage(ref: str, db: Session = Depends(get_db)):
         .group_by(RaceResult.constructor_id, Race.season_year)
     ).all()
 
-    # Constructors' titles, counted off the final standing of each season — the
-    # last round that has standings at all, which is not always the last round
-    # on the calendar for a season still in progress.
-    final_rounds = (
-        select(Race.season_year, func.max(Race.round).label("max_round"))
-        .where(Race.id.in_(select(ConstructorStanding.race_id)))
-        .group_by(Race.season_year)
-        .subquery()
-    )
+    # Constructors' titles: P1 at each season's final round, like every other
+    # title reader (a season still running has no table there yet).
     title_rows = db.execute(
         select(ConstructorStanding.constructor_id, Race.season_year)
         .join(Race, ConstructorStanding.race_id == Race.id)
-        .join(
-            final_rounds,
-            (Race.season_year == final_rounds.c.season_year)
-            & (Race.round == final_rounds.c.max_round),
-        )
         .where(
+            ConstructorStanding.race_id.in_(final_round_race_ids()),
             ConstructorStanding.constructor_id.in_(member_ids),
             ConstructorStanding.position == 1,
             # A pre-1958 table is a sum of points, not a championship anyone won.
