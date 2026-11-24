@@ -12,6 +12,7 @@ from pathlib import Path
 # Add the pipeline directory to the path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from src.cli import parse_year_range, setup_logging  # noqa: E402
 from src.ingestion.base import set_interrupted  # noqa: E402
 from src.ingestion.fastf1_sessions import configure_logging  # noqa: E402
 from src.ingestion.full_load import run_full_load  # noqa: E402
@@ -136,23 +137,8 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def parse_year_range(year_range: str | None) -> tuple[int, int] | None:
-    """Parse a year range string like '2008-2015' or '2020' into (start, end) tuple."""
-    if not year_range:
-        return None
-    if "-" in year_range:
-        parts = year_range.split("-", 1)
-        return (int(parts[0]), int(parts[1]))
-    year = int(year_range)
-    return (year, year)
-
-
 if __name__ == "__main__":
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s %(levelname)-5s %(message)s",
-        datefmt="%H:%M:%S",
-    )
+    setup_logging()
     configure_logging()
 
     args = parse_args()
@@ -162,13 +148,7 @@ if __name__ == "__main__":
     selected = {f for f in INGESTOR_FLAGS if getattr(args, f.replace("-", "_"))}
     targets = selected or None
 
-    if args.current_year and not args.year_range:
-        from datetime import date
-
-        current = date.today().year
-        year_range = (current, current)
-    else:
-        year_range = parse_year_range(args.year_range)
+    year_range = parse_year_range(args.year_range, current_year=args.current_year)
 
     # 1. Restore existing backup so we don't re-fetch data we already have
     if not args.no_restore:

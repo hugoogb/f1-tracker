@@ -42,6 +42,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from src.cli import parse_year_range, setup_logging  # noqa: E402
 from src.ingestion.fastf1_payload import (  # noqa: E402
     KIND_LAPS,
     KINDS,
@@ -268,16 +269,6 @@ def probe() -> int:
     return 0
 
 
-def parse_year_range(value: str | None) -> tuple[int, int] | None:
-    if not value:
-        return None
-    if "-" in value:
-        start, end = value.split("-", 1)
-        return (int(start), int(end))
-    year = int(value)
-    return (year, year)
-
-
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Fetch Fast-F1 sessions into a payload")
     parser.add_argument(
@@ -323,12 +314,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> int:
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s %(levelname)-5s %(message)s",
-        datefmt="%H:%M:%S",
-        stream=sys.stderr,
-    )
+    setup_logging()
     configure_logging()
 
     args = parse_args()
