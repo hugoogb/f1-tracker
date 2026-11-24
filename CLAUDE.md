@@ -321,7 +321,7 @@ Two f1db quirks the UI is built around:
   current-grid and champions lists passing: those teams must stay curated
 - Anything whose output depends on the viewer's clock, locale or timezone goes
   through `useHydrated()`/`useNow()` in `lib/client-only.ts` (and the
-  `LocalDate`/`LocalDateTime`/`LocalTime` components) so the server pass and the
+  `LocalDate`/`LocalDateTime` components) so the server pass and the
   first client render agree. Never format a date with a hardcoded locale
 - Crawl paths: the sitemap walks the list endpoints in `MAX_API_PAGE_SIZE` pages (mirrors the API's `MAX_PAGE_SIZE`; above it the API answers 422 and that whole section vanishes from a 200 sitemap, logged as `sitemap: dropped the ...`). `/seasons/{year}` race rows carry no `seasonYear`, whatever the `Race` type says, so race URLs are built from the season being walked (`raceSitemapEntry`). List pagination is real links (`pageHref`) and each later page is its own canonical (`buildListMetadata`)
 - `lib/page-summary.ts` writes the paragraph under the hero on detail, head-to-head and landing pages. Pure functions of the page's own data, so it goes in cached HTML: no clock (a caller passes `currentYear`), no locale (`group()`), no pronoun for a driver. Check any new claim against the Known Issues below before adding it: it is published on thousands of pages

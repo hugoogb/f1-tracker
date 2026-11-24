@@ -48,7 +48,7 @@ export interface CircuitLayout {
  * Session start times for a race weekend, as UTC instants.
  *
  * f1db only schedules the seasons around the present day, so every field is
- * null for a historic race — `hasSchedule` in `lib/schedule.ts` is the check.
+ * null for a historic race (`sessionsOf` in `lib/schedule.ts` then returns none).
  */
 export interface RaceSchedule {
   fp1: string | null
@@ -166,17 +166,6 @@ export interface ConstructorStanding {
   /** Null for a team excluded from the championship (McLaren, 2007). */
   position: number | null
   wins: number
-}
-
-export interface DriverCareerStats {
-  driver: Driver
-  totalRaces: number
-  wins: number
-  podiums: number
-  poles: number
-  fastestLaps: number
-  championships: number
-  totalPoints: number
 }
 
 export interface SeasonChampion {

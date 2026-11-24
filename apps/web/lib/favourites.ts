@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useMemo, useSyncExternalStore } from 'react'
+import { useCallback, useSyncExternalStore } from 'react'
 
 /**
  * Favourited drivers, constructors and circuits, kept in `localStorage`.
@@ -351,15 +351,6 @@ export function useFavourites(): FavouritesSnapshot {
 export function useIsFavourite(type: FavouriteType, ref: string): boolean {
   const read = useCallback(() => isFavourite(type, ref), [type, ref])
   return useSyncExternalStore(subscribe, read, () => false)
-}
-
-/** Favourites of one type, newest first. */
-export function useFavouritesOfType(type: FavouriteType): readonly Favourite[] {
-  const { items } = useFavourites()
-  return useMemo(
-    () => items.filter((item) => item.type === type).sort((a, b) => b.addedAt - a.addedAt),
-    [items, type],
-  )
 }
 
 /** Splits a stored display name into the two initials an avatar needs. */

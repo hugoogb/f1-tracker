@@ -2,17 +2,7 @@ import type { BestSeasonComponent } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { NEUTRAL, SCORE_COLORS } from '@/lib/chart-theme'
 
-/**
- * One fixed colour per score component, in the API's component order.
- *
- * These describe parts of a score, not teams, so they are deliberately not
- * taken from the constructor palette. Validated as a categorical set against
- * the site's near-black surface (lightness band, chroma, colour-blind
- * separation of neighbours, contrast); the segments are also separated by a
- * gap and named in a legend, so colour never carries the identity alone.
- */
-export { SCORE_COLORS as COMPONENT_COLORS } from '@/lib/chart-theme'
-
+/** One fixed colour per score component, in the API's component order (`SCORE_COLORS`). */
 export function componentColor(id: string): string {
   return SCORE_COLORS[id] ?? NEUTRAL
 }

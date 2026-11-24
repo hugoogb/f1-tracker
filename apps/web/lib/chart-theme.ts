@@ -25,15 +25,6 @@ export const lineCursor = { stroke: 'var(--hairline-strong)', strokeWidth: 1 } a
 /** Cursor for bar charts. */
 export const barCursor = { fill: 'var(--surface-2)' } as const
 
-/** Legend text, matching the axis labels. */
-export const legendStyle = {
-  fontSize: 11,
-  fontFamily: DATA_FONT,
-  color: 'var(--label)',
-  textTransform: 'uppercase',
-  letterSpacing: '0.08em',
-} as const
-
 /** Reference lines (zero lines, medians, thresholds). */
 export const REFERENCE = 'var(--hairline-strong)'
 
@@ -48,10 +39,6 @@ export const SERIES = [
   'var(--chart-4)',
   'var(--chart-5)',
 ] as const
-
-export const POSITIVE = 'var(--positive)'
-export const NEGATIVE = 'var(--negative)'
-export const FASTEST = 'var(--fastest)'
 
 /** The fallback colour of a comparison side that has no team colour. */
 export function sideColor(side: 'a' | 'b'): string {

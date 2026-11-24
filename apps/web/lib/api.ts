@@ -55,15 +55,15 @@ const REFERENCE_ENDPOINTS = new Set(['/points-systems'])
  * plus one narrower tag the ingest webhook can expire on its own:
  * `f1-season-<year>` for anything under one season (its races, standings,
  * charts), `f1-driver-<ref>` / `f1-constructor-<ref>` / `f1-circuit-<ref>` for
- * one entity's profile, and `f1-global` for everything else. A weekly ingest
+ * one entity's profile, `f1-reference` for data no import changes
+ * (`/points-systems`) and `f1-global` for everything else. A weekly ingest
  * then only expires the current season, that season's entrants and the global
  * lists — not seventy-odd finished seasons whose race pages are the biggest
  * entries in the cache.
  *
- * Exported for the tests of the tag scheme and for `app/api/revalidate`, which
- * must expire the same names this produces.
+ * `app/api/revalidate` must expire the same names this produces.
  */
-export function cacheScopeFor(endpoint: string): { tags: string[]; revalidate: number } {
+function cacheScopeFor(endpoint: string): { tags: string[]; revalidate: number } {
   const season = SEASON_PATH.exec(endpoint)
   if (season) {
     const year = Number(season[1])
@@ -246,14 +246,6 @@ export const api = {
     const params = new URLSearchParams({ q: query })
     return fetchApi(`/search?${params}`)
   },
-  stats: () =>
-    fetchApi<{
-      seasons: number
-      drivers: number
-      constructors: number
-      races: number
-      circuits: number
-    }>('/stats'),
   records: Object.assign(() => fetchApi('/records'), {
     /**
      * The filterable explorer, called server-side like every other endpoint.
