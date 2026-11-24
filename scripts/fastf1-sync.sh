@@ -60,16 +60,11 @@ PAYLOAD_DIR="${PAYLOAD_DIR:-$ROOT/.fastf1_payloads}"
 # shellcheck source=lib/vps.sh
 source "$ROOT/scripts/lib/vps.sh"
 
-# Read one KEY=value out of .env. The file is shared with the frontend, the
-# backend and docker compose, so it is parsed rather than sourced — no eval of
-# whatever else happens to be in there.
-env_value() {
-  [ -f "$ENV_FILE" ] || return 0
-  sed -n "s/^$1=//p" "$ENV_FILE" | tail -1 | sed -e 's/^"//' -e 's/"$//' -e "s/^'//" -e "s/'$//"
-}
+# shellcheck source=lib/env.sh
+source "$ROOT/scripts/lib/env.sh"
 
-HOST="${VPS_HOST:-$(env_value VPS_HOST)}"
-USER_NAME="${VPS_USER:-$(env_value VPS_USER)}"
+HOST="${VPS_HOST:-$(env_get VPS_HOST)}"
+USER_NAME="${VPS_USER:-$(env_get VPS_USER)}"
 NEED="laps,quali_sectors"
 LIMIT="8"
 YEAR_RANGE=""
@@ -110,26 +105,10 @@ if [ "$PROBE" = "1" ]; then
   exec uv run python scripts/fastf1_fetch.py --probe
 fi
 
-if [ -z "$HOST" ]; then
-  cat >&2 <<EOF
-Error: the server's address is not set, so there is nowhere to send the data.
-
-  Add it to $ENV_FILE (once):
-
-      VPS_HOST=100.x.y.z        # the tailnet address of the VPS
-
-  or pass it per run: $0 --host 100.x.y.z
-EOF
-  exit 2
-fi
-case "$HOST" in
-  *@*) VPS_TARGET="$HOST" ;;
-  *) VPS_TARGET="${USER_NAME:-hugo}@$HOST" ;;
-esac
-TARGET="$VPS_TARGET"
+vps_target_from "$HOST" "$USER_NAME" "$0 --host 100.x.y.z"
 
 if [ "$PURGE" = "1" ]; then
-  echo "==> Purging the frontend cache from $TARGET..."
+  echo "==> Purging the frontend cache from $VPS_TARGET..."
   vps_task job bash scripts/purge_cache.sh --all </dev/null
   exit $?
 fi
@@ -146,7 +125,7 @@ status_args=(--need "$NEED")
 [ -n "$YEAR_RANGE" ] && status_args+=(--year-range "$YEAR_RANGE")
 [ -n "$REFRESH_POSITIONS" ] && status_args+=("$REFRESH_POSITIONS")
 
-echo "==> Asking $TARGET what is missing..."
+echo "==> Asking $VPS_TARGET what is missing..."
 targets="$(mktemp)"
 trap 'rm -f "$targets"' EXIT
 # The status script keeps its progress on stderr; stdout is the single JSON
@@ -194,7 +173,7 @@ import_args=()
 # over-purge.
 purge_years="$(python3 -c 'import json,sys; print(",".join(str(y) for y in sorted({t["year"] for t in json.load(open(sys.argv[1]))["targets"]})))' "$targets")"
 
-echo "==> Loading it on $TARGET..."
+echo "==> Loading it on $VPS_TARGET..."
 import_status=0
 # ${a[@]+"${a[@]}"}: macOS's bash 3.2 calls an empty array unbound under set -u.
 vps_task job python scripts/fastf1_import.py --payload - ${import_args[@]+"${import_args[@]}"} < "$payload" \

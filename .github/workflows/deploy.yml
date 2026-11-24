@@ -134,11 +134,11 @@ jobs:
       # non-zero, leaving the previous compose file and tag as .prev.
       - name: Deploy
         env:
-          SSH_OPTS: -o StrictHostKeyChecking=accept-new -o ConnectTimeout=30
+          VPS_TARGET: deploy@${{ secrets.VPS_HOST }}
+          VPS_APP: ${{ env.APP_NAME }}
         run: |
-          ssh $SSH_OPTS "deploy@${{ secrets.VPS_HOST }}" \
-            sudo -u hugo /srv/scripts/deploy-app.sh deploy "$APP_NAME" "${{ github.sha }}" \
-            < docker/compose.prod.yml
+          source scripts/lib/vps.sh
+          vps_deploy "${{ github.sha }}" < docker/compose.prod.yml
 
       # Liveness got us this far; confirm the API can actually reach PostgreSQL,
       # through Cloudflare and Caddy exactly as the frontend does.

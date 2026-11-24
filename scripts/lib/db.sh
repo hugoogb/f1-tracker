@@ -16,22 +16,8 @@
 _LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$(dirname "$_LIB_DIR")")"
 ENV_FILE="${ENV_FILE:-$PROJECT_DIR/.env}"
-
-# Read a single key out of the env file without sourcing it — values may contain
-# characters (#, spaces, quotes) that a plain `source` would mangle or execute.
-#
-# An absent key yields an empty value and exit status 0. That is load-bearing,
-# not tidiness: every caller runs under `set -euo pipefail`, and a lookup that
-# exited non-zero would abort the script on the spot with no message at all.
-# `grep` does exactly that when it matches nothing, so this uses `sed`, which
-# reports "no match" as empty output — the same reason scripts/fastf1-sync.sh
-# parses .env that way. Optional keys are normal here: VPS_USER ships commented
-# out in .env.example, and DB_CONTAINER is usually absent entirely.
-env_get() {
-  local key="$1"
-  [ -f "$ENV_FILE" ] || return 0
-  sed -n "s/^${key}=//p" "$ENV_FILE" | tail -n1 | sed -e 's/^"\(.*\)"$/\1/' -e "s/^'\(.*\)'$/\1/"
-}
+# shellcheck source=env.sh
+. "$_LIB_DIR/env.sh"
 
 STACK_NAME="${STACK_NAME:-$(env_get STACK_NAME)}"
 STACK_NAME="${STACK_NAME:-f1-tracker}"

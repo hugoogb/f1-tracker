@@ -19,7 +19,7 @@ Deployment: frontend on Vercel; the API runs as a Docker container (`f1_api`) on
 - `apps/web/` - Next.js frontend
 - `pipeline/` - Python data pipeline + FastAPI backend; `Dockerfile` builds the API/migrate/ingest image
 - `docker/` - `docker-compose.yml` (local dev DB), `compose.prod.yml` (the VPS stack — sent by the deploy to the platform's `deploy-app.sh`, which checks it against the deploy policy and installs it as `/srv/apps/f1_api/docker-compose.yml`), `.env.prod.example`, backups
-- `scripts/` - `bootstrap.sh`, `db-backup.sh`, `db-restore.sh`, `seed-fetch.sh` (download the seed dump from its release), `fastf1-sync.sh` (laptop-side Fast-F1 fetch), `lib/db.sh` (shared container resolution + dump inspection + seed release location), `lib/vps.sh` (`vps_task`: every server-side step, run as a task container through the platform's `deploy-app.sh`), `vps-ingest.sh` (sequences an ingest from the runner or a laptop). Nothing from this repo runs on the server's host
+- `scripts/` - `bootstrap.sh`, `db-backup.sh`, `db-restore.sh`, `seed-fetch.sh` (download the seed dump from its release), `fastf1-sync.sh` (laptop-side Fast-F1 fetch), `lib/env.sh` (`env_get`: one `.env` key, parsed not sourced), `lib/db.sh` (shared container resolution + dump inspection + seed release location), `lib/vps.sh` (`vps_task`/`vps_deploy`/`vps_target_from`: every server-side step, run through the platform's `deploy-app.sh`), `vps-ingest.sh` (sequences an ingest from the runner or a laptop). Nothing from this repo runs on the server's host
 
 ### Frontend Routes
 
