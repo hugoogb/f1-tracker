@@ -35,6 +35,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from src.api.constants import FIRST_CONSTRUCTORS_CHAMPIONSHIP
+from src.api.eras import era_payload, resolve_era
 from src.api.serializers import constructor_compact, driver_summary
 from src.db.database import get_db
 from src.db.models import (
@@ -49,10 +51,7 @@ from src.db.models import (
 )
 from src.db.queries import main_constructors, race_has_happened
 from src.scoring import (
-    FIRST_CONSTRUCTORS_SEASON,
-    SYSTEMS,
     counts_every_result,
-    era_bounds,
     max_points_remaining,
     still_in_contention,
     system_for_year,
@@ -110,10 +109,6 @@ MARGIN_SHARE_CEILING = 0.4
 WINNERS_FOR_FULL_MARKS = 8
 # Lead changes needed for full marks.
 LEAD_CHANGES_FOR_FULL_MARKS = 4
-# The constructors' championship was first awarded in 1958 (FIRST_CONSTRUCTORS_SEASON).
-# The database can hold constructor tables for earlier seasons (the ingest
-# totals them where f1db has none), but there was no title to win, so they are
-# not shown as one.
 
 NOTES = (
     "The champion, the runner-up and the title margin come from the official final "
@@ -378,7 +373,7 @@ def _analyse(season: _Season, sprint_ids: set[str], today: date) -> dict | None:
     )
 
     constructors = None
-    if year >= FIRST_CONSTRUCTORS_SEASON and len(season.constructor_final) >= 2:
+    if year >= FIRST_CONSTRUCTORS_CHAMPIONSHIP and len(season.constructor_final) >= 2:
         c_champ, c_second = season.constructor_final[0], season.constructor_final[1]
         c_margin = c_champ[1] - c_second[1]
         constructors = {
@@ -586,22 +581,7 @@ def best_seasons(
     `rank` is the season's place by score among every completed season, whatever
     the filter, so a season keeps one rank across the site.
     """
-    era_system = None
-    if era is not None:
-        if year_from is not None or year_to is not None:
-            raise HTTPException(
-                status_code=400,
-                detail="Pass either era or a year_from/year_to range, not both.",
-            )
-        era_system = SYSTEMS.get(era)
-        if era_system is None:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Unknown era '{era}'. The ids come from /api/points-systems.",
-            )
-        year_from, year_to = era_bounds(era_system.id)
-    if year_from is not None and year_to is not None and year_from > year_to:
-        raise HTTPException(status_code=400, detail="year_from must not be later than year_to.")
+    era_system, year_from, year_to = resolve_era(era, year_from, year_to)
 
     entries = _build(db, year_from, year_to, include_in_progress)
 
@@ -614,11 +594,7 @@ def best_seasons(
     return {
         "sort": sort,
         "order": order,
-        "era": (
-            {"id": era_system.id, "label": era_system.label, "era": era_system.era}
-            if era_system
-            else None
-        ),
+        "era": era_payload(era_system),
         "yearFrom": year_from,
         "yearTo": year_to,
         "total": len(entries),

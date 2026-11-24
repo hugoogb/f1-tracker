@@ -16,6 +16,11 @@ DEFAULT_EXPLORE_LIMIT = 25
 # their own; it is never allowed to reach zero.
 DEFAULT_EXPLORE_MIN_STARTS = 20
 
+# A lap slower than this much of the race's median is not a representative
+# green-flag lap: it is a pit stop, a safety car, or traffic. Tyre degradation
+# and the season comparison's race pace both drop them. Mirrored in
+# apps/web/lib/lap-distribution.ts; change both or neither.
+CLEAN_LAP_THRESHOLD = 1.07
 # The season comparison's race-pace delta compares each side's median clean lap.
 # Below this many clean laps a side's median is one or two laps, not a pace.
 # Mirrored in apps/web/lib/lap-distribution.ts; change both or neither.

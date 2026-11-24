@@ -9,7 +9,6 @@ from src.db.database import get_db
 from src.db.models import (
     CircuitLayout,
     Driver,
-    DriverStanding,
     Race,
     RaceResult,
     Season,
@@ -252,28 +251,18 @@ def get_season_heatmap(year: int, db: Session = Depends(get_db)):
         db.execute(select(RaceResult).where(RaceResult.race_id.in_(race_ids))).scalars().all()
     )
 
-    # Get final standings to determine driver order
-    last_race = races[-1]
-    standings = (
-        db.execute(
-            select(DriverStanding)
-            .where(DriverStanding.race_id == last_race.id)
-            .order_by(DriverStanding.position)
-        )
-        .scalars()
-        .all()
-    )
+    # Order by the latest table there is: in a running season the calendar's
+    # last round has none yet.
+    driver_order = [s.driver_id for s in get_driver_standings_for_season(db, year)]
 
-    # Build driver order from standings
-    driver_order = [s.driver_id for s in standings]
-
-    # Build lookup: driver_id -> {round -> result}
-    driver_results: dict[int, dict[int, RaceResult]] = defaultdict(dict)
-    driver_constructor: dict[int, object] = {}
-    for r in all_results:
+    # Build lookup: driver_id -> {round -> result}. Results are walked in round
+    # order so a driver's constructor is the one they raced for last.
+    driver_results: dict[str, dict[int, RaceResult]] = defaultdict(dict)
+    driver_constructor: dict[str, object] = {}
+    for r in sorted(all_results, key=lambda r: race_round_map[r.race_id]):
         rnd = race_round_map[r.race_id]
         driver_results[r.driver_id][rnd] = r
-        driver_constructor[r.driver_id] = r.constructor  # Last one wins
+        driver_constructor[r.driver_id] = r.constructor
 
     # Include drivers not in standings (e.g., mid-season entries)
     for driver_id in driver_results:

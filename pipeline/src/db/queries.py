@@ -1,10 +1,11 @@
 from collections import Counter, defaultdict
 from datetime import date
 
-from sqlalchemy import func, select
+from sqlalchemy import Select, func, select
 from sqlalchemy.orm import Session
 
 from src.api.constants import FIRST_CONSTRUCTORS_CHAMPIONSHIP
+from src.api.serializers import constructor_compact
 from src.db.models import (
     Circuit,
     Constructor,
@@ -67,6 +68,26 @@ def official_running_totals(
     return out
 
 
+def final_round_race_ids() -> Select:
+    """The race that closes each season on the calendar — where a title is decided.
+
+    Titles are read off the standings at that race, which carry f1db's official
+    points, never re-derived from race results: until 1990 only part of a
+    driver's record counted, so a sum of races crowns the wrong champion. A
+    season still running has no table at its final round yet, so its current
+    leader is never counted as a champion.
+    """
+    last_rounds = (
+        select(Race.season_year, func.max(Race.round).label("max_round"))
+        .group_by(Race.season_year)
+        .subquery()
+    )
+    return select(Race.id).join(
+        last_rounds,
+        (Race.season_year == last_rounds.c.season_year) & (Race.round == last_rounds.c.max_round),
+    )
+
+
 def get_all_seasons(db: Session) -> list[Season]:
     return db.execute(select(Season).order_by(Season.year.desc())).scalars().all()
 
@@ -89,13 +110,13 @@ def get_race_results(db: Session, race_id: str) -> list[RaceResult]:
     )
 
 
-def get_driver_standings_for_season(db: Session, year: int) -> list[DriverStanding]:
+def _final_standings[S: (DriverStanding, ConstructorStanding)](
+    db: Session, year: int, model: type[S]
+) -> list[S]:
+    """The latest table of the season: its final one, or the current one mid-season."""
     last_race = db.execute(
         select(Race)
-        .where(
-            Race.season_year == year,
-            Race.id.in_(select(DriverStanding.race_id)),
-        )
+        .where(Race.season_year == year, Race.id.in_(select(model.race_id)))
         .order_by(Race.round.desc())
         .limit(1)
     ).scalar_one_or_none()
@@ -103,38 +124,22 @@ def get_driver_standings_for_season(db: Session, year: int) -> list[DriverStandi
         return []
     return (
         db.execute(
-            select(DriverStanding)
-            .where(DriverStanding.race_id == last_race.id)
-            # An excluded driver's position is null; they read after the table.
-            .order_by(DriverStanding.position.asc().nulls_last())
+            select(model)
+            .where(model.race_id == last_race.id)
+            # An excluded entry's position is null; it reads after the table.
+            .order_by(model.position.asc().nulls_last())
         )
         .scalars()
         .all()
     )
+
+
+def get_driver_standings_for_season(db: Session, year: int) -> list[DriverStanding]:
+    return _final_standings(db, year, DriverStanding)
 
 
 def get_constructor_standings_for_season(db: Session, year: int) -> list[ConstructorStanding]:
-    last_race = db.execute(
-        select(Race)
-        .where(
-            Race.season_year == year,
-            Race.id.in_(select(ConstructorStanding.race_id)),
-        )
-        .order_by(Race.round.desc())
-        .limit(1)
-    ).scalar_one_or_none()
-    if not last_race:
-        return []
-    return (
-        db.execute(
-            select(ConstructorStanding)
-            .where(ConstructorStanding.race_id == last_race.id)
-            # An excluded team's position is null; they read after the table.
-            .order_by(ConstructorStanding.position.asc().nulls_last())
-        )
-        .scalars()
-        .all()
-    )
+    return _final_standings(db, year, ConstructorStanding)
 
 
 def get_driver_by_ref(db: Session, ref: str) -> Driver | None:
@@ -164,20 +169,11 @@ def get_driver_career_stats(db: Session, driver_id: str) -> dict:
     fastest_laps = db.execute(
         select(func.count()).where(Race.fastest_lap_driver_id == driver_id)
     ).scalar()
-    last_rounds = (
-        select(Race.season_year, func.max(Race.round).label("max_round"))
-        .group_by(Race.season_year)
-        .subquery()
-    )
-    last_race_ids = select(Race.id).join(
-        last_rounds,
-        (Race.season_year == last_rounds.c.season_year) & (Race.round == last_rounds.c.max_round),
-    )
     championships = db.execute(
         select(func.count()).where(
             DriverStanding.driver_id == driver_id,
             DriverStanding.position == 1,
-            DriverStanding.race_id.in_(last_race_ids),
+            DriverStanding.race_id.in_(final_round_race_ids()),
         )
     ).scalar()
 
@@ -361,23 +357,10 @@ def main_constructors(
 def get_season_champions(db: Session) -> list[dict]:
     today = date.today()
 
-    # Subquery: last race per season
-    last_rounds = (
-        select(
-            Race.season_year,
-            func.max(Race.round).label("max_round"),
-        )
-        .group_by(Race.season_year)
-        .subquery()
-    )
     last_races = (
         db.execute(
             select(Race)
-            .join(
-                last_rounds,
-                (Race.season_year == last_rounds.c.season_year)
-                & (Race.round == last_rounds.c.max_round),
-            )
+            .where(Race.id.in_(final_round_race_ids()))
             .order_by(Race.season_year.desc())
         )
         .scalars()
@@ -472,23 +455,9 @@ def get_season_champions(db: Session) -> list[dict]:
                 if driver
                 else None,
                 "driverPoints": ds.points,
-                "constructor": {
-                    "id": constructor.id,
-                    "ref": constructor.ref,
-                    "name": constructor.name,
-                    "color": constructor.color,
-                }
-                if constructor
-                else None,
+                "constructor": constructor_compact(constructor) if constructor else None,
                 "constructorPoints": cs.points if cs else None,
-                "driverConstructor": {
-                    "id": driver_team.id,
-                    "ref": driver_team.ref,
-                    "name": driver_team.name,
-                    "color": driver_team.color,
-                }
-                if driver_team
-                else None,
+                "driverConstructor": constructor_compact(driver_team) if driver_team else None,
             }
         )
 

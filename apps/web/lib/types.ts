@@ -48,7 +48,7 @@ export interface CircuitLayout {
  * Session start times for a race weekend, as UTC instants.
  *
  * f1db only schedules the seasons around the present day, so every field is
- * null for a historic race — `hasSchedule` in `lib/schedule.ts` is the check.
+ * null for a historic race (`sessionsOf` in `lib/schedule.ts` then returns none).
  */
 export interface RaceSchedule {
   fp1: string | null
@@ -76,7 +76,8 @@ export interface RaceResult {
   raceId: string
   driver: Driver
   constructor: Constructor
-  grid: number
+  /** Null for a pit-lane start. */
+  grid: number | null
   position: number | null
   positionText: string
   points: number
@@ -151,7 +152,8 @@ export interface FastestSectors {
 
 export interface DriverStanding {
   driver: Driver
-  constructor: Constructor
+  /** Null for a driver who did not race the table's round (Rindt, 1970). */
+  constructor: Constructor | null
   points: number
   /** Null for a driver disqualified from the championship (Schumacher, 1997). */
   position: number | null
@@ -166,32 +168,28 @@ export interface ConstructorStanding {
   wins: number
 }
 
-export interface DriverCareerStats {
-  driver: Driver
-  totalRaces: number
-  wins: number
-  podiums: number
-  poles: number
-  fastestLaps: number
-  championships: number
-  totalPoints: number
-}
+type ChampionTeam = Pick<Constructor, 'id' | 'ref' | 'name' | 'color'>
 
 export interface SeasonChampion {
   year: number
-  driver: Driver
-  /** The constructors' champion — not necessarily the drivers' champion's team. */
-  constructor: Constructor
+  driver: Pick<Driver, 'id' | 'ref' | 'firstName' | 'lastName'>
+  /**
+   * The constructors' champion — not necessarily the drivers' champion's team.
+   * Null before 1958, when there was no constructors' championship.
+   */
+  constructor: ChampionTeam | null
   /** The team the drivers' champion raced for most that season. */
-  driverConstructor: Pick<Constructor, 'id' | 'ref' | 'name' | 'color'> | null
+  driverConstructor: ChampionTeam | null
   driverPoints: number
-  constructorPoints: number
+  /** Null with `constructor`. */
+  constructorPoints: number | null
 }
 
 export interface SprintResult {
   position: number | null
   positionText: string
-  grid: number
+  /** Null for a pit-lane start. */
+  grid: number | null
   points: number
   laps: number
   time: string | null

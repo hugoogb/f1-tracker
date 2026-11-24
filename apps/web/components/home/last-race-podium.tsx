@@ -44,7 +44,7 @@ export function LastRacePodium({
           {ORDER.map((position) => {
             const entry = byPosition.get(position)
             if (!entry) return <li key={position} />
-            const color = teamColorOf(entry.teamColor) ?? undefined
+            const color = teamColorOf(entry.teamColor)
             return (
               <li key={position} className={cn(position === 1 && 'order-none')}>
                 <Link

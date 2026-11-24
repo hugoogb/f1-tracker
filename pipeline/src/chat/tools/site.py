@@ -8,8 +8,8 @@ from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
 
 from src.api.routers.search import search as _search
-from src.chat.constants import NAVIGATE
-from src.chat.tools.registry import Tool, register
+from src.chat.constants import NAVIGATE, SITE_PATH
+from src.chat.tools.registry import Tool, driver_name, register
 
 SITE_PAGES = [
     {
@@ -101,8 +101,7 @@ SITE_PAGES = [
 ]
 
 
-# Allowlist, not a prefix check: browsers read `/\\x` and `/<tab>/x` as `//x`, an external host.
-_SITE_PATH = re.compile(r"^/[A-Za-z0-9_\-./]*(\?[A-Za-z0-9_=&\-]*)?$")
+_SITE_PATH = re.compile(SITE_PATH)
 
 
 class _NoArgs(BaseModel):
@@ -119,16 +118,12 @@ class NavigateArgs(BaseModel):
     href: str
 
 
-def _name(d: dict) -> str:
-    return f"{d['firstName']} {d['lastName']}"
-
-
 def _search_run(db: Session, args: SearchArgs) -> dict:
     r = _search(q=args.q, db=db)
     return {
         "drivers": [
             {
-                "name": _name(d),
+                "name": driver_name(d),
                 "ref": d["ref"],
                 "nationality": d["nationality"],
                 "href": f"/drivers/{d['ref']}",

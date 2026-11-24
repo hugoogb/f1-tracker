@@ -234,7 +234,7 @@ export function BestSeasonsTable({ seasons, eras }: { seasons: BestSeason[]; era
                       aria-hidden
                       className="h-7 w-1 shrink-0"
                       style={{
-                        backgroundColor: teamColorOf(s.champion.constructor?.color) ?? undefined,
+                        backgroundColor: teamColorOf(s.champion.constructor?.color),
                       }}
                     />
                     <div className="min-w-0 leading-tight">
@@ -291,7 +291,7 @@ export function BestSeasonsTable({ seasons, eras }: { seasons: BestSeason[]; era
                       aria-hidden
                       className="inline-block size-2"
                       style={{
-                        backgroundColor: teamColorOf(s.constructors.champion?.color) ?? undefined,
+                        backgroundColor: teamColorOf(s.constructors.champion?.color),
                       }}
                     />
                     <span className="font-data tabular-nums">

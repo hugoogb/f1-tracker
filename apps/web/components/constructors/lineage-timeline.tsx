@@ -37,7 +37,7 @@ export function LineageTimeline({ entries }: LineageTimelineProps) {
 
         <ol className="space-y-0">
           {entries.map((entry, index) => {
-            const color = teamColorOf(entry.constructor.color)!
+            const color = teamColorOf(entry.constructor.color)
             const last = index === entries.length - 1
             return (
               <li key={`${entry.constructor.ref}-${entry.yearFrom}`} className="flex gap-3">

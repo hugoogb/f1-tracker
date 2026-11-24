@@ -11,7 +11,7 @@ export const REVALIDATE_SECONDS = 86400
 export const HISTORICAL_REVALIDATE_SECONDS = 2592000 // 30 days
 
 // Every cached fetch carries `F1_DATA_TAG` (the full purge) plus exactly one
-// scoped tag from `cacheTagsFor` in `lib/api.ts`, so the ingest webhook can
+// scoped tag from `cacheScopeFor` in `lib/api.ts`, so the ingest webhook can
 // expire only what an import can have changed. See `app/api/revalidate`.
 export const F1_DATA_TAG = 'f1-data'
 /** Everything not bound to one season or one entity: lists, records, champions, stats. */

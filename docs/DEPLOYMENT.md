@@ -172,7 +172,7 @@ release download, so they populate it directly (about two minutes):
 
 ```bash
 VPS_TARGET=hugo@<vps> ./scripts/vps-ingest.sh --force -- \
-  --base --layouts --colors --results --qualifying \
+  --base --layouts --colors --lineages --results --qualifying \
   --sprints --standings --pitstops --postprocess
 ```
 
@@ -391,14 +391,12 @@ this box or from CI at all, so they are precisely the data a backup has to
 carry. `db-backup.sh` prints the row counts of what it wrote and warns when
 `lap_times` is empty.
 
-`db-restore.sh` detects which flavour of dump it was handed. A full dump is
-loaded first and Alembic runs afterwards, to carry an older backup up to the
+`db-restore.sh` takes full dumps only (it refuses one without a schema). The
+dump is loaded first and Alembic runs afterwards, to carry an older backup up to the
 current head; the dump's own `REFRESH MATERIALIZED VIEW` statements bring the
-career-stats, records and champions views back populated. The **data-only**
-dumps this repo used to write are still accepted and still get the old order:
-migrate, load, then rebuild the views by hand.
+career-stats, records and champions views back populated.
 
-Both paths verify the archive before dropping anything, and load it with
+It verifies the archive before dropping anything, and load it with
 `--single-transaction -v ON_ERROR_STOP=1`, so a restore is all-or-nothing rather
 than a partial one reported as success.
 
@@ -426,7 +424,7 @@ the box through the platform's `deploy-app.sh` (`scripts/lib/vps.sh`):
    run unless a race ran in the last 3 days, so off-weekends cost nothing. It
    fails *open*: if the schedule can't be fetched, it ingests anyway.
 2. **Ingest** — runs the `ingest` compose service (the API image, `seed.py` with
-   `--current-year --no-restore --no-backup`) against `DIRECT_URL`, bypassing
+   `--current-year`) against `DIRECT_URL`, bypassing
    PgBouncer. The ingestors are idempotent (`db.merge`), so re-runs are safe.
 3. **Validate** — `scripts/validate.py`, informational.
 4. **Purge** — POSTs `{"scope":"latest"}` to `REVALIDATE_URL` so Vercel expires
@@ -577,13 +575,13 @@ or ids ever leave the server. Payloads are kept in `.fastf1_payloads/`
 
 ```bash
 cd pipeline
-uv run python scripts/seed.py --base --layouts --colors --results --qualifying --sprints --standings --pitstops --postprocess
+uv run python scripts/seed.py --base --layouts --colors --lineages --results --qualifying --sprints --standings --pitstops --postprocess
 cd .. && ./scripts/db-backup.sh
 ```
 
-> That backup covers the local database. The committed
-> `docker/backups/latest.sql.gz` should come from `./scripts/db-backup.sh
-> --remote` instead — production is where the Fast-F1 data is.
+> That backup covers the local database. The published seed (the `seed`
+> release asset) should come from `pnpm db:seed:publish` instead — production
+> is where the Fast-F1 data is.
 
 > The dataset is one f1db release download per run, cached in `F1DB_CACHE_DIR`
 > — no rate limit. Set `F1DB_VERSION` to a release tag for a reproducible seed,

@@ -49,9 +49,9 @@ jobs:
     # A workflow edited on a branch and started with workflow_dispatch gets
     # nothing to join the tailnet with.
     environment: vps
-    # A full historical load takes minutes; a Fast-F1 backfill can take hours,
-    # and is throttled to ~45s per session.
-    timeout-minutes: 360
+    # An f1db ingest takes minutes, a full historical load a few more. Fast-F1
+    # never runs here (Formula 1 blocks the runners and the VPS alike).
+    timeout-minutes: 30
 
     steps:
       # vps-ingest.sh and scripts/lib/vps.sh come from the checkout; nothing is

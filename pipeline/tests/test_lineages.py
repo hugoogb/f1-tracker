@@ -239,6 +239,26 @@ def test_lineage_entries_keep_their_own_records(client, lineage_api_data):
     assert entries["jaguar"]["entries"] == 0
 
 
+def test_lineage_does_not_crown_a_running_seasons_leader(client, db, lineage_api_data):
+    """Leading after round 1 of 2 is not a title: only the final round counts."""
+    db.add(
+        Race(
+            id="r-2010-2",
+            season_year=2010,
+            round=2,
+            name="Season finale",
+            circuit_id="c",
+            date=datetime.date(2010, 11, 28),
+        )
+    )
+    db.commit()
+    entries = {
+        e["constructor"]["ref"]: e["stats"]
+        for e in client.get("/api/constructors/stewart/lineage").json()["entries"]
+    }
+    assert entries["red-bull"]["championships"] == 0
+
+
 def test_lineage_stats_are_scoped_to_the_slot_years(db, constructors, load_f1db, client):
     """Sauber's two spells must not each claim the whole of Sauber's record."""
     load_f1db([{"id": "sauber", "chronology": SAUBER_CHAIN}])

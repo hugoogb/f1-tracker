@@ -53,9 +53,8 @@ fi
 
 echo "==> Running ingest..."
 if [ ${#SEED_FLAGS[@]} -gt 0 ]; then
-  # Explicit flags replace the service's default command; keep the
-  # container-safe ones (no restore/backup: those need a Docker CLI).
-  vps_task ingest "${SEED_FLAGS[@]}" --no-restore --no-backup </dev/null
+  # Explicit flags replace the service's default command.
+  vps_task ingest "${SEED_FLAGS[@]}" </dev/null
 else
   vps_task ingest </dev/null
 fi

@@ -2,7 +2,8 @@ import type { SeasonCompareAggregateKey, SeasonCompareResponse } from '@/lib/typ
 import { Panel, PanelContent, PanelHeader, PanelTitle } from '@/components/ui/panel'
 import { cn } from '@/lib/utils'
 import { DeltaChip, type Better } from './delta-chip'
-import { formatPoints, signed, type SideInfo } from './sides'
+import { formatPoints } from '@/lib/utils'
+import { signed, type SideInfo } from './sides'
 
 interface StatDef {
   key: SeasonCompareAggregateKey

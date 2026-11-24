@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 from src.api.serializers import constructor_detail, driver_detail
 from src.db.database import get_db
-from src.db.models import Constructor, QualifyingResult, Race, RaceResult
+from src.db.models import QualifyingResult, Race, RaceResult
 from src.db.queries import (
     get_constructor_by_ref,
     get_constructor_career_stats,
@@ -98,12 +98,8 @@ def compare_drivers(d1: str, d2: str, teammate: bool = False, db: Session = Depe
         ).all()
         return [{"year": row.season_year, "points": float(row.points or 0)} for row in rows]
 
-    def format_driver(driver, stats):
-        return driver_detail(driver, stats=stats)
-
     # Teammate filtering: find races where both drove for same constructor
     teammate_race_ids = None
-    teammate_seasons = []
     if teammate:
         tm_r1 = RaceResult.__table__.alias("tm_r1")
         tm_r2 = RaceResult.__table__.alias("tm_r2")
@@ -146,8 +142,9 @@ def compare_drivers(d1: str, d2: str, teammate: bool = False, db: Session = Depe
     )
     teammate_seasons = list(tm_season_rows)
 
-    # Recompute head-to-head if teammate filter is applied
-    if teammate and teammate_race_ids:
+    # Under the teammate filter only shared-team races count — none at all for
+    # two drivers who never shared a team.
+    if teammate:
         head_to_head = _compute_driver_h2h(db, driver1.id, driver2.id, teammate_race_ids)
 
     # Qualifying head-to-head
@@ -155,7 +152,7 @@ def compare_drivers(d1: str, d2: str, teammate: bool = False, db: Session = Depe
     q2_alias = QualifyingResult.__table__.alias("q2")
 
     quali_filter_clause = []
-    if teammate and teammate_race_ids:
+    if teammate:
         quali_filter_clause.append(q1_alias.c.race_id.in_(teammate_race_ids))
 
     quali_h2h = db.execute(
@@ -195,8 +192,8 @@ def compare_drivers(d1: str, d2: str, teammate: bool = False, db: Session = Depe
         }
 
     return {
-        "driver1": format_driver(driver1, stats1),
-        "driver2": format_driver(driver2, stats2),
+        "driver1": driver_detail(driver1, stats=stats1),
+        "driver2": driver_detail(driver2, stats=stats2),
         "headToHead": {
             "driver1Wins": int(head_to_head.d1_wins or 0),
             "driver2Wins": int(head_to_head.d2_wins or 0),
@@ -303,12 +300,9 @@ def compare_constructors(c1: str, c2: str, db: Session = Depends(get_db)):
         ).all()
         return [{"year": r.season_year, "points": float(r.points or 0)} for r in rows]
 
-    def format_constructor(con: Constructor, stats: dict):
-        return constructor_detail(con, stats=stats)
-
     return {
-        "constructor1": format_constructor(con1, stats1),
-        "constructor2": format_constructor(con2, stats2),
+        "constructor1": constructor_detail(con1, stats=stats1),
+        "constructor2": constructor_detail(con2, stats=stats2),
         "headToHead": {
             "constructor1Wins": int(h2h.c1_wins or 0),
             "constructor2Wins": int(h2h.c2_wins or 0),

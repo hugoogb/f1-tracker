@@ -33,12 +33,14 @@ function countDriverTitles(champions: SeasonChampion[]) {
   return counts
 }
 
-function countConstructorTitles(champions: SeasonChampion[]) {
+type ConstructorChampion = SeasonChampion & {
+  constructor: NonNullable<SeasonChampion['constructor']>
+}
+
+function countConstructorTitles(champions: ConstructorChampion[]) {
   const counts: Record<string, number> = {}
   for (const c of champions) {
-    if (c.constructor) {
-      counts[c.constructor.ref] = (counts[c.constructor.ref] ?? 0) + 1
-    }
+    counts[c.constructor.ref] = (counts[c.constructor.ref] ?? 0) + 1
   }
   return counts
 }
@@ -51,9 +53,11 @@ export default async function ChampionsPage() {
   const driverDecades = groupByDecade(champions)
   const driverTitleCounts = countDriverTitles(champions)
 
-  const constructorChampions = champions.filter((c) => c.constructor != null)
+  const constructorChampions = champions.filter(
+    (c): c is ConstructorChampion => c.constructor != null,
+  )
   const constructorDecades = groupByDecade(constructorChampions)
-  const constructorTitleCounts = countConstructorTitles(champions)
+  const constructorTitleCounts = countConstructorTitles(constructorChampions)
 
   return (
     <div className="space-y-10">
@@ -161,8 +165,8 @@ export default async function ChampionsPage() {
                   </div>
                   <StaggerList className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     {entries.map((champion) => {
-                      const titles = constructorTitleCounts[champion.constructor!.ref] ?? 0
-                      const teamColor = champion.constructor!.color ?? null
+                      const titles = constructorTitleCounts[champion.constructor.ref] ?? 0
+                      const teamColor = champion.constructor.color ?? null
                       return (
                         <StaggerItem key={champion.year}>
                           <Panel className="relative transition-colors duration-200">
@@ -185,16 +189,16 @@ export default async function ChampionsPage() {
                               <div className="min-w-0 flex-1 space-y-1">
                                 <div className="flex items-center gap-2">
                                   <Link
-                                    href={`/constructors/${champion.constructor!.ref}`}
+                                    href={`/constructors/${champion.constructor.ref}`}
                                     className="hover:text-primary inline-flex items-center gap-1.5 truncate font-medium transition-colors"
                                   >
-                                    {champion.constructor!.color && (
+                                    {champion.constructor.color && (
                                       <span
                                         className="inline-block size-2.5 shrink-0 rounded-full"
-                                        style={{ backgroundColor: champion.constructor!.color }}
+                                        style={{ backgroundColor: champion.constructor.color }}
                                       />
                                     )}
-                                    {champion.constructor!.name}
+                                    {champion.constructor.name}
                                   </Link>
                                   {titles > 1 && (
                                     <Badge variant="outline" className="shrink-0 text-xs">

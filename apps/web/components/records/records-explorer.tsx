@@ -34,6 +34,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { formatPoints } from '@/lib/utils'
 
 /** One selectable era, as `/api/points-systems` describes it. */
 export interface ExplorerEra {
@@ -107,7 +108,7 @@ function isCategory(value: string): value is RecordsExploreCategory {
 
 function formatValue(value: number, format: RecordsExploreResponse['format']): string {
   if (format === 'percent') return `${(value * 100).toFixed(1)}%`
-  if (format === 'decimal') return Number.isInteger(value) ? String(value) : value.toFixed(1)
+  if (format === 'decimal') return formatPoints(value)
   return String(value)
 }
 

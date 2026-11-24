@@ -87,7 +87,8 @@ function snapshot(): readonly RecentItem[] {
 function subscribe(listener: () => void): () => void {
   listeners.add(listener)
   const onStorage = (e: StorageEvent) => {
-    if (e.key === KEY) listener()
+    // `key === null` is a `localStorage.clear()` from another tab.
+    if (e.key === KEY || e.key === null) listener()
   }
   window.addEventListener('storage', onStorage)
   return () => {

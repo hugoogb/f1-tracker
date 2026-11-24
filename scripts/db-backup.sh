@@ -14,9 +14,9 @@
 #
 # --remote is the one that matters for the published seed. Fast-F1 payloads
 # are imported straight into production (`pnpm fastf1`), so the server is the
-# only place the complete dataset exists. It runs `backup.sh` on the box over
-# Tailscale SSH and streams the dump back here; VPS_HOST comes from .env, the
-# same key scripts/fastf1-sync.sh reads.
+# only place the complete dataset exists. It runs the `backup` task on the box
+# (`vps_task backup`, scripts/lib/vps.sh) and streams the dump back here;
+# VPS_HOST comes from .env, the same key scripts/fastf1-sync.sh reads.
 #
 # Add --publish to upload the result to the seed release, which is where
 # bootstrap.sh fetches it from. The dump is not tracked by git — see the "Seed
@@ -91,29 +91,14 @@ PARTIAL="${BACKUP_FILE}.partial"
 trap 'rm -f "$PARTIAL"' EXIT
 
 if [ "$REMOTE" = "1" ]; then
-  if [ -z "$HOST" ]; then
-    cat >&2 <<EOF
-Error: --remote needs the server's address, and VPS_HOST is not set.
-
-  Add it to $ENV_FILE (once):
-
-      VPS_HOST=100.x.y.z        # the tailnet address of the VPS
-
-  or pass it per run: $0 --remote --host 100.x.y.z
-EOF
-    exit 2
-  fi
-  case "$HOST" in
-    *@*) VPS_TARGET="$HOST" ;;
-    *) VPS_TARGET="${USER_NAME:-hugo}@$HOST" ;;
-  esac
+  # shellcheck source=lib/vps.sh
+  source "$PROJECT_DIR/scripts/lib/vps.sh"
+  vps_target_from "$HOST" "$USER_NAME" "$0 --remote --host 100.x.y.z"
 
   echo "Dumping the production database on $VPS_TARGET..."
   # The `backup` task (docker/compose.prod.yml) writes the gzipped dump to
   # stdout and narrates on stderr, so the redirect here is the whole transfer.
   # It runs as a task container through infra-setup's deploy-app.sh.
-  # shellcheck source=lib/vps.sh
-  source "$PROJECT_DIR/scripts/lib/vps.sh"
   vps_task backup </dev/null > "$PARTIAL"
 else
   db_require_container
@@ -144,11 +129,6 @@ SIZE=$(human_size "$BACKUP_FILE")
 echo "Backup saved: $BACKUP_FILE ($SIZE)"
 echo "              also copied to $LATEST_COPY"
 echo ""
-
-if ! dump_is_full "$BACKUP_FILE"; then
-  echo "Warning: this dump carries no schema, so it can only be restored over a" >&2
-  echo "         database Alembic has already migrated." >&2
-fi
 
 echo "Contents:"
 COUNTS="$(dump_row_counts "$BACKUP_FILE")"

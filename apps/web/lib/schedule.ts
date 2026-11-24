@@ -34,11 +34,6 @@ export function sessionsOf(schedule: RaceSchedule | undefined): Session[] {
     .sort((a, b) => Date.parse(a.at) - Date.parse(b.at))
 }
 
-/** True when f1db carries session times for this race at all. */
-export function hasSchedule(schedule: RaceSchedule | undefined): boolean {
-  return sessionsOf(schedule).length > 0
-}
-
 /**
  * When the race itself starts, as a UTC instant.
  *

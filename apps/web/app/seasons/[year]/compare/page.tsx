@@ -16,7 +16,8 @@ import { ComparePickers, type PickerOption } from '@/components/season-compare/c
 import { DeltaHeader } from '@/components/season-compare/delta-header'
 import { StatRows } from '@/components/season-compare/stat-rows'
 import { RoundsTable } from '@/components/season-compare/rounds-table'
-import { describeSides, formatPoints } from '@/components/season-compare/sides'
+import { describeSides } from '@/components/season-compare/sides'
+import { formatPoints } from '@/lib/utils'
 
 type SearchParams = Promise<{ type?: string; a?: string; b?: string }>
 
@@ -68,12 +69,12 @@ export default async function SeasonComparePage({
   const constructorOptions: PickerOption[] = entrants.constructors.map((c) => ({
     ref: c.ref,
     label: c.name,
-    color: teamColorOf(c.color)!,
+    color: teamColorOf(c.color),
   }))
   const driverOptions: PickerOption[] = entrants.drivers.map((d) => ({
     ref: d.ref,
     label: `${d.firstName} ${d.lastName}`,
-    color: teamColorOf(d.constructor.color)!,
+    color: teamColorOf(d.constructor.color),
   }))
   const options = type === 'drivers' ? driverOptions : constructorOptions
 

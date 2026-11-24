@@ -35,6 +35,7 @@ import { useStaleRefresh } from '@/components/favourites/use-stale-refresh'
 import {
   MAX_FAVOURITES,
   clearFavourites,
+  favouriteHref,
   nameParts,
   useFavourites,
   type Favourite,
@@ -75,12 +76,6 @@ const SECTIONS: {
     column: 'Location',
   },
 ]
-
-const hrefOf = (favourite: Favourite) => {
-  if (favourite.type === 'driver') return `/drivers/${favourite.ref}`
-  if (favourite.type === 'constructor') return `/constructors/${favourite.ref}`
-  return `/circuits/${favourite.ref}`
-}
 
 /**
  * The whole page body, which is entirely client state.
@@ -172,7 +167,7 @@ export function FavouritesView() {
                     <TableRow key={`${entry.type}:${entry.ref}`}>
                       <TableCell>
                         <Link
-                          href={hrefOf(entry)}
+                          href={favouriteHref(entry)}
                           className="hover:text-primary inline-flex items-center gap-2.5 font-medium transition-colors"
                         >
                           <EntityMark entry={entry} />

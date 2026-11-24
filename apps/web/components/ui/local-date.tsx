@@ -64,17 +64,6 @@ export function LocalDateTime({ value, style = 'medium', className }: LocalDateP
   )
 }
 
-/** Clock time alone, for rows that already say which day they are on. */
-export function LocalTime({ value, className }: { value: string; className?: string }) {
-  const text = useFormatted(value, {}, true)
-  if (text === null) return null
-  return (
-    <time dateTime={value} className={className} suppressHydrationWarning>
-      {text}
-    </time>
-  )
-}
-
 /**
  * Weekday and clock time, e.g. "Sat 16:00".
  *

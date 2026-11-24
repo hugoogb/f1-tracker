@@ -3,8 +3,8 @@
 # F1 Tracker backend image — serves the FastAPI app and doubles as the runner
 # for Alembic migrations and the data pipeline (scripts/seed.py).
 #
-# Build context is `pipeline/` (see docker/compose.prod.yml):
-#   docker build -f pipeline/Dockerfile -t f1-tracker-api:latest pipeline
+# Build context is `pipeline/`; CI builds it (deploy.yml) and the VPS pulls it:
+#   docker build -f pipeline/Dockerfile -t f1_api:dev pipeline
 
 ARG PYTHON_IMAGE=python:3.12-slim-bookworm
 

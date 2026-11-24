@@ -11,7 +11,7 @@ it.
 import datetime
 
 import pytest
-from sqlalchemy import create_engine, select
+from sqlalchemy import create_engine, select, text
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -283,16 +283,41 @@ def rows(factory) -> list[IngestRun]:
 
 
 def test_a_completed_run_is_logged_as_ok(run_log):
-    with record_ingest_run("base", session_factory=run_log) as run:
-        run.rows_written = 42
+    with record_ingest_run("base", session_factory=run_log):
+        pass
 
     (logged,) = rows(run_log)
     assert logged.target == "base"
     assert logged.status == "ok"
-    assert logged.rows_written == 42
+    # The log's own insert and update are not the ingest's writes.
+    assert logged.rows_written == 0
     assert logged.started_at is not None
     assert logged.finished_at is not None
     assert logged.error is None
+
+
+def test_rows_written_counts_what_the_ingest_changed(run_log):
+    """Inserts and real updates count; an update that matches nothing does not."""
+    with run_log() as setup:
+        setup.execute(text("CREATE TABLE t (id INTEGER PRIMARY KEY, v INTEGER)"))
+        setup.commit()
+
+    with pytest.raises(RuntimeError):
+        with record_ingest_run("base", session_factory=run_log):
+            with run_log() as ingest:
+                ingest.execute(text("INSERT INTO t VALUES (1, 1), (2, 2), (3, 3)"))
+                ingest.execute(text("UPDATE t SET v = 9 WHERE id = 1"))
+                ingest.execute(text("UPDATE t SET v = 9 WHERE id = 99"))
+                ingest.commit()
+            raise RuntimeError("halfway")
+
+    with run_log() as after:
+        after.execute(text("INSERT INTO t VALUES (4, 4)"))
+        after.commit()
+
+    (logged,) = rows(run_log)
+    assert logged.status == "error"
+    assert logged.rows_written == 4
 
 
 def test_a_crash_leaves_an_error_row_and_still_raises(run_log):

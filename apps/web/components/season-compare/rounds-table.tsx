@@ -9,7 +9,8 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { DeltaChip } from './delta-chip'
-import { formatPoints, type SideInfo } from './sides'
+import { formatPoints } from '@/lib/utils'
+import type { SideInfo } from './sides'
 
 function finishText(side: SeasonCompareRoundSide, perCar: boolean): string {
   if (!side.entered) return '—'

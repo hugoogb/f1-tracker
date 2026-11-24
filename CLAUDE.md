@@ -16,10 +16,10 @@ Deployment: frontend on Vercel; the API runs as a Docker container (`f1_api`) on
 
 ## Project Structure
 
-- `apps/web/` - Next.js frontend (20 routes, 36+ components)
-- `pipeline/` - Python data pipeline + FastAPI backend (14 routers, 50 endpoints); `Dockerfile` builds the API/migrate/ingest image
+- `apps/web/` - Next.js frontend
+- `pipeline/` - Python data pipeline + FastAPI backend; `Dockerfile` builds the API/migrate/ingest image
 - `docker/` - `docker-compose.yml` (local dev DB), `compose.prod.yml` (the VPS stack — sent by the deploy to the platform's `deploy-app.sh`, which checks it against the deploy policy and installs it as `/srv/apps/f1_api/docker-compose.yml`), `.env.prod.example`, backups
-- `scripts/` - `bootstrap.sh`, `db-backup.sh`, `db-restore.sh`, `seed-fetch.sh` (download the seed dump from its release), `fastf1-sync.sh` (laptop-side Fast-F1 fetch), `lib/db.sh` (shared container resolution + dump inspection + seed release location), `lib/vps.sh` (`vps_task`: every server-side step, run as a task container through the platform's `deploy-app.sh`), `vps-ingest.sh` (sequences an ingest from the runner or a laptop). Nothing from this repo runs on the server's host
+- `scripts/` - `bootstrap.sh`, `db-backup.sh`, `db-restore.sh`, `seed-fetch.sh` (download the seed dump from its release), `fastf1-sync.sh` (laptop-side Fast-F1 fetch), `lib/env.sh` (`env_get`: one `.env` key, parsed not sourced), `lib/db.sh` (shared container resolution + dump inspection + seed release location), `lib/vps.sh` (`vps_task`/`vps_deploy`/`vps_target_from`: every server-side step, run through the platform's `deploy-app.sh`), `vps-ingest.sh` (sequences an ingest from the runner or a laptop). Nothing from this repo runs on the server's host
 
 ### Frontend Routes
 
@@ -60,7 +60,7 @@ daily and on any purge, since it reads `f1-global`), `robots.ts`, `manifest.ts`,
 
 - `components/ui/` - The design system's primitives. Telemetry pieces: `panel` (bracketed surface; replaced shadcn's Card, same sub-part API), `page-hero` (every page's header; `livery`, `watermark`), `tag` (skewed broadcast tag), `meter` (segmented), `section-header`, `container` (the one page width), `stat-card`. shadcn/Base UI pieces restyled to the tokens: button (+ `button-variants.ts`, server-safe), badge, table (`TableRow highlight="leader"`), tabs, select, dialog, sheet, input, skeleton, sonner. Plus country-flag, driver-avatar, constructor-logo, empty-state, motion, position-badge, local-date, next-race-countdown
 - `components/layout/` - Header (`main-nav.tsx`: grouped Base UI NavigationMenu from `lib/nav.ts`), mobile nav (bottom sheet, same groups), footer (every section + the credits/disclaimer), breadcrumbs, `command-search.tsx` (⌘K / Ctrl+K / `/` command palette: pages, seasons, races, drivers, teams, circuits; quick links and recently viewed when empty), `record-visit.tsx` (feeds recently viewed), `where-next.tsx` (the links at the foot of every detail page)
-- `components/charts/` - Recharts visualizations (points bar, constructor points, career line, comparison line, championship progression, season heatmap, quali-vs-race, driver radar, season points + gap, qualifying gap by round) and `violin-chart.tsx`, a hand-built SVG violin + dot swarm (Recharts has none) shared by the lap time distribution charts
+- `components/charts/` - Recharts visualizations (points bars (drivers + constructors), career line, comparison line, championship progression, season heatmap, quali-vs-race, driver radar, season points + gap, qualifying gap by round) and `violin-chart.tsx`, a hand-built SVG violin + dot swarm (Recharts has none) shared by the lap time distribution charts
 - `components/races/` - Race result tables (results with position change indicators, qualifying, sprint, pit stops, lap-distribution-chart (violin per driver or team, dots by tyre), lap-times-chart, tyre-strategy-chart, tyre-degradation-chart, position-chart, gap-chart, pit-stop-analysis, podium-card, fastest-lap-card)
 - `components/standings/` - Driver + constructor standings tables
 - `components/seasons/` - Scoring note, title permutations card, cross-era normalised standings
@@ -190,7 +190,7 @@ daily and on any purge, since it reads `f1-global`), `robots.ts`, `manifest.ts`,
 - `uv run uvicorn src.api.main:app --reload` - Start FastAPI dev server
 - `uv run alembic upgrade head` - Run database migrations
 - `uv run alembic revision --autogenerate -m "description"` - Generate migration
-- `uv run python scripts/seed.py` - Run data ingestion (locally this includes `--laptimes` / `--qualifying-sectors`; on the VPS those two cannot run — see below)
+- `uv run python scripts/seed.py` - Run data ingestion (locally this includes `--laptimes` / `--qualifying-sectors`; on the VPS those two cannot run — see below). It touches the database only: `--restore` first loads the seed dump over it, `--backup` dumps it to `docker/backups/latest.sql.gz` afterwards
 - `uv run python scripts/fastf1_fetch.py --probe` - Check whether this host may talk to Fast-F1 at all (prints HTTP status for live timing and a control host — 401 is the account, 403 the IP — then checks the sign-in)
 - `uv run python -m fastf1 auth f1tv --authenticate` / `--status` - Sign Fast-F1 in to an F1 TV account (token ~4 days); `scripts/fastf1_fetch.py --check-auth` is the same check the fetch runs, exit 4 without one
 - `uv run python scripts/fastf1_fetch.py --targets targets.json --out payload.ndjson.gz` - Fetch Fast-F1 sessions into a payload (no DB needed)
@@ -198,7 +198,7 @@ daily and on any purge, since it reads `f1-global`), `robots.ts`, `manifest.ts`,
 - `uv run python scripts/fastf1_import.py --payload payload.ndjson.gz` - Load a payload into PostgreSQL (DB, no network)
 - `uv run python scripts/seed.py --lineages` - Rebuild constructor lineages only (one of the `--<target>` flags in `seed.py`)
 - `uv run python scripts/refresh_views.py` - Rebuild the computed-stats materialized views (`driver_career_stats`, `constructor_career_stats`, `season_champions`); `db-restore.sh` calls this after migrating
-- `uv run pytest -v` - Run backend tests (440 tests)
+- `uv run pytest -v` - Run backend tests
 - `uv run ruff check . && uv run ruff format --check .` - Lint + format check
 
 ### VPS (production backend)
@@ -253,7 +253,8 @@ Two f1db quirks the UI is built around:
 - **Automated (f1db)**: `.github/workflows/ingest.yml` runs Mondays 06:00 UTC — joins the tailnet and runs `scripts/vps-ingest.sh`, which runs task containers on the box through `deploy-app.sh`, calendar-gated, straight into PostgreSQL, then purges the Vercel cache. The f1db ingestors upsert from one release download, so they can bootstrap an empty DB as well as update one.
 - **Manual (Fast-F1)**: `pnpm fastf1` from a machine on a residential connection (`VPS_HOST` in `.env`) — asks the box what is missing (the `job` task running `fastf1_status.py`), fetches those sessions locally (`pipeline/scripts/fastf1_fetch.py`, ~45 s each), ships the payload back and loads it (`fastf1_import.py` in the same task). This cannot be automated in CI: `livetiming.formula1.com` returns 403 to the VPS *and* to GitHub's runners (measured — see `docs/DEPLOYMENT.md`). The Monday ingest run reports how many races are waiting, since nothing else will remind you.
 - Every run of `run_full_load` writes an `ingest_runs` row (target, start/finish, status,
-  `f1db_version`, truncated error) from its **own** session — the ingest's session is unusable
+  `f1db_version`, rows written — counted at the driver from each write's rowcount, so an unchanged
+  merge counts nothing — and a truncated error) from its **own** session — the ingest's session is unusable
   after a failed statement, so a shared one could only ever log failures that did not involve
   the database. Logging is best-effort: a missing table warns and the ingest continues. This is
   what answers "did Monday's ingest run?", which no amount of derived data can — a successful
@@ -264,7 +265,7 @@ Two f1db quirks the UI is built around:
 ### Database
 - `pnpm db:backup` / `pnpm db:backup:prod` - Full dump (schema + every table + Alembic stamp + materialized views) of the local dev container, or of production over Tailscale SSH. Use `:prod` for the published seed — Fast-F1 payloads go straight into production, so the server is the only host with the complete dataset
 - `pnpm db:seed:fetch` / `pnpm db:seed:publish` - Download the seed dump, or dump production and upload it. **The dump is not tracked by git**: it is an asset on one rolling release tag (`seed`), so the download URL is a constant and a refresh never grows the pack. `db:seed:publish` is `db-backup.sh --remote --publish` and needs `gh` authenticated; it refuses to publish a dump with no lap times
-- `pnpm db:restore` - Restore a dump. Detects full vs legacy data-only dumps and orders the migrate/load/refresh steps accordingly; `SKIP_MIGRATE=1 SKIP_VIEWS=1` restores a full dump with nothing but `psql`
+- `pnpm db:restore` - Restore a full dump (load, then migrate, then refresh views; a dump without a schema is refused); `SKIP_MIGRATE=1 SKIP_VIEWS=1` restores with nothing but `psql`
 - `docker compose -f docker/docker-compose.yml up -d` - Start PostgreSQL (container `f1-tracker-db`)
 - `docker compose -f docker/docker-compose.yml down` - Stop PostgreSQL
 - `docker compose --env-file .env --env-file .tag <cmd>` - Production stack, run from `/srv/apps/f1_api` on the VPS
@@ -274,8 +275,8 @@ Two f1db quirks the UI is built around:
 - Use conventional commits (feat:, fix:, docs:, refactor:, test:, chore:)
 - Frontend: shadcn/ui components in `components/ui/`, feature components in `components/<feature>/`
 - Backend: FastAPI routers in `src/api/routers/`, SQLAlchemy models in `src/db/models.py`
-- Backend shared helpers: `src/api/constants.py` (magic numbers), `src/api/serializers.py` (driver/constructor dict builders), `src/api/pagination.py` (generic paginator), `src/scoring.py` (historical points systems)
-- Fast-F1 code is split by what it needs: `src/ingestion/fastf1_sessions.py` is network-only (no DB import, so it runs on a host with no database), `src/ingestion/fastf1_targets.py` holds `find_targets()` — the one definition of what is outstanding, shared by `scripts/fastf1_status.py` and `/api/ops/status` so the page and `pnpm fastf1` can never disagree, `src/ingestion/fastf1_payload.py` is the NDJSON wire format between the two hosts, and the writers (`write_lap_rows`, `write_quali_sectors`) are shared by the direct ingestors and the payload importer — keep it that way so the off-box path cannot drift from the local one
+- Backend shared helpers: `src/api/constants.py` (magic numbers), `src/api/eras.py` (the era / year-range filter), `src/api/serializers.py` (driver/constructor dict builders), `src/api/pagination.py` (generic paginator), `src/scoring.py` (historical points systems)
+- Fast-F1 code is split by what it needs: `src/ingestion/fastf1_sessions.py` is network-only (no DB import, so it runs on a host with no database), `src/ingestion/fastf1_targets.py` holds `find_targets()` — the one definition of what is outstanding, shared by `scripts/fastf1_status.py` and `/api/ops/status` so the page and `pnpm fastf1` can never disagree, `src/ingestion/fastf1_payload.py` is the NDJSON wire format between the two hosts, `src/ingestion/fastf1_ingest.py` holds the direct ingestors (one fetch-throttle-write loop over `find_targets()`), and the writers (`write_lap_rows`, `write_quali_sectors`) are shared by the direct ingestors and the payload importer — keep it that way so the off-box path cannot drift from the local one
 - All API endpoints prefixed with `/api/`
 - Next.js frontend calls FastAPI at `NEXT_PUBLIC_API_URL` (default: http://localhost:8000/api)
 - Dark-only UI (no light theme, no toggle) in the "telemetry" design: HUD panels with corner brackets on a
@@ -321,7 +322,7 @@ Two f1db quirks the UI is built around:
   current-grid and champions lists passing: those teams must stay curated
 - Anything whose output depends on the viewer's clock, locale or timezone goes
   through `useHydrated()`/`useNow()` in `lib/client-only.ts` (and the
-  `LocalDate`/`LocalDateTime`/`LocalTime` components) so the server pass and the
+  `LocalDate`/`LocalDateTime` components) so the server pass and the
   first client render agree. Never format a date with a hardcoded locale
 - Crawl paths: the sitemap walks the list endpoints in `MAX_API_PAGE_SIZE` pages (mirrors the API's `MAX_PAGE_SIZE`; above it the API answers 422 and that whole section vanishes from a 200 sitemap, logged as `sitemap: dropped the ...`). `/seasons/{year}` race rows carry no `seasonYear`, whatever the `Race` type says, so race URLs are built from the season being walked (`raceSitemapEntry`). List pagination is real links (`pageHref`) and each later page is its own canonical (`buildListMetadata`)
 - `lib/page-summary.ts` writes the paragraph under the hero on detail, head-to-head and landing pages. Pure functions of the page's own data, so it goes in cached HTML: no clock (a caller passes `currentYear`), no locale (`group()`), no pronoun for a driver. Check any new claim against the Known Issues below before adding it: it is published on thousands of pages
@@ -370,7 +371,7 @@ Two f1db quirks the UI is built around:
 - The race page's lap time distribution applies the same clean-lap filter in the
   browser (`lib/lap-distribution.ts`), from the median of every timed lap after
   lap 1 as the season compare's race pace does. Its `CLEAN_LAP_THRESHOLD` and
-  `MIN_CLEAN_LAPS` mirror `_CLEAN_LAP_THRESHOLD` and `SEASON_COMPARE_MIN_CLEAN_LAPS`,
+  `MIN_CLEAN_LAPS` mirror `CLEAN_LAP_THRESHOLD` and `SEASON_COMPARE_MIN_CLEAN_LAPS`,
   and `lib/violin.ts` (Silverman bandwidth, grid padded by two bandwidths, widest
   point = 1) is the reference any server-side density must reproduce — change
   both or neither. Dot spread is hashed from the driver and lap (`jitter()`),

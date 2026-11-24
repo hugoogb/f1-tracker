@@ -6,16 +6,10 @@ import { MapPin, Star } from 'lucide-react'
 import { Panel, PanelAction, PanelContent, PanelHeader, PanelTitle } from '@/components/ui/panel'
 import { ConstructorLogo } from '@/components/ui/constructor-logo'
 import { DriverAvatar } from '@/components/ui/driver-avatar'
-import { nameParts, useFavourites, type Favourite } from '@/lib/favourites'
+import { favouriteHref, nameParts, useFavourites, type Favourite } from '@/lib/favourites'
 
 /** Enough to be a shortcut, not so many that the dashboard becomes a list page. */
 const PREVIEW_LIMIT = 8
-
-const hrefOf = (favourite: Favourite) => {
-  if (favourite.type === 'driver') return `/drivers/${favourite.ref}`
-  if (favourite.type === 'constructor') return `/constructors/${favourite.ref}`
-  return `/circuits/${favourite.ref}`
-}
 
 /**
  * The dashboard's shortcut into the favourites list.
@@ -58,7 +52,7 @@ export function FavouritesSummary() {
           {preview.map((entry) => (
             <Link
               key={`${entry.type}:${entry.ref}`}
-              href={hrefOf(entry)}
+              href={favouriteHref(entry)}
               className="bg-surface-2 border-hairline hover:border-primary focus-ring inline-flex items-center gap-2 border py-1 pr-3 pl-1 text-sm font-medium transition-colors"
             >
               <EntityMark entry={entry} />

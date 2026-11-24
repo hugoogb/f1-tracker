@@ -20,28 +20,18 @@ Usage:
 import argparse
 import json
 import sys
-from datetime import UTC, date, datetime
+from datetime import UTC, datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from src.cli import parse_year_range  # noqa: E402
 from src.db.database import SessionLocal  # noqa: E402
 from src.ingestion.fastf1_payload import KINDS  # noqa: E402
 
 # The backlog query itself lives under src/ so /api/ops/status can share it —
 # the status page and this script must never disagree about what is missing.
 from src.ingestion.fastf1_targets import find_targets  # noqa: E402
-
-
-def parse_year_range(value: str | None) -> tuple[int, int] | None:
-    """Parse '2008-2015' or '2020' into (start, end)."""
-    if not value:
-        return None
-    if "-" in value:
-        start, end = value.split("-", 1)
-        return (int(start), int(end))
-    year = int(value)
-    return (year, year)
 
 
 def parse_args() -> argparse.Namespace:
@@ -76,10 +66,7 @@ def main() -> int:
         print(f"Unknown --need value(s): {', '.join(sorted(unknown))}", file=sys.stderr)
         return 2
 
-    year_range = parse_year_range(args.year_range)
-    if args.current_year and not year_range:
-        current = date.today().year
-        year_range = (current, current)
+    year_range = parse_year_range(args.year_range, current_year=args.current_year)
 
     db = SessionLocal()
     try:

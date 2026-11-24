@@ -57,9 +57,7 @@ older backup up to the current head, then rebuilds the views. With
 `SKIP_MIGRATE=1 SKIP_VIEWS=1` it needs nothing but `psql` — which is the path
 that matters when the thing that broke is the reason you are restoring.
 
-Older **data-only** dumps (what this repo wrote before) still restore: they are
-detected by the absence of a schema and get the old treatment — migrate first,
-load the data, then rebuild the views by hand.
+A dump without a schema (the data-only format this repo once wrote) is refused.
 
 ## Regenerating and publishing it
 

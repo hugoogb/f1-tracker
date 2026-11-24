@@ -3,6 +3,7 @@
 import { useMemo } from 'react'
 import { TYRE_COLORS } from '@/lib/constants'
 import type { ChartDriverLaps } from '@/lib/types'
+import { driverCode } from '@/lib/utils'
 
 interface TyreStrategyChartProps {
   drivers: ChartDriverLaps[]
@@ -81,7 +82,7 @@ export function TyreStrategyChart({ drivers }: TyreStrategyChartProps) {
       {driverStints.map(({ driver, stints }) => (
         <div key={driver.driver.ref} className="flex items-center gap-3">
           <span className="text-muted-foreground w-16 shrink-0 truncate text-right text-xs font-medium">
-            {driver.driver.code ?? driver.driver.lastName.slice(0, 3).toUpperCase()}
+            {driverCode(driver.driver)}
           </span>
           <div className="flex h-7 flex-1 overflow-hidden rounded">
             {stints.map((stint, i) => {

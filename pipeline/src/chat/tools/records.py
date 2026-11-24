@@ -17,7 +17,7 @@ from src.api.constants import FIRST_CONSTRUCTORS_CHAMPIONSHIP
 from src.api.routers.best_seasons import best_seasons
 from src.api.routers.champions import list_champions
 from src.api.routers.records import explore_records
-from src.chat.tools.registry import Tool, register
+from src.chat.tools.registry import Tool, driver_name, register
 
 Category = Literal[
     "wins",
@@ -60,10 +60,6 @@ class BestSeasonsArgs(BaseModel):
     limit: int
 
 
-def _name(d: dict) -> str:
-    return f"{d['firstName']} {d['lastName']}"
-
-
 def _records_run(db: Session, args: RecordsArgs) -> dict:
     drivers = args.entity == "driver"
     limit = max(1, min(args.limit, MAX_RECORDS))
@@ -90,7 +86,7 @@ def _records_run(db: Session, args: RecordsArgs) -> dict:
         rows.append(
             {
                 "rank": r["rank"],
-                "name": _name(who) if drivers else who["name"],
+                "name": driver_name(who) if drivers else who["name"],
                 "ref": who["ref"],
                 "value": r["value"],
                 "starts": r["starts"],
@@ -132,7 +128,7 @@ def _champions_run(db: Session, args: ChampionsArgs) -> dict:
                 # The drivers' champion and the car they raced; the constructors'
                 # champion is a separate field and need not be the same team.
                 "driver": {
-                    "name": _name(d),
+                    "name": driver_name(d),
                     "ref": d["ref"],
                     "constructor": team["name"] if team else None,
                 }
@@ -175,7 +171,7 @@ def _best_seasons_run(db: Session, args: BestSeasonsArgs) -> dict:
                 "rank": s["rank"],
                 "year": s["year"],
                 "score": s["score"]["total"],
-                "champion": _name(champ["driver"]) if champ else None,
+                "champion": driver_name(champ["driver"]) if champ else None,
                 "margin": s["titleMargin"],
                 "href": f"/seasons/{s['year']}",
             }

@@ -91,7 +91,7 @@ def test_direct_ingestor_agrees_on_what_is_outstanding(db, seed_data, two_races,
     The direct path had no notion of positions at all, so a local seed would
     skip every race that already had laps and could never fill the column in.
     """
-    from src.ingestion import lap_times
+    from src.ingestion import fastf1_ingest
 
     attempted: list[str] = []
 
@@ -99,15 +99,15 @@ def test_direct_ingestor_agrees_on_what_is_outstanding(db, seed_data, two_races,
         attempted.append(f"{year}_{rnd:02d}")
         return [], [], 0.0  # no data, so nothing is written
 
-    monkeypatch.setattr(lap_times, "fetch_race_laps", fake_fetch)
-    monkeypatch.setattr(lap_times, "throttle", lambda *a, **k: None)
-    monkeypatch.setattr(lap_times, "require_f1_account", lambda: None)
+    monkeypatch.setattr(fastf1_ingest, "fetch_race_laps", fake_fetch)
+    monkeypatch.setattr(fastf1_ingest, "throttle", lambda *a, **k: None)
+    monkeypatch.setattr(fastf1_ingest, "require_f1_account", lambda: None)
 
-    lap_times.LapTimeIngestor(db).ingest(refresh_positions=True)
+    fastf1_ingest.LapTimeIngestor(db).ingest(refresh_positions=True)
     assert attempted == ["2024_02"]
 
     attempted.clear()
-    lap_times.LapTimeIngestor(db).ingest()
+    fastf1_ingest.LapTimeIngestor(db).ingest()
     assert attempted == []
 
 
@@ -116,7 +116,7 @@ def test_direct_ingestor_stops_without_an_account(db, seed_data, two_races, monk
     outstanding session empty. And a run with nothing outstanding never asks."""
     from fastf1.exceptions import F1AuthError
 
-    from src.ingestion import lap_times
+    from src.ingestion import fastf1_ingest
 
     attempted: list[str] = []
     checks: list[int] = []
@@ -126,13 +126,13 @@ def test_direct_ingestor_stops_without_an_account(db, seed_data, two_races, monk
         raise F1AuthError("No F1 account credentials available.")
 
     monkeypatch.setattr(
-        lap_times, "fetch_race_laps", lambda year, rnd: attempted.append(f"{year}_{rnd:02d}")
+        fastf1_ingest, "fetch_race_laps", lambda year, rnd: attempted.append(f"{year}_{rnd:02d}")
     )
-    monkeypatch.setattr(lap_times, "require_f1_account", no_account)
+    monkeypatch.setattr(fastf1_ingest, "require_f1_account", no_account)
 
-    lap_times.LapTimeIngestor(db).ingest(refresh_positions=True)
+    fastf1_ingest.LapTimeIngestor(db).ingest(refresh_positions=True)
     assert attempted == []
     assert checks == [1]
 
-    lap_times.LapTimeIngestor(db).ingest()  # both races already have laps
+    fastf1_ingest.LapTimeIngestor(db).ingest()  # both races already have laps
     assert checks == [1]

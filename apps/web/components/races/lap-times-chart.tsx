@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import {
   CartesianGrid,
   Line,
@@ -12,6 +12,7 @@ import {
 } from 'recharts'
 import { NEUTRAL, axisProps, gridProps, lineCursor } from '@/lib/chart-theme'
 import { teamColorOf } from '@/lib/utils'
+import { DriverToggles, useDriverToggles } from './driver-toggles'
 import type { ChartDriverLaps } from '@/lib/types'
 
 interface LapTimesChartProps {
@@ -25,10 +26,6 @@ function formatSeconds(s: number): string {
     return `${minutes}:${secs.toFixed(3).padStart(6, '0')}`
   }
   return secs.toFixed(3)
-}
-
-function getDriverColor(driver: ChartDriverLaps): string {
-  return teamColorOf(driver.constructor.color)!
 }
 
 function CustomTooltip({
@@ -65,21 +62,7 @@ function CustomTooltip({
 }
 
 export function LapTimesChart({ drivers }: LapTimesChartProps) {
-  const [enabledDrivers, setEnabledDrivers] = useState<Set<string>>(() => {
-    return new Set(drivers.slice(0, 5).map((d) => d.driver.ref))
-  })
-
-  const toggleDriver = (ref: string) => {
-    setEnabledDrivers((prev) => {
-      const next = new Set(prev)
-      if (next.has(ref)) {
-        next.delete(ref)
-      } else {
-        next.add(ref)
-      }
-      return next
-    })
-  }
+  const [enabledDrivers, toggleDriver] = useDriverToggles(drivers, 5)
 
   const { data, activeDrivers, yDomain } = useMemo(() => {
     const activeDrivers = drivers.filter((d) => enabledDrivers.has(d.driver.ref))
@@ -115,27 +98,7 @@ export function LapTimesChart({ drivers }: LapTimesChartProps) {
 
   return (
     <div className="space-y-4">
-      {/* Driver toggles */}
-      <div className="flex flex-wrap gap-2">
-        {drivers.map((d) => {
-          const color = getDriverColor(d)
-          const active = enabledDrivers.has(d.driver.ref)
-          return (
-            <button
-              key={d.driver.ref}
-              onClick={() => toggleDriver(d.driver.ref)}
-              className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-all ${
-                active
-                  ? 'border-transparent text-white'
-                  : 'border-border text-muted-foreground opacity-50 hover:opacity-75'
-              }`}
-              style={active ? { backgroundColor: color } : undefined}
-            >
-              {d.driver.code ?? d.driver.lastName.slice(0, 3).toUpperCase()}
-            </button>
-          )
-        })}
-      </div>
+      <DriverToggles drivers={drivers} enabled={enabledDrivers} onToggle={toggleDriver} />
 
       {data.length > 0 && (
         <div className="h-[28rem] w-full" role="img" aria-label="Lap times chart">
@@ -180,7 +143,7 @@ export function LapTimesChart({ drivers }: LapTimesChartProps) {
                   key={d.driver.ref}
                   type="monotone"
                   dataKey={d.driver.lastName}
-                  stroke={getDriverColor(d)}
+                  stroke={teamColorOf(d.constructor.color)}
                   strokeWidth={1.5}
                   dot={false}
                   connectNulls={false}

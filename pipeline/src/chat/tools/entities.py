@@ -14,7 +14,7 @@ from src.api.routers.circuits import get_circuit_stats
 from src.api.routers.constructors import get_constructor as _get_constructor
 from src.api.routers.constructors import get_constructor_lineage
 from src.api.routers.drivers import get_driver as _get_driver
-from src.chat.tools.registry import Tool, register
+from src.chat.tools.registry import Tool, driver_name, register
 
 LINEAGE_NOTE = "a lineage is a chain of entries, not one team; each member's record is its own"
 CIRCUIT_WINNERS = 3
@@ -56,7 +56,7 @@ def _driver_run(db: Session, args: RefArgs) -> dict:
     except HTTPException:
         return _missing("driver", args.ref)
     return {
-        "name": f"{d['firstName']} {d['lastName']}",
+        "name": driver_name(d),
         "ref": d["ref"],
         "code": d["code"],
         "nationality": d["nationality"],
@@ -114,7 +114,7 @@ def _circuit_run(db: Session, args: RefArgs) -> dict:
         "lastYear": max(years) if years else None,
         "mostWins": [
             {
-                "name": f"{w['driver']['firstName']} {w['driver']['lastName']}",
+                "name": driver_name(w["driver"]),
                 "ref": w["driver"]["ref"],
                 "wins": w["count"],
             }

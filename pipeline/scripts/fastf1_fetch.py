@@ -36,13 +36,13 @@ limit, a timeout or Ctrl-C still leaves every session it had already fetched.
 import argparse
 import json
 import logging
-import os
 import sys
 from datetime import UTC, date, datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from src.cli import parse_year_range, setup_logging  # noqa: E402
 from src.ingestion.fastf1_payload import (  # noqa: E402
     KIND_LAPS,
     KINDS,
@@ -90,18 +90,6 @@ BLOCKED_HELP = (
 )
 
 
-def _gha_output(**values: object) -> None:
-    """Publish step outputs when running under GitHub Actions."""
-    path = os.environ.get("GITHUB_OUTPUT")
-    if not path:
-        return
-    with open(path, "a") as f:
-        for key, value in values.items():
-            if isinstance(value, bool):
-                value = str(value).lower()
-            f.write(f"{key}={value}\n")
-
-
 def check_account() -> bool:
     """Make sure Fast-F1 has a live timing token before anything is fetched.
 
@@ -113,13 +101,11 @@ def check_account() -> bool:
     except F1AuthError as e:
         logger.error(f"No usable Formula 1 account: {e}")
         logger.error(AUTH_HELP)
-        _gha_output(account=False)
         return False
 
     expires = datetime.fromtimestamp(token.expires_at, UTC).strftime("%Y-%m-%d %H:%M UTC")
     product = token.claims.get("SubscribedProduct") or "unknown plan"
     logger.info(f"Formula 1 account OK ({product}), token valid until {expires}")
-    _gha_output(account=True)
     return True
 
 
@@ -254,11 +240,9 @@ def probe() -> int:
         else:
             logger.error("Nothing answered — this host may have no outbound access at all.")
         logger.error(BLOCKED_HELP)
-        _gha_output(reachable=False, blocked=control_ok, rate_limited=False)
         return 1
 
     if not check_account():
-        _gha_output(reachable=False, blocked=False, rate_limited=False)
         return EXIT_NO_ACCOUNT
 
     logger.info(f"Loading {PROBE_YEAR} round {PROBE_ROUND} to confirm a real fetch works...")
@@ -272,7 +256,6 @@ def probe() -> int:
             logger.error(BLOCKED_HELP)
         elif rate_limited:
             logger.error("This host is rate limited, not blocked — the window clears on its own.")
-        _gha_output(reachable=False, blocked=blocked, rate_limited=rate_limited)
         return 1
 
     if not rows:
@@ -280,22 +263,10 @@ def probe() -> int:
             "The session loaded but carried no laps. Live timing answered the "
             "reachability check, so this is worth reading the warnings above for."
         )
-        _gha_output(reachable=False, blocked=False, rate_limited=False)
         return 1
 
     logger.info(f"Fast-F1 reachable: {len(rows)} laps for {len(abbrs)} drivers in {elapsed:.0f}s")
-    _gha_output(reachable=True, blocked=False, rate_limited=False)
     return 0
-
-
-def parse_year_range(value: str | None) -> tuple[int, int] | None:
-    if not value:
-        return None
-    if "-" in value:
-        start, end = value.split("-", 1)
-        return (int(start), int(end))
-    year = int(value)
-    return (year, year)
 
 
 def parse_args() -> argparse.Namespace:
@@ -343,12 +314,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> int:
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s %(levelname)-5s %(message)s",
-        datefmt="%H:%M:%S",
-        stream=sys.stderr,
-    )
+    setup_logging()
     configure_logging()
 
     args = parse_args()
@@ -372,7 +338,6 @@ def main() -> int:
     # Before the calendar call too: without a token Fast-F1 would prompt for a
     # sign-in on every request it sends to live timing.
     if not check_account():
-        _gha_output(sessions=0, partial=False, blocked=False)
         return EXIT_NO_ACCOUNT
 
     if args.targets:
@@ -384,7 +349,6 @@ def main() -> int:
 
     if not targets:
         logger.info("Nothing to fetch.")
-        _gha_output(sessions=0, partial=False, blocked=False)
         return 0
 
     planned = sum(len(t["need"]) for t in targets)
@@ -462,7 +426,6 @@ def main() -> int:
         f"Fetched {fetched} session(s); {empty} with no data, {failed} failed"
         f"{', payload is partial' if partial else ''}"
     )
-    _gha_output(sessions=fetched, partial=partial, blocked=blocked)
 
     # A blocked host is the one failure worth going red for: it means this
     # fetch path has stopped working and somebody has to choose another one.

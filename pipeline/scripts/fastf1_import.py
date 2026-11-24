@@ -26,6 +26,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from sqlalchemy import select  # noqa: E402
 
+from src.cli import setup_logging  # noqa: E402
 from src.db.database import SessionLocal  # noqa: E402
 from src.db.models import Race  # noqa: E402
 from src.ingestion.base import build_abbr_to_driver_id, race_entrant_codes  # noqa: E402
@@ -102,11 +103,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> int:
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s %(levelname)-5s %(message)s",
-        datefmt="%H:%M:%S",
-    )
+    setup_logging()
 
     args = parse_args()
 

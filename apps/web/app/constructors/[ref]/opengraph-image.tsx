@@ -2,7 +2,7 @@ import { ImageResponse } from 'next/og'
 import { api } from '@/lib/api'
 import type { Constructor } from '@/lib/types'
 import { SITE_NAME } from '@/lib/seo'
-import { teamColorOf } from '@/lib/utils'
+import { formatPoints, teamColorOf } from '@/lib/utils'
 import { OgCard, OgFallbackCard } from '@/components/seo/og-card'
 
 export const alt = `Constructor record card — ${SITE_NAME}`
@@ -30,10 +30,6 @@ interface ConstructorDetail extends Constructor {
     total_points: number
   }
 }
-
-/** Points are a float in the payload but a whole number for all but a few teams. */
-const formatPoints = (points: number) =>
-  Number.isInteger(points) ? String(points) : points.toFixed(1)
 
 export default async function Image({ params }: { params: Promise<{ ref: string }> }) {
   const { ref } = await params

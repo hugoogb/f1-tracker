@@ -99,7 +99,7 @@ export function ChampionshipProgressionChart({
           <YAxis {...axisProps} width={50} />
           <Tooltip content={<CustomTooltip />} />
           {items.map((entry) => {
-            const color = teamColorOf(entry.color)!
+            const color = teamColorOf(entry.color)
             const label = entry.code ?? entry.name ?? entry.lastName ?? entry.ref
             return (
               <Line

@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import type { SeasonHeatmapResponse } from '@/lib/types'
 import { positionHeat } from '@/lib/chart-theme'
+import { driverCode } from '@/lib/utils'
 
 function getPositionColor(position: number | null, status: string | null): string {
   if (
@@ -83,7 +84,7 @@ export function SeasonHeatmap({ data }: SeasonHeatmapProps) {
                       href={`/drivers/${driver.driver.ref}`}
                       className="hover:text-primary truncate font-medium transition-colors"
                     >
-                      {driver.driver.code ?? driver.driver.lastName.slice(0, 3).toUpperCase()}
+                      {driverCode(driver.driver)}
                     </Link>
                   </div>
                 </td>

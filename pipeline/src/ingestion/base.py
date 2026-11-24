@@ -7,8 +7,8 @@ mapping a session's driver abbreviations onto our driver ids.
 
 The Fast-F1 side — loading sessions, parsing them, and the rate-limit throttle
 — lives in `src/ingestion/fastf1_sessions.py`, which imports nothing from the
-database so it can also run on a host that has no access to one (a GitHub
-runner fetching sessions the VPS is blocked from; see `fastf1_payload.py`).
+database so it can also run on a host that has no access to one (a laptop
+fetching sessions the VPS is blocked from; see `fastf1_payload.py`).
 `THROTTLE_DELAY` is re-exported here because that is where the licensing notes
 say to find it.
 """
@@ -78,13 +78,3 @@ class BaseIngestor(ABC):
 
     def log(self, message: str) -> None:
         logger.info(f"[{self.__class__.__name__}] {message}")
-
-    def build_abbr_to_driver_id(
-        self,
-        abbrs: Iterable[str],
-        code_to_id: dict[str, str],
-    ) -> dict[str, str]:
-        return build_abbr_to_driver_id(abbrs, code_to_id)
-
-    def race_entrant_codes(self, race_id: str) -> dict[str, str]:
-        return race_entrant_codes(self.db, race_id)

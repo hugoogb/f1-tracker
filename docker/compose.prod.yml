@@ -125,9 +125,7 @@ services:
     environment: *direct-env
     entrypoint: ['/usr/bin/tini', '--', 'python', 'scripts/seed.py']
     # The f1db ingestors upsert the whole dataset from one release download, so
-    # this both bootstraps an empty database and updates a populated one. Backup
-    # and restore are skipped: those shell out to the Docker CLI, which this
-    # container deliberately does not have.
+    # this both bootstraps an empty database and updates a populated one.
     command:
       [
         '--base',
@@ -141,8 +139,6 @@ services:
         '--pitstops',
         '--postprocess',
         '--current-year',
-        '--no-restore',
-        '--no-backup',
       ]
     volumes:
       - f1dbcache:/app/.f1db_cache
