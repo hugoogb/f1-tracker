@@ -353,6 +353,13 @@ export function useIsFavourite(type: FavouriteType, ref: string): boolean {
   return useSyncExternalStore(subscribe, read, () => false)
 }
 
+/** The page a favourite links to. */
+export function favouriteHref(favourite: Favourite): string {
+  if (favourite.type === 'driver') return `/drivers/${favourite.ref}`
+  if (favourite.type === 'constructor') return `/constructors/${favourite.ref}`
+  return `/circuits/${favourite.ref}`
+}
+
 /** Splits a stored display name into the two initials an avatar needs. */
 export function nameParts(name: string): { firstName: string; lastName: string } {
   const words = name.trim().split(/\s+/)

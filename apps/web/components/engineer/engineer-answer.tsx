@@ -3,11 +3,6 @@ import Link from 'next/link'
 import { isSameOriginPath, tokenizeAnswer } from '@/lib/engineer-markdown'
 import { cn } from '@/lib/utils'
 
-/** How an answer's link renders: a site path is a link, anything else stays text. */
-export function linkTarget(href: string): 'internal' | 'text' {
-  return isSameOriginPath(href) ? 'internal' : 'text'
-}
-
 /**
  * The assistant's answer in its tiny markdown subset. Only same-origin paths
  * become links (client-side, so the sheet stays open); an external or scripted
@@ -29,7 +24,8 @@ export function EngineerAnswer({ content }: { content: string }) {
           case 'break':
             return <br key={i} />
           case 'link':
-            return linkTarget(token.href) === 'internal' ? (
+            // A site path is a link; anything else stays text.
+            return isSameOriginPath(token.href) ? (
               <Link
                 key={i}
                 href={token.href}
