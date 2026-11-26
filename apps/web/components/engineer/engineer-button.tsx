@@ -2,12 +2,12 @@
 
 import { useEffect, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
-import { Radio } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet'
 import { Skeleton } from '@/components/ui/skeleton'
 import { isTypingTarget } from '@/lib/keyboard'
+import { EngineerAvatar } from './engineer-avatar'
 
 function LoadingSheet() {
   return (
@@ -71,7 +71,7 @@ export function EngineerButton() {
         aria-expanded={open}
         onClick={() => toggle(!open)}
       >
-        <Radio className="size-4" aria-hidden />
+        <EngineerAvatar size="sm" />
       </Button>
       {opened && <EngineerSheet open={open} onOpenChange={toggle} />}
     </>

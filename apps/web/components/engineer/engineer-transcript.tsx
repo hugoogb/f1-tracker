@@ -7,6 +7,7 @@ import { buttonVariants } from '@/components/ui/button-variants'
 import type { EngineerMessage, EngineerStatus } from '@/lib/engineer-types'
 import { cn } from '@/lib/utils'
 import { EngineerAnswer } from './engineer-answer'
+import { EngineerAvatar } from './engineer-avatar'
 
 const NOTICES: Partial<Record<EngineerStatus['kind'], string>> = {
   budget: 'The engineer is off the radio for today. Try again tomorrow.',
@@ -40,40 +41,43 @@ export function EngineerTranscript({
             </p>
           </div>
         ) : (
-          <div key={message.id} className="space-y-1.5">
-            {message.notice ? (
-              <p className="text-muted-foreground font-data text-xs">{message.content}</p>
-            ) : (
-              <EngineerAnswer content={message.content} />
-            )}
-            {message.ledgerId && (
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  aria-label="Good answer"
-                  aria-pressed={message.thumbs === 1}
-                  onClick={() => onFeedback(message.id, 1)}
-                  className={cn(
-                    buttonVariants({ variant: 'ghost', size: 'icon-xs' }),
-                    message.thumbs === 1 && 'text-positive',
-                  )}
-                >
-                  <ThumbsUp aria-hidden />
-                </button>
-                <button
-                  type="button"
-                  aria-label="Bad answer"
-                  aria-pressed={message.thumbs === -1}
-                  onClick={() => onFeedback(message.id, -1)}
-                  className={cn(
-                    buttonVariants({ variant: 'ghost', size: 'icon-xs' }),
-                    message.thumbs === -1 && 'text-negative',
-                  )}
-                >
-                  <ThumbsDown aria-hidden />
-                </button>
-              </div>
-            )}
+          <div key={message.id} className="flex items-start gap-2.5">
+            <EngineerAvatar className="mt-0.5" />
+            <div className="min-w-0 flex-1 space-y-1.5">
+              {message.notice ? (
+                <p className="text-muted-foreground font-data text-xs">{message.content}</p>
+              ) : (
+                <EngineerAnswer content={message.content} />
+              )}
+              {message.ledgerId && (
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    aria-label="Good answer"
+                    aria-pressed={message.thumbs === 1}
+                    onClick={() => onFeedback(message.id, 1)}
+                    className={cn(
+                      buttonVariants({ variant: 'ghost', size: 'icon-xs' }),
+                      message.thumbs === 1 && 'text-positive',
+                    )}
+                  >
+                    <ThumbsUp aria-hidden />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Bad answer"
+                    aria-pressed={message.thumbs === -1}
+                    onClick={() => onFeedback(message.id, -1)}
+                    className={cn(
+                      buttonVariants({ variant: 'ghost', size: 'icon-xs' }),
+                      message.thumbs === -1 && 'text-negative',
+                    )}
+                  >
+                    <ThumbsDown aria-hidden />
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         ),
       )}
