@@ -84,7 +84,7 @@ daily and on any purge, since it reads `f1-global`), `robots.ts`, `manifest.ts`,
 - `components/favourites/` - Star toggle, favourites view, home-page summary, stale-refresh hook
 - `components/ops/` - `time-ago.tsx` (relative timestamps on `/status`, via `useNow()`)
 - `components/seo/` - `json-ld.tsx` (schema.org graph) and `og-card.tsx` (shared card chrome for every `opengraph-image` route)
-- `components/engineer/` - The Race Engineer chat sidebar: `engineer-button.tsx` (mounted in the header only when `NEXT_PUBLIC_CHAT_ENABLED === 'true'`; `dynamic()`-imports `engineer-sheet.tsx` with `ssr: false` after the first open), transcript, answer renderer. State in `lib/use-engineer.ts` (SSE, transcript in `sessionStorage` `f1-engineer:v1`), with `lib/engineer-{types,sse,markdown,prompts}.ts`. ⌘J / Ctrl+J opens it
+- `components/engineer/` - The Race Engineer chat sidebar: `engineer-avatar.tsx` (the engineer's fixed-seed robot from `@avatar-generator/style-robots`, on the launcher and beside every answer; never used for drivers or constructors), `engineer-button.tsx` (mounted in the header only when `NEXT_PUBLIC_CHAT_ENABLED === 'true'`; `dynamic()`-imports `engineer-sheet.tsx` with `ssr: false` after the first open), transcript, answer renderer. State in `lib/use-engineer.ts` (SSE, transcript in `sessionStorage` `f1-engineer:v1`), with `lib/engineer-{types,sse,markdown,prompts}.ts`. ⌘J / Ctrl+J opens it
 - Root: pagination, list-filter, error-boundary
 
 ### Backend Endpoints
@@ -290,7 +290,7 @@ Two f1db quirks the UI is built around:
   `side-a/b`, `tyre-*`, `positive/negative`, `chart-1..5`). No hex/oklch literals or raw palette classes
   (`text-blue-500`) in components; the only literals live in `lib/chart-theme.ts` (computed heatmap scale, the
   best-seasons score set), `lib/map-theme.ts` (Leaflet needs concrete values), `components/seo/*` (Satori cannot
-  read CSS variables), `lib/utils.ts`'s `teamColorOf` default (the OG cards use it) and `lib/seo.ts`/`manifest.ts`
+  read CSS variables), `components/engineer/engineer-avatar.tsx` (the robot is a data-URI `<img>`, which cannot either), `lib/utils.ts`'s `teamColorOf` default (the OG cards use it) and `lib/seo.ts`/`manifest.ts`
 - **Livery**: `var(--accent-livery)` (default red) drives brackets, meters, tabs underline and hero stripe; set it
   with `liveryStyle(color)` (`lib/livery.ts`) on a page root or one panel. A driver page uses
   `latestTeamColor(seasons)` — the most recent team, red when that team has no colour, never an older team's.
