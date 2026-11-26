@@ -54,7 +54,6 @@ class CircuitLayoutIngestor(BaseIngestor):
     def ingest(self) -> None:
         data = f1db.load()
 
-        # layout id -> set of years it was actually raced on
         years_by_layout: dict[str, set[int]] = {}
         for race in data.races:
             layout_id = race.get("circuitLayoutId")

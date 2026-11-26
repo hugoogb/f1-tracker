@@ -28,9 +28,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from src.cli import parse_year_range  # noqa: E402
 from src.db.database import SessionLocal  # noqa: E402
 from src.ingestion.fastf1_payload import KINDS  # noqa: E402
-
-# The backlog query itself lives under src/ so /api/ops/status can share it —
-# the status page and this script must never disagree about what is missing.
 from src.ingestion.fastf1_targets import find_targets  # noqa: E402
 
 

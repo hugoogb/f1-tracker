@@ -46,7 +46,6 @@ def season_1988(db):
                 date=date(1988, 4, rnd),
             )
         )
-        # Senna wins both; Prost is second twice but scores more elsewhere below.
         db.add(
             RaceResult(
                 id=f"{rid}_R_ayrton-senna",

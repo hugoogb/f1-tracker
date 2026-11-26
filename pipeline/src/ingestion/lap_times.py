@@ -10,7 +10,6 @@ from sqlalchemy.orm import Session
 
 from src.db.models import LapTime
 
-# Fast-F1's live timing archive starts here; before it there is no lap data.
 FIRST_LAP_DATA_YEAR = 2018
 
 

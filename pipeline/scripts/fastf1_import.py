@@ -152,7 +152,6 @@ def main() -> int:
         f"Imported {imported} session(s), {written_total} row(s), "
         f"{len(touched)} race(s) touched, {skipped} skipped"
     )
-    # An empty or entirely unusable payload should not look like a success.
     return 0 if imported or not skipped else 1
 
 

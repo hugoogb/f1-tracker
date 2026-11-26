@@ -35,7 +35,6 @@ def decide(days: int) -> tuple[bool, str]:
     except Exception as e:  # noqa: BLE001 — fail open on any fetch error
         return True, f"could not load f1db ({e}); failing open"
 
-    # Find the most recent race date this season that is on or before today.
     past_dates = []
     for race in data.races:
         if int(race.get("year", 0)) != today.year:

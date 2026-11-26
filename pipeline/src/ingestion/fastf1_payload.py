@@ -160,8 +160,6 @@ def _open_for_read(path: Path | None) -> tuple[BinaryIO, BinaryIO | None]:
         raw = open(path, "rb")
         owned = raw
 
-    # Sniff rather than trust the extension: the payload also arrives on stdin,
-    # where there is no name to go by.
     try:
         magic = raw.peek(2)[:2]  # type: ignore[attr-defined]
     except AttributeError:

@@ -128,8 +128,6 @@ def get_constructor_lineage(ref: str, db: Session = Depends(get_db)):
     if not constructor:
         raise HTTPException(status_code=404, detail="Constructor not found")
 
-    # `.first()`, not `.scalar_one()`: a constructor can hold several slots in
-    # its own chain, and they all name the same lineage.
     lineage_ref = (
         db.execute(
             select(ConstructorLineage.lineage_ref).where(
@@ -157,10 +155,6 @@ def get_constructor_lineage(ref: str, db: Session = Depends(get_db)):
         .all()
     )
 
-    # One grouped pass over every member's results, rather than a query each.
-    # Grouped by season as well as constructor, because a stint is a span of
-    # years: Sauber's two spells either side of BMW are separate slots, and
-    # crediting each with the whole of Sauber's record would count it twice.
     member_ids = [m.constructor_id for m in members]
     stat_rows = db.execute(
         select(
@@ -176,8 +170,6 @@ def get_constructor_lineage(ref: str, db: Session = Depends(get_db)):
         .group_by(RaceResult.constructor_id, Race.season_year)
     ).all()
 
-    # Constructors' titles: P1 at each season's final round, like every other
-    # title reader (a season still running has no table there yet).
     title_rows = db.execute(
         select(ConstructorStanding.constructor_id, Race.season_year)
         .join(Race, ConstructorStanding.race_id == Race.id)
@@ -185,7 +177,6 @@ def get_constructor_lineage(ref: str, db: Session = Depends(get_db)):
             ConstructorStanding.race_id.in_(final_round_race_ids()),
             ConstructorStanding.constructor_id.in_(member_ids),
             ConstructorStanding.position == 1,
-            # A pre-1958 table is a sum of points, not a championship anyone won.
             Race.season_year >= FIRST_CONSTRUCTORS_CHAMPIONSHIP,
         )
     ).all()
@@ -243,7 +234,6 @@ def get_constructor_seasons(ref: str, db: Session = Depends(get_db)):
         .order_by(Race.season_year.desc())
     ).all()
 
-    # Bulk-fetch championship positions: find last race with standings per season
     season_years = [row.season_year for row in season_stats]
     last_races_query = (
         select(

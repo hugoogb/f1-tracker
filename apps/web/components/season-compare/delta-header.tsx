@@ -7,9 +7,6 @@ import { formatPoints } from '@/lib/utils'
 import type { SideInfo } from './sides'
 import { buttonVariants } from '@/components/ui/button-variants'
 
-/**
- * The headline: who leads on points and by how much, in the leader's colour.
- */
 export function DeltaHeader({
   data,
   sides,

@@ -13,8 +13,6 @@ export async function generateMetadata({
 }) {
   const params = await searchParams
 
-  // Every pairing of ~900 drivers is its own URL, so the results are kept out
-  // of the index and `/compare` is the canonical entry point for them.
   const seo = (title: string, description: string) =>
     buildMetadata({ title, description, path: '/compare', noindex: true })
 

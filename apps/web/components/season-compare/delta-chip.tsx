@@ -3,12 +3,6 @@ import { signed, type SideInfo } from './sides'
 
 export type Better = 'higher' | 'lower' | 'neutral'
 
-/**
- * A signed A − B delta, tinted with the colour of whichever side it favours.
- *
- * The sign is always A minus B, as the API returns it; `better` says which way
- * is good for this stat, so a −1.5 average finish reads as A's advantage.
- */
 export function DeltaChip({
   delta,
   better,
@@ -45,7 +39,6 @@ export function DeltaChip({
         favoured
           ? {
               color: favoured.color,
-              // color-mix rather than a hex alpha suffix: the colour may be a CSS variable.
               borderColor: `color-mix(in oklch, ${favoured.color} 40%, transparent)`,
               backgroundColor: `color-mix(in oklch, ${favoured.color} 10%, transparent)`,
             }

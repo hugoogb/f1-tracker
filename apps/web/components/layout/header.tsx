@@ -8,7 +8,6 @@ import { MainNav } from './main-nav'
 import { MobileNav } from './mobile-nav'
 import { CommandSearch } from './command-search'
 
-/** Renders on every page and fetches nothing, so it never adds a cache tag. */
 export function Header() {
   return (
     <header className="bg-surface-0 border-hairline sticky top-0 z-40 border-b">

@@ -10,13 +10,11 @@ interface StatCardProps {
   value: number | string
   icon?: LucideIcon
   href?: string
-  /** A team colour: tints the brackets and the edge strip. */
   color?: string
   description?: string
   className?: string
 }
 
-/** A telemetry readout: label, one big display-type number, a footnote. */
 export function StatCard({
   label,
   value,

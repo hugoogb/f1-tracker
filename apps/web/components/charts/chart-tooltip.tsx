@@ -4,11 +4,6 @@ import type { ReactNode } from 'react'
 
 import { cn } from '@/lib/utils'
 
-/**
- * The shared tooltip chrome: a small bracketed readout panel. Charts with
- * their own tooltip content wrap it in this; charts without use
- * `ChartTooltip`, which renders the label and one row per series.
- */
 export function TooltipFrame({
   title,
   children,
@@ -26,7 +21,6 @@ export function TooltipFrame({
   )
 }
 
-/** One coloured row of a tooltip. */
 export function TooltipRow({
   color,
   name,
@@ -63,7 +57,6 @@ interface ChartTooltipProps {
   formatValue?: (value: number, name: string) => ReactNode
 }
 
-/** Generic tooltip content: `<Tooltip content={<ChartTooltip />} />`. */
 export function ChartTooltip({
   active,
   payload,

@@ -11,7 +11,6 @@ def test_great_circle_zero_for_same_point():
 
 
 def test_great_circle_known_distance():
-    # London Heathrow to New York JFK is ~5,540 km great-circle.
     assert great_circle_km(51.47, -0.4543, 40.6413, -73.7781) == pytest.approx(5540, rel=0.01)
 
 
@@ -98,7 +97,6 @@ def test_calendar_rounds_in_order_with_coordinates(client, calendar_data):
 
 def test_calendar_picks_the_layout_active_that_year(client, calendar_data):
     rounds = client.get("/api/seasons/2023/calendar").json()["rounds"]
-    # Monza has two layouts in the fixture; only monza-7 covers 2023.
     assert rounds[0]["circuit"]["layoutSvgId"] == "monza-7"
     assert rounds[1]["circuit"]["layoutSvgId"] == "silverstone-8"
 
@@ -114,8 +112,6 @@ def test_calendar_winner_for_raced_round_and_null_for_future(client, calendar_da
 
 
 def test_calendar_shared_drive_reports_the_starting_driver(client, calendar_data, db):
-    # Two classified winners for one race (a 1950s shared drive): the one who
-    # started the car, i.e. the lower grid slot, is reported.
     co_driver = db.get(RaceResult, "result-2")
     co_driver.position = 1
     co_driver.position_text = "1"
@@ -130,7 +126,6 @@ def test_calendar_leg_and_total_distance(client, calendar_data):
     assert first["legKm"] is None
     expected = great_circle_km(45.6156, 9.2811, 52.0786, -1.0169)
     assert second["legKm"] == pytest.approx(expected, abs=0.1)
-    # Monza to Silverstone is roughly 1,000 km as the crow flies.
     assert 950 < second["legKm"] < 1050
     assert data["totalKm"] == pytest.approx(expected, abs=0.1)
 

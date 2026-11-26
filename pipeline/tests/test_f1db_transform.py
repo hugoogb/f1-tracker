@@ -31,7 +31,6 @@ class TestFormatYears:
             ({1950}, "1950"),
             ({1950, 1951, 1952}, "1950-1952"),
             ({1950, 1952}, "1950,1952"),
-            # Matches the hand-maintained table this replaced (Austin).
             ({*range(2012, 2020), *range(2021, 2027)}, "2012-2019,2021-2026"),
             (set(), ""),
         ],

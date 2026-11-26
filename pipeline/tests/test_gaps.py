@@ -71,9 +71,6 @@ def add_laps(db, driver_id, *, lap_ms, laps=RACE_LAPS, blank_lap=None, compound=
     db.commit()
 
 
-# --- gaps -------------------------------------------------------------------
-
-
 def test_gap_to_leader_grows_by_the_pace_difference(client, db, race):
     add_laps(db, "d1", lap_ms=LEADER_LAP_MS)
     add_laps(db, "d2", lap_ms=LEADER_LAP_MS + 500)
@@ -81,9 +78,7 @@ def test_gap_to_leader_grows_by_the_pace_difference(client, db, race):
     body = client.get("/api/seasons/2024/races/1/gaps").json()
     by_ref = {d["driver"]["ref"]: d["gaps"] for d in body["drivers"]}
 
-    # The leader is its own reference, so its line sits flat on zero.
     assert {g["gapMs"] for g in by_ref["driver-1"]} == {0}
-    # Half a second a lap, ten laps.
     assert by_ref["driver-2"][0]["gapMs"] == 500
     assert by_ref["driver-2"][-1]["gapMs"] == 5_000
 
@@ -129,9 +124,6 @@ def test_gaps_for_a_race_with_no_timing_data(client, db, race):
 
 def test_gaps_for_an_unknown_race_is_404(client, db, race):
     assert client.get("/api/seasons/2024/races/99/gaps").status_code == 404
-
-
-# --- degradation ------------------------------------------------------------
 
 
 def add_stint(db, driver_id, compound, times_by_age, *, start_lap=2):

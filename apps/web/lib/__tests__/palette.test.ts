@@ -3,7 +3,6 @@ import { isCurrentFor, paletteGroupOrder } from '@/lib/palette'
 
 describe('paletteGroupOrder', () => {
   it('puts people before pages unless a page title starts with the query', () => {
-    // "ver" matches the Compare pages only by their "versus" keyword.
     const order = paletteGroupOrder('ver', false)
     expect(order.indexOf('drivers')).toBeLessThan(order.indexOf('pages'))
   })

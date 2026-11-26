@@ -2,7 +2,7 @@
 
 import pytest
 
-from scripts import seed  # isort: skip
+from scripts import seed
 
 
 @pytest.fixture()

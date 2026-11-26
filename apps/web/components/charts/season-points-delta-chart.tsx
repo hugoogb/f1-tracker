@@ -39,14 +39,6 @@ interface RoundPoint {
   delta: number
 }
 
-/**
- * Both sides' cumulative official points, with the gap between them beneath.
- *
- * The gap is drawn as one bar per round above or below a zero line, each bar in
- * the colour of whoever was ahead after that round, so the rounds where the
- * lead changed hands are exactly where the bars flip sides. The two charts
- * share a `syncId`, so hovering one round highlights it in both.
- */
 export function SeasonPointsDeltaChart({
   rounds,
   sideA,

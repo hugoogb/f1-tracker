@@ -50,12 +50,8 @@ router = APIRouter()
 DEFAULT_RUN_LIMIT = 10
 MAX_RUN_LIMIT = 50
 
-# Enough to see the shape of the backlog without turning the endpoint into a
-# second copy of `fastf1_status.py`'s target list.
 BACKLOG_SAMPLE = 5
 
-# Same pattern as /stats, widened: the tables whose row counts say something
-# about whether the data is complete.
 _COUNTED_TABLES = {
     "seasons": Season,
     "races": Race,
@@ -80,8 +76,6 @@ def _coverage(db: Session) -> dict:
     ).one()
     total_races = db.execute(select(func.count()).select_from(Race)).scalar() or 0
 
-    # The most recent round that has actually been raced. Not the same as the
-    # last round on the calendar: mid-season the calendar runs months ahead.
     latest = db.execute(
         select(Race.season_year, Race.round, Race.date)
         .join(RaceResult, RaceResult.race_id == Race.id)
@@ -157,11 +151,6 @@ def _fastf1_backlog(db: Session) -> dict:
     }
 
 
-# Tables big enough that an exact COUNT(*) is not worth what it costs. Postgres
-# has no cached row count, so COUNT(*) is a sequential scan of the whole table —
-# `lap_times` is hundreds of thousands of rows and grows with every race. Behind
-# a 60-second cache that is ~1,440 scans a day on the shared production cluster,
-# to render a number nobody reads to the unit.
 _ESTIMATED_TABLES = {"lapTimes"}
 
 
@@ -179,8 +168,6 @@ def _estimate_rows(db: Session, table: str) -> int | None:
             {"name": table},
         ).scalar()
     except SQLAlchemyError:
-        # Not Postgres (the test suite runs on SQLite), or no permission on
-        # pg_class. Either way there is no estimate and COUNT(*) is the answer.
         return None
     return None if estimate is None or estimate < 0 else int(estimate)
 
@@ -213,7 +200,6 @@ def _serialise_run(run: IngestRun) -> dict:
         "finishedAt": utc_iso(run.finished_at),
         "rowsWritten": run.rows_written,
         "f1dbVersion": run.f1db_version,
-        # Deliberately a flag and not the message — see the module docstring.
         "failed": run.status == "error",
     }
 
@@ -235,8 +221,6 @@ def _ingest_runs(db: Session, limit: int) -> dict:
             select(func.max(IngestRun.finished_at)).where(IngestRun.status == "ok")
         ).scalar()
     except SQLAlchemyError:
-        # The failed statement leaves the session unusable, and this request has
-        # written nothing, so rolling back is free and keeps later reads working.
         db.rollback()
         return {"available": False, "runs": [], "lastSuccessAt": None}
 

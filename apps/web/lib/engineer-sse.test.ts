@@ -69,7 +69,6 @@ describe('createSseParser', () => {
     const p = createSseParser((e, d) => seen.push([e, d]))
     p.push('event: text\rdata: {"delta":"a"}\r\revent: done\rdata: {"id":"r"}\r')
     expect(seen).toEqual([['text', { delta: 'a' }]])
-    // A trailing CR could still be half of a CRLF, so it resolves on the next byte.
     p.push('\r')
     expect(seen).toEqual([['text', { delta: 'a' }]])
     p.push(': ping\r')

@@ -51,7 +51,6 @@ const DEFAULT: Prompts = [
   'Which season had the closest title fight?',
 ]
 
-/** Three starter questions for the page the reader is on, keyed by route pattern. */
 export function suggestedPrompts(path: string): [string, string, string] {
   const clean = path.split(/[?#]/)[0].replace(/\/+$/, '') || '/'
   if (clean === '/') return [...HOME]

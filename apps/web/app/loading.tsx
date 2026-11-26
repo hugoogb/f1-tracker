@@ -4,7 +4,6 @@ import { Panel, PanelContent, PanelHeader } from '@/components/ui/panel'
 export default function HomeLoading() {
   return (
     <div className="space-y-10">
-      {/* Hero skeleton */}
       <div className="relative mx-[-1.5rem] overflow-hidden md:mx-[-2rem]">
         <div className="px-6 py-16 md:px-8 md:py-20">
           <div className="mx-auto max-w-[1400px] space-y-4">
@@ -15,7 +14,6 @@ export default function HomeLoading() {
         </div>
       </div>
 
-      {/* Stat cards skeleton */}
       <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
         {Array.from({ length: 5 }).map((_, i) => (
           <Panel key={i} className="gap-4 py-5">
@@ -30,7 +28,6 @@ export default function HomeLoading() {
         ))}
       </div>
 
-      {/* Standings skeleton */}
       <div className="grid gap-6 md:grid-cols-2">
         {Array.from({ length: 2 }).map((_, i) => (
           <Panel key={i}>
@@ -47,7 +44,6 @@ export default function HomeLoading() {
         ))}
       </div>
 
-      {/* Calendar skeleton */}
       <Panel>
         <PanelHeader>
           <Skeleton className="h-6 w-32" />

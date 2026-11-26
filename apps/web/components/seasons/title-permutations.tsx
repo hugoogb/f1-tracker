@@ -17,12 +17,10 @@ interface TitlePermutationsProps {
   constructors?: ConstructorPermutationsResponse | null
 }
 
-/** A season with rounds left to run; a finished one's standings already answer it. */
 function isLive(data: PermutationsResponse<unknown> | null | undefined): boolean {
   return Boolean(data?.started && !data.seasonComplete && data.contenders.length > 0)
 }
 
-/** What a row needs, whichever championship it belongs to. */
 interface Row {
   key: string
   name: string
@@ -51,16 +49,6 @@ function constructorRows(data: ConstructorPermutationsResponse): Row[] {
   }))
 }
 
-/**
- * Who can still win the drivers' and constructors' titles, and what the
- * leader needs. Tabs when both are live, a single panel otherwise.
- *
- * "Still in it" is the strict mathematical test: out only once every remaining
- * point could not carry a contender past the leader's current total. That
- * assumes the leader never scores again, so the list stays longer than
- * anyone's realistic shortlist. The copy says as much rather than implying
- * these are all live contenders.
- */
 export function TitlePermutations({ drivers, constructors }: TitlePermutationsProps) {
   const driversLive = isLive(drivers)
   const constructorsLive = isLive(constructors)

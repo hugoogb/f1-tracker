@@ -77,14 +77,11 @@ def compare_drivers(d1: str, d2: str, teammate: bool = False, db: Session = Depe
     if not driver2:
         raise HTTPException(status_code=404, detail=f"Driver '{d2}' not found")
 
-    # Career stats
     stats1 = get_driver_career_stats(db, driver1.id)
     stats2 = get_driver_career_stats(db, driver2.id)
 
-    # Head-to-head: find races where both drivers participated
     head_to_head = _compute_driver_h2h(db, driver1.id, driver2.id)
 
-    # Season history for both drivers
     def get_driver_season_history(driver_id: str):
         rows = db.execute(
             select(
@@ -98,7 +95,6 @@ def compare_drivers(d1: str, d2: str, teammate: bool = False, db: Session = Depe
         ).all()
         return [{"year": row.season_year, "points": float(row.points or 0)} for row in rows]
 
-    # Teammate filtering: find races where both drove for same constructor
     teammate_race_ids = None
     if teammate:
         tm_r1 = RaceResult.__table__.alias("tm_r1")
@@ -118,7 +114,6 @@ def compare_drivers(d1: str, d2: str, teammate: bool = False, db: Session = Depe
         )
         teammate_race_ids = set(teammate_rows)
 
-    # Find teammate seasons regardless of filter
     tm_seasons_r1 = RaceResult.__table__.alias("tms_r1")
     tm_seasons_r2 = RaceResult.__table__.alias("tms_r2")
     tm_season_rows = (
@@ -142,12 +137,9 @@ def compare_drivers(d1: str, d2: str, teammate: bool = False, db: Session = Depe
     )
     teammate_seasons = list(tm_season_rows)
 
-    # Under the teammate filter only shared-team races count — none at all for
-    # two drivers who never shared a team.
     if teammate:
         head_to_head = _compute_driver_h2h(db, driver1.id, driver2.id, teammate_race_ids)
 
-    # Qualifying head-to-head
     q1_alias = QualifyingResult.__table__.alias("q1")
     q2_alias = QualifyingResult.__table__.alias("q2")
 
@@ -180,7 +172,6 @@ def compare_drivers(d1: str, d2: str, teammate: bool = False, db: Session = Depe
         )
     ).one()
 
-    # Radar stats (rate-based)
     def compute_radar(stats):
         total = stats.get("total_races", 0) or 1
         return {
@@ -225,7 +216,6 @@ def compare_constructors(c1: str, c2: str, db: Session = Depends(get_db)):
     stats1 = get_constructor_career_stats(db, con1.id)
     stats2 = get_constructor_career_stats(db, con2.id)
 
-    # Head-to-head: races where both constructors had a driver finish
     c1_races = select(RaceResult.race_id).where(RaceResult.constructor_id == con1.id).subquery()
     c2_races = select(RaceResult.race_id).where(RaceResult.constructor_id == con2.id).subquery()
     common_race_ids = (
@@ -234,11 +224,9 @@ def compare_constructors(c1: str, c2: str, db: Session = Depends(get_db)):
         .subquery()
     )
 
-    # Best finish per constructor per race
     r1 = RaceResult.__table__.alias("r1")
     r2 = RaceResult.__table__.alias("r2")
 
-    # Subqueries for best position per constructor per race
     best_c1 = (
         select(
             r1.c.race_id,
@@ -286,7 +274,6 @@ def compare_constructors(c1: str, c2: str, db: Session = Depends(get_db)):
         .join(best_c2, best_c1.c.race_id == best_c2.c.race_id)
     ).one()
 
-    # Season history for both constructors
     def get_constructor_season_history(constructor_id: str):
         rows = db.execute(
             select(

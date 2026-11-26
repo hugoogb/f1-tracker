@@ -22,11 +22,6 @@ function statusLabel(status: EngineerStatus): string {
     : STATUS_LABELS[status.kind]
 }
 
-/**
- * The Race Engineer sidebar. Loaded only once the reader first opens it, and
- * kept mounted by the header across navigation, so a link in an answer moves
- * the page underneath without losing the conversation.
- */
 export function EngineerSheet({
   open,
   onOpenChange,
@@ -44,13 +39,8 @@ export function EngineerSheet({
 
   const busy = status.kind === 'streaming' || status.kind === 'tool'
   const exhausted = turnsLeft <= 0
-  // Refused for now: a retry would only be refused again (and, for a cooldown,
-  // counted against the same window), so the composer waits it out.
   const held = status.kind === 'cooldown' || status.kind === 'budget'
 
-  // Opening is `initialFocus`'s job. The input is disabled while an answer
-  // streams, which drops its focus, so hand it back on the busy -> idle edge
-  // only, letting the next question follow.
   const wasBusy = useRef(busy)
   useEffect(() => {
     if (wasBusy.current && !busy && open) inputRef.current?.focus()

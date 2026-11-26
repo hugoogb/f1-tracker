@@ -28,7 +28,6 @@ from src.ingestion.fastf1_sessions import (
 
 logger = logging.getLogger(__name__)
 
-# Graceful shutdown flag — set by signal handlers in seed.py
 _interrupted = False
 
 
@@ -68,8 +67,6 @@ def race_entrant_codes(db: Session, race_id: str) -> dict[str, str]:
 class BaseIngestor(ABC):
     def __init__(self, db: Session):
         self.db = db
-        # Fast-F1's enable_cache requires the directory to exist; create it so a
-        # fresh environment (CI, cron, new clone) doesn't fail before ingesting.
         enable_cache()
 
     @abstractmethod

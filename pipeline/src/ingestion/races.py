@@ -18,7 +18,6 @@ from src.db.models import (
 from src.ingestion import f1db
 from src.ingestion.base import BaseIngestor
 
-# Child tables keyed by race_id, in FK-safe delete order (children before races).
 _RACE_CHILD_TABLES = (
     LapTime,
     PitStop,
@@ -68,9 +67,6 @@ def _parse_session(race: dict, prefix: str) -> datetime | None:
     return datetime.combine(day, moment)
 
 
-# f1db session key -> races column. Free practice 4, pre-qualifying, the split
-# qualifying 1/2 sessions and the warm-up are historical formats f1db has no
-# schedule for, so they are left out.
 _SESSIONS = {
     "freePractice1": "fp1_at",
     "freePractice2": "fp2_at",

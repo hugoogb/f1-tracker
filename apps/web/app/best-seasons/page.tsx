@@ -28,10 +28,6 @@ export const metadata = buildMetadata({
   imageAlt: 'The greatest Formula 1 championship seasons, ranked',
 })
 
-/**
- * A points system's season range, from its `era` string: "1950-1959", a single
- * "1960", or an open-ended "2025-" that runs to the latest ranked season.
- */
 function toChartEra(system: PointsSystem, latest: number): ChartEra {
   const [start, end] = system.era.split('-')
   const from = parseInt(start, 10)
@@ -62,7 +58,6 @@ export default async function BestSeasonsPage() {
     api.pointsSystems(),
   ])
 
-  // The ranking is the page; without it there is nothing to show but an error.
   if (rankings.status === 'rejected') throw rankings.reason
 
   const { seasons, components, notes } = rankings.value
@@ -155,8 +150,6 @@ export default async function BestSeasonsPage() {
             <ScoreLegend components={components} />
           </PanelHeader>
           <PanelContent>
-            {/* `useSearchParams` in the table needs a boundary; everything above
-                stays in the prerendered HTML. */}
             <Suspense fallback={<Skeleton className="h-96 w-full" />}>
               <BestSeasonsTable seasons={seasons} eras={eras} />
             </Suspense>

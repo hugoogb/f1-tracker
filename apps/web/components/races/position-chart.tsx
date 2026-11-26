@@ -17,9 +17,7 @@ import type { DriverPositions } from '@/lib/types'
 
 interface PositionChartProps {
   drivers: DriverPositions[]
-  /** The race distance — the x-axis, regardless of how far the data reaches. */
   totalLaps: number
-  /** How many laps the reconstruction covers; short of `totalLaps` when timing is patchy. */
   coveredLaps?: number
 }
 
@@ -82,8 +80,6 @@ export function PositionChart({ drivers, totalLaps, coveredLaps }: PositionChart
 
   const maxPosition = Math.max(...drivers.flatMap((d) => d.positions.map((p) => p.position)), 20)
 
-  // Positions are derived from cumulative lap times, so a driver's line ends at
-  // their first lap with no time and no sector times to stand in for it.
   const short = coveredLaps !== undefined && coveredLaps > 0 && coveredLaps < totalLaps
 
   return (

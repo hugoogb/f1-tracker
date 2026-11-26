@@ -7,21 +7,10 @@ import type {
 } from '@/lib/types'
 import type { RecordRanking } from '@/lib/seo-landing'
 
-/**
- * One paragraph per detail page, written from that page's own data, so ~2,500
- * pages built from a handful of templates each say something no other page says.
- *
- * Everything is a pure function of its arguments and goes into cached HTML, so
- * nothing here reads a clock or a locale (`group()` rather than `toLocaleString`).
- * The wording never uses a pronoun for a driver: the data does not say.
- */
-
-/** 63214 -> "63,214". A fixed format, so a regeneration cannot change the bytes. */
 export function group(n: number): string {
   return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
 }
 
-/** 395.5 stays, 386.00 -> "386", and thousands group as `group()` does. */
 function points(n: number): string {
   const [whole, fraction] = String(Math.round(n * 100) / 100).split('.')
   return fraction ? `${group(Number(whole))}.${fraction}` : group(Number(whole))
@@ -29,17 +18,11 @@ function points(n: number): string {
 
 const plural = (n: number, one: string, many = `${one}s`) => `${group(n)} ${n === 1 ? one : many}`
 
-/** ["a", "b", "c"] -> "a, b and c". */
 export function listOf(items: readonly string[]): string {
   if (items.length <= 1) return items[0] ?? ''
   return `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`
 }
 
-/**
- * "spans 11 seasons between 1984 and 1994". Present tense, so it reads true of a
- * career that is over and one that is not. Years are deduplicated: a driver who
- * changed teams mid-season has two rows for that year.
- */
 function careerSpan(years: readonly number[]): string {
   const distinct = new Set(years)
   const first = Math.min(...years)
@@ -48,7 +31,6 @@ function careerSpan(years: readonly number[]): string {
   return `spans ${plural(distinct.size, 'season')} between ${first} and ${last}`
 }
 
-/** "12 starts brought 3 podiums", naming only what there was to name. */
 function tally(base: string, achievements: readonly [number, string, string?][]): string {
   const earned = achievements.filter(([n]) => n > 0).map(([n, one, many]) => plural(n, one, many))
   return earned.length > 0
@@ -56,7 +38,6 @@ function tally(base: string, achievements: readonly [number, string, string?][])
     : `${base}, with no win or podium.`
 }
 
-/** A title list, capped so a five-time champion's sentence stays a sentence. */
 function capped(names: readonly string[], max: number): string {
   if (names.length <= max) return listOf(names)
   return `${names.slice(0, max).join(', ')} and ${plural(names.length - max, 'other')}`
@@ -73,7 +54,6 @@ export function driverSummary(input: {
     championships: number
   }
   seasons: readonly DriverSeasonSummary[]
-  /** A season this recent may still be running, so its table is not yet a result. */
   currentYear: number
 }): string {
   const { name, nationality, stats, seasons, currentYear } = input
@@ -108,9 +88,6 @@ function driverPeak(
   chronological: readonly DriverSeasonSummary[],
   currentYear: number,
 ): string {
-  // `championshipPosition` is 1 for whoever leads a season still running. The
-  // title count comes from the official table, so taking that many from the
-  // oldest end leaves out a lead that is not yet a title.
   const titles = [
     ...new Set(chronological.filter((s) => s.championshipPosition === 1).map((s) => s.year)),
   ].slice(0, championships)
@@ -127,7 +104,6 @@ function driverPeak(
   return `Best championship finish: P${best.championshipPosition} in ${best.year}.`
 }
 
-/** The first constructors' title. A table before this year only sums points. */
 const FIRST_CONSTRUCTORS_CHAMPIONSHIP = 1958
 
 export function constructorSummary(input: {
@@ -135,7 +111,6 @@ export function constructorSummary(input: {
   nationality: string | null
   stats: { total_entries: number; wins: number; podiums: number }
   seasons: readonly ConstructorSeasonSummary[]
-  /** Seasons before this are over, so a P1 in one of them is a title and not a lead. */
   currentYear: number
 }): string {
   const { name, nationality, stats, seasons, currentYear } = input
@@ -213,7 +188,6 @@ interface StandingRow {
   position: number | null
 }
 
-/** "8 points ahead of X", or that the two finished level. */
 function margin(leader: StandingRow, second: StandingRow | undefined, secondName?: string) {
   if (!second || !secondName) return ''
   const gap = leader.points - second.points
@@ -287,7 +261,6 @@ export function raceSummary(input: {
 }): string | null {
   const { year, raceName, circuit, results, fastestLap } = input
   const winners = results.filter((r) => r.position === 1)
-  // Not run yet: the page's schedule already says everything there is to say.
   if (winners.length === 0) return null
 
   const name = (d: { firstName: string; lastName: string }) => `${d.firstName} ${d.lastName}`
@@ -295,7 +268,6 @@ export function raceSummary(input: {
   const parts: string[] = []
 
   if (winners.length > 1) {
-    // Shared drives in the 1950s classify two drivers first.
     parts.push(
       `${listOf(winners.map((w) => name(w.driver)))} shared the win in the ${year} ${raceName} at ${place}.`,
     )
@@ -373,7 +345,6 @@ export function constructorPairSummary(input: {
   return `${one.name} and ${two.name} have met in ${plural(race.totalRaces, 'race')}. ${duel(one.name, two.name, race.constructor1Wins, race.constructor2Wins, 'had the better result')} ${career}`
 }
 
-/** A value as its category reads: a count, a points total or a percentage. */
 export function formatRecordValue(value: number, format: RecordsExploreResponse['format']): string {
   if (format === 'percent') return `${(value * 100).toFixed(1)}%`
   if (format === 'decimal') return points(value)

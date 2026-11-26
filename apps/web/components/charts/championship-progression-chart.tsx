@@ -75,7 +75,6 @@ export function ChampionshipProgressionChart({
   drivers,
   entries: entriesProp,
 }: ChampionshipProgressionChartProps) {
-  // Support both 'drivers' (legacy) and 'entries' (generic) props
   const items: ChartEntry[] = entriesProp ?? drivers ?? []
 
   if (rounds.length === 0 || items.length === 0) return null

@@ -79,7 +79,6 @@ class StandingsIngestor(BaseIngestor):
         constructor_total = 0
 
         for season in seasons:
-            # Find the last race that has results (not just scheduled)
             last_race = self.db.execute(
                 select(Race)
                 .where(
@@ -93,7 +92,6 @@ class StandingsIngestor(BaseIngestor):
             if not last_race:
                 continue
 
-            # Always delete and recompute to ensure correctness
             season_race_ids = select(Race.id).where(Race.season_year == season.year)
             self.db.execute(
                 delete(DriverStanding).where(DriverStanding.race_id.in_(season_race_ids))
@@ -145,7 +143,6 @@ class StandingsIngestor(BaseIngestor):
                 RaceResult.race_id.in_([r.id for r in raced]), RaceResult.position == 1
             )
         ).all():
-            # Shared drives (1950s) can list two winners; the first one stands.
             winners.setdefault(rid, (driver_id, constructor_id))
 
         known_drivers = set(self.db.execute(select(Driver.id)).scalars().all())
@@ -247,7 +244,6 @@ class StandingsIngestor(BaseIngestor):
 
     def _compute_driver_standings(self, year: int, last_race_id: str) -> int:
         """Sum points + count wins from race_results and sprint_results for a season."""
-        # Only include races that have results
         race_ids = (
             self.db.execute(
                 select(Race.id).where(
@@ -262,7 +258,6 @@ class StandingsIngestor(BaseIngestor):
         if not race_ids:
             return 0
 
-        # Race points + wins
         race_stats = dict(
             self.db.execute(
                 select(
@@ -285,7 +280,6 @@ class StandingsIngestor(BaseIngestor):
         ).all():
             race_wins[row[0]] = row[1]
 
-        # Sprint points (2021+)
         sprint_pts: dict[str, float] = {}
         if year >= 2021:
             for row in self.db.execute(
@@ -298,7 +292,6 @@ class StandingsIngestor(BaseIngestor):
             ).all():
                 sprint_pts[row[0]] = float(row[1])
 
-        # Merge and rank
         all_drivers = set(race_stats.keys()) | set(sprint_pts.keys())
         standings = []
         for driver_id in all_drivers:
@@ -306,7 +299,6 @@ class StandingsIngestor(BaseIngestor):
             wins = race_wins.get(driver_id, 0)
             standings.append((driver_id, total_pts, wins))
 
-        # Sort by points desc, then wins desc
         standings.sort(key=lambda x: (x[1], x[2]), reverse=True)
 
         for pos, (driver_id, pts, wins) in enumerate(standings, 1):
@@ -325,7 +317,6 @@ class StandingsIngestor(BaseIngestor):
 
     def _compute_constructor_standings(self, year: int, last_race_id: str) -> int:
         """Sum points + count wins from race_results and sprint_results for a season."""
-        # Only include races that have results
         race_ids = (
             self.db.execute(
                 select(Race.id).where(
@@ -340,7 +331,6 @@ class StandingsIngestor(BaseIngestor):
         if not race_ids:
             return 0
 
-        # Race points + wins
         race_stats = dict(
             self.db.execute(
                 select(
@@ -363,7 +353,6 @@ class StandingsIngestor(BaseIngestor):
         ).all():
             race_wins[row[0]] = row[1]
 
-        # Sprint points (2021+)
         sprint_pts: dict[str, float] = {}
         if year >= 2021:
             for row in self.db.execute(
@@ -376,7 +365,6 @@ class StandingsIngestor(BaseIngestor):
             ).all():
                 sprint_pts[row[0]] = float(row[1])
 
-        # Merge and rank
         all_constructors = set(race_stats.keys()) | set(sprint_pts.keys())
         standings = []
         for cid in all_constructors:

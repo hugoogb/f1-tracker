@@ -28,13 +28,8 @@ import {
 } from './season-calendar-projection'
 import styles from './season-calendar-map.module.css'
 
-// Landmass from bundled Natural Earth geometry (public domain), exactly as the
-// circuits map draws it — never raster tiles, which would bring an attribution
-// requirement and a non-commercial restriction with them.
 const WORLD_GEOJSON_URL = '/geo/world.geo.json'
 
-// One request per page view however many maps mount (home + season page, tab
-// switches, Strict Mode's double effects).
 let worldPromise: Promise<FeatureCollection | null> | null = null
 function loadWorld(): Promise<FeatureCollection | null> {
   worldPromise ??= fetch(WORLD_GEOJSON_URL)
@@ -43,23 +38,13 @@ function loadWorld(): Promise<FeatureCollection | null> {
   return worldPromise
 }
 
-/**
- * Everything but the markers is drawn on one canvas in its own pane, under the
- * marker pane (600). Leaflet's vector layers are deliberately not used: their
- * renderers only re-project on `moveend` and CSS-scale the last frame during a
- * flight, so a line updated mid-flight is projected twice — it drifts off the
- * glyph, swells, and the land visibly re-rasterises when the flight lands.
- * The canvas is redrawn from the live view on every `move` instead.
- */
 const CANVAS_PANE = 'calendar-canvas'
 
 const MARKER_SIZE = 24
 const STOP_ZOOM = { compact: 3.5, wide: 4.25 }
 const MIN_ZOOM = 0
 const MAX_ZOOM = 9
-/** Screen length of the white-hot head of the leg being flown. */
 const COMET_PX = 90
-/** Mercator explodes towards the poles; the overview frames latitudes up to here. */
 const OVERVIEW_MAX_LAT = 80
 
 interface SeasonCalendarCanvasProps {
@@ -93,11 +78,8 @@ export function SeasonCalendarCanvas({
     }
   }, [])
 
-  // Projected once per season; every frame after that is a scale and offset.
   const projected = useMemo(() => legs.map((leg) => (leg ? projectPath(leg.path) : null)), [legs])
 
-  // On a touch screen a one-finger drag has to scroll the page, not pan the
-  // map — two fingers still pan and pinch-zoom it.
   const touch = L.Browser.mobile
 
   return (
@@ -106,20 +88,14 @@ export function SeasonCalendarCanvas({
       zoom={2}
       minZoom={MIN_ZOOM}
       maxZoom={MAX_ZOOM}
-      // Fractional zooms everywhere: the chase camera moves continuously, and
-      // snapping would step it in visible jumps.
       zoomSnap={0}
       zoomDelta={0.5}
-      // Leaflet's CSS zoom animation would scale the markers but not the
-      // canvas; zooms are flights instead (see ZoomButtons).
       zoomAnimation={false}
       scrollWheelZoom={false}
       dragging={!touch}
       touchZoom
       attributionControl={false}
       zoomControl={false}
-      // The world repeats sideways (the canvas draws every visible copy and the
-      // markers follow the copy in view), so only latitude is bounded.
       maxBounds={[
         [-80, -100_000],
         [86, 100_000],
@@ -135,9 +111,6 @@ export function SeasonCalendarCanvas({
   )
 }
 
-// ── Canvas ──────────────────────────────────────────────────────────────────
-
-/** Land as one Path2D in zoom-0 world pixels. */
 function landPath(world: FeatureCollection): Path2D {
   const path = new Path2D()
   const ring = (coords: Position[]) => {
@@ -157,7 +130,6 @@ function landPath(world: FeatureCollection): Path2D {
   return path
 }
 
-/** A faint 30° graticule: the blueprint grid the rest of the UI sits on. */
 function graticulePath(): Path2D {
   const path = new Path2D()
   for (let lng = -180; lng < 180; lng += 30) {
@@ -176,12 +148,9 @@ function graticulePath(): Path2D {
 }
 
 interface View {
-  /** Device pixels per world pixel. */
   scale: number
-  /** Device-pixel position of world pixel (0, 0) on the canvas. */
   ox: number
   oy: number
-  /** World copies (multiples of WORLD_PX) that can reach the viewport. */
   copies: number[]
   dpr: number
 }
@@ -197,7 +166,6 @@ function strokeLine(ctx: CanvasRenderingContext2D, points: Point[], view: View, 
   ctx.stroke()
 }
 
-/** The tail of a polyline, `length` screen pixels long, from its end. */
 function tailOf(points: Point[], length: number, scale: number): Point[] {
   const out: Point[] = [points[points.length - 1]]
   let left = length / scale
@@ -249,7 +217,6 @@ function CalendarLayer({
         canvas.style.width = `${size.x}px`
         canvas.style.height = `${size.y}px`
       }
-      // Pin the canvas to the viewport: the pane itself moves while dragging.
       L.DomUtil.setPosition(canvas, map.containerPointToLayerPoint([0, 0]))
 
       const zoomScale = 2 ** map.getZoom()
@@ -266,7 +233,6 @@ function CalendarLayer({
       ctx.setTransform(1, 0, 0, 1, 0, 0)
       ctx.clearRect(0, 0, w, h)
 
-      // Land and grid, in world pixels through the transform.
       for (const shift of copies) {
         ctx.setTransform(scale, 0, 0, scale, ox + shift * scale, oy)
         ctx.lineWidth = dpr / scale
@@ -288,7 +254,6 @@ function CalendarLayer({
       const reached = Math.floor(pos)
       const frac = pos - reached
 
-      // The season still to come: a faint dotted route.
       ctx.setLineDash([2 * dpr, 6 * dpr])
       ctx.strokeStyle = MAP_INK
       ctx.globalAlpha = 0.28
@@ -299,7 +264,6 @@ function CalendarLayer({
       })
       ctx.setLineDash([])
 
-      // Legs already flown: a soft glow under a hot core.
       const flown = projected.filter((leg, i): leg is ProjectedPath => !!leg && i <= reached)
       ctx.strokeStyle = MAP_RED
       ctx.globalAlpha = 0.22
@@ -311,7 +275,6 @@ function CalendarLayer({
       for (const leg of flown) for (const shift of copies) strokeLine(ctx, leg.points, view, shift)
       ctx.globalAlpha = 1
 
-      // The leg being flown, its white-hot head, and the glyph at the tip.
       const active = frac > 1e-4 ? projected[reached + 1] : null
       if (active) {
         const trail = prefixAt(active, frac)
@@ -347,8 +310,6 @@ function CalendarLayer({
       }
     }
 
-    // Synchronous on `move`: a flight frame and the markers it moves must land
-    // in the same paint, or the lines trail the pins by a frame.
     map.on('move resize viewreset', draw)
     const unsubscribe = playhead.subscribe(draw)
     draw()
@@ -362,7 +323,6 @@ function CalendarLayer({
   return null
 }
 
-/** A navigation arrow with a pulsing halo, rotated to the leg's heading. */
 function drawGlyph(
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -402,8 +362,6 @@ function drawGlyph(
   ctx.restore()
 }
 
-// ── Camera ──────────────────────────────────────────────────────────────────
-
 function stopZoom(map: L.Map): number {
   return map.getSize().x < 640 ? STOP_ZOOM.compact : STOP_ZOOM.wide
 }
@@ -412,7 +370,6 @@ function padding(map: L.Map): number {
   return map.getSize().x < 640 ? 28 : 60
 }
 
-/** A world-pixel point, as a LatLng on the copy nearest the current view. */
 function toLatLng(point: Point): L.LatLng {
   const [lat, lng] = unmercator(point)
   return L.latLng(lat, lng)
@@ -420,23 +377,13 @@ function toLatLng(point: Point): L.LatLng {
 
 interface Follow {
   path: ProjectedPath
-  /** World copy the leg is flown on, so the camera never jumps a world width. */
   shift: number
   stopZoom: number
   legZoom: number
-  /** The view when the leg started, eased out over the first stretch. */
   from: { center: Point; zoom: number; s: number }
   to: number
 }
 
-/**
- * Executes camera commands: each new `nonce` is one flight (or one jump).
- *
- * A `leg` command does not fly anywhere by itself: it hands the camera to the
- * playhead, which then chases the glyph every frame — pulling back to frame the
- * whole leg mid-flight and settling on the destination as it lands. A Leaflet
- * flight runs on its own clock and easing, and would lose the glyph off-screen.
- */
 function CameraController({
   camera,
   stops,
@@ -449,7 +396,6 @@ function CameraController({
   playhead: Playhead
 }) {
   const map = useMap()
-  // Positions only — statuses change by the minute and must not re-fire a flight.
   const positions = useMemo(() => stops.map((s) => s.latLng), [stops])
   const follow = useRef<Follow | null>(null)
 
@@ -464,7 +410,6 @@ function CameraController({
       if (positions.length === 0) return
       map.stop()
       const lngs = compactLongitudes(positions.map(([, lng]) => lng))
-      // Frame the arcs' latitudes too, so a polar leg is not cut off the top.
       const lats = projected.flatMap((leg) => (leg ? leg.points.map((p) => unmercator(p)[0]) : []))
       lats.push(...positions.map(([lat]) => lat))
       const south = Math.max(-OVERVIEW_MAX_LAT, Math.min(...lats))
@@ -485,8 +430,6 @@ function CameraController({
       if (!target) return
       const zoom = camera.zoom ?? stopZoom(map)
       const latLng = L.latLng(target[0], nearestCopy(target[1], centerLng))
-      // Already there (a chased leg lands exactly on its stop): a flight to
-      // the same view would only restart the clock and stutter.
       const offset = map.latLngToContainerPoint(latLng).distanceTo(L.point(size.x / 2, size.y / 2))
       if (offset < 2 && Math.abs(map.getZoom() - zoom) < 0.05) return
       map.stop()
@@ -498,13 +441,11 @@ function CameraController({
       return
     }
 
-    // A leg: chase the glyph.
     const path = projected[camera.to]
     if (!path || !animate) return
     map.stop()
     const startLng = unmercator(path.points[0])[1]
     const shift = ((nearestCopy(startLng, centerLng) - startLng) / 360) * WORLD_PX
-    // Frame the whole leg around its midpoint, where the camera will be.
     const [mx, my] = pointAt(path, 0.5)
     let dx = 0
     let dy = 0
@@ -527,7 +468,6 @@ function CameraController({
       from: { center: [here.x, here.y], zoom: map.getZoom(), s: pos - Math.floor(pos) },
       to: camera.to,
     }
-    // `camera` is the command; positions/legs are stable for a given season.
   }, [camera, map, positions, projected, playhead])
 
   useEffect(() => {
@@ -537,14 +477,11 @@ function CameraController({
       const pos = playhead.get()
       const from = Math.floor(pos)
       if (from === f.to && pos === from) {
-        // Landed: settle exactly on the stop, so the arrival command finds the
-        // camera already there and has nothing to fly.
         follow.current = null
         const [x, y] = f.path.points[f.path.points.length - 1]
         map.setView(toLatLng([x + f.shift, y]), f.stopZoom, { reset: true } as L.ZoomPanOptions)
         return
       }
-      // Moved off this leg (a seek): the stop command takes over.
       if (from + 1 !== f.to) {
         follow.current = null
         return
@@ -553,16 +490,12 @@ function CameraController({
       const [gx, gy] = pointAt(f.path, s)
       const target: Point = [gx + f.shift, gy]
       const zoom = followZoom(s, f.stopZoom, f.legZoom)
-      // Ease out of wherever the camera was (a dwell zoom, a user's pan) over
-      // the first stretch of the leg, so the hand-over never jumps.
       const blend = smoothstep((s - f.from.s) / Math.max(0.25 * (1 - f.from.s), 1e-3))
       const center: Point = [
         f.from.center[0] + (target[0] - f.from.center[0]) * blend,
         f.from.center[1] + (target[1] - f.from.center[1]) * blend,
       ]
       const z = f.from.zoom + (zoom - f.from.zoom) * blend
-      // `reset` skips Leaflet's pan path, which truncates to whole pixels and
-      // would make a slow chase shimmer.
       map.setView(toLatLng(center), z, { reset: true } as L.ZoomPanOptions)
     }
     return playhead.subscribe(chase)
@@ -571,7 +504,6 @@ function CameraController({
   return null
 }
 
-/** Zoom buttons that fly, since the map's CSS zoom animation is off. */
 function ZoomButtons() {
   const map = useMap()
   const ref = useRef<HTMLDivElement>(null)
@@ -605,8 +537,6 @@ function ZoomButtons() {
     </div>
   )
 }
-
-// ── Markers ─────────────────────────────────────────────────────────────────
 
 const Markers = memo(function Markers({
   year,
@@ -658,8 +588,6 @@ function StopMarker({
   const ref = useRef<L.Marker>(null)
   const { round, status } = stop
 
-  // DivIcon reuses its element when the icon changes, so keyboard focus and the
-  // aria-label survive a status or focus change.
   const icon = useMemo(
     () =>
       L.divIcon({
@@ -683,8 +611,6 @@ function StopMarker({
     ref.current?.getElement()?.setAttribute('aria-label', label)
   }, [label, icon])
 
-  // The world repeats sideways; keep the pin on the copy in view, so a camera
-  // over the Pacific still shows both ends of the leg it is flying.
   useEffect(() => {
     const [lat, lng] = stop.latLng
     let shown = lng

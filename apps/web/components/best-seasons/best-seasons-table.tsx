@@ -40,11 +40,6 @@ type SortKey =
 
 type Order = 'asc' | 'desc'
 
-/**
- * Each sortable column: how to read its value, and which way "best" points when
- * the column is first clicked — a small margin and a late decider are the
- * exciting ends, so those open ascending.
- */
 const COLUMNS: Record<SortKey, { value: (s: BestSeason) => number | null; first: Order }> = {
   score: { value: (s) => s.score.total, first: 'desc' },
   year: { value: (s) => s.year, first: 'desc' },
@@ -63,15 +58,6 @@ function isSortKey(value: string | null): value is SortKey {
   return value !== null && value in COLUMNS
 }
 
-/**
- * The full ranking, sorted and filtered in the browser.
- *
- * Every completed season arrives with the page, so nothing here fetches. The
- * opening state is read once from the query string and every change is mirrored
- * back with `history.replaceState`, the same way the records explorer keeps a
- * view linkable without the page reading `searchParams` — which is what keeps
- * the route in the full route cache.
- */
 export function BestSeasonsTable({ seasons, eras }: { seasons: BestSeason[]; eras: ChartEra[] }) {
   const searchParams = useSearchParams()
   const [state, setState] = useState(() => {
@@ -115,8 +101,6 @@ export function BestSeasonsTable({ seasons, eras }: { seasons: BestSeason[]; era
       const diff = (read(a) as number) - (read(b) as number)
       return (order === 'asc' ? diff : -diff) || b.year - a.year
     })
-    // Seasons without a value for the column (no constructors' title before
-    // 1958) always go last, whichever way the column is sorted.
     return [...present, ...missing]
   }, [seasons, eras, state, order])
 

@@ -13,12 +13,6 @@ const sizeMap = {
   lg: 'h-16 w-16 text-xl',
 } as const
 
-/**
- * Constructor identity mark: abbreviation on the team color.
- *
- * Team badges are registered trademarks and are deliberately not reproduced.
- * See ATTRIBUTIONS.md.
- */
 export function ConstructorLogo({ name, size = 'sm', color, className }: ConstructorLogoProps) {
   const abbr = name
     .split(/\s+/)

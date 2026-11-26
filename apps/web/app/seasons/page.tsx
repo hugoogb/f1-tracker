@@ -27,8 +27,6 @@ function groupByDecade(seasons: { year: number }[]) {
 }
 
 export default async function SeasonsPage() {
-  // The champion list is what turns this page from a wall of years into
-  // something worth reading, but it must not be able to take the page down.
   const [seasonsResult, championsResult] = await Promise.allSettled([
     api.seasons.list(),
     api.champions() as Promise<{ data: SeasonChampion[] }>,
@@ -76,15 +74,6 @@ export default async function SeasonsPage() {
   )
 }
 
-/**
- * One season tile.
- *
- * Every tile has the same two rows — year, then champion — so the grid keeps a
- * single height. That is deliberate: the old layout appended a "Current" badge
- * to one card, which made its row taller than every other row on the page. The
- * in-progress season now says so in the row the champion would occupy, and its
- * accent comes from the border and a dot, neither of which takes up space.
- */
 function SeasonCard({
   year,
   champion,
@@ -94,10 +83,7 @@ function SeasonCard({
   champion?: SeasonChampion
   isLatest: boolean
 }) {
-  // No champion for the season still being raced, and none recorded for a few
-  // early seasons; both get a status line rather than an empty one.
   const inProgress = isLatest && !champion
-  // The champion's own team, not the constructors' champion.
   const accent = teamColorOf(champion?.driverConstructor?.color, null)
 
   return (
@@ -109,7 +95,6 @@ function SeasonCard({
             inProgress ? 'border-primary/60' : 'border-hairline hover:bg-surface-2'
           }`}
         >
-          {/* Champion's team colour, as a rail rather than a block of colour. */}
           <span
             aria-hidden
             className="absolute inset-y-0 left-0 w-0.5"

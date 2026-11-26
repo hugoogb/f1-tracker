@@ -184,6 +184,7 @@ daily and on any purge, since it reads `f1-global`), `robots.ts`, `manifest.ts`,
 - `pnpm dev` - Start Next.js dev server
 - `pnpm build` - Build for production
 - `pnpm lint` - Run ESLint
+- `pnpm lint:prune` - Drop suppressions for comments that are gone (the no-comments ratchet)
 - `pnpm test` - Frontend unit tests (Vitest; pure helpers in `lib/**/*.test.ts` and `components/**/*.test.ts`)
 
 ### Backend (from `pipeline/`)
@@ -273,6 +274,7 @@ Two f1db quirks the UI is built around:
 ## Conventions
 
 - Use conventional commits (feat:, fix:, docs:, refactor:, test:, chore:)
+- **No comments in code** (`local/no-comments`, `docs/adr/0001-no-comments-in-code.md`): decisions go in `docs/adr/`, knowing shortcuts in GitHub issues. Comments still left in `apps/web` sit in `eslint-suppressions.json`, which only shrinks: after deleting one, run `pnpm lint:prune`. Python and shell follow the same rule without a linter
 - Frontend: shadcn/ui components in `components/ui/`, feature components in `components/<feature>/`
 - Backend: FastAPI routers in `src/api/routers/`, SQLAlchemy models in `src/db/models.py`
 - Backend shared helpers: `src/api/constants.py` (magic numbers), `src/api/eras.py` (the era / year-range filter), `src/api/serializers.py` (driver/constructor dict builders), `src/api/pagination.py` (generic paginator), `src/scoring.py` (historical points systems)

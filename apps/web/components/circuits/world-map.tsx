@@ -19,9 +19,6 @@ interface WorldMapProps {
   circuits: CircuitPin[]
 }
 
-// Landmass is drawn from bundled Natural Earth geometry (public domain) rather
-// than raster basemap tiles, so the map carries no attribution requirement and
-// no non-commercial restriction. See apps/web/public/geo/README.txt.
 const WORLD_GEOJSON_URL = '/geo/world.geo.json'
 
 const landStyle = MAP_LAND
@@ -37,9 +34,7 @@ export function WorldMap({ circuits }: WorldMapProps) {
       .then((data: FeatureCollection | null) => {
         if (!cancelled) setWorld(data)
       })
-      .catch(() => {
-        // Circuit markers still render without the landmass underneath.
-      })
+      .catch(() => null)
     return () => {
       cancelled = true
     }
@@ -56,8 +51,6 @@ export function WorldMap({ circuits }: WorldMapProps) {
       className="h-full w-full"
       style={{ background: MAP_OCEAN }}
     >
-      {/* Its own pane below the overlay pane: the land arrives after a fetch and
-          would otherwise be appended over the pins in the shared SVG. */}
       <Pane name="circuits-land" style={{ zIndex: '250' }}>
         {world && <GeoJSON data={world} style={() => landStyle} interactive={false} />}
       </Pane>

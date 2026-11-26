@@ -10,7 +10,6 @@ import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/s
 import { NAV_GROUPS, isActiveHref } from '@/lib/nav'
 import { cn } from '@/lib/utils'
 
-/** Below `lg`: the same groups as the header, in a sheet from the bottom. */
 export function MobileNav() {
   const [open, setOpen] = useState(false)
   const pathname = usePathname()

@@ -97,7 +97,7 @@ def test_direct_ingestor_agrees_on_what_is_outstanding(db, seed_data, two_races,
 
     def fake_fetch(year, rnd):
         attempted.append(f"{year}_{rnd:02d}")
-        return [], [], 0.0  # no data, so nothing is written
+        return [], [], 0.0
 
     monkeypatch.setattr(fastf1_ingest, "fetch_race_laps", fake_fetch)
     monkeypatch.setattr(fastf1_ingest, "throttle", lambda *a, **k: None)
@@ -134,5 +134,5 @@ def test_direct_ingestor_stops_without_an_account(db, seed_data, two_races, monk
     assert attempted == []
     assert checks == [1]
 
-    fastf1_ingest.LapTimeIngestor(db).ingest()  # both races already have laps
+    fastf1_ingest.LapTimeIngestor(db).ingest()
     assert checks == [1]

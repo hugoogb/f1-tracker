@@ -118,12 +118,6 @@ function resultGroups(query: string, results: SearchResults): Group[] {
     )
 }
 
-/**
- * The site search: ⌘K / Ctrl+K anywhere, or "/" when not typing. A combobox
- * over one listbox, so arrow keys move through every group and a screen reader
- * hears the highlighted option. With no query it offers quick links and the
- * pages this browser visited recently.
- */
 export function CommandSearch() {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
@@ -157,8 +151,6 @@ export function CommandSearch() {
     return () => document.removeEventListener('keydown', onKeyDown)
   }, [])
 
-  // A new query starts the highlight back at the top (adjusted during render,
-  // so the reset is never painted).
   const [highlightedFor, setHighlightedFor] = useState(query)
   if (highlightedFor !== query) {
     setHighlightedFor(query)
@@ -213,7 +205,6 @@ export function CommandSearch() {
 
   const shortcut = hydrated ? shortcutLabel(navigator.platform) : null
 
-  // Each group's first option's position in the one flat listbox.
   const offsets = groups.map((_, gi) =>
     groups.slice(0, gi).reduce((n, g) => n + g.options.length, 0),
   )

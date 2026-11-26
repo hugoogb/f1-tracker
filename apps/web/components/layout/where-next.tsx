@@ -9,7 +9,6 @@ export interface WhereNextLink {
   description?: string
 }
 
-/** The foot of every detail page: where to go from here, so no page is a dead end. */
 export function WhereNext({ links }: { links: readonly WhereNextLink[] }) {
   if (links.length === 0) return null
   return (

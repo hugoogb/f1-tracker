@@ -18,12 +18,10 @@ import { formatRecordValue, rankingSummary } from '@/lib/page-summary'
 import { SITE_DESCRIPTION, buildMetadata } from '@/lib/seo'
 import { RECORD_RANKINGS, findRanking, rankingHref, type RecordRanking } from '@/lib/seo-landing'
 
-/** Nothing at build; the first request for a listed ranking renders and caches it. */
 export function generateStaticParams() {
   return []
 }
 
-/** The API's ceiling for one page of the explorer. */
 const TOP_N = 50
 
 const load = (ranking: RecordRanking) =>
@@ -49,7 +47,6 @@ export async function generateMetadata({ params }: Props) {
       path,
     })
   } catch {
-    // Streaming ships a 404 body with a 200, so noindex is what keeps it out.
     return buildMetadata({
       title: 'Records',
       description: SITE_DESCRIPTION,

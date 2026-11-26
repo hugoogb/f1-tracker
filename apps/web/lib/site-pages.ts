@@ -1,4 +1,3 @@
-/** Every page someone might search for by name, for the command palette. */
 export const SITE_PAGES = [
   { title: 'Home', href: '/', keywords: ['dashboard', 'next race', 'countdown'] },
   { title: 'Seasons', href: '/seasons', keywords: ['years', 'calendar', 'archive'] },
@@ -30,7 +29,6 @@ export const SITE_PAGES = [
 
 export type SitePage = (typeof SITE_PAGES)[number]
 
-/** Pages whose title or a keyword contains the query; title-prefix matches first. */
 export function searchPages(query: string, limit = 5): SitePage[] {
   const q = query.trim().toLowerCase()
   if (!q) return []

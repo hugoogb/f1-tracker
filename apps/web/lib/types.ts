@@ -44,12 +44,6 @@ export interface CircuitLayout {
   seasonsActive: string
 }
 
-/**
- * Session start times for a race weekend, as UTC instants.
- *
- * f1db only schedules the seasons around the present day, so every field is
- * null for a historic race (`sessionsOf` in `lib/schedule.ts` then returns none).
- */
 export interface RaceSchedule {
   fp1: string | null
   fp2: string | null
@@ -76,7 +70,6 @@ export interface RaceResult {
   raceId: string
   driver: Driver
   constructor: Constructor
-  /** Null for a pit-lane start. */
   grid: number | null
   position: number | null
   positionText: string
@@ -152,10 +145,8 @@ export interface FastestSectors {
 
 export interface DriverStanding {
   driver: Driver
-  /** Null for a driver who did not race the table's round (Rindt, 1970). */
   constructor: Constructor | null
   points: number
-  /** Null for a driver disqualified from the championship (Schumacher, 1997). */
   position: number | null
   wins: number
 }
@@ -163,7 +154,6 @@ export interface DriverStanding {
 export interface ConstructorStanding {
   constructor: Constructor
   points: number
-  /** Null for a team excluded from the championship (McLaren, 2007). */
   position: number | null
   wins: number
 }
@@ -173,22 +163,15 @@ type ChampionTeam = Pick<Constructor, 'id' | 'ref' | 'name' | 'color'>
 export interface SeasonChampion {
   year: number
   driver: Pick<Driver, 'id' | 'ref' | 'firstName' | 'lastName'>
-  /**
-   * The constructors' champion — not necessarily the drivers' champion's team.
-   * Null before 1958, when there was no constructors' championship.
-   */
   constructor: ChampionTeam | null
-  /** The team the drivers' champion raced for most that season. */
   driverConstructor: ChampionTeam | null
   driverPoints: number
-  /** Null with `constructor`. */
   constructorPoints: number | null
 }
 
 export interface SprintResult {
   position: number | null
   positionText: string
-  /** Null for a pit-lane start. */
   grid: number | null
   points: number
   laps: number
@@ -203,9 +186,7 @@ export interface PitStop {
   constructor: Constructor | null
   stopNumber: number
   lap: number
-  /** Pit lane time in seconds — entry line to exit line, stationary included. */
   duration: string | null
-  /** Seconds off the quickest pit lane time of the same race. */
   timeLost: string | null
 }
 
@@ -250,17 +231,6 @@ export interface LapsResponse {
   drivers: DriverLaps[]
 }
 
-/**
- * What the lap-time, tyre-strategy and lap-distribution charts actually read
- * from `DriverLaps` (the distribution chart adds names and the driver's flag).
- *
- * The race page trims the `/laps` response down to this before handing it to
- * those client components (see `chartLaps` there). Everything passed to a
- * client component is serialised into the page twice — once in the RSC
- * payload, once inlined in the HTML — and the page is stored that way in the
- * ISR cache, so sector splits, stint numbers and tyre life nobody draws were
- * the largest part of every 2018+ race page.
- */
 export interface ChartDriverLaps {
   driver: Pick<Driver, 'ref' | 'code' | 'firstName' | 'lastName' | 'countryCode'>
   constructor: Pick<Constructor, 'ref' | 'name' | 'color'>
@@ -312,8 +282,6 @@ export interface RecordsResponse {
   }
 }
 
-// Records explorer — the filterable view of the same data the tables above show.
-
 export type RecordsExploreEntity = 'driver' | 'constructor'
 
 export type RecordsExploreCategory =
@@ -330,11 +298,9 @@ export type RecordsExploreCategory =
 export interface RecordsExploreParams {
   entity: RecordsExploreEntity
   category: RecordsExploreCategory
-  /** A points-system id; shorthand for the seasons it was in force. */
   era?: string
   yearFrom?: number
   yearTo?: number
-  /** Driver nationality, or constructor nationality — whichever the entity is. */
   nationality?: string
   minStarts?: number
   sort?: 'asc' | 'desc'
@@ -346,9 +312,7 @@ export interface RecordsExploreRow {
   rank: number
   driver?: Driver
   constructor?: Constructor
-  /** Counts as integers, points as a decimal, rates as a 0-1 fraction. */
   value: number
-  /** Starts (drivers) or car entries (constructors), within the year range. */
   starts: number
 }
 
@@ -363,7 +327,6 @@ export interface RecordsExploreResponse {
   nationality: string | null
   minStarts: number
   sort: 'asc' | 'desc'
-  /** What the column means, written by the API so the UI cannot misstate it. */
   note: string
   data: RecordsExploreRow[]
   total: number
@@ -371,7 +334,6 @@ export interface RecordsExploreResponse {
   pageSize: number
 }
 
-// Driver Comparison
 export interface RadarStats {
   winRate: number
   podiumRate: number
@@ -380,7 +342,6 @@ export interface RadarStats {
   fastestLapRate: number
 }
 
-// Race Positions (lap-by-lap)
 export interface DriverPositions {
   driver: { id: string; ref: string; code: string | null; firstName: string; lastName: string }
   constructor: { ref: string; name: string; color: string | null }
@@ -389,14 +350,11 @@ export interface DriverPositions {
 
 export interface PositionsResponse {
   raceId: string
-  /** The race's real distance, from the results — the chart's x-axis. */
   totalLaps: number
-  /** How far the reconstruction from lap times actually got. */
   coveredLaps: number
   drivers: DriverPositions[]
 }
 
-// Qualifying vs Race Pace
 export interface DriverPaceSeason {
   year: number
   avgQualiPosition: number | null
@@ -411,7 +369,6 @@ export interface DriverPaceResponse {
   seasons: DriverPaceSeason[]
 }
 
-// Season Heatmap
 export interface HeatmapDriverResult {
   round: number
   position: number | null
@@ -432,7 +389,6 @@ export interface SeasonHeatmapResponse {
   drivers: HeatmapDriver[]
 }
 
-// Circuit Stats
 export interface CircuitStats {
   circuitRef: string
   mostWins: Array<{
@@ -466,14 +422,6 @@ export interface CircuitStats {
   }>
 }
 
-// Pit Stop Analysis
-/**
- * Pit stop figures for one race, all in seconds.
- *
- * `duration` values are pit *lane* times, which are dominated by how long the
- * pit lane is; `timeLost` values are measured against `benchmark`, the quickest
- * pit lane time of the same race, and are what actually compares crews.
- */
 export interface PitStopAnalysis {
   raceId: string
   totalStops: number
@@ -503,18 +451,12 @@ export interface StandingsProgressionDriver {
   code: string | null
   firstName: string
   lastName: string
-  /** The team the driver last actually raced for — the line's colour. */
   constructorRef: string | null
   color: string | null
 }
 
 export interface StandingsProgressionResponse {
   year: number
-  /**
-   * `official`: the championship table after each round, which before 1991 is
-   * points counted under the best-results rules. `scored`: race and sprint
-   * points summed, the fallback when a round has no official table.
-   */
   pointsSource?: 'official' | 'scored'
   rounds: Record<string, number | string>[]
   drivers: StandingsProgressionDriver[]
@@ -533,10 +475,8 @@ export interface ConstructorProgressionResponse {
   constructors: ConstructorProgressionEntry[]
 }
 
-// Gap to the leader, lap by lap
 export interface DriverGap {
   lap: number
-  /** Milliseconds behind whoever had the lowest elapsed time on that lap. */
   gapMs: number
 }
 
@@ -548,14 +488,11 @@ export interface DriverGaps {
 
 export interface GapsResponse {
   raceId: string
-  /** The race's real distance, from the results — the chart's x-axis. */
   totalLaps: number
-  /** How far the reconstruction from lap times actually got. */
   coveredLaps: number
   drivers: DriverGaps[]
 }
 
-// Tyre degradation
 export interface DegradationPoint {
   tyreLife: number
   medianMs: number
@@ -564,9 +501,7 @@ export interface DegradationPoint {
 
 export interface CompoundDegradation {
   compound: string
-  /** Green-flag laps behind this compound's line, after the outlier filter. */
   laps: number
-  /** Least-squares gradient; null when too few laps or a single tyre age. */
   degradationMsPerLap: number | null
   points: DegradationPoint[]
 }
@@ -574,15 +509,11 @@ export interface CompoundDegradation {
 export interface DegradationResponse {
   raceId: string
   compounds: CompoundDegradation[]
-  /** Laps with a compound and an age, before the outlier filter. */
   totalLaps: number
-  /** How many survived it. */
   cleanLaps: number
-  /** The cutoff itself, so the UI can say what was excluded. */
   thresholdMs: number | null
 }
 
-// Constructor lineages
 export interface LineageStats {
   entries: number
   wins: number
@@ -594,21 +525,17 @@ export interface LineageStats {
 export interface LineageEntry {
   constructor: Constructor
   yearFrom: number
-  /** Null for the name still racing. */
   yearTo: number | null
-  /** True for the constructor whose page this is. */
   isCurrent: boolean
   stats: LineageStats
 }
 
 export interface LineageResponse {
   constructor: Constructor
-  /** Null when the team never changed its name, which is most of them. */
   lineageRef: string | null
   entries: LineageEntry[]
 }
 
-// Title permutations
 interface TitleContenderBase {
   position: number | null
   points: number
@@ -616,11 +543,6 @@ interface TitleContenderBase {
   maxPossible: number
   deficit: number
   alive: boolean
-  /**
-   * Alive only by drawing level: that needs every remaining point, so the
-   * countback (wins, then seconds, ...) that settles the tie is already known
-   * and goes this contender's way.
-   */
   onlyOnCountback: boolean
   isLeader: boolean
 }
@@ -644,7 +566,6 @@ export interface PermutationsResponse<C = TitleContender> {
   racesRemaining?: number
   sprintsRemaining?: number
   sprintScheduleKnown?: boolean
-  /** A double-points finale (2014) is still to run and counted twice. */
   doublePointsFinale?: boolean
   maxRemaining?: number
   pointsSystem?: PointsSystem
@@ -657,7 +578,6 @@ export interface PermutationsResponse<C = TitleContender> {
 
 export type ConstructorPermutationsResponse = PermutationsResponse<ConstructorTitleContender>
 
-// Cross-era points normalisation
 export interface PointsSystem {
   id: string
   label: string
@@ -681,14 +601,12 @@ export interface NormalisedStanding {
   podiums: number
   officialPosition: number | null
   officialPoints: number | null
-  /** Places gained against the official table; positive is a promotion. */
   positionDelta: number | null
 }
 
 export interface NormalisedStandingsResponse {
   year: number
   system: PointsSystem
-  /** What the season was actually scored under. */
   actualSystem: PointsSystem
   isActualSystem: boolean
   championChanged: boolean
@@ -696,7 +614,6 @@ export interface NormalisedStandingsResponse {
   standings: NormalisedStanding[]
 }
 
-// How a season was scored
 export interface SeasonPointsSystem {
   id: string
   label: string
@@ -709,9 +626,7 @@ export interface DroppedPoints {
   driversAffected: number
   largest: {
     driver: Driver | null
-    /** What the driver actually scored across the season. */
     scored: number
-    /** What the championship kept. */
     counted: number
     dropped: number
   }
@@ -719,20 +634,15 @@ export interface DroppedPoints {
 
 export interface SeasonScoring {
   system: SeasonPointsSystem
-  /** False for 1950-1990, when only a driver's best results counted. */
   everyResultCounts: boolean
-  /** Read off the results, not from a table of rules. Null when nothing dropped. */
   droppedPoints: DroppedPoints | null
 }
-
-// Operational status (/api/ops/status, rendered by /status)
 
 export interface OpsCoverage {
   firstSeason: number | null
   lastSeason: number | null
   totalRaces: number
   racesWithResults: number
-  /** The most recent round that has actually been raced, not the last on the calendar. */
   latestResult: { year: number; round: number; date: string | null } | null
   currentSeason: {
     year: number
@@ -747,13 +657,11 @@ export interface OpsBacklogEntry {
   year: number
   round: number
   date: string | null
-  /** Which Fast-F1 data is missing: `laps`, `quali_sectors`, or both. */
-  need: string[]
+  need: ('laps' | 'quali_sectors')[]
 }
 
 export interface OpsFastF1 {
   backlog: number
-  /** The oldest few outstanding races, as examples rather than the whole list. */
   oldest: OpsBacklogEntry[]
 }
 
@@ -766,27 +674,20 @@ export interface OpsIngestRun {
   finishedAt: string | null
   rowsWritten: number | null
   f1dbVersion: string | null
-  /**
-   * A flag, never the message. The API deliberately withholds the exception
-   * text — it can carry a connection string — so this is all there is to show.
-   */
   failed: boolean
 }
 
 export interface OpsIngest {
-  /** False on a database that predates the `ingest_runs` migration. */
   available: boolean
   runs: OpsIngestRun[]
   lastSuccessAt: string | null
 }
 
-/** Today's Race Engineer usage (UTC day): counts and dollars, never a prompt. */
 export interface OpsChat {
   enabled: boolean
   requestsToday: number
   costTodayUsd: number
   budgetUsd: number
-  /** Share of successful answers that called at least one tool; null with none yet. */
   toolShare: number | null
   errorsToday: number
 }
@@ -796,22 +697,11 @@ export interface OpsStatus {
   coverage: OpsCoverage
   fastf1: OpsFastF1
   rowCounts: Record<string, number>
-  /**
-   * Keys of `rowCounts` that are Postgres' `reltuples` statistic rather than a
-   * real COUNT(*) — big tables where an exact scan is not worth its cost. The
-   * page marks these, because a number that is sometimes exact and sometimes
-   * approximate with nothing saying which is worse than either alone.
-   */
   estimatedCounts: string[]
   ingest: OpsIngest
   schemaVersion: string | null
-  /** Absent from an API older than the Engineer, so the page must not assume it. */
   chat?: OpsChat
 }
-
-// ── In-season comparison (`/seasons/[year]/compare`) ────────────────────────
-// Every delta is A minus B. For points that favours A when positive; for
-// positions and lap times (lower is better) it favours A when negative.
 
 export type SeasonCompareType = 'constructors' | 'drivers'
 
@@ -866,13 +756,11 @@ export interface SeasonCompareRoundSide {
   points: number
   cumulativePoints: number
   lapsLed: number | null
-  // Drivers
   finish?: number | null
   positionText?: string | null
   grid?: number | null
   qualifying?: number | null
   constructor?: SeasonCompareTeam | null
-  // Constructors
   bestFinish?: number | null
   bestGrid?: number | null
   bestQualifying?: number | null
@@ -924,14 +812,7 @@ export interface SeasonCompareResponse {
   a: SeasonCompareEntity
   b: SeasonCompareEntity
   pointsSource: 'official' | 'results'
-  /** What `rounds[].cumulativePoints` follows: the official table after each round, or a sum. */
   cumulativeSource: 'official' | 'scored'
-  /**
-   * `championship` is the official total (or the summed one when there is no
-   * official table); `scored` is every point awarded, which is what the
-   * round-by-round line adds up; `dropped` is the difference, null without an
-   * official table.
-   */
   points: {
     championship: SeasonComparePair
     scored: SeasonComparePair
@@ -977,11 +858,9 @@ export interface SeasonCompareEntrants {
   constructors: (SeasonCompareTeam & { position: number | null })[]
 }
 
-/** One round of `/api/seasons/{year}/calendar`: where the circus went, and who won there. */
 export interface CalendarRound {
   round: number
   name: string
-  /** Calendar date (YYYY-MM-DD); null only for a malformed row. */
   date: string | null
   schedule: RaceSchedule
   circuit: {
@@ -990,34 +869,26 @@ export interface CalendarRound {
     location: string | null
     country: string | null
     countryCode: string | null
-    /** Null when f1db has no coordinates — such a round is left off the map. */
     latitude: number | null
     longitude: number | null
-    /** The `/tracks/<id>.svg` layout in use that year, if one is known. */
     layoutSvgId: string | null
   }
-  /** Classified P1; null for a race not yet run. */
   winner: {
     driver: { ref: string; code: string | null; firstName: string; lastName: string }
     constructor: { id: string; ref: string; name: string; color: string | null } | null
   } | null
-  /** Great-circle km from the previous round's circuit; null for round 1. */
   legKm: number | null
 }
 
 export interface SeasonCalendarResponse {
   year: number
-  /** Sum of every `legKm` — the season's travel as the crow flies. */
   totalKm: number
   rounds: CalendarRound[]
 }
 
-// --- Best seasons (`/api/best-seasons`) -------------------------------------
-
 export interface BestSeasonComponentInfo {
   id: string
   label: string
-  /** Out of 100 across all components. */
   weight: number
   description: string
 }
@@ -1026,9 +897,7 @@ export interface BestSeasonComponent {
   id: string
   label: string
   weight: number
-  /** 0-1, how fully the season met this component. */
   value: number
-  /** `value * weight`: this component's share of the 0-100 total. */
   points: number
 }
 
@@ -1044,25 +913,18 @@ export interface BestSeasonContender {
     Driver,
     'id' | 'ref' | 'code' | 'firstName' | 'lastName' | 'nationality' | 'countryCode'
   >
-  /** The team they raced for most that season, which is where their colour comes from. */
   constructor: BestSeasonTeam | null
-  /** Official championship points. */
   points: number
 }
 
 export interface BestSeason {
   year: number
-  /** Place by score among every completed season; null for the running one. */
   rank: number | null
   inProgress: boolean
   totalRounds: number
   roundsRun: number
   pointsSystem: { id: string; label: string; era: string }
   everyResultCounts: boolean
-  /**
-   * True only when a round had no official table and the walk fell back to
-   * points scored — which, before 1991, is not the championship table.
-   */
   progressionApproximate: boolean
   champion: BestSeasonContender | null
   runnerUp: BestSeasonContender | null

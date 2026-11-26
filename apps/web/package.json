@@ -8,6 +8,7 @@
     "build:compile": "NODE_ENV=production next build --experimental-build-mode compile",
     "start": "next start",
     "lint": "eslint",
+    "lint:prune": "eslint . --prune-suppressions",
     "icons": "node scripts/generate-icons.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"

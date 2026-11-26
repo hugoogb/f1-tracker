@@ -1,8 +1,5 @@
 import { cva } from 'class-variance-authority'
 
-// Kept out of the 'use client' button module so server components can style a
-// <Link> as a button: a client module's exports are references, not callables,
-// on the server.
 export const buttonVariants = cva(
   "group/button inline-flex shrink-0 items-center justify-center rounded-sm border border-transparent font-data text-xs font-semibold tracking-wider uppercase whitespace-nowrap transition-colors outline-none select-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring active:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {

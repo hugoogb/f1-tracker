@@ -33,10 +33,6 @@ function carsTitle(side: SeasonCompareRoundSide): string | undefined {
     .join(' · ')
 }
 
-/**
- * Round-by-round finishes, grids and points with A − B deltas. For constructors
- * a cell is the team's best car; hovering it lists every car.
- */
 export function RoundsTable({
   data,
   sides,

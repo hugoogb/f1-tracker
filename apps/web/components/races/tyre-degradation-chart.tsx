@@ -30,7 +30,6 @@ function formatLapTime(ms: number): string {
   return minutes > 0 ? `${minutes}:${seconds.toFixed(3).padStart(6, '0')}` : seconds.toFixed(3)
 }
 
-/** A gradient in ms/lap, said the way a commentator would. */
 function formatDegradation(msPerLap: number | null): string {
   if (msPerLap === null) return 'not enough laps'
   const perLap = (msPerLap / 1000).toFixed(3)
@@ -70,19 +69,6 @@ function CustomTooltip({
   )
 }
 
-/**
- * Median lap time against tyre age, one line per compound.
- *
- * The x-axis is how old the tyre was, not the lap of the race, so two stints on
- * the same compound stack on top of each other rather than running side by
- * side — which is what makes the slope readable as wear.
- *
- * What is plotted has already been filtered: pit laps, safety-car laps and laps
- * lost in traffic are several seconds off the pace, which is an order of
- * magnitude more than the effect being measured, so the API drops anything
- * slower than 107% of the race's median. The footnote says how much survived,
- * because a compound resting on a handful of laps is a line worth doubting.
- */
 export function TyreDegradationChart({ data }: TyreDegradationChartProps) {
   const { rows, compounds } = useMemo(() => {
     const compounds = data.compounds.filter((c) => c.points.length > 0)

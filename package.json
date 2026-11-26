@@ -6,6 +6,7 @@
     "build": "pnpm --filter web build",
     "build:compile": "pnpm --filter web build:compile",
     "lint": "pnpm --filter web lint",
+    "lint:prune": "pnpm --filter web lint:prune",
     "typecheck": "pnpm --filter web typecheck",
     "test": "pnpm --filter web test",
     "format": "prettier --write .",

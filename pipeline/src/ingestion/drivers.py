@@ -84,7 +84,6 @@ class StatusIngestor(BaseIngestor):
                 if reason:
                     reasons.add(reason.strip())
 
-        # id 1 is reserved for a classified finish (f1db leaves reasonRetired null).
         ordered = [self.FINISHED, *sorted(reasons)]
         for status_id, description in enumerate(ordered, start=1):
             self.db.merge(Status(id=status_id, description=description))

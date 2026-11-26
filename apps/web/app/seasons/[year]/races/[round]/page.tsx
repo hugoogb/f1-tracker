@@ -64,17 +64,10 @@ interface SprintResponse {
 
 interface PitStopsResponse {
   raceId: string
-  /** The race's quickest pit lane time, in seconds. */
   benchmark: string | null
   pitStops: PitStop[]
 }
 
-/**
- * The `/laps` response cut down to what the lap charts draw. About two thirds
- * of it is sector splits, stint numbers, tyre life and driver nationality,
- * none of which any chart reads — and whatever a client component gets is
- * serialised into the cached page twice (RSC payload and inline HTML).
- */
 function chartLaps(laps: LapsResponse): ChartDriverLaps[] {
   return laps.drivers.map((d) => ({
     driver: {
@@ -89,13 +82,6 @@ function chartLaps(laps: LapsResponse): ChartDriverLaps[] {
   }))
 }
 
-/**
- * Nothing is prerendered at build time: there are thousands of these pages and
- * the set changes with the data, so a build should not have to walk it. The
- * empty list still opts the route into the full route cache — the first request
- * for a path renders it, everything after is served from the cache until the
- * `f1-data` tag is purged by an ingest.
- */
 export function generateStaticParams() {
   return []
 }
@@ -119,7 +105,6 @@ export async function generateMetadata({
   try {
     race = (await api.races.get(yearNum, roundNum)) as RaceDetailResponse
   } catch {
-    // The page itself decides between 404 and error; metadata must not throw.
     return fallback()
   }
 
@@ -198,12 +183,9 @@ export default async function RaceDetailPage({
     year >= 2018
       ? (api.races.degradation(year, round) as Promise<DegradationResponse>)
       : Promise.reject('not applicable'),
-    // Season-tagged like the race itself, so it adds no tag the page lacks.
     api.seasons.get(year) as Promise<{ races: { round: number }[] }>,
   ])
 
-  // A round that does not exist must answer 404 — but an API outage has to
-  // surface as an error rather than telling crawlers the race never happened.
   if (raceResult.status === 'rejected') {
     if (isNotFound(raceResult.reason)) notFound()
     throw raceResult.reason
@@ -370,8 +352,6 @@ export default async function RaceDetailPage({
                 },
               ]
             : []),
-          // Strategy is where the stops and the stints belong together: a tyre
-          // stint only ends because of a pit stop.
           ...(pitStops || laps || year >= 2012
             ? [
                 {

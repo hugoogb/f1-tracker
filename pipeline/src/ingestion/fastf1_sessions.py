@@ -30,8 +30,6 @@ from pathlib import Path
 import fastf1
 import pandas as pd
 import requests
-
-# F1AuthError is re-exported: it is what require_f1_account raises.
 from fastf1.exceptions import DataNotLoadedError, F1AuthError  # noqa: F401
 from fastf1.internals.f1account import SubscriptionToken, get_token
 
@@ -39,28 +37,15 @@ from src.config import settings
 
 logger = logging.getLogger(__name__)
 
-# Delay between uncached Fast-F1 session loads (500 calls/hr rolling window).
-# Required by Fast-F1's terms of use — see the licensing notes in CLAUDE.md.
-THROTTLE_DELAY = 45  # seconds
+THROTTLE_DELAY = 45
 
-# A load that returns this fast came off the cache and cost no API call, so it
-# does not need to be throttled.
 CACHED_LOAD_SECONDS = 1.0
 
-# Fast-F1 session identifiers for the data this pipeline ingests.
 SESSION_RACE = "R"
 SESSION_QUALIFYING = "Q"
 
-# A refused host does not raise: Fast-F1 catches per-source failures, logs a
-# one-line warning and hands back a session with no laps in it (unless
-# FASTF1_DEBUG is set — see `raise_load_errors`). So "no data" repeated is the
-# symptom of a block, and this many in a row means stop rather than grind
-# through the whole calendar at 45s a session producing nothing.
 EMPTY_STREAK_LIMIT = 3
 
-# What Fast-F1 fetches session data from, and one control that is not Formula
-# 1's own infrastructure — if live timing is refused but the control answers,
-# the host is blocked rather than offline.
 PROBE_URLS = (
     ("live timing archive", "https://livetiming.formula1.com/static/2023/Index.json"),
     ("Jolpica/Ergast (control)", "https://api.jolpi.ca/ergast/f1/2023/1/results.json?limit=1"),
@@ -207,8 +192,6 @@ def http_check(url: str, timeout: float = 20.0) -> tuple[bool, str]:
     except Exception as e:
         return False, f"{type(e).__name__}: {e}"
 
-    # 403 (and 451) is what an IP block looks like from the outside; 429 is the
-    # rate limit, which is a different problem.
     ok = response.status_code not in (403, 429, 451)
     detail = f"HTTP {response.status_code}"
     if response.status_code == 401:
@@ -315,9 +298,6 @@ def extract_race_laps(session) -> list[dict]:
         stint = clean(row.get("Stint"))
         tyre_life = clean(row.get("TyreLife"))
         compound = clean(row.get("Compound"))
-        # Fast-F1 reports the driver's position at the end of the lap. Taking it
-        # verbatim beats deriving one from cumulative lap times, which any gap
-        # in the timing data breaks.
         position = clean(row.get("Position"))
         rows.append(
             {
@@ -347,7 +327,7 @@ def extract_qualifying_bests(session) -> dict[str, dict[str, dict]]:
 
     try:
         segments = laps.split_qualifying_sessions()
-    except Exception as e:  # Fast-F1 raises bare exceptions for odd sessions
+    except Exception as e:
         logger.debug(f"Could not split qualifying sessions: {e}")
         return {}
 

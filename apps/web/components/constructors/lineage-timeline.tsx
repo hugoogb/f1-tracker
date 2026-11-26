@@ -14,13 +14,6 @@ function yearRange(entry: LineageEntry): string {
   return `${entry.yearFrom}–${entry.yearTo}`
 }
 
-/**
- * The chain of names one entry has raced under.
- *
- * Each name keeps its own record. The chain says Red Bull's entry traces back
- * to Stewart, not that the two are the same team, so nothing here adds the rows
- * up into a combined total — that would invent a history none of them had.
- */
 export function LineageTimeline({ entries }: LineageTimelineProps) {
   if (entries.length < 2) return null
 
@@ -41,7 +34,6 @@ export function LineageTimeline({ entries }: LineageTimelineProps) {
             const last = index === entries.length - 1
             return (
               <li key={`${entry.constructor.ref}-${entry.yearFrom}`} className="flex gap-3">
-                {/* Rail: a dot per name, joined by a line that stops at the end. */}
                 <div className="flex flex-col items-center">
                   <span
                     className="ring-surface-1 mt-1.5 size-3 shrink-0 rounded-full ring-2"

@@ -98,7 +98,6 @@ def test_happy_path_streams_text_tool_usage_and_done_and_writes_one_row(
     assert len(rows) == 1 and rows[0].tool_calls == 1
     assert rows[0].input_tokens == 2000 and rows[0].cost_usd > 0
     assert rows[0].id == events[-1][1]["id"]
-    # The tool result went back as a tool_result block; the user turn carried the page context.
     second = seen[1]["messages"]
     assert second[-1]["role"] == "user" and second[-1]["content"][0]["type"] == "tool_result"
     first_user = seen[0]["messages"][-1]["content"]
@@ -227,7 +226,6 @@ def test_provider_error_ends_with_an_error_event_and_an_error_row(client, db, ch
     assert events[-1][1]["outcome"] == "error"
     row = db.query(ChatUsage).one()
     assert row.outcome == "error"
-    # The failed turn never reported usage, so a conservative estimate is recorded.
     assert row.input_tokens >= chat_loop.SYSTEM_AND_TOOLS_ESTIMATE
     assert row.output_tokens == settings.chat_max_tokens == 600
 
@@ -266,7 +264,7 @@ def test_a_cancelled_response_still_closes_the_generator_and_writes_the_row(
 
     def fake(**kwargs):
         yield TextDelta("a")
-        release.wait(5)  # the model is mid-answer when the reader leaves
+        release.wait(5)
         yield TextDelta("b")
         yield usage()
         yield Done("end_turn", [{"type": "text", "text": "ab"}])
@@ -290,13 +288,13 @@ def test_a_cancelled_response_still_closes_the_generator_and_writes_the_row(
             with anyio.fail_after(5):
                 while not got:
                     await anyio.sleep(0.01)
-            await anyio.sleep(0.05)  # `respond` is now waiting on the second chunk
+            await anyio.sleep(0.05)
             tg.cancel_scope.cancel()
             release.set()
 
     anyio.run(main)
-    assert got and not any(c.startswith("event: done") for c in got)  # cut off mid-answer
-    assert gen.gi_frame is None  # closed, not merely abandoned
+    assert got and not any(c.startswith("event: done") for c in got)
+    assert gen.gi_frame is None
     assert db.query(ChatUsage).one().outcome == "ok"
 
 
@@ -373,7 +371,6 @@ def test_history_drops_oldest_pairs_past_the_soft_cap(monkeypatch):
     built = chat_loop.build_messages(
         chat_loop.ChatRequest(messages=msgs), today=chat_loop.utcnow().date()
     )
-    # 4,000 chars per pair: only one pair fits under 1,200 tokens alongside the question.
     assert len(built) == 3 and built[0]["role"] == "user"
     assert built[-1]["content"].endswith("last")
 

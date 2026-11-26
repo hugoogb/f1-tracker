@@ -35,11 +35,6 @@ interface GapPoint {
   deltaPct: number
 }
 
-/**
- * One bar per round: the A − B qualifying gap in percent, in the colour of the
- * quicker side. A bar below zero is A on top. Rounds with no comparable times
- * are simply absent, and the caption says how many that leaves.
- */
 export function QualifyingGapChart({
   gaps,
   sideA,

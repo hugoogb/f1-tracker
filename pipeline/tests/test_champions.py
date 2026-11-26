@@ -23,8 +23,6 @@ def test_champions_carry_the_drivers_own_team(client, race_seed_data):
 
 
 def test_driver_team_differs_from_constructors_champion(client, race_seed_data, db):
-    # The drivers' champion's team need not be the constructors' champion
-    # (2024: Verstappen drove for Red Bull, McLaren won the constructors').
     from src.db.models import ConstructorStanding
 
     cs = db.get(ConstructorStanding, "cs-1")

@@ -1,8 +1,3 @@
-/**
- * The site's navigation, shared by the header, the mobile sheet and the
- * footer so the three can never list different places.
- */
-
 export interface NavItem {
   label: string
   href: string
@@ -50,18 +45,12 @@ export const NAV_GROUPS: readonly NavGroup[] = [
   },
 ]
 
-/** Whether `href` is the page being viewed, or a section containing it. */
 export function isActiveHref(pathname: string, href: string): boolean {
   if (href === '/') return pathname === '/'
   if (href === '/seasons/current') return false
   return pathname === href || pathname.startsWith(`${href}/`)
 }
 
-/**
- * The one group to highlight for a page. A page listed in two groups (Best
- * seasons sits under Season and Stats) belongs to the first, so the header
- * never shows two active sections at once.
- */
 export function activeGroup(pathname: string): string | null {
   const group = NAV_GROUPS.find((g) =>
     g.items

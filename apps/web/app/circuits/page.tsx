@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { Suspense } from 'react'
 import { api } from '@/lib/api'
+import { MAX_API_PAGE_SIZE } from '@/lib/paged-fetch'
 import type { Circuit, PaginatedResponse } from '@/lib/types'
 import { CountryFlag } from '@/components/ui/country-flag'
 import { PageHero } from '@/components/ui/page-hero'
@@ -48,9 +49,7 @@ export default async function CircuitsPage({
 
   const [circuitsResponse, allCircuitsResponse, countriesResult] = await Promise.allSettled([
     api.circuits.list(page, pageSize, country) as Promise<PaginatedResponse<Circuit>>,
-    // Every circuit for the map. 200 is the API's page-size ceiling (a larger
-    // value is a 422, which left the map empty); f1db has well under that.
-    api.circuits.list(1, 200) as Promise<PaginatedResponse<Circuit>>,
+    api.circuits.list(1, MAX_API_PAGE_SIZE) as Promise<PaginatedResponse<Circuit>>,
     api.circuits.countries(),
   ])
 
@@ -64,7 +63,6 @@ export default async function CircuitsPage({
 
   const countries = countriesResult.status === 'fulfilled' ? countriesResult.value.countries : []
 
-  // Filter circuits with valid coordinates for the map
   const mapCircuits = allCircuits
     .filter(
       (c): c is Circuit & { latitude: number; longitude: number } =>

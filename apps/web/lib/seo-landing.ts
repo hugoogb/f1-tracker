@@ -1,21 +1,13 @@
 import type { RecordsExploreCategory } from '@/lib/types'
 
-/**
- * Landing pages for searches the site could already answer but had no URL for.
- * Both lists are fixed so the cached pages stay bounded, and a later ingest cannot
- * mint a thin page by adding the first driver of a new nationality.
- */
 export type RankingEntity = 'drivers' | 'teams'
 
 export interface RecordRanking {
   entity: RankingEntity
   slug: string
   category: RecordsExploreCategory
-  /** The title and heading, without the site suffix. */
   title: string
-  /** Lower-case, for "holds the record with 106 wins". Absent for a rate. */
   unit?: string
-  /** "win rate", for a percentage category. */
   rateLabel?: string
 }
 
@@ -74,9 +66,7 @@ export const findRanking = (entity: string, slug: string) =>
 
 export interface NationalityPage {
   slug: string
-  /** Exactly as the API spells it, which is what its filter matches. */
   nationality: string
-  /** How a headline reads it: "New Zealand F1 drivers", not "New Zealander". */
   label: string
 }
 
@@ -86,7 +76,6 @@ const same = (nationality: string, slug = nationality.toLowerCase().replace(/ /g
   label: nationality,
 })
 
-/** Every nationality with at least five drivers; below that there is no page to read. */
 export const NATIONALITY_PAGES: readonly NationalityPage[] = [
   same('British'),
   same('American'),

@@ -9,10 +9,6 @@ interface LapHolder {
   time: string | null
 }
 
-/**
- * A purple readout for one lap: a race's fastest lap, or a circuit's lap
- * record (`label="Lap record"` with the year in `detail`).
- */
 export function FastestLapCard({
   fastestLap,
   label = 'Fastest lap',

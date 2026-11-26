@@ -10,7 +10,6 @@ export interface SideInfo {
   href: string
 }
 
-/** Blend a hex colour towards white; anything that is not `#rrggbb` comes back as is. */
 function lighten(hex: string, amount: number): string {
   const match = /^#([0-9a-f]{6})$/i.exec(hex)
   if (!match) return hex
@@ -29,19 +28,10 @@ function entityColor(
   entity: SeasonCompareEntity,
   side: 'a' | 'b',
 ): string {
-  // Drivers take their team's colour — never one keyed off the driver. A side
-  // with no colour gets its side token, so two such sides still differ.
   const color = type === 'drivers' ? entity.constructor?.color : entity.color
   return teamColorOf(color, null) ?? sideColor(side)
 }
 
-/**
- * Both sides' display names and colours.
- *
- * Teammates share a livery, which would make every chart unreadable, so side B
- * gets a lighter tint of the same team colour when the two collide. It is still
- * the team's colour — just the second car's shade of it.
- */
 export function describeSides(data: SeasonCompareResponse): [SideInfo, SideInfo] {
   const make = (entity: SeasonCompareEntity, side: 'a' | 'b'): SideInfo =>
     data.type === 'drivers'

@@ -12,7 +12,6 @@ import {
 
 interface PitStopsTableProps {
   pitStops: PitStop[]
-  /** The race's quickest pit lane time, in seconds, that time lost is measured from. */
   benchmark?: string | null
 }
 
@@ -70,7 +69,6 @@ export function PitStopsTable({ pitStops, benchmark }: PitStopsTableProps) {
                 {lost === null ? (
                   '—'
                 ) : lost === 0 ? (
-                  // The stop the rest of the race is measured against.
                   <span className="text-positive font-semibold">best</span>
                 ) : (
                   <span className={lost >= 2 ? 'text-gold' : 'text-muted-foreground'}>

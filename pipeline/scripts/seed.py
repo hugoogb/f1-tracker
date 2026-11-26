@@ -15,7 +15,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-# Add the pipeline directory to the path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.cli import parse_year_range, setup_logging  # noqa: E402
@@ -30,10 +29,6 @@ BACKUP_SCRIPT = SCRIPTS_DIR / "db-backup.sh"
 RESTORE_SCRIPT = SCRIPTS_DIR / "db-restore.sh"
 BACKUP_FILE = Path(__file__).parent.parent.parent / "docker" / "backups" / "latest.sql.gz"
 
-# The restore/backup helpers shell out to the database *container*. Which one
-# they pick is theirs to decide (scripts/lib/db.sh reads STACK_NAME/DB_CONTAINER
-# from the environment or .env). Both are skipped when there is no Docker CLI,
-# as in the ingest container. DB_CONTAINER is read here only to name it in the log.
 DB_CONTAINER = os.environ.get("DB_CONTAINER", f"{os.environ.get('STACK_NAME', 'f1-tracker')}-db")
 
 
@@ -51,10 +46,6 @@ def restore_backup() -> None:
         logger.info("Docker CLI not available, skipping backup restore")
         return
 
-    # Delegated to db-restore.sh rather than piped into psql here. Backups are
-    # full dumps now — schema, data, the Alembic stamp and the materialized
-    # views — so the order of restore and `alembic upgrade head` depends on the
-    # dump's flavour, and that decision belongs in one place.
     logger.info(f"Restoring from backup: {BACKUP_FILE} into {DB_CONTAINER}")
     result = subprocess.run(
         ["bash", str(RESTORE_SCRIPT), str(BACKUP_FILE)],
@@ -63,10 +54,6 @@ def restore_backup() -> None:
         text=True,
     )
     if result.returncode != 0:
-        # Non-fatal, and safely so: db-restore.sh loads the dump with
-        # --single-transaction, so a failure leaves the database exactly as it
-        # was rather than half-replaced, and the ingest below upserts either
-        # way.
         logger.warning(f"Restore skipped — continuing with the ingest: {result.stderr.strip()}")
     else:
         logger.info("Backup restored successfully")
@@ -157,23 +144,19 @@ def main() -> None:
     args = parse_args()
     signal.signal(signal.SIGTERM, _handle_signal)
 
-    # Build targets: None = run all, set = run only selected
     selected = {f for f in INGESTOR_FLAGS if getattr(args, f.replace("-", "_"))}
     targets = selected or None
 
     year_range = parse_year_range(args.year_range, current_year=args.current_year)
 
-    # 1. Start from the seed rather than from nothing, when asked
     if args.restore:
         restore_backup()
 
-    # 2. Run the load
     try:
         run_full_load(targets, year_range=year_range, refresh_positions=args.refresh_positions)
     except (InterruptedError, KeyboardInterrupt):
         logger.warning("Seed interrupted by user")
 
-    # 3. Backup (even on interrupt, to preserve progress), when asked
     if args.backup:
         create_backup()
 

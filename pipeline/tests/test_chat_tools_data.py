@@ -315,7 +315,7 @@ def test_champions_are_trimmed_to_25_with_a_note(db, seed_data):
     _seed_champion_seasons(db, 1960, 27)
     out = call(db, "get_champions", {"year_from": None, "year_to": None})
     assert out["total"] == 27 and len(out["seasons"]) == 25
-    assert out["seasons"][0]["year"] == 1986  # newest first
+    assert out["seasons"][0]["year"] == 1986
     assert out["note"].startswith("newest 25 of 27 seasons")
     assert len(json.dumps(out)) < MAX_TOOL_RESULT_CHARS
 

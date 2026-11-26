@@ -64,7 +64,6 @@ describe('engineer reducer', () => {
       ledgerId: 'r2',
     })
     expect(s.status).toEqual({ kind: 'idle' })
-    // The notice is never sent back as something the model said.
     expect(outgoingMessages(s.messages).map((m) => m.content)).toEqual(['a', 'first', 'b'])
   })
   it('a failed turn with no text adds no notice and takes no ledger id', () => {

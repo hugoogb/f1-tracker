@@ -63,7 +63,6 @@ def build_season(
                 ),
             )
         )
-    # A round counts as run once it has results.
     for rnd in range(1, rounds_run + 1):
         for i, driver_id in enumerate(order(rnd), start=1):
             db.add(
@@ -297,9 +296,6 @@ def test_unknown_season_is_404(client, db):
     assert client.get("/api/seasons/1899/permutations").status_code == 404
 
 
-# --- Constructors ----------------------------------------------------------------
-
-
 def build_constructors(db, *, year=2026, rounds_run=ROUNDS_RUN, points=None, order=None):
     """Two-car teams. By default team A finishes one-two every round."""
     db.add_all(
@@ -405,5 +401,4 @@ def test_constructors_countback_counts_one_twos(client, db):
 def test_constructors_clinch_next_round(client, db):
     build_constructors(db, rounds_run=6, points={"ca": 600.0, "cb": 500.0, "cc": 40.0})
     body = fetch_constructors(client)
-    # A one-two at round 7 makes it 643; Team B can reach 500 + 3 * 43 = 629.
     assert body["canClinchNextRound"] is True

@@ -1,12 +1,3 @@
-/**
- * The head-to-heads worth a page of their own: rivalries and teammates people
- * search for by name. Every other pairing stays on the `noindex`, uncached
- * `/compare/drivers?d1=&d2=` view, because any pair of ~900 drivers is a valid URL
- * and a cache entry per pair would be an unbounded number of ISR writes. This
- * list is the bound: add a pair here to give it a cached, indexable page.
- *
- * Refs are f1db's, and every one was checked against the live API.
- */
 export interface CuratedPair {
   a: string
   b: string
@@ -101,6 +92,5 @@ export const pairHref = (kind: ComparisonKind, p: CuratedPair) => `/compare/${ki
 export const findPair = (kind: ComparisonKind, slug: string) =>
   pairsOf(kind).find((p) => pairSlug(p) === slug)
 
-/** The curated head-to-heads one driver or team appears in, most searched first. */
 export const pairsFor = (kind: ComparisonKind, ref: string) =>
   pairsOf(kind).filter((p) => p.a === ref || p.b === ref)

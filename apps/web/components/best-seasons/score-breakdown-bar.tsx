@@ -2,15 +2,10 @@ import type { BestSeasonComponent } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { NEUTRAL, SCORE_COLORS } from '@/lib/chart-theme'
 
-/** One fixed colour per score component, in the API's component order (`SCORE_COLORS`). */
 export function componentColor(id: string): string {
   return SCORE_COLORS[id] ?? NEUTRAL
 }
 
-/**
- * The 0-100 score as a stacked bar: each segment is one component's points,
- * so the filled length is the total and the parts show where it came from.
- */
 export function ScoreBreakdownBar({
   components,
   className,
@@ -39,7 +34,6 @@ export function ScoreBreakdownBar({
   )
 }
 
-/** The key for the bars above; the colours mean nothing without it. */
 export function ScoreLegend({
   components,
   className,

@@ -3,6 +3,7 @@
 import datetime
 import ipaddress
 from dataclasses import dataclass
+from typing import Literal
 
 from fastapi import Request
 from sqlalchemy.orm import Session
@@ -16,7 +17,7 @@ RATE_WINDOW = datetime.timedelta(minutes=10)
 @dataclass(frozen=True)
 class Refusal:
     status: int
-    code: str  # "budget" | "rate_limited"
+    code: Literal["budget", "rate_limited"]
     message: str
 
 

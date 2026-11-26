@@ -16,28 +16,15 @@ import {
 
 interface FavouriteButtonProps {
   type: FavouriteType
-  /**
-   * The f1db ref. Named `entityRef` rather than `ref`, which React reserves.
-   */
   entityRef: string
-  /** Full display name — also the accessible name of the toggle. */
   name: string
   detail?: string | null
   countryCode?: string | null
-  /** Constructor livery from the API payload. Ignored for other types. */
   color?: string | null
   size?: 'icon-xs' | 'icon-sm' | 'icon'
   className?: string
 }
 
-/**
- * Star toggle for a driver, constructor or circuit.
- *
- * Icon-only, so the accessible name has to carry both the action and which
- * entity it applies to, and `aria-pressed` carries the state. The star glyph is
- * rendered in both states — only its fill and colour change — so the swap from
- * the server's "not favourited" to the stored answer cannot shift the layout.
- */
 export function FavouriteButton({
   type,
   entityRef,
@@ -50,10 +37,6 @@ export function FavouriteButton({
 }: FavouriteButtonProps) {
   const favourited = useIsFavourite(type, entityRef)
 
-  // Whatever rendered this button has fresh data for the entity, so it is the
-  // cheapest place to keep the cached display data honest — no extra request.
-  // A no-op unless the entity is already favourited, and it writes nothing when
-  // the fields match, so it cannot feed itself.
   useEffect(() => {
     refreshFavourite({ type, ref: entityRef, name, detail, countryCode, color })
   }, [type, entityRef, name, detail, countryCode, color])

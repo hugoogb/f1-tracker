@@ -30,7 +30,6 @@ export interface ConstructorCompareResponse {
   constructor2Seasons: { year: number; points: number }[]
 }
 
-/** The big names either side of "vs": styled as a heading, but the page has one h1. */
 const SIDE_NAME =
   'font-display min-w-0 text-3xl leading-[0.9] font-extrabold break-words uppercase italic sm:text-4xl lg:text-5xl'
 
@@ -54,7 +53,6 @@ export function constructorCompareSummary(data: ConstructorCompareResponse): str
   })
 }
 
-/** One head-to-head: the query-string view and the curated pages both draw this. */
 export function ConstructorComparison({ data }: { data: ConstructorCompareResponse }) {
   const summary = constructorCompareSummary(data)
   const { constructor1, constructor2, headToHead, constructor1Seasons, constructor2Seasons } = data
@@ -126,7 +124,6 @@ export function ConstructorComparison({ data }: { data: ConstructorCompareRespon
 
       <PageSummary text={summary} />
 
-      {/* Head to Head */}
       <FadeIn>
         <Panel>
           <PanelHeader>
@@ -180,7 +177,6 @@ export function ConstructorComparison({ data }: { data: ConstructorCompareRespon
         </Panel>
       </FadeIn>
 
-      {/* Stat-by-Stat Comparison */}
       <FadeIn>
         <Panel>
           <PanelHeader>
@@ -223,7 +219,6 @@ export function ConstructorComparison({ data }: { data: ConstructorCompareRespon
         </Panel>
       </FadeIn>
 
-      {/* Career Points Chart */}
       {(constructor1Seasons.length > 0 || constructor2Seasons.length > 0) && (
         <FadeIn>
           <Panel>

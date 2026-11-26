@@ -104,8 +104,6 @@ def _add_race(db, year, rnd, circuit, race_date, with_result=False):
 
 def test_cancelled_races_are_removed_and_rounds_realigned(db, circuits):
     """Stale schedule with cancelled Bahrain/Saudi gets reconciled to canonical."""
-    # Stale DB schedule: 6 rounds incl. cancelled Bahrain (4) and Saudi (5).
-    # Bahrain carries a phantom result; Miami sits at the (soon-to-shift) round 6.
     _add_race(db, 2026, 1, "albert_park", date(2026, 3, 8))
     _add_race(db, 2026, 2, "shanghai", date(2026, 3, 15))
     _add_race(db, 2026, 3, "suzuka", date(2026, 3, 29))
@@ -113,7 +111,6 @@ def test_cancelled_races_are_removed_and_rounds_realigned(db, circuits):
     _add_race(db, 2026, 5, "jeddah", date(2026, 4, 19), with_result=True)
     _add_race(db, 2026, 6, "miami", date(2026, 5, 3))
 
-    # Canonical schedule after cancellation: 4 rounds, Miami shifted 6 -> 4.
     canonical = _f1db(
         [
             (2026, 1, "albert_park", "2026-03-08"),
@@ -128,7 +125,6 @@ def test_cancelled_races_are_removed_and_rounds_realigned(db, circuits):
     races = db.query(Race).filter(Race.season_year == 2026).order_by(Race.round).all()
     round_to_circuit = {r.round: r.circuit_id for r in races}
 
-    # Cancelled races gone, no stale rounds 5/6 left behind.
     assert len(races) == 4
     assert round_to_circuit == {
         1: "albert_park",
@@ -138,7 +134,6 @@ def test_cancelled_races_are_removed_and_rounds_realigned(db, circuits):
     }
     assert not db.query(Race).filter(Race.circuit_id.in_(["bahrain", "jeddah"])).all()
 
-    # Phantom result on the cancelled Bahrain race is purged.
     assert db.query(RaceResult).count() == 0
 
 
@@ -159,7 +154,6 @@ def test_schedule_extension_does_not_purge(db, circuits):
 
     races = db.query(Race).filter(Race.season_year == 2026).order_by(Race.round).all()
     assert len(races) == 3
-    # Existing result preserved (no purge for pure additions).
     assert db.query(RaceResult).count() == 1
 
 

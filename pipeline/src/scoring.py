@@ -53,14 +53,11 @@ class PointsSystem:
         return self.win_points + (1.0 if self.fastest_lap_point else 0.0)
 
 
-# The sprint has its own history, and it is not tied to the race-points era:
-# 2021 paid only the top three, 2022 widened it to eight.
 _SPRINT_2021 = (3.0, 2.0, 1.0)
 _SPRINT_2022 = (8.0, 7.0, 6.0, 5.0, 4.0, 3.0, 2.0, 1.0)
 
 _MODERN = (25.0, 18.0, 15.0, 12.0, 10.0, 8.0, 6.0, 4.0, 2.0, 1.0)
 
-# Keyed by id, ordered oldest first — the order the UI offers them in.
 SYSTEMS: dict[str, PointsSystem] = {
     s.id: s
     for s in (
@@ -132,8 +129,6 @@ SYSTEMS: dict[str, PointsSystem] = {
     )
 }
 
-# Which system a season actually raced under. Ranges are inclusive; the last
-# entry is open-ended.
 _ERAS: tuple[tuple[int, int | None, str], ...] = (
     (1950, 1959, "1950"),
     (1960, 1960, "1960"),
@@ -146,16 +141,6 @@ _ERAS: tuple[tuple[int, int | None, str], ...] = (
 )
 
 
-# The last season in which only part of a driver's record counted towards the
-# championship. From 1950 to 1990 some form of "best N results" rule was in
-# force — the exact N, and whether the season was split into halves scored
-# separately, changed almost every year and is not in the f1db dataset. From
-# 1991 every result counts.
-#
-# So the rule is stated at era level, and the specifics are read back off the
-# data instead: a driver whose championship total is lower than the points they
-# actually scored dropped the difference, which is a fact the results already
-# carry. See `_season_scoring` in the seasons router.
 LAST_DROPPED_SCORES_SEASON = 1990
 
 
@@ -169,8 +154,6 @@ def system_for_year(year: int) -> PointsSystem:
     for start, end, system_id in _ERAS:
         if year >= start and (end is None or year <= end):
             return SYSTEMS[system_id]
-    # Only reachable for a year before the championship existed; the earliest
-    # system is the closest honest answer.
     return SYSTEMS["1950"]
 
 
@@ -200,12 +183,8 @@ def sprint_system_for_year(year: int) -> tuple[float, ...]:
     return _SPRINT_2022
 
 
-# The one season whose finale paid double: Abu Dhabi 2014, 50 for the win.
 DOUBLE_POINTS_FINALES = frozenset({2014})
 
-# Until 1978 only a team's best-placed car scored for the constructors'
-# championship (first run in 1958, FIRST_CONSTRUCTORS_CHAMPIONSHIP); from 1979
-# every car's points counted.
 FIRST_SEASON_EVERY_CAR_SCORES = 1979
 
 

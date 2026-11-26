@@ -1,24 +1,12 @@
-/**
- * Great-circle geometry for the season calendar map.
- *
- * Mirrors `pipeline/src/geo.py` — same mean radius, same haversine — so the
- * distance the API reports and the arc the map draws describe the same line.
- * Written out rather than pulled from a geodesy package: it is thirty lines,
- * and a sphere is all a "km travelled" figure can honestly claim.
- */
-
 export type LatLng = [lat: number, lng: number]
 
-/** Mean Earth radius (IUGG), km. */
 export const EARTH_RADIUS_KM = 6371.0088
 
-/** Equatorial circumference, km — "how many times round the world". */
 export const EARTH_CIRCUMFERENCE_KM = 40_075
 
 const toRad = (deg: number) => (deg * Math.PI) / 180
 const toDeg = (rad: number) => (rad * 180) / Math.PI
 
-/** Haversine distance in km. */
 export function greatCircleKm([lat1, lng1]: LatLng, [lat2, lng2]: LatLng): number {
   const phi1 = toRad(lat1)
   const phi2 = toRad(lat2)
@@ -28,15 +16,6 @@ export function greatCircleKm([lat1, lng1]: LatLng, [lat2, lng2]: LatLng): numbe
   return 2 * EARTH_RADIUS_KM * Math.asin(Math.min(1, Math.sqrt(h)))
 }
 
-/**
- * Points along the great circle from `a` to `b`, both ends included.
- *
- * Spherical linear interpolation between the two unit vectors. The sample count
- * scales with distance so a Monaco–Barcelona hop is not drawn with as many
- * vertices as a Las Vegas–Qatar haul. Longitudes are unwrapped (each point is
- * kept within 180° of the previous one) so a leg over the antimeridian stays a
- * continuous line; the map draws every world copy, so it is never cut.
- */
 export function greatCirclePath(a: LatLng, b: LatLng): LatLng[] {
   const km = greatCircleKm(a, b)
   const steps = Math.max(8, Math.min(128, Math.round(km / 120)))
@@ -70,7 +49,6 @@ export function greatCirclePath(a: LatLng, b: LatLng): LatLng[] {
     previousLng = lng
     points.push([lat, lng])
   }
-  // Pin the ends to the exact inputs so the line meets its markers.
   points[0] = a
   points[points.length - 1] = [b[0], points[points.length - 1][1]]
   return points

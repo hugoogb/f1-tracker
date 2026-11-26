@@ -4,10 +4,6 @@ export type EngineerStatusFields =
   | { off: true; label: 'Off' }
   | { off: false; requests: string; cost: string; toolShare: string; errors: string }
 
-/**
- * The `/status` Engineer section as display strings. An API deployed before
- * the Engineer existed sends no `chat` key, which reads as off.
- */
 export function formatEngineerStatus(chat?: OpsChat): EngineerStatusFields {
   if (!chat?.enabled) return { off: true, label: 'Off' }
   return {

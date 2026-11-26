@@ -25,12 +25,10 @@ import {
 } from '@/lib/seo-landing'
 import type { Driver } from '@/lib/types'
 
-/** Nothing at build; the first request for a listed page renders and caches it. */
 export function generateStaticParams() {
   return []
 }
 
-/** The API's ceiling for one page of the explorer; more than any nationality's winners. */
 const WINNERS_LIMIT = 50
 
 async function load(page: NationalityPage) {
@@ -73,7 +71,6 @@ export async function generateMetadata({ params }: Props) {
       path,
     })
   } catch {
-    // Streaming ships a 404 body with a 200, so noindex is what keeps it out.
     return buildMetadata({
       title: 'Drivers',
       description: SITE_DESCRIPTION,

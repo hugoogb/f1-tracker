@@ -95,8 +95,6 @@ def test_search_wildcards_are_literal(client, race_seed_data):
 
 
 def test_search_race_without_year_matches_race_names_only(client, race_seed_data):
-    # The seed race is the Bahrain GP held at Monza: a circuit substring alone
-    # ("ham" in Francorchamps, "monza" here) must not flood the race results.
     data = client.get("/api/search?q=monza").json()
     assert data["races"] == []
     assert [c["ref"] for c in data["circuits"]] == ["monza"]

@@ -8,7 +8,6 @@ import { useSearch } from '@/lib/use-search'
 interface DriverSelectProps {
   label: string
   value: string
-  /** The name to show for a `value` chosen before this picker mounted (a URL prefill). */
   initialName?: string
   onChange: (ref: string, name: string) => void
 }

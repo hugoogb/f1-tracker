@@ -64,9 +64,7 @@ from src.db.queries import (
 
 router = APIRouter()
 
-# f1db spells a retirement "DNF"; Ergast-era data used "R".
 _DNF_TEXTS = {"DNF", "R", "RET"}
-# Rows in the race results that never took the start.
 _NOT_STARTED_TEXTS = {"DNS", "DNQ", "DNPQ", "DNP", "EX", "W"}
 _QUALI_SESSIONS = ("q3", "q2", "q1")
 
@@ -149,8 +147,6 @@ class _SeasonData:
         ).scalars():
             self.quali[row.race_id].append(row)
 
-        # Rounds actually run: a season in progress lists its remaining rounds,
-        # and comparing those would draw both lines flat to December.
         self.raced = [r for r in self.races if self.results.get(r.id)]
 
 
@@ -247,7 +243,6 @@ def _race_laps(db: Session, data: _SeasonData) -> dict[str, list]:
         select(LapTime.race_id, LapTime.driver_id, LapTime.time_millis).where(
             LapTime.race_id.in_([r.id for r in data.raced]),
             LapTime.time_millis.isnot(None),
-            # A standing start is not a measure of pace.
             LapTime.lap_number > 1,
         )
     ).all()
@@ -383,8 +378,6 @@ def _compare(
             t["podiums"] += sum(1 for p in finishes if p <= 3)
             t["pointsFinishes"] += sum(1 for r in rows if (r.points or 0) > 0)
             t["dnfs"] += sum(1 for r in rows if (r.position_text or "").upper() in _DNF_TEXTS)
-            # Pole is the qualifying result, not the grid — a penalty moves the
-            # grid and not the pole. Only races with no qualifying data fall back.
             if quali:
                 t["poles"] += sum(1 for p in q_positions if p == 1)
             else:
@@ -498,7 +491,6 @@ def _compare(
         "points": {
             "championship": _pair(*championship, 2),
             "scored": _pair(*scored, 2),
-            # Awarded but not counted: the best-N rule at work, read off the data.
             "dropped": (
                 _pair(
                     round(scored[0] - championship[0], 2), round(scored[1] - championship[1], 2), 2
@@ -579,7 +571,6 @@ def season_compare_entrants(year: int, db: Session = Depends(get_db)):
             item[1].driver.last_name,
         ),
     )
-    # No constructors' championship before 1958: rank by points scored instead.
     ordered_constructors = sorted(
         constructors.values(),
         key=lambda c: (constructor_rank.get(c.id, 10_000), -constructor_points[c.id], c.name),
@@ -632,7 +623,6 @@ def season_compare_constructors(year: int, c1: str, c2: str, db: Session = Depen
         standings_model=ConstructorStanding,
         standings_key=ConstructorStanding.constructor_id,
         per_car=True,
-        # Earlier tables are sums the ingest computed, not a championship anyone won.
         has_championship=year >= FIRST_CONSTRUCTORS_CHAMPIONSHIP,
     )
     return {
@@ -660,7 +650,6 @@ def season_compare_drivers(year: int, d1: str, d2: str, db: Session = Depends(ge
         )
         if not rows:
             raise _not_entered("Driver", ref, year)
-        # Every team the driver raced for that season, in the order they did.
         seen: dict[str, Constructor] = {}
         for r in rows:
             seen[r.constructor_id] = r.constructor
@@ -685,7 +674,6 @@ def season_compare_drivers(year: int, d1: str, d2: str, db: Session = Depends(ge
         per_car=False,
     )
 
-    # Teammates: the rounds both drove for the same constructor.
     shared = [
         rnd
         for rnd in body["rounds"]
@@ -698,7 +686,6 @@ def season_compare_drivers(year: int, d1: str, d2: str, db: Session = Depends(ge
         constructors = teams[side.entity.id]
         return {
             **driver_summary(side.entity),
-            # The last team they raced for, which is where the colour comes from.
             "constructor": constructor_compact(constructors[-1]),
             "constructors": [constructor_compact(c) for c in constructors],
         }

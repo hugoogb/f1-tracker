@@ -30,7 +30,6 @@ function getPageNumbers(current: number, total: number): (number | 'ellipsis')[]
   return pages
 }
 
-/** Real links, not click handlers: a crawler only follows an `<a href>`. */
 export function Pagination({ total, page, pageSize }: PaginationProps) {
   const pathname = usePathname()
   const search = useSearchParams().toString()

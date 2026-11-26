@@ -7,9 +7,6 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: '*',
         allow: '/',
-        // Only the revalidate webhook is blocked here. The comparison pages are
-        // kept crawlable on purpose and carry `noindex` instead — a disallowed
-        // URL is never fetched, so its noindex would never be seen.
         disallow: ['/api/'],
       },
     ],

@@ -1,40 +1,6 @@
 #!/usr/bin/env bash
-# Create a complete PostgreSQL backup: schema, every table's data, the Alembic
-# stamp and the materialized views.
-#
-# This is a restore-from-nothing artifact, not a convenience seed. It carries
-# `lap_times` and the qualifying sector columns — the Fast-F1 data that costs
-# ~45 s per session to fetch and cannot be fetched from the VPS or from CI at
-# all — so losing the database no longer means re-fetching all of it.
-#
-# Two sources:
-#
-#   ./scripts/db-backup.sh            dump the local dev container
-#   ./scripts/db-backup.sh --remote   dump the VPS's production database
-#
-# --remote is the one that matters for the published seed. Fast-F1 payloads
-# are imported straight into production (`pnpm fastf1`), so the server is the
-# only place the complete dataset exists. It runs the `backup` task on the box
-# (`vps_task backup`, scripts/lib/vps.sh) and streams the dump back here;
-# VPS_HOST comes from .env, the same key scripts/fastf1-sync.sh reads.
-#
-# Add --publish to upload the result to the seed release, which is where
-# bootstrap.sh fetches it from. The dump is not tracked by git — see the "Seed
-# release" section of lib/db.sh — so publishing is what makes a new one reach
-# anyone else:
-#
-#   ./scripts/db-backup.sh --remote --publish
-#
-# Env:
-#   BACKUP_DIR        where to write (default: docker/backups)
-#   BACKUP_KEEP_LAST  timestamped dumps to retain (default: 5)
-#   DB_CONTAINER / STACK_NAME   which local container to dump
-#   VPS_HOST / VPS_USER         the server, for --remote
-#   SEED_TAG / SEED_REPO        the release to publish to, for --publish
 set -euo pipefail
 
-# `set -e` aborts without printing anything, which once turned a missing .env
-# key into a bare "exit 1" and nothing else. Name the line instead.
 trap 'status=$?; echo "Error: $(basename "$0") failed at line $LINENO (exit $status)." >&2' ERR
 
 # shellcheck source=lib/db.sh
@@ -48,7 +14,40 @@ HOST="${VPS_HOST:-$(env_get VPS_HOST)}"
 USER_NAME="${VPS_USER:-$(env_get VPS_USER)}"
 
 usage() {
-  sed -n '2,33p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+  cat <<'EOF'
+Create a complete PostgreSQL backup: schema, every table's data, the Alembic
+stamp and the materialized views.
+
+This is a restore-from-nothing artifact, not a convenience seed. It carries
+`lap_times` and the qualifying sector columns — the Fast-F1 data that costs
+~45 s per session to fetch and cannot be fetched from the VPS or from CI at
+all — so losing the database no longer means re-fetching all of it.
+
+Two sources:
+
+  ./scripts/db-backup.sh            dump the local dev container
+  ./scripts/db-backup.sh --remote   dump the VPS's production database
+
+--remote is the one that matters for the published seed. Fast-F1 payloads
+are imported straight into production (`pnpm fastf1`), so the server is the
+only place the complete dataset exists. It runs the `backup` task on the box
+(`vps_task backup`, scripts/lib/vps.sh) and streams the dump back here;
+VPS_HOST comes from .env, the same key scripts/fastf1-sync.sh reads.
+
+Add --publish to upload the result to the seed release, which is where
+bootstrap.sh fetches it from. The dump is not tracked by git — see the "Seed
+release" section of lib/db.sh — so publishing is what makes a new one reach
+anyone else:
+
+  ./scripts/db-backup.sh --remote --publish
+
+Env:
+  BACKUP_DIR        where to write (default: docker/backups)
+  BACKUP_KEEP_LAST  timestamped dumps to retain (default: 5)
+  DB_CONTAINER / STACK_NAME   which local container to dump
+  VPS_HOST / VPS_USER         the server, for --remote
+  SEED_TAG / SEED_REPO        the release to publish to, for --publish
+EOF
   exit "${1:-2}"
 }
 
@@ -63,9 +62,6 @@ while [ $# -gt 0 ]; do
   esac
 done
 
-# Checked before the dump rather than after it: --remote streams the whole
-# production database over Tailscale, and finding out that `gh` is missing at
-# the end of that is a wasted transfer.
 if [ "$PUBLISH" = "1" ] && ! command -v gh >/dev/null 2>&1; then
   cat >&2 <<EOF
 Error: --publish needs the GitHub CLI, and gh is not on PATH.
@@ -85,8 +81,6 @@ TIMESTAMP=$(date -u +%Y%m%d_%H%M%S)
 BACKUP_FILE="${BACKUP_DIR}/f1tracker_${TIMESTAMP}.sql.gz"
 LATEST_COPY="${BACKUP_DIR}/latest.sql.gz"
 
-# Written to a temporary name and moved into place only once it is complete, so
-# an interrupted dump cannot leave a half-written file looking like a backup.
 PARTIAL="${BACKUP_FILE}.partial"
 trap 'rm -f "$PARTIAL"' EXIT
 
@@ -96,17 +90,10 @@ if [ "$REMOTE" = "1" ]; then
   vps_target_from "$HOST" "$USER_NAME" "$0 --remote --host 100.x.y.z"
 
   echo "Dumping the production database on $VPS_TARGET..."
-  # The `backup` task (docker/compose.prod.yml) writes the gzipped dump to
-  # stdout and narrates on stderr, so the redirect here is the whole transfer.
-  # It runs as a task container through infra-setup's deploy-app.sh.
   vps_task backup </dev/null > "$PARTIAL"
 else
   db_require_container
   echo "Dumping $POSTGRES_DB from container $DB_CONTAINER..."
-  # A complete dump: no --data-only, no --exclude-table. --clean --if-exists so
-  # it can be loaded over an existing database, --no-owner --no-privileges so it
-  # restores under whatever role the target happens to use. Plain SQL rather
-  # than a custom archive, because every restore path here pipes it into psql.
   db_exec pg_dump -U "$POSTGRES_USER" \
     --format=plain --no-owner --no-privileges --clean --if-exists \
     "$POSTGRES_DB" | gzip -9 > "$PARTIAL"
@@ -121,8 +108,6 @@ dump_verify_gzip "$PARTIAL"
 mv "$PARTIAL" "$BACKUP_FILE"
 trap - EXIT
 
-# Copied rather than symlinked: db-restore.sh and --publish both want a real
-# file at this path, and its basename is the published asset's name.
 cp "$BACKUP_FILE" "$LATEST_COPY"
 
 SIZE=$(human_size "$BACKUP_FILE")
@@ -135,8 +120,6 @@ COUNTS="$(dump_row_counts "$BACKUP_FILE")"
 echo "$COUNTS"
 echo ""
 
-# The point of the exercise: a backup without the Fast-F1 data is one that still
-# costs ~45 s a session to rebuild, so say so rather than let it pass as fine.
 LAPS=$(echo "$COUNTS" | awk '$1 == "lap_times" { print $2 }')
 if [ "${LAPS:-0}" -eq 0 ]; then
   cat >&2 <<EOF
@@ -155,9 +138,6 @@ EOF
 fi
 
 if [ "$PUBLISH" = "1" ]; then
-  # A lapless dump is a warning above, but publishing one replaces the seed
-  # everyone else bootstraps from — which would quietly cost them the Fast-F1
-  # data the seed exists to carry. Refuse rather than warn.
   if [ "${LAPS:-0}" -eq 0 ]; then
     echo "" >&2
     echo "Error: refusing to publish a dump with no lap times — it would replace the" >&2
@@ -168,9 +148,6 @@ if [ "$PUBLISH" = "1" ]; then
 
   echo ""
   echo "Publishing to the '$SEED_TAG' release of $SEED_REPO..."
-  # The release is created once and reused; --clobber replaces the asset so the
-  # download URL bootstrap.sh uses stays constant. `gh release create` is only
-  # reached the very first time.
   if ! gh release view "$SEED_TAG" --repo "$SEED_REPO" >/dev/null 2>&1; then
     echo "  Release '$SEED_TAG' does not exist yet — creating it."
     gh release create "$SEED_TAG" --repo "$SEED_REPO" \
@@ -180,16 +157,11 @@ if [ "$PUBLISH" = "1" ]; then
       --notes "$(seed_release_notes "$BACKUP_FILE")" >/dev/null
   fi
 
-  # $LATEST_COPY rather than the timestamped $BACKUP_FILE: a release asset is
-  # named after the file's basename, and that name is half the download URL
-  # seed-fetch.sh hard-codes. Uploading f1tracker_<stamp>.sql.gz would publish
-  # it at a URL nothing looks for.
   gh release upload "$SEED_TAG" "$LATEST_COPY" --clobber --repo "$SEED_REPO"
 
   echo "Published: $SEED_URL"
 fi
 
-# Rotate old backups — keep only the last N.
 KEEP_LAST="${BACKUP_KEEP_LAST:-5}"
 cd "$BACKUP_DIR"
 # shellcheck disable=SC2012

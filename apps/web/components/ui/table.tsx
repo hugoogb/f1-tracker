@@ -55,10 +55,6 @@ function TableFooter({ className, ...props }: React.ComponentProps<'tfoot'>) {
   )
 }
 
-/**
- * `highlight="leader"` paints the broadcast slab — the red leader/winner row.
- * Use it for at most one row per table.
- */
 function TableRow({
   className,
   highlight,

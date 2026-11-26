@@ -30,7 +30,6 @@ from src.db.models import (
 YEAR = 2024
 LAPS = 10
 
-# round -> driver -> (grid, position, positionText, points, laps)
 RESULTS = {
     1: {
         "ver": (1, 1, "1", 25, LAPS),
@@ -52,12 +51,10 @@ RESULTS = {
     },
 }
 TEAM = {"ver": "red-bull", "per": "red-bull", "lec": "ferrari", "sai": "ferrari"}
-# Best Q3 time per driver per round (rounds 1-2 only).
 QUALI_MS = {
     1: {"ver": 90_000, "lec": 90_200, "per": 90_500, "sai": 90_700},
     2: {"lec": 89_900, "ver": 90_000, "sai": 90_100, "per": 90_300},
 }
-# Clean race lap per driver in rounds 1-2.
 LAP_MS = {"ver": 95_000, "per": 95_400, "lec": 95_200, "sai": 95_600}
 
 
@@ -113,7 +110,6 @@ def season(db):
             cumulative_driver[did] += pts
             cumulative_team[TEAM[did]] += pts
 
-        # A sprint in round 2 worth 8 to Verstappen, which only the standings carry.
         if rnd == 2:
             db.add(
                 SprintResult(
@@ -160,7 +156,6 @@ def season(db):
         if rnd in (1, 2):
             for did, (_g, pos, _t, _p, laps) in results.items():
                 for lap in range(1, laps + 1):
-                    # One slow lap per driver (a pit stop) the clean filter must drop.
                     time_ms = LAP_MS[did] + (20_000 if lap == 5 else 0)
                     db.add(
                         LapTime(
@@ -188,7 +183,6 @@ def test_constructors_official_points_and_cumulative_delta(client, season):
     r1, r2, r3 = data["rounds"]
     assert r1["a"]["points"] == 40 and r1["b"]["points"] == 18
     assert r1["cumulativeDelta"] == 22
-    # Awarded points per round include the sprint.
     assert r2["a"]["points"] == 38 and r2["b"]["points"] == 40
     assert r2["cumulativeDelta"] == 20
     assert r3["cumulativeDelta"] == 36
@@ -206,7 +200,6 @@ def test_constructors_official_points_and_cumulative_delta(client, season):
     assert agg["poles"] == {"a": 2, "b": 1, "delta": 1}
     assert agg["pointsFinishes"] == {"a": 6, "b": 5, "delta": 1}
 
-    # Best car each round: Red Bull ahead in 1 and 3, Ferrari in 2.
     assert data["headToHead"]["race"] == {"a": 2, "b": 1, "ties": 0, "total": 3}
     assert data["headToHead"]["qualifying"] == {"a": 2, "b": 1, "ties": 0, "total": 3}
 
@@ -236,7 +229,6 @@ def test_drivers_teammates_and_positions(client, season):
 def test_rivals_are_not_teammates(client, season):
     data = client.get(f"/api/seasons/{YEAR}/compare/drivers?d1=ver&d2=lec").json()
     assert data["teammates"] == {"sameTeam": False, "sharedRounds": 0, "constructor": None}
-    # A DNF behind a classified finisher still counts in the race head-to-head.
     sai = client.get(f"/api/seasons/{YEAR}/compare/drivers?d1=per&d2=sai").json()
     assert sai["headToHead"]["race"]["a"] == 2
 
@@ -257,7 +249,6 @@ def test_qualifying_gap_reports_coverage(client, season):
 def test_race_pace_uses_clean_laps(client, season):
     data = client.get(f"/api/seasons/{YEAR}/compare/drivers?d1=ver&d2=lec").json()
     pace = data["rounds"][0]["racePace"]
-    # Lap 1 and the 20-second pit lap are both gone.
     assert pace["aCleanLaps"] == LAPS - 2
     assert pace["deltaMs"] == -200
     assert data["rounds"][2]["racePace"] is None
@@ -267,13 +258,9 @@ def test_race_pace_uses_clean_laps(client, season):
 def test_laps_led_from_positions_and_cumulative_fallback(client, season):
     data = client.get(f"/api/seasons/{YEAR}/compare/drivers?d1=ver&d2=lec").json()
     r1, r2, r3 = data["rounds"]
-    # Round 1: Fast-F1 positions put Verstappen first on every lap.
     assert r1["a"]["lapsLed"] == LAPS and r1["b"]["lapsLed"] == 0
-    # Round 2 has no positions: lowest elapsed time leads, which is Verstappen
-    # on the quickest laps throughout.
     assert r2["a"]["lapsLed"] == LAPS
     assert r2["lapsLedCoverage"] == {"coveredLaps": LAPS, "totalLaps": LAPS}
-    # Round 3 has no lap data at all: unknown, not zero.
     assert r3["a"]["lapsLed"] is None and r3["lapsLedCoverage"] is None
     assert data["aggregates"]["lapsLed"]["a"] == 2 * LAPS
     assert data["lapsLedCoverage"] == {"roundsCovered": 2, "roundsRaced": 3}
@@ -292,7 +279,6 @@ def test_same_entity_is_rejected(client, season):
 
 
 def test_entrants_follow_the_standings(client, season, db):
-    # Give the final round positions so the order has something to follow.
     for did, pos in (("ver", 1), ("lec", 2), ("per", 3), ("sai", 4)):
         db.get(DriverStanding, f"ds3-{did}").position = pos
     db.get(ConstructorStanding, "cs3-red-bull").position = 1
@@ -302,7 +288,6 @@ def test_entrants_follow_the_standings(client, season, db):
     data = client.get(f"/api/seasons/{YEAR}/compare/entrants").json()
     assert [d["ref"] for d in data["drivers"]] == ["ver", "lec", "per", "sai"]
     assert data["drivers"][1]["constructor"]["ref"] == "ferrari"
-    # Williams is a constructor on file but never raced this season.
     assert [c["ref"] for c in data["constructors"]] == ["red-bull", "ferrari"]
 
 
@@ -312,7 +297,7 @@ def test_dropped_result_counts_as_awarded_but_not_in_the_total(client, season, d
     The round still shows what was awarded; the championship total is the
     official one, and the difference is reported rather than hidden.
     """
-    db.get(DriverStanding, "ds3-per").points = 27  # 18 scored in round 3, none counted
+    db.get(DriverStanding, "ds3-per").points = 27
     db.commit()
     data = client.get(f"/api/seasons/{YEAR}/compare/drivers?d1=ver&d2=per").json()
     assert data["rounds"][2]["b"]["points"] == 18

@@ -38,8 +38,6 @@ class _FastF1SessionIngestor(BaseIngestor):
     """The fetch-throttle-write loop the two Fast-F1 ingestors share."""
 
     kind: str
-    # How the log names the data ("lap times") and what a written row is
-    # ("lap times ingested", "qualifying sectors updated").
     noun: str
     written: str
 
@@ -64,8 +62,6 @@ class _FastF1SessionIngestor(BaseIngestor):
             return
         self.log(f"{len(targets)} race(s) outstanding")
 
-        # Only once there is something to fetch: a run with nothing outstanding
-        # should not ask anyone to sign in.
         try:
             require_f1_account()
         except F1AuthError as e:
@@ -74,8 +70,6 @@ class _FastF1SessionIngestor(BaseIngestor):
 
         fetched = 0
         records = 0
-        # Fast-F1 answers a refused request with a warning and no data, so a run
-        # of empty sessions is how a blocked host looks from in here.
         empty_streak = 0
         for target in targets:
             if is_interrupted():
@@ -114,7 +108,6 @@ class _FastF1SessionIngestor(BaseIngestor):
                 fetched += 1
                 self.log(f"{label}: {race_records} {self.written}")
 
-                # Only delays when the load hit the network (not the cache).
                 throttle(load_elapsed, log=self.log)
 
             except InterruptedError:
@@ -131,12 +124,9 @@ class _FastF1SessionIngestor(BaseIngestor):
                     )
                     return
                 if is_rate_limit_error(e):
-                    # No point retrying in this process: the rolling window
-                    # needs time to clear, and what is written is committed.
                     self.log(f"{label}: rate limited, stopping. Re-run later to continue.")
                     break
                 self.log(f"{self.noun.capitalize()} {label}: ERROR - {e}")
-                # The load may have hit the network before the failure.
                 if load_elapsed is not None:
                     throttle(load_elapsed, log=self.log)
 

@@ -38,8 +38,6 @@ CAP_ERROR = "tool call limit reached; answer now"
 CAP_NUDGE = "Answer with what you have."
 
 
-# Measured size of the cached prefix (system prompt + 18 tool schemas), in tokens.
-# Stands in for the input of a turn that failed before reporting its usage.
 SYSTEM_AND_TOOLS_ESTIMATE = 2_000
 
 
@@ -117,8 +115,6 @@ def run_chat(
     usage = ledger.Usage()
     tool_calls = 0
     outcome = "ok"
-    # The gates read on this session; end that transaction so no pooled
-    # connection idles in one while the model streams.
     db.rollback()
     messages = build_messages(body, now.date())
     tools = tool_specs()
@@ -145,7 +141,6 @@ def run_chat(
                     turn_usage_seen = True
                 elif isinstance(event, Done):
                     done = event
-            # The forced final turn is the last one, whatever the model does.
             final = tool_choice is not None
             if final or done is None or done.stop_reason != "tool_use" or not calls:
                 break
@@ -175,7 +170,6 @@ def run_chat(
             if tool_calls >= MAX_TOOL_CALLS:
                 tool_choice = {"type": "none"}
                 results.append({"type": "text", "text": CAP_NUDGE})
-            # A new list per turn: the list handed to a past turn is never mutated.
             messages = [
                 *messages,
                 {"role": "assistant", "content": done.content},
@@ -186,8 +180,6 @@ def run_chat(
         outcome = "error"
         provider = isinstance(e, ProviderError)
         if not turn_usage_seen:
-            # The turn died before its usage arrived; count it conservatively
-            # rather than as free, so the budget never under-counts.
             usage.add(
                 ledger.Usage(
                     input_tokens=len(json.dumps(messages)) // 4 + SYSTEM_AND_TOOLS_ESTIMATE,
@@ -199,7 +191,6 @@ def run_chat(
         else:
             yield sse("error", {"code": "internal", "message": INTERNAL_ERROR})
     finally:
-        # Runs on a client disconnect too (GeneratorExit), so spend is never lost.
         row = ledger.record(
             db,
             model=settings.chat_model,

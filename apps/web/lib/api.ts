@@ -20,10 +20,6 @@ import type {
   SeasonCalendarResponse,
 } from './types'
 
-/**
- * Carries the upstream status so callers can tell "this driver does not exist"
- * from "the API is down" — the first should render a 404, the second must not.
- */
 export class ApiError extends Error {
   constructor(
     readonly status: number,
@@ -34,41 +30,20 @@ export class ApiError extends Error {
   }
 }
 
-/** True when the API said the resource itself is missing. */
 export function isNotFound(error: unknown): boolean {
   return error instanceof ApiError && error.status === 404
 }
 
 const ENTITY_PATH = /^\/(drivers|constructors|circuits)\/([^/?]+)/
 const SEASON_PATH = /^\/(?:seasons|best-seasons)\/(\d{4})(?:[/?]|$)/
-/** Second path segments of the entity routers that are lists, not one entity. */
 const ENTITY_LISTS = new Set(['nationalities', 'countries'])
 const ENTITY_KIND = { drivers: 'driver', constructors: 'constructor', circuits: 'circuit' } as const
-/** Endpoints whose data no import changes; see `F1_REFERENCE_TAG`. */
 const REFERENCE_ENDPOINTS = new Set(['/points-systems'])
 
-/**
- * The cache scope of one endpoint: the tags its response is stored under and
- * how long it may live.
- *
- * Every entry is tagged `f1-data`, so a full purge still reaches everything,
- * plus one narrower tag the ingest webhook can expire on its own:
- * `f1-season-<year>` for anything under one season (its races, standings,
- * charts), `f1-driver-<ref>` / `f1-constructor-<ref>` / `f1-circuit-<ref>` for
- * one entity's profile, `f1-reference` for data no import changes
- * (`/points-systems`) and `f1-global` for everything else. A weekly ingest
- * then only expires the current season, that season's entrants and the global
- * lists — not seventy-odd finished seasons whose race pages are the biggest
- * entries in the cache.
- *
- * `app/api/revalidate` must expire the same names this produces.
- */
 function cacheScopeFor(endpoint: string): { tags: string[]; revalidate: number } {
   const season = SEASON_PATH.exec(endpoint)
   if (season) {
     const year = Number(season[1])
-    // A season before the current calendar year is over; the clock only picks
-    // the TTL here, never anything that ends up in the response.
     const finished = year < new Date().getUTCFullYear()
     return {
       tags: [F1_DATA_TAG, seasonTag(year)],
@@ -89,14 +64,6 @@ function cacheScopeFor(endpoint: string): { tags: string[]; revalidate: number }
   return { tags: [F1_DATA_TAG, F1_GLOBAL_TAG], revalidate: REVALIDATE_SECONDS }
 }
 
-/**
- * Fetches one FastAPI endpoint.
- *
- * Cached in the Data Cache by default — which on Vercel is ISR storage, billed
- * per write. Pass `{ cache: 'no-store' }` for endpoints whose URL space is
- * unbounded (a pair of drivers, a filter combination): each distinct URL would
- * otherwise become its own cache entry, written once and rarely read again.
- */
 async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const noStore = options?.cache === 'no-store'
   const { tags, revalidate } = cacheScopeFor(endpoint)
@@ -116,15 +83,6 @@ async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> 
   return res.json() as Promise<T>
 }
 
-/**
- * Serialises explorer filters into the query string the FastAPI endpoint takes.
- *
- * Shared by the browser (which sends it to our own route handler) and that route
- * handler (which sends it on to FastAPI), so the two can never disagree about
- * how a filter is spelled — `nationality` and `country` are the same control in
- * the UI but different parameters upstream, which is exactly the kind of detail
- * that drifts when it is written twice.
- */
 export function recordsExploreQuery(params: RecordsExploreParams): URLSearchParams {
   const query = new URLSearchParams({ entity: params.entity, category: params.category })
   if (params.era) query.set('era', params.era)
@@ -140,11 +98,6 @@ export function recordsExploreQuery(params: RecordsExploreParams): URLSearchPara
   return query
 }
 
-/**
- * The browser's half of the explorer fetch: same origin, no CORS, and an
- * `ApiError` on failure so callers can tell a rejected filter combination (4xx)
- * from an API that is down (5xx) exactly as they can server-side.
- */
 export async function fetchRecordsExplore(
   params: RecordsExploreParams,
   signal?: AbortSignal,
@@ -159,7 +112,6 @@ export async function fetchRecordsExplore(
 export const api = {
   seasons: {
     list: () => fetchApi<{ data: { year: number }[] }>('/seasons'),
-    /** The same list, uncached — for `/seasons/current`, whose redirect the CDN caches. */
     listUncached: () => fetchApi<{ data: { year: number }[] }>('/seasons', { cache: 'no-store' }),
     get: (year: number) => fetchApi(`/seasons/${year}`),
     driverStandings: (year: number) => fetchApi(`/seasons/${year}/standings/drivers`),
@@ -237,7 +189,6 @@ export const api = {
   },
   champions: () => fetchApi('/champions'),
   bestSeasons: {
-    /** Every completed season with its competitiveness metrics, best first. */
     list: () => fetchApi<BestSeasonsResponse>('/best-seasons'),
     season: (year: number) => fetchApi<BestSeasonResponse>(`/best-seasons/${year}`),
   },
@@ -247,40 +198,14 @@ export const api = {
     return fetchApi(`/search?${params}`)
   },
   records: Object.assign(() => fetchApi('/records'), {
-    /**
-     * The filterable explorer, called server-side like every other endpoint.
-     *
-     * The explorer's filters change without a navigation, so the request has to
-     * happen after the page is in the browser — which would make this the only
-     * endpoint the browser talks to directly, and the only one whose failure
-     * mode is a CORS rejection. It goes through the same-origin route handler at
-     * `app/api/records/explore` instead: the browser calls its own origin and
-     * Next calls FastAPI from the server, so `NEXT_PUBLIC_API_URL` never has to
-     * be reachable from a visitor's machine.
-     */
     explore: (params: RecordsExploreParams, signal?: AbortSignal) =>
       fetchApi<RecordsExploreResponse>(`/records/explore?${recordsExploreQuery(params)}`, {
         signal,
-        // Every filter combination is its own URL; the route handler's CDN
-        // `Cache-Control` caches the popular ones for free instead.
         cache: 'no-store',
       }),
-    /**
-     * A landing page's fixed query (`lib/seo-landing.ts`). Bounded by that list,
-     * so unlike `explore` it is cached like any other `f1-global` endpoint.
-     */
     ranking: (params: RecordsExploreParams) =>
       fetchApi<RecordsExploreResponse>(`/records/explore?${recordsExploreQuery(params)}`),
   }),
-  /**
-   * Head-to-heads. Not cached: any pair of ~900 drivers is a valid URL, so a
-   * cache entry per pair is an unbounded number of ISR writes, almost none of
-   * which is ever read twice. The pages reading these are dynamic anyway.
-   *
-   * The `curated*` pair are the exception: `lib/curated-comparisons.ts` bounds
-   * them. Tagged with both entities and not `f1-global`, so a weekly purge only
-   * re-renders a head-to-head when one of its two sides actually raced.
-   */
   compare: {
     curatedDrivers: (d1: string, d2: string) =>
       fetchApi(`/compare/drivers?${new URLSearchParams({ d1, d2 })}`, {
@@ -300,11 +225,9 @@ export const api = {
       return fetchApi(`/compare/constructors?${params}`, { cache: 'no-store' })
     },
   },
-  /** Two drivers or two constructors within one season (`/seasons/[year]/compare`). */
   seasonCompare: {
     entrants: (year: number) =>
       fetchApi<SeasonCompareEntrants>(`/seasons/${year}/compare/entrants`),
-    // Pairs are not cached, for the same reason as `compare` above.
     constructors: (year: number, c1: string, c2: string) =>
       fetchApi<SeasonCompareResponse>(
         `/seasons/${year}/compare/constructors?${new URLSearchParams({ c1, c2 })}`,
@@ -317,14 +240,6 @@ export const api = {
       ),
   },
   ops: {
-    /**
-     * Counts, timestamps and the ingest run log behind `/status`.
-     *
-     * Never cached. The response carries `generatedAt` and planner row
-     * estimates, so no two are identical: every refresh of a cached copy was a
-     * guaranteed ISR write, for a `noindex` page few people open. `/status`
-     * renders per request instead (see the page).
-     */
     status: () => fetchApi<OpsStatus>('/ops/status', { cache: 'no-store' }),
   },
 }

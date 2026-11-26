@@ -11,3 +11,4 @@ docker/
 
 # Generated geodata — minified on purpose
 apps/web/public/geo/*.json
+apps/web/eslint-suppressions.json

@@ -2,7 +2,6 @@ import { SITE_NAME, SITE_DESCRIPTION, absoluteUrl } from './seo'
 
 type Thing = Record<string, unknown>
 
-/** Site-level entity: enables the sitelinks search box and the brand name. */
 export function websiteSchema(): Thing {
   return {
     '@context': 'https://schema.org',

@@ -4,10 +4,8 @@ import { cn } from '@/lib/utils'
 type FlagCode = keyof typeof Flags
 
 interface CountryFlagProps {
-  /** ISO 3166-1 alpha-2 country code (e.g. "GB", "NL") */
   code: string | null | undefined
   className?: string
-  /** Height in pixels (default 16). Width is 1.5x height. */
   size?: number
 }
 

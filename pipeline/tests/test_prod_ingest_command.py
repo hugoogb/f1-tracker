@@ -25,7 +25,6 @@ from scripts.seed import INGESTOR_FLAGS
 
 COMPOSE = pathlib.Path(__file__).resolve().parents[2] / "docker" / "compose.prod.yml"
 
-# Fetched off-box because F1 blocks the server — see `scripts/fastf1-sync.sh`.
 OFF_BOX_TARGETS = {"laptimes", "qualifying-sectors"}
 
 

@@ -60,10 +60,6 @@ from src.scoring import (
 
 router = APIRouter()
 
-# --- The score -----------------------------------------------------------------
-#
-# (id, label, weight, description). Weights sum to 100, so a component's points
-# are `weight * value` and the total is already on a 0-100 scale.
 COMPONENTS: tuple[tuple[str, str, int, str], ...] = (
     (
         "closeness",
@@ -103,11 +99,8 @@ COMPONENTS: tuple[tuple[str, str, int, str], ...] = (
     ),
 )
 
-# A margin this large a share of the champion's total scores nothing for closeness.
 MARGIN_SHARE_CEILING = 0.4
-# Different winners needed for full marks, unless the season had fewer races.
 WINNERS_FOR_FULL_MARKS = 8
-# Lead changes needed for full marks.
 LEAD_CHANGES_FOR_FULL_MARKS = 4
 
 NOTES = (
@@ -144,20 +137,17 @@ SortKey = Literal[
     "constructors_margin",
 ]
 
-Standing = tuple[str, float, int | None]  # (id, points, position)
+Standing = tuple[str, float, int | None]
 
 
 @dataclass
 class _Season:
     year: int
     races: list[Race] = field(default_factory=list)
-    # race_id -> {driver_id: race + sprint points that round}; a key per round run.
     round_points: dict[str, dict[str, float]] = field(default_factory=dict)
-    # race_id -> {driver_id: (official points, position)} as the table stood after it.
     official_tables: dict[str, dict[str, tuple[float, int | None]]] = field(default_factory=dict)
     driver_final: list[Standing] = field(default_factory=list)
     constructor_final: list[Standing] = field(default_factory=list)
-    # Grand Prix finishing positions per round, for the countback on a tie.
     round_positions: dict[str, dict[str, int]] = field(default_factory=dict)
     winners: set[str] = field(default_factory=set)
     pole_sitters: set[str] = field(default_factory=set)
@@ -300,11 +290,6 @@ def _analyse(season: _Season, sprint_ids: set[str], today: date) -> dict | None:
     champion = season.driver_final[0]
     runner_up = season.driver_final[1] if len(season.driver_final) > 1 else None
 
-    # Walk the season round by round on the official table (see the module
-    # note), or on running totals of points scored where a round has none. The
-    # title is settled at the round f1db flags as the decider; without a flag,
-    # at the first round after which nobody could catch the leader, and that
-    # leader has to be the official champion.
     official = all(r.id in season.official_tables for r in run)
     flagged = next((r for r in run if r.drivers_title_decider), None)
     decided_at: Race | None = None
@@ -357,8 +342,6 @@ def _analyse(season: _Season, sprint_ids: set[str], today: date) -> dict | None:
         leaders.append(leader_id)
     if not in_progress and flagged is not None:
         decided_at = flagged
-        # Settled before the finale: whatever the visible totals allowed, the
-        # official record says nobody could still win it.
         if flagged.round < run[-1].round and contenders_at_finale is not None:
             contenders_at_finale = 1
     if not in_progress and decided_at is None:
@@ -385,7 +368,6 @@ def _analyse(season: _Season, sprint_ids: set[str], today: date) -> dict | None:
             "marginShare": round(c_margin / c_champ[1], 4) if c_champ[1] > 0 else None,
         }
 
-    # --- components ---------------------------------------------------------
     values: dict[str, float] = {
         "closeness": _clamp(1 - margin_share / MARGIN_SHARE_CEILING)
         if margin_share is not None
@@ -419,7 +401,6 @@ def _analyse(season: _Season, sprint_ids: set[str], today: date) -> dict | None:
         "roundsRun": len(run),
         "pointsSystem": {"id": system.id, "label": system.label, "era": system.era},
         "everyResultCounts": counts_every_result(year),
-        # Only where a round had no official table and points scored stood in.
         "progressionApproximate": not official and not counts_every_result(year),
         "_champion": champion,
         "_runnerUp": runner_up,
@@ -448,7 +429,6 @@ def _build(
     db: Session, year_from: int | None, year_to: int | None, include_in_progress: bool
 ) -> list[dict]:
     """Every season in range, analysed and ranked on score across all completed seasons."""
-    # Ranks are site-wide, so they are computed over every season, then filtered.
     seasons = _load(db)
     sprint_ids = _sprint_race_ids(db, seasons) if seasons else set()
     today = date.today()
@@ -600,7 +580,6 @@ def best_seasons(
         "total": len(entries),
         "components": _components_payload(),
         "notes": list(NOTES),
-        # Seasons with no value for the sort metric go last, whatever the order.
         "seasons": present + missing,
     }
 

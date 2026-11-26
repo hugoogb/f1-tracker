@@ -31,9 +31,6 @@ function display(value: number | null, digits?: number): string {
   return digits ? value.toFixed(digits) : formatPoints(value)
 }
 
-/**
- * Season totals side by side, each with an A − B chip in the favoured side's colour.
- */
 export function StatRows({
   data,
   sides,

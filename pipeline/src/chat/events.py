@@ -25,7 +25,6 @@ class UsageEvent:
 @dataclass(frozen=True)
 class Done:
     stop_reason: str
-    # The raw assistant content blocks, replayed verbatim in the next turn.
     content: list
 
 

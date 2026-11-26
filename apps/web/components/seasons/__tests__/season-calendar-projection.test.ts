@@ -29,7 +29,6 @@ describe('mercator', () => {
 })
 
 describe('projected paths', () => {
-  // Melbourne -> Shanghai
   const path = projectPath(greatCirclePath([-37.85, 144.97], [31.34, 121.22]))
 
   it('pointAt runs from start to end', () => {
@@ -69,13 +68,11 @@ describe('nearestCopy', () => {
 
 describe('compactLongitudes', () => {
   it('keeps a Europe-centred calendar as it is', () => {
-    // A 2025-like spread: the empty Pacific is the widest gap.
     const lngs = [145, 121, 136, 50, -1, -73, -46, -115, 51]
     expect(compactLongitudes(lngs)).toEqual(lngs)
   })
 
   it('frames a Pacific-centred set across the antimeridian', () => {
-    // Japan, Australia, Las Vegas, Mexico City: the empty gap is the Atlantic.
     const out = compactLongitudes([136, 145, -115, -99])
     expect(out).toEqual([136, 145, 245, 261])
   })
@@ -83,7 +80,6 @@ describe('compactLongitudes', () => {
 
 describe('camera', () => {
   it('fitZoom fits a box with padding', () => {
-    // 256 world px into 512 - 2*0 px: one zoom level.
     expect(fitZoom(256, 64, 512, 1000, 0)).toBeCloseTo(1, 9)
   })
 
@@ -91,7 +87,6 @@ describe('camera', () => {
     expect(followZoom(0, 4, 2)).toBe(4)
     expect(followZoom(0.5, 4, 2)).toBeCloseTo(2, 9)
     expect(followZoom(1, 4, 2)).toBeCloseTo(4, 9)
-    // A hop shorter than the arrival framing never zooms in.
     expect(followZoom(0.5, 4, 6)).toBe(4)
   })
 })

@@ -35,9 +35,7 @@ def get_records(
     limit: int = Query(DEFAULT_RECORD_LIMIT, ge=1, le=MAX_RECORD_LIMIT),
     db: Session = Depends(get_db),
 ):
-    # --- Driver Records ---
 
-    # Most wins
     most_wins = db.execute(
         select(RaceResult.driver_id, func.count().label("count"))
         .where(RaceResult.position == 1)
@@ -46,7 +44,6 @@ def get_records(
         .limit(limit)
     ).all()
 
-    # Most podiums
     most_podiums = db.execute(
         select(RaceResult.driver_id, func.count().label("count"))
         .where(RaceResult.position <= 3)
@@ -55,7 +52,6 @@ def get_records(
         .limit(limit)
     ).all()
 
-    # Most poles
     most_poles = db.execute(
         select(
             QualifyingResult.driver_id,
@@ -67,7 +63,6 @@ def get_records(
         .limit(limit)
     ).all()
 
-    # Most race starts
     most_starts = db.execute(
         select(RaceResult.driver_id, func.count().label("count"))
         .group_by(RaceResult.driver_id)
@@ -75,7 +70,6 @@ def get_records(
         .limit(limit)
     ).all()
 
-    # Most championships
     most_championships = db.execute(
         select(
             DriverStanding.driver_id,
@@ -90,7 +84,6 @@ def get_records(
         .limit(limit)
     ).all()
 
-    # Most fastest laps
     most_fastest_laps = db.execute(
         select(
             Race.fastest_lap_driver_id,
@@ -102,9 +95,6 @@ def get_records(
         .limit(limit)
     ).all()
 
-    # --- Constructor Records ---
-
-    # Most constructor wins
     constructor_wins = db.execute(
         select(RaceResult.constructor_id, func.count().label("count"))
         .where(RaceResult.position == 1)
@@ -113,7 +103,6 @@ def get_records(
         .limit(limit)
     ).all()
 
-    # Most constructor championships
     most_constructor_champs = db.execute(
         select(
             ConstructorStanding.constructor_id,
@@ -122,7 +111,6 @@ def get_records(
         .where(
             ConstructorStanding.position == 1,
             ConstructorStanding.race_id.in_(final_round_race_ids()),
-            # A pre-1958 table is a sum of points, not a championship anyone won.
             ConstructorStanding.race_id.in_(
                 select(Race.id).where(Race.season_year >= FIRST_CONSTRUCTORS_CHAMPIONSHIP)
             ),
@@ -132,7 +120,6 @@ def get_records(
         .limit(limit)
     ).all()
 
-    # Bulk-fetch all referenced drivers and constructors in 2 queries
     all_driver_ids = set()
     for rows in [most_wins, most_podiums, most_poles, most_starts, most_championships]:
         for row in rows:
@@ -202,14 +189,6 @@ def get_records(
     }
 
 
-# --- Records explorer ---------------------------------------------------------
-#
-# The curated tables above answer "who holds the record". The explorer answers
-# "who held it between these years, in this category, among drivers of this
-# nationality" — the same data, sliced. It is a separate endpoint rather than a
-# parameterised /records because the curated page is the cached, indexed landing
-# content and must keep returning the same shape.
-
 ExploreEntity = Literal["driver", "constructor"]
 ExploreCategory = Literal[
     "wins",
@@ -223,10 +202,8 @@ ExploreCategory = Literal[
     "podium_rate",
 ]
 
-# Categories whose value is a ratio, and so need a denominator floor.
 _RATE_CATEGORIES = frozenset({"win_rate", "podium_rate"})
 
-# category -> (label, how the frontend should format the value)
 _CATEGORY_META: dict[str, tuple[str, str]] = {
     "wins": ("Wins", "integer"),
     "poles": ("Poles", "integer"),
@@ -300,8 +277,6 @@ def _metric_subquery(entity: str, category: str, year_clauses: list) -> Subquery
             .subquery()
         )
 
-    # Championships. Read off the official standings after the season's final
-    # round, never from a sum of race points — see `final_round_race_ids`.
     standing = DriverStanding if is_driver else ConstructorStanding
     standing_column = standing.driver_id if is_driver else standing.constructor_id
     return (
@@ -311,7 +286,6 @@ def _metric_subquery(entity: str, category: str, year_clauses: list) -> Subquery
             *year_clauses,
             standing.position == 1,
             standing.race_id.in_(final_round_race_ids()),
-            # A pre-1958 table is a sum of points, not a championship anyone won.
             *([] if is_driver else [Race.season_year >= FIRST_CONSTRUCTORS_CHAMPIONSHIP]),
         )
         .group_by(standing_column)
@@ -393,8 +367,6 @@ def explore_records(
     else:
         effective_min_starts = min_starts
     if is_rate:
-        # The denominator is the only thing that can be zero here, and a rate
-        # table with one-start wonders at the top is worse than useless.
         effective_min_starts = max(effective_min_starts, 1)
 
     model = Driver if entity == "driver" else Constructor
@@ -409,8 +381,6 @@ def explore_records(
         metric_sq = _metric_subquery(entity, category, year_clauses)
         entity_id_expr = starts_sq.c.entity_id
         starts_expr = starts_sq.c.starts
-        # starts_sq only produces rows for competitors with at least one start,
-        # so the divisor is never zero.
         value_expr = cast(func.coalesce(metric_sq.c.metric, 0), Float) / cast(
             starts_sq.c.starts, Float
         )

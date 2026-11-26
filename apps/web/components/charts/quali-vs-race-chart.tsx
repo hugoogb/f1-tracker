@@ -68,7 +68,6 @@ interface QualiVsRaceChartProps {
 }
 
 export function QualiVsRaceChart({ seasons, color = SERIES[0] }: QualiVsRaceChartProps) {
-  // Filter to seasons that have both qualifying and race data
   const data = seasons
     .filter((s) => s.avgQualiPosition !== null && s.avgRacePosition !== null)
     .map((s) => ({
@@ -110,8 +109,6 @@ export function QualiVsRaceChart({ seasons, color = SERIES[0] }: QualiVsRaceChar
             dataKey="quali"
             stroke="none"
             fill="url(#qualiRaceGradient)"
-            // Decoration under the qualifying line: it must not show up as a
-            // second "Qualifying" in the legend or the tooltip.
             legendType="none"
             tooltipType="none"
           />

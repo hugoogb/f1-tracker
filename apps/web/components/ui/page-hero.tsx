@@ -11,15 +11,12 @@ interface PageHeroProps {
   badge?: ReactNode
   tags?: ReactNode
   actions?: ReactNode
-  /** Puts the hero (and so its stripe and brackets) in a team's colours. */
   livery?: string | null
-  /** Large faint text behind the title on the right, e.g. a car number. */
   watermark?: string
   className?: string
   children?: ReactNode
 }
 
-/** The header of every page: display-type title over a livery stripe. */
 export function PageHero({
   title,
   eyebrow,

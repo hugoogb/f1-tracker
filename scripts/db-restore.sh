@@ -1,26 +1,6 @@
 #!/usr/bin/env bash
-# Restore a PostgreSQL backup.
-#
-# Usage: ./scripts/db-restore.sh [backup_file]
-# If no file is provided, restores docker/backups/latest.sql.gz.
-#
-# The dump is a full one (what db-backup.sh writes): schema, data, the Alembic
-# stamp and the materialized views are all in the file. It is loaded first and
-# Alembic runs afterwards, to carry a dump older than the current head up to it.
-#
-# Env:
-#   DB_CONTAINER    target container (default: ${STACK_NAME:-f1-tracker}-db)
-#   FORCE=1         skip the interactive confirmation (for scripted use)
-#   SKIP_MIGRATE=1  don't run `alembic upgrade head` (restore with nothing but
-#                   psql, e.g. on a machine without uv)
-#   SKIP_VIEWS=1    don't rebuild the materialized views
-#   SKIP_SCHEMA_RESET=1
-#                   don't drop and recreate `public` before loading the dump.
-#                   Leaves behind any object the dump does not own — see below.
 set -euo pipefail
 
-# `set -e` aborts without printing anything, which once turned a missing .env
-# key into a bare "exit 1" and nothing else. Name the line instead.
 trap 'status=$?; echo "Error: $(basename "$0") failed at line $LINENO (exit $status)." >&2' ERR
 
 # shellcheck source=lib/db.sh
@@ -36,8 +16,6 @@ fi
 
 db_require_container
 
-# Checked before anything is dropped: a corrupt archive should fail while the
-# current data is still there, not halfway through replacing it.
 dump_verify_gzip "$BACKUP_FILE"
 
 if ! dump_is_full "$BACKUP_FILE"; then
@@ -65,55 +43,25 @@ run_migrations() {
   (cd "$PROJECT_DIR/pipeline" && uv run alembic upgrade head)
 }
 
-# Emitted ahead of the dump so the load starts from an empty schema.
-#
-# The dump is `pg_dump --clean --if-exists`, so it drops every object *it*
-# owns — but it has never heard of anything a newer migration added, and those
-# survive the load as orphans. The dump then stamps `alembic_version` back to
-# its own revision, so the `alembic upgrade head` below replays that migration
-# and dies on the table it thinks it is creating for the first time
-# (`relation "ingest_runs" already exists`). Restoring the published seed into a
-# checkout ahead of production is the ordinary case, not a corner one.
-#
-# Recreating the schema makes a restore depend only on the dump, never on what
-# the database happened to hold first. It is part of the same transaction as the
-# load, so a failure still leaves the database exactly as it was.
 schema_reset_sql() {
   if [ "${SKIP_SCHEMA_RESET:-0}" = "1" ]; then
     return
   fi
-  # Ownership of `public` is required. Where the connecting role does not have
-  # it, this fails the transaction and the restore aborts with the data intact —
-  # which is the right outcome: the alternative is a silent partial restore.
   printf 'DROP SCHEMA IF EXISTS public CASCADE;\nCREATE SCHEMA public;\n'
 }
 
 load_dump() {
-  # ON_ERROR_STOP so a failed statement fails the restore. Without it psql
-  # reports success having skipped whatever did not apply, which is the one
-  # thing a restore must never do. --single-transaction makes it all-or-nothing:
-  # DDL is transactional in PostgreSQL, so the dump either lands completely or
-  # leaves the database as it was.
   local reset
   reset="$(schema_reset_sql)"
   { [ -n "$reset" ] && printf '%s' "$reset"; gunzip -c "$BACKUP_FILE"; } \
     | db_psql --single-transaction -v ON_ERROR_STOP=1 -q
 }
 
-# `public` is recreated first (see schema_reset_sql), so the load starts from
-# nothing and cannot inherit an object the dump does not know about. The dump
-# carries its own alembic_version, which is why Alembic runs after it rather than
-# before.
 echo "Restoring schema, data and materialized views..."
 load_dump
 
-# A no-op when the dump is current. It matters when restoring an older backup
-# into a checkout that has since gained migrations.
 run_migrations
 
-# The dump already refreshed the views (pg_dump emits REFRESH MATERIALIZED VIEW
-# for every populated one), so this only has work to do when the migrations
-# above changed something underneath them.
 if [ "${SKIP_VIEWS:-0}" != "1" ]; then
   echo "Rebuilding materialized views..."
   (cd "$PROJECT_DIR/pipeline" && uv run python scripts/refresh_views.py)

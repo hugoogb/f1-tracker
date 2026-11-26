@@ -15,7 +15,6 @@ export interface PodiumEntry {
 const ORDER = [2, 1, 3]
 const HEIGHT: Record<number, string> = { 1: 'h-36', 2: 'h-28', 3: 'h-24' }
 
-/** The last race's podium as three columns in team colours, winner in the middle. */
 export function LastRacePodium({
   raceName,
   href,

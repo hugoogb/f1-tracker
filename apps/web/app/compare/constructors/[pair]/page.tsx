@@ -8,7 +8,6 @@ import {
 import { findPair, pairHref, type CuratedPair } from '@/lib/curated-comparisons'
 import { SITE_DESCRIPTION, buildMetadata } from '@/lib/seo'
 
-/** Nothing at build; the first request for a listed pair renders and caches it. */
 export function generateStaticParams() {
   return []
 }
@@ -28,7 +27,6 @@ export async function generateMetadata({ params }: { params: Promise<{ pair: str
       path,
     })
   } catch {
-    // Streaming ships a 404 body with a 200, so noindex is what keeps it out.
     return buildMetadata({
       title: 'Compare Constructors',
       description: SITE_DESCRIPTION,
