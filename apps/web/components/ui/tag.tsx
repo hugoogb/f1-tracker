@@ -9,7 +9,6 @@ const VARIANTS = {
   outline: 'border border-hairline-strong text-label',
 } as const
 
-/** A skewed broadcast tag: round numbers, "Next", short facts. */
 export function Tag({
   variant = 'solid',
   className,

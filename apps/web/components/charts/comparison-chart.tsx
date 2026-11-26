@@ -35,7 +35,6 @@ export function ComparisonChart({
   color1 = sideColor('a'),
   color2 = sideColor('b'),
 }: ComparisonChartProps) {
-  // Merge both drivers' data by year
   const yearSet = new Set([
     ...driver1Seasons.map((s) => s.year),
     ...driver2Seasons.map((s) => s.year),

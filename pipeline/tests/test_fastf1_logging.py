@@ -11,8 +11,6 @@ import pytest
 
 from src.ingestion.fastf1_sessions import configure_logging
 
-# Verbatim from requests_cache's stale-if-error path, which logs it with
-# exc_info=True after serving a cached response for a failed request.
 RECOVERED_MESSAGE = (
     "Request for URL https://api.jolpi.ca/ergast/f1/2026/13/results.json "
     "failed; using cached response"
@@ -53,8 +51,6 @@ def test_cache_fallback_warnings_lose_their_stack_trace(root_handler):
 
     assert all(f.filter(record) for f in root_handler.filters)
 
-    # The message survives — it names the unreachable source, which is the
-    # useful half — but the forty lines under it do not.
     assert record.exc_info is None
     assert "api.jolpi.ca" in record.getMessage()
 

@@ -9,7 +9,6 @@ import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet'
 import { Skeleton } from '@/components/ui/skeleton'
 import { isTypingTarget } from '@/lib/keyboard'
 
-/** The sheet's frame while its chunk loads, so the first open answers at once. */
 function LoadingSheet() {
   return (
     <Sheet open>
@@ -31,13 +30,11 @@ function LoadingSheet() {
   )
 }
 
-// Loaded on first open only, so a cached page carries nothing but this button.
 const EngineerSheet = dynamic(() => import('./engineer-sheet').then((m) => m.EngineerSheet), {
   ssr: false,
   loading: LoadingSheet,
 })
 
-/** The header's Race Engineer toggle (also ⌘J / Ctrl+J from anywhere). */
 export function EngineerButton() {
   const [open, setOpen] = useState(false)
   const [opened, setOpened] = useState(false)
@@ -55,8 +52,6 @@ export function EngineerButton() {
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== 'j') return
-      // From a field on the page the keystroke is the field's; from the
-      // sheet's own composer it still closes the sheet.
       if (!openRef.current && isTypingTarget(e.target)) return
       e.preventDefault()
       setOpened(true)

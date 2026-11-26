@@ -20,8 +20,6 @@ from src.api.routers import (
 )
 from src.config import settings
 
-# Interactive docs are a development convenience: they advertise the full schema
-# of a public read-only API. Keep them off unless FASTAPI_DEBUG is on.
 _docs_enabled = settings.fastapi_debug
 
 app = FastAPI(

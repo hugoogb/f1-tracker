@@ -3,7 +3,6 @@ import { ArrowRight } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
 
-/** Eyebrow + section title, with an optional "view all" link on the right. */
 export function SectionHeader({
   eyebrow,
   title,
@@ -18,7 +17,6 @@ export function SectionHeader({
   href?: string
   linkLabel?: string
   as?: 'h2' | 'h3'
-  /** For a section's `aria-labelledby`. */
   id?: string
   className?: string
 }) {

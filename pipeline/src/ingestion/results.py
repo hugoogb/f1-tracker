@@ -61,7 +61,6 @@ class RaceResultIngestor(_ResultIngestorBase):
                 continue
 
             course_length = race.get("courseLength")
-            # Fastest lap details live in their own collection, keyed by driver.
             fastest = {
                 fl["driverId"]: fl for fl in (race.get("fastestLaps") or []) if fl.get("driverId")
             }
@@ -116,7 +115,6 @@ class QualifyingIngestor(_ResultIngestorBase):
                 if not self._entities_present(row, known_drivers, known_constructors):
                     continue
 
-                # Pre-knockout eras have a single time rather than Q1/Q2/Q3.
                 q1 = row.get("q1") or (row.get("time") if not row.get("q3") else None)
 
                 self.db.merge(

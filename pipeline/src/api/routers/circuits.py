@@ -156,10 +156,8 @@ def get_circuit_stats(
     if not circuit:
         raise HTTPException(status_code=404, detail="Circuit not found")
 
-    # Get all race IDs at this circuit
     race_ids_query = select(Race.id).where(Race.circuit_id == circuit.id)
 
-    # Most wins (position = 1)
     most_wins = db.execute(
         select(
             RaceResult.driver_id,
@@ -174,7 +172,6 @@ def get_circuit_stats(
         .limit(limit)
     ).all()
 
-    # Most poles (qualifying position = 1)
     most_poles = db.execute(
         select(
             QualifyingResult.driver_id,
@@ -189,7 +186,6 @@ def get_circuit_stats(
         .limit(limit)
     ).all()
 
-    # Load driver objects for wins
     from src.db.models import Driver
 
     driver_ids = set()
@@ -203,7 +199,6 @@ def get_circuit_stats(
         drivers = db.execute(select(Driver).where(Driver.id.in_(driver_ids))).scalars().all()
         drivers_map = {d.id: d for d in drivers}
 
-    # Winning history: winner per race year
     winning_results = (
         db.execute(
             select(RaceResult)

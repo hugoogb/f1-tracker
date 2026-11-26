@@ -6,15 +6,9 @@ import { MotionCard, StaggerItem, StaggerList } from '@/components/ui/motion'
 import { ScoreBreakdownBar } from './score-breakdown-bar'
 import { deciderSentence, formatPoints } from './format'
 
-/**
- * The three greatest title fights, arranged as a podium: first in the middle and
- * raised, second and third either side. On a phone they simply stack in rank
- * order, because a podium three cards wide does not fit.
- */
 export function SeasonPodium({ seasons }: { seasons: BestSeason[] }) {
   const top = seasons.slice(0, 3)
   if (top.length === 0) return null
-  // Desktop order 2-1-3; `order-*` keeps the DOM (and the phone layout) in rank order.
   const desktopOrder = ['md:order-2', 'md:order-1', 'md:order-3']
 
   return (
@@ -42,7 +36,6 @@ function PodiumCard({ season, place }: { season: BestSeason; place: number }) {
             first ? 'border-primary/60 md:pb-10' : 'border-hairline hover:bg-surface-2',
           )}
         >
-          {/* The champion's team colour as a wash from the top edge. */}
           <div
             aria-hidden
             className="pointer-events-none absolute inset-x-0 top-0 h-24 opacity-25"

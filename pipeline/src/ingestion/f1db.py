@@ -23,7 +23,6 @@ logger = logging.getLogger(__name__)
 ARTIFACT = "f1db-json-single.zip"
 JSON_NAME = "f1db.json"
 
-# Identifies the project to GitHub, as a courtesy to the release host.
 USER_AGENT = "F1Tracker/1.0 (https://github.com/hugoogb/f1-tracker)"
 
 
@@ -75,10 +74,6 @@ class F1DBData:
         self.circuits: list[dict] = raw.get("circuits", [])
         self.seasons: list[dict] = raw.get("seasons", [])
         self.races: list[dict] = raw.get("races", [])
-
-    # --- Country helpers -------------------------------------------------
-    # f1db carries alpha2Code and demonym per country, which map directly onto
-    # our country_code and nationality columns.
 
     def nationality(self, country_id: str | None) -> str | None:
         country = self.countries.get(country_id or "")

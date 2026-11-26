@@ -2,7 +2,6 @@ import type { ReactNode } from 'react'
 
 import { cn } from '@/lib/utils'
 
-/** The one page width: header, footer and every page share it. */
 export function Container({
   as: Tag = 'div',
   className,

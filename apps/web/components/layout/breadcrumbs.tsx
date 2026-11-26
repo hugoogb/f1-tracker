@@ -11,8 +11,6 @@ interface BreadcrumbItem {
 export function Breadcrumbs({ items }: { items: BreadcrumbItem[] }) {
   return (
     <nav aria-label="Breadcrumb" className="mb-4">
-      {/* Mirrors the visible trail, which is what Google requires of a
-          BreadcrumbList — emitting it here covers every page that uses it. */}
       <JsonLd data={breadcrumbSchema(items)} />
       <ol className="label flex flex-wrap items-center gap-1.5">
         {items.map((item, i) => (

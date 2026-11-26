@@ -45,7 +45,6 @@ def validate():
     try:
         print("=== F1 Data Validation ===\n")
 
-        # --- Base entities ---
         counts = {
             "Seasons": db.scalar(select(func.count()).select_from(Season)),
             "Circuits": db.scalar(select(func.count()).select_from(Circuit)),
@@ -57,7 +56,6 @@ def validate():
         for name, count in counts.items():
             print(f"  {name + ':':<16} {count}")
 
-        # --- Circuit layouts ---
         total_circuits = counts["Circuits"] or 0
         layout_count = db.scalar(select(func.count()).select_from(CircuitLayout))
         circuits_with_layouts = db.scalar(select(func.count(CircuitLayout.circuit_id.distinct())))
@@ -69,7 +67,6 @@ def validate():
         print(f"  Total layout variants: {layout_count}")
         if not layouts_ok:
             has_gaps = True
-            # Find circuits missing layouts
             circuits_missing = db.execute(
                 select(Circuit.ref, Circuit.name)
                 .where(~Circuit.id.in_(select(CircuitLayout.circuit_id)))
@@ -80,7 +77,6 @@ def validate():
                 for ref, name in circuits_missing:
                     print(f"    {ref}: {name}")
 
-        # --- Country codes ---
         total_constructors = counts["Constructors"] or 0
         total_circuits = counts["Circuits"] or 0
 
@@ -157,7 +153,6 @@ def validate():
                 )
                 print(f"    Missing circuit mappings: {', '.join(missing)}")
 
-        # --- Constructor colors ---
         constructors_with_colors = db.scalar(
             select(func.count()).select_from(Constructor).where(Constructor.color.isnot(None))
         )
@@ -167,7 +162,6 @@ def validate():
             f"  Constructors with colors: {constructors_with_colors}/{total_constructors}  {check_mark(colors_ok)}"
         )
 
-        # --- Build race maps ---
         seasons = db.execute(select(Season).order_by(Season.year)).scalars().all()
         all_races = db.execute(select(Race).order_by(Race.season_year, Race.round)).scalars().all()
 
@@ -178,7 +172,6 @@ def validate():
             if race.date is not None and race.date <= today:
                 past_races_by_year.setdefault(race.season_year, []).append(race)
 
-        # --- Detect current season ---
         current_year = None
         for s in reversed(seasons):
             all_yr = races_by_year.get(s.year, [])
@@ -187,7 +180,6 @@ def validate():
                 current_year = s.year
                 break
 
-        # Preload existing data sets
         races_with_results = set(
             db.execute(select(RaceResult.race_id).group_by(RaceResult.race_id)).scalars().all()
         )
@@ -225,7 +217,6 @@ def validate():
             .all()
         )
 
-        # --- Current season summary ---
         if current_year:
             all_yr = races_by_year[current_year]
             past_yr = past_races_by_year[current_year]
@@ -259,7 +250,6 @@ def validate():
             print(f"  Q sectors:   {sectors_ok}/{completed}  {check_mark(sectors_ok == completed)}")
             print(f"  Sprints:     {sprints_count} {DIM}(not all races have sprints){RESET}")
 
-            # Flag current season gaps
             if results_ok < completed or quali_ok < completed or not has_ds or not has_cs:
                 has_gaps = True
             if current_year >= 2012 and pits_ok < completed:
@@ -269,11 +259,9 @@ def validate():
             if current_year >= 2018 and sectors_ok < completed:
                 has_gaps = True
 
-        # --- Completed seasons (exclude current) ---
         completed_seasons = [s for s in seasons if s.year != current_year]
         total_completed = len(completed_seasons)
 
-        # Race schedule coverage
         seasons_with_races = sum(1 for s in completed_seasons if races_by_year.get(s.year))
         print("\nRace coverage:")
         complete = seasons_with_races == total_completed
@@ -286,7 +274,6 @@ def validate():
                 if not races_by_year.get(s.year):
                     print(f"    {s.year}: 0 races")
 
-        # Race results
         total_past = sum(len(races_by_year.get(s.year, [])) for s in completed_seasons)
         past_with_results = sum(
             1
@@ -302,7 +289,6 @@ def validate():
             gaps = _season_gaps(completed_seasons, races_by_year, races_with_results)
             _print_gaps(gaps)
 
-        # Qualifying
         gaps = _season_gaps(completed_seasons, races_by_year, races_with_quali)
         seasons_complete = total_completed - len(gaps)
         complete = seasons_complete == total_completed
@@ -312,7 +298,6 @@ def validate():
             has_gaps = True
             _print_gaps(gaps)
 
-        # Sprints (2021+, informational)
         sprint_counts = {}
         for row in db.execute(
             select(Race.season_year, func.count(SprintResult.race_id.distinct()))
@@ -328,8 +313,6 @@ def validate():
             for year in sorted(sprint_counts):
                 print(f"  {year}: {sprint_counts[year]} sprint races")
 
-        # Standings (include current season — standings should exist for all
-        # seasons that have at least one race with results)
         all_seasons_for_standings = [
             s
             for s in seasons
@@ -342,7 +325,6 @@ def validate():
         cs_missing = []
         for s in all_seasons_for_standings:
             year_races = races_by_year.get(s.year, [])
-            # Check standings at the last race with results (matches ingestor logic)
             last_race = max(
                 (r for r in year_races if r.id in races_with_results),
                 key=lambda r: r.round,
@@ -373,7 +355,6 @@ def validate():
             has_gaps = True
             print(f"    Missing constructor standings: {', '.join(str(y) for y in cs_missing)}")
 
-        # Pit stops (2012+)
         pit_seasons = [s for s in completed_seasons if s.year >= 2012]
         pit_gaps = _season_gaps(pit_seasons, races_by_year, races_with_pits)
         pit_total = len(pit_seasons)
@@ -385,7 +366,6 @@ def validate():
             has_gaps = True
             _print_gaps(pit_gaps)
 
-        # Lap times (2018+)
         lap_seasons = [s for s in completed_seasons if s.year >= 2018]
         lap_gaps = _season_gaps(lap_seasons, races_by_year, races_with_laps)
         lap_total = len(lap_seasons)
@@ -399,7 +379,6 @@ def validate():
             has_gaps = True
             _print_gaps(lap_gaps)
 
-        # Qualifying sectors (2018+)
         sector_seasons = [s for s in completed_seasons if s.year >= 2018]
         sector_gaps = _season_gaps(sector_seasons, races_by_year, races_with_sectors)
         sector_total = len(sector_seasons)
@@ -411,14 +390,12 @@ def validate():
             has_gaps = True
             _print_gaps(sector_gaps)
 
-        # Race aggregates (fastest lap + qualifying sectors)
         races_with_fl = (
             db.scalar(
                 select(func.count()).select_from(Race).where(Race.fastest_lap_driver_id.isnot(None))
             )
             or 0
         )
-        # Count races that have fastest lap data in results (not all historical races do)
         races_with_fl_data = (
             db.scalar(
                 select(func.count(RaceResult.race_id.distinct())).where(

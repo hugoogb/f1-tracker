@@ -19,8 +19,6 @@ import {
   type CuratedPair,
 } from '@/lib/curated-comparisons'
 
-// The first few of the curated head-to-heads, as quick picks beside each form;
-// `AllHeadToHeads` below lists the rest.
 const suggestedDriverComparisons = CURATED_DRIVER_PAIRS.slice(0, 4)
 const suggestedConstructorComparisons = CURATED_CONSTRUCTOR_PAIRS.slice(0, 3)
 
@@ -160,8 +158,6 @@ function ConstructorCompareForm({ prefill }: { prefill: PrefillSide }) {
   )
 }
 
-// Title fights worth replaying round by round. Any season has the same view
-// behind the Compare button on its own page.
 const suggestedSeasonComparisons = [
   {
     href: '/seasons/2021/compare?type=drivers&a=max-verstappen&b=lewis-hamilton',
@@ -232,7 +228,6 @@ function PairLinks({ kind, pairs }: { kind: ComparisonKind; pairs: readonly Cura
   )
 }
 
-/** Outside the Suspense below, so these reach a crawler: the only links to these pages. */
 function AllHeadToHeads() {
   return (
     <Panel>
@@ -253,11 +248,6 @@ function AllHeadToHeads() {
   )
 }
 
-/**
- * `useSearchParams` bails out of server rendering up to the nearest Suspense
- * boundary. Keeping that boundary around the forms alone leaves the heading and
- * links in the HTML, rather than a page a crawler sees as blank.
- */
 function ComparePicker() {
   const searchParams = useSearchParams()
   const prefill = comparePrefill(searchParams)

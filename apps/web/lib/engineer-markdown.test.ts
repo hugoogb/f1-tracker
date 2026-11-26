@@ -49,7 +49,6 @@ describe('tokenizeAnswer', () => {
     expect(text.length).toBeGreaterThanOrEqual(20_000)
     const tokens = tokenizeAnswer(text)
     const lines = text.split('\n').length - 1
-    // text, link, text, bold, text, break per line
     expect(tokens).toHaveLength(lines * 6)
     expect(tokens.filter((t) => t.type === 'link')).toHaveLength(lines)
   })

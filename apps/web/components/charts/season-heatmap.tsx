@@ -15,7 +15,7 @@ function getPositionColor(position: number | null, status: string | null): strin
       status !== '+2 Laps' &&
       status !== '+3 Laps')
   ) {
-    return 'color-mix(in oklch, var(--negative) 55%, var(--surface-1))' // DNF
+    return 'color-mix(in oklch, var(--negative) 55%, var(--surface-1))'
   }
   if (position === 1) return 'var(--gold)'
   if (position === 2) return 'var(--silver)'
@@ -114,7 +114,6 @@ export function SeasonHeatmap({ data }: SeasonHeatmapProps) {
                       >
                         {result ? result.positionText : ''}
                       </div>
-                      {/* Tooltip */}
                       {isHovered && result && (
                         <div className="chart-tooltip pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 -translate-x-1/2 text-left whitespace-nowrap">
                           <p className="text-xs font-medium">{roundsMap.get(round.round)}</p>

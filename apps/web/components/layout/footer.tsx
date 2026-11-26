@@ -3,7 +3,6 @@ import Link from 'next/link'
 import { Container } from '@/components/ui/container'
 import { NAV_GROUPS } from '@/lib/nav'
 
-// Every destination in the header, plus the pages only the footer carries.
 const sections = [
   ...NAV_GROUPS.map((group) => ({
     label: group.label,

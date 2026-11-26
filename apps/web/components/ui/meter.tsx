@@ -2,7 +2,6 @@ import { filledSegments } from '@/lib/meter'
 import { liveryStyle } from '@/lib/livery'
 import { cn } from '@/lib/utils'
 
-/** A segmented telemetry meter for rates and progress. */
 export function Meter({
   value,
   max,
@@ -15,7 +14,6 @@ export function Meter({
   max: number
   segments?: number
   accent?: string | null
-  /** Accessible name, e.g. "Win rate". */
   label: string
   className?: string
 }) {

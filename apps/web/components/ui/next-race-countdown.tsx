@@ -30,14 +30,8 @@ function getTimeLeft(target: number, now: number) {
 export function NextRaceCountdown({ race, seasonYear }: NextRaceCountdownProps) {
   const sessions = useMemo(() => sessionsOf(race.schedule), [race.schedule])
 
-  // Null until the client takes over. The server has no clock the viewer would
-  // recognise, and a countdown baked into HTML is stale before it arrives, so
-  // the first client render has to match the server's and then correct itself.
   const now = useNow()
 
-  // Counts down to the next session that has not started — qualifying on the
-  // Saturday, not the race three days later. Without a schedule the only marker
-  // is the race date, which is midnight UTC: a day, not a start time.
   const upcoming = now === null ? (sessions[0] ?? null) : nextSession(sessions, now)
   const target = upcoming ? Date.parse(upcoming.at) : Date.parse(race.date)
   const timeLeft = now === null ? null : getTimeLeft(target, now)

@@ -4,7 +4,6 @@ export interface EngineerMessage {
   content: string
   ledgerId?: string
   thumbs?: 1 | -1
-  /** Shown in the transcript but never sent back to the model (an empty answer's stand-in). */
   notice?: boolean
 }
 

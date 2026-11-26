@@ -53,7 +53,6 @@ class ConstructorLineageIngestor(BaseIngestor):
 
         known = {ref for ref in self.db.execute(select(Constructor.ref)).scalars().all()}
 
-        # One chain can arrive once per member; keep the first and skip the rest.
         chains: dict[str, list[dict]] = {}
         for constructor in data.constructors:
             chain = _chain_of(constructor)
@@ -68,9 +67,6 @@ class ConstructorLineageIngestor(BaseIngestor):
             for position, entry in enumerate(chain, start=1):
                 ref = entry["constructorId"]
                 if ref not in known:
-                    # A chain can name a constructor the release does not carry
-                    # as an entrant. Storing it would break the foreign key, and
-                    # the chain is still worth having without it.
                     skipped.add(ref)
                     continue
                 rows.append(

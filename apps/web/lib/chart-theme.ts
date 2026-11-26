@@ -1,10 +1,3 @@
-/**
- * The one chart theme. Every Recharts chart spreads these instead of styling
- * its own axes, grid, cursor and tooltip. Values are CSS variables, so the
- * charts follow the tokens in `app/globals.css`; team and driver series keep
- * the colours their payloads carry.
- */
-
 const DATA_FONT = 'var(--font-chakra), ui-monospace, monospace'
 
 export const axisProps = {
@@ -19,19 +12,14 @@ export const gridProps = {
   vertical: false,
 } as const
 
-/** Cursor for line and area charts. */
 export const lineCursor = { stroke: 'var(--hairline-strong)', strokeWidth: 1 } as const
 
-/** Cursor for bar charts. */
 export const barCursor = { fill: 'var(--surface-2)' } as const
 
-/** Reference lines (zero lines, medians, thresholds). */
 export const REFERENCE = 'var(--hairline-strong)'
 
-/** Text and strokes that are data but carry no team colour. */
 export const NEUTRAL = 'var(--label)'
 
-/** Series colours when no team colour applies, in order. */
 export const SERIES = [
   'var(--chart-1)',
   'var(--chart-2)',
@@ -40,12 +28,10 @@ export const SERIES = [
   'var(--chart-5)',
 ] as const
 
-/** The fallback colour of a comparison side that has no team colour. */
 export function sideColor(side: 'a' | 'b'): string {
   return side === 'a' ? 'var(--side-a)' : 'var(--side-b)'
 }
 
-/** Chrome for Recharts' built-in tooltip, where a chart keeps it. */
 export const tooltipContentStyle = {
   backgroundColor: 'var(--surface-1)',
   border: '1px solid var(--hairline-strong)',
@@ -63,14 +49,8 @@ export const tooltipLabelStyle = {
   textTransform: 'uppercase',
 } as const
 
-/** Alternating background bands (eras, stints). */
 export const BAND = 'var(--grid-line)'
 
-/**
- * Heatmap fill for a finishing position below the podium: green through the
- * points, fading to grey after P10. The podium uses the gold/silver/bronze
- * tokens and is handled by the caller.
- */
 export function positionHeat(position: number): string {
   if (position <= 10) {
     const t = (position - 4) / 6
@@ -80,11 +60,6 @@ export function positionHeat(position: number): string {
   return `oklch(${0.4 - t * 0.1} 0.02 250)`
 }
 
-/**
- * The best-seasons score components. Picked as a set for separation between
- * neighbours and contrast on the dark surface; every segment is also gapped and
- * named in a legend, so colour never carries the identity alone.
- */
 export const SCORE_COLORS: Record<string, string> = {
   closeness: '#3987e5',
   lateness: '#d95926',

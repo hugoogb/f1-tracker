@@ -25,11 +25,7 @@ from src.ingestion.f1db import F1DBData
 from src.ingestion.standings import StandingsIngestor
 from tests.test_best_seasons import base, build  # noqa: F401 — `base` is a fixture
 
-# 1988 scoring (9-6-4-3-2-1). Summed, Alpha leads or shares the lead throughout:
-# a 9 / 15 / 24, b 6 / 15 / 21.
 SCORED = [{"a": 9, "b": 6}, {"b": 9, "a": 6}, {"a": 9, "b": 6}]
-# Counted, Alpha's second-round points do not all count, so Bravo leads after
-# round 2 and Alpha takes it back at the finale: two lead changes, not none.
 OFFICIAL = {
     1: {"a": (9, 1), "b": (6, 2)},
     2: {"b": (15, 1), "a": (13, 2)},
@@ -69,9 +65,6 @@ def races_of(db, year):
     return db.query(Race).filter(Race.season_year == year).order_by(Race.round).all()
 
 
-# --- the helper ----------------------------------------------------------------
-
-
 def test_running_totals_follow_the_official_table(db, base):  # noqa: F811
     season_1988(db)
     totals = official_running_totals(db, races_of(db, 1988))
@@ -80,7 +73,6 @@ def test_running_totals_follow_the_official_table(db, base):  # noqa: F811
 
 
 def test_an_entity_carries_its_last_total_until_it_reappears(db, base):  # noqa: F811
-    # f1db lists a driver only once they have scored: Charlie is absent, then 4.
     build(db, 1988, [{"a": 9}, {"a": 9, "c": 4}], final={"a": 18, "c": 4})
     official_tables(db, 1988, {1: {"a": (9, 1)}, 2: {"a": (18, 1), "c": (4, 2)}})
     totals = official_running_totals(db, races_of(db, 1988))
@@ -91,9 +83,6 @@ def test_an_entity_carries_its_last_total_until_it_reappears(db, base):  # noqa:
 def test_a_round_without_a_table_means_no_official_line(db, base):  # noqa: F811
     season_1988(db, skip=(2,))
     assert official_running_totals(db, races_of(db, 1988)) is None
-
-
-# --- progression ---------------------------------------------------------------
 
 
 def test_progression_draws_the_official_table(client, db, base):  # noqa: F811
@@ -111,9 +100,6 @@ def test_progression_falls_back_to_summed_points(client, db, base):  # noqa: F81
     assert [r["alpha"] for r in body["rounds"]] == [9, 15, 24]
 
 
-# --- best seasons --------------------------------------------------------------
-
-
 def test_lead_changes_follow_the_official_table(client, db, base):  # noqa: F811
     season_1988(db, decider=3)
     season = client.get("/api/best-seasons/1988").json()["season"]
@@ -127,8 +113,6 @@ def test_decided_round_is_the_flagged_decider(client, db, base):  # noqa: F811
     season = client.get("/api/best-seasons/1988").json()["season"]
     assert season["decidedAtRound"] == 2
     assert season["wentToFinalRound"] is False
-    # The visible totals (15 v 13, 9 points left) leave Alpha in it, but the
-    # record says it was settled, so nobody could still win it at the finale.
     assert season["contendersAtFinale"] == 1
 
 
@@ -143,11 +127,7 @@ def test_without_tables_the_summed_walk_is_flagged(client, db, base):  # noqa: F
     season_1988(db, skip=(2,))
     season = client.get("/api/best-seasons/1988").json()["season"]
     assert season["progressionApproximate"] is True
-    # Summed, Alpha never loses the lead (a tie does not take it away).
     assert season["leadChanges"] == 0
-
-
-# --- in-season comparison ------------------------------------------------------
 
 
 def test_compare_line_is_the_official_table(client, db, base):  # noqa: F811
@@ -156,12 +136,8 @@ def test_compare_line_is_the_official_table(client, db, base):  # noqa: F811
     assert body["cumulativeSource"] == "official"
     assert [r["a"]["cumulativePoints"] for r in body["rounds"]] == [9, 13, 22]
     assert [r["cumulativeDelta"] for r in body["rounds"]] == [3, -2, 1]
-    # What was awarded still reports alongside, and the gap is what was dropped.
     assert body["points"]["scored"]["a"] == 24
     assert body["points"]["dropped"]["a"] == 2
-
-
-# --- the ingest ----------------------------------------------------------------
 
 
 def _f1db_race(year, rnd, drivers=(), constructors=()):
@@ -231,15 +207,13 @@ def test_ingest_stores_the_table_after_every_round(db):
     data = F1DBData({"countries": [], "grandsPrix": [], "races": races, "seasons": seasons})
     with patch("src.ingestion.standings.f1db.load", return_value=data):
         StandingsIngestor(db).ingest()
-        # Idempotent: a second run rewrites the same rows.
         StandingsIngestor(db).ingest()
 
     def table(race_id):
         rows = db.query(DriverStanding).filter(DriverStanding.race_id == race_id).all()
         return {r.driver_id: (r.points, r.position, r.wins) for r in rows}
 
-    assert table("1988_01") == {"prost": (9, 1, 1), "senna": (6, 2, 0)}  # no unknown driver
+    assert table("1988_01") == {"prost": (9, 1, 1), "senna": (6, 2, 0)}
     assert table("1988_02") == {"senna": (15, 1, 1), "prost": (15, 2, 1)}
-    # The final round keeps its own path: official points, wins over the season.
     assert table("1988_03") == {"senna": (24, 1, 2), "prost": (19, 2, 1)}
     assert db.query(DriverStanding).count() == 6

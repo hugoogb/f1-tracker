@@ -10,12 +10,10 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# Override sqlalchemy.url from environment variable if available
 database_url = os.environ.get("DATABASE_URL")
 if database_url:
     config.set_main_option("sqlalchemy.url", database_url)
 
-# Import models for autogenerate support
 from src.db.database import Base  # noqa: E402
 from src.db.models import *  # noqa: E402, F401, F403
 

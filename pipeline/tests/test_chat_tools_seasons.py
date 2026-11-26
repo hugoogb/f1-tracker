@@ -80,7 +80,7 @@ def test_progression_and_permutations_answer_for_a_seeded_season(db, race_seed_d
     assert prog["leadChanges"] == 0
     perm = _run(db, "get_title_permutations", {"year": 2023, "kind": "drivers"})
     assert perm["href"] == "/seasons/2023"
-    assert perm["decided"] is True  # the only round is the last
+    assert perm["decided"] is True
     assert [c["ref"] for c in perm["contenders"]] == ["max_verstappen"]
     assert perm["contenders"][0]["needs"] == "champion"
 
@@ -157,7 +157,6 @@ def test_a_full_season_fits_the_result_budget(db, race_seed_data):
 def test_dropped_is_the_gap_between_scored_and_counted_and_absent_otherwise(db, race_seed_data):
     from src.db.models import DriverStanding, SprintResult
 
-    # Perez: 18 in the race plus a 7 point sprint, but the official table counts 20.
     db.add(
         SprintResult(
             id="sp-1",
@@ -191,7 +190,7 @@ def test_champion_is_null_while_the_table_lags_the_final_round(db, race_seed_dat
             date=datetime.date(2023, 3, 12),
         )
     )
-    db.commit()  # round 2 is past, but the standings are still round 1's
+    db.commit()
     out = _run(db, "get_season", {"year": 2023})
     assert out["rounds"] == 2 and out["completedRounds"] == 2
     assert out["champion"] is None and out["constructorsChampion"] is None

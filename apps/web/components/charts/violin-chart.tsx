@@ -24,18 +24,12 @@ import {
 
 export interface ViolinChartProps<C extends ViolinColumn = ViolinColumn> {
   columns: C[]
-  /** Formats y values for the axis and the default tooltip. */
   formatValue: (value: number) => string
-  /** Rendered under each column. */
   renderFooter?: (column: C) => ReactNode
   renderTooltip?: (hit: { column: C; dot?: ViolinDot }) => ReactNode
-  /** What a screen reader hears for a column; defaults to its median and IQR. */
   describeColumn?: (column: C) => string
-  /** Dashed line through the medians, in column order. */
   connectMedians?: boolean
-  /** Plot height in px. */
   height?: number
-  /** Below this the chart scrolls horizontally rather than squeezing columns. */
   minColumnWidth?: number
   ariaLabel: string
 }
@@ -50,13 +44,10 @@ interface Hover {
   dot?: number
   x: number
   y: number
-  /** Past the middle of the frame the tooltip opens to the left of the pointer. */
   flip: boolean
-  /** Opened by keyboard focus rather than a pointer. */
   focus?: boolean
 }
 
-/** The column (and dot) under an event target, read off `data-col`/`data-dot`. */
 function hitAt(target: EventTarget): { column: number; dot?: number } | null {
   const el = target instanceof Element ? target.closest('[data-col]') : null
   if (!el) return null
@@ -67,17 +58,6 @@ function hitAt(target: EventTarget): { column: number; dot?: number } | null {
   }
 }
 
-/**
- * Violins with a swarm of dots: one column per entity, an outline from the
- * column's density, a diamond at the median. Smaller values sit lower, so on
- * a lap-time axis the faster laps are at the bottom.
- *
- * Plain SVG — Recharts has no violin — styled from the same chart theme. The
- * y-axis stays put in a gutter while the columns scroll on a narrow screen.
- * The outlines and dots are one memoised layer; hovering only redraws the
- * highlight and the tooltip, and one handler on the frame finds what is under
- * the pointer, so a thousand dots carry no listeners of their own.
- */
 export function ViolinChart<C extends ViolinColumn>({
   columns,
   formatValue,
@@ -95,8 +75,6 @@ export function ViolinChart<C extends ViolinColumn>({
   const [hover, setHover] = useState<Hover | null>(null)
 
   const empty = columns.length === 0
-  // Measured before the first paint, so the columns never draw at their
-  // minimum width and then jump to fill the container.
   useLayoutEffect(() => {
     const el = scrollRef.current
     if (!el) return
@@ -247,8 +225,6 @@ export function ViolinChart<C extends ViolinColumn>({
   function track(event: PointerEvent<HTMLDivElement>) {
     const hit = hitAt(event.target)
     if (!hit) {
-      // Over the labels row or the axis: nothing to describe. A tap there on
-      // touch leaves an open tooltip alone; the outside-tap listener closes it.
       if (event.pointerType !== 'touch') setHover(null)
       return
     }
@@ -276,8 +252,6 @@ export function ViolinChart<C extends ViolinColumn>({
       className="relative"
       onPointerMove={track}
       onPointerDown={track}
-      // A finger lifting fires pointerleave straight after the tap that opened
-      // the tooltip; on touch it stays until a tap lands outside the chart.
       onPointerLeave={(e) => e.pointerType !== 'touch' && setHover(null)}
       onFocus={focus}
       onBlur={() => setHover((h) => (h?.focus ? null : h))}

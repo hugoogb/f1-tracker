@@ -37,17 +37,9 @@ const COMPOUND_ORDER = [
   'UNKNOWN',
 ]
 
-/**
- * Every clean race lap as a dot coloured by tyre, a violin per driver (or per
- * team, teammates pooled) and a diamond at the median, fastest first. Lap 1
- * and anything over 107% of the race median are left out, as on the
- * degradation chart: one in-lap would otherwise stretch every violin.
- */
 export function LapDistributionChart({ drivers }: { drivers: ChartDriverLaps[] }) {
   const [mode, setMode] = useState<DistributionMode>('drivers')
   const distribution = useMemo(() => raceDistribution(drivers, mode), [drivers, mode])
-  // Swatches from the dots actually drawn, so a 2018 race's legend shows
-  // that year's colours.
   const compounds = useMemo(() => {
     const drawn = new Map<string, string>()
     for (const column of distribution.columns) {
@@ -84,7 +76,6 @@ export function LapDistributionChart({ drivers }: { drivers: ChartDriverLaps[] }
           <ViolinChart<RaceColumn>
             columns={distribution.columns}
             formatValue={axisLapLabel}
-            // Team names need more room than a three-letter code.
             minColumnWidth={mode === 'drivers' ? 44 : 76}
             describeColumn={(column) =>
               `${column.entity.kind === 'driver' ? `${column.entity.firstName} ${column.entity.lastName}` : column.label}: median lap ${formatLapTime(column.median, 3)}, ${column.gapMs === 0 ? 'fastest' : `${formatGap(column.gapMs)} seconds behind the fastest`}, ${column.cleanLaps} clean laps`
@@ -99,7 +90,6 @@ export function LapDistributionChart({ drivers }: { drivers: ChartDriverLaps[] }
                       lastName={column.entity.lastName}
                       teamColor={column.color}
                     />
-                    {/* Reserves the flag's height, so a driver without one lines up. */}
                     <span className="flex h-2.5 items-center">
                       <CountryFlag code={column.entity.countryCode} size={10} />
                     </span>
@@ -107,8 +97,6 @@ export function LapDistributionChart({ drivers }: { drivers: ChartDriverLaps[] }
                 ) : (
                   <ConstructorLogo name={column.entity.name} color={column.color} />
                 )}
-                {/* Team names wrap onto a second line (always reserved, so the
-                    gaps line up) rather than being cut to "FERR…" on a phone. */}
                 <span
                   className={cn(
                     'label text-foreground max-w-full',

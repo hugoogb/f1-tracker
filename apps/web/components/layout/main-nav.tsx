@@ -14,7 +14,6 @@ const triggerClass =
 const activeClass =
   'text-foreground after:bg-primary after:absolute after:inset-x-3 after:bottom-0 after:h-0.5'
 
-/** The desktop header navigation: plain links, and groups that open a panel. */
 export function MainNav() {
   const pathname = usePathname()
   const current = activeGroup(pathname)

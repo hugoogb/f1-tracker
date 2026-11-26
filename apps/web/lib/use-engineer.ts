@@ -12,41 +12,22 @@ export const MAX_TITLE_CHARS = 200
 export const MAX_PATH_CHARS = 200
 export const EMPTY_ANSWER = 'The Engineer had nothing to add.'
 export const DISABLED_MESSAGE = 'The Engineer is not on the radio right now.'
-/**
- * How long a 429 holds the composer: the server's per-IP window (`RATE_WINDOW`
- * in `pipeline/src/chat/gates.py`). Every refused request is a ledger row that
- * counts against that window, so letting the reader retry sooner would only
- * extend their own lockout. The hook releases the cooldown on a timer of this
- * length (the reducer's `release`), so keep it in step with `RATE_WINDOW`.
- */
 export const COOLDOWN_MS = 10 * 60 * 1000
 
-/** The page's heading as context: trimmed, capped at the server's 200, null when empty. */
 export function pageTitleFrom(text: string | null | undefined): string | null {
   return text?.trim().slice(0, MAX_TITLE_CHARS).trim() || null
 }
 
-/**
- * Whether `send` must do nothing: an empty question, no turns left, a request
- * already in flight (a double Enter before the first dispatch lands), or a
- * status that already refuses (streaming, cooldown, budget).
- */
 export function sendBlocked(state: EngineerState, content: string, inFlight: boolean): boolean {
   if (!content || state.turnsLeft <= 0 || inFlight) return true
   const kind = state.status.kind
   return kind === 'streaming' || kind === 'tool' || kind === 'cooldown' || kind === 'budget'
 }
 
-/**
- * The page path sent as context. The server accepts only a plain site path
- * (no percent-encoding, `~`, `+`, ...), so anything else is sent as `/` rather
- * than turning every question on that page into a 422.
- */
 export function pagePath(pathname: string): string {
   return pathname.length <= MAX_PATH_CHARS && isSameOriginPath(pathname) ? pathname : '/'
 }
 
-/** A refused request's status, from the HTTP code and the body's `detail.code`. */
 export function refusalStatus(status: number, code: string | null): EngineerStatus {
   if (code === 'disabled') return { kind: 'error', message: DISABLED_MESSAGE }
   if (code === 'budget') return { kind: 'budget' }
@@ -54,7 +35,6 @@ export function refusalStatus(status: number, code: string | null): EngineerStat
   return { kind: 'error', message: `Request failed (${status})` }
 }
 
-/** The server's bounds: each entry stripped, 1..2000 chars, the last one a user turn. */
 export function outgoingMessages(
   messages: Pick<EngineerMessage, 'role' | 'content' | 'notice'>[],
 ): { role: 'user' | 'assistant'; content: string }[] {
@@ -72,7 +52,6 @@ export interface EngineerState {
   messages: EngineerMessage[]
   status: EngineerStatus
   turnsLeft: number
-  /** The assistant message the current stream is writing; null until its first text. */
   answerId: string | null
 }
 
@@ -142,9 +121,6 @@ export function reduce(state: EngineerState, action: EngineerAction): EngineerSt
           return { ...state, status: { kind: 'error', message: event.data.message } }
         case 'done': {
           const failed = state.status.kind === 'error'
-          // The ledger id belongs to this stream's answer only. A turn that
-          // wrote no text gets a notice in its place, so it is not silent and
-          // its feedback still lands on the right row.
           const messages =
             state.answerId !== null
               ? state.messages.map((m) =>
@@ -194,7 +170,6 @@ export function reduce(state: EngineerState, action: EngineerAction): EngineerSt
   }
 }
 
-/** `detail.code` from a refusal's JSON body, or null when there is none. */
 async function refusalCode(response: Response): Promise<string | null> {
   try {
     const body: unknown = await response.json()
@@ -224,12 +199,13 @@ function readStored(): EngineerMessage[] {
   }
 }
 
-function writeStored(messages: EngineerMessage[]) {
+function writeStored(messages: EngineerMessage[]): boolean {
   try {
     if (messages.length === 0) window.sessionStorage.removeItem(STORAGE_KEY)
     else window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(messages))
+    return true
   } catch {
-    // storage full or blocked: the transcript just does not survive a reload
+    return false
   }
 }
 
@@ -253,7 +229,6 @@ export function useEngineer(options: { onNavigate: (href: string) => void }): {
     onNavigateRef.current = options.onNavigate
   })
 
-  // Restore only after mount so the server pass and the first client render agree.
   useEffect(() => {
     const stored = readStored()
     if (stored.length > 0) dispatch({ type: 'restore', messages: stored })
@@ -351,16 +326,12 @@ export function useEngineer(options: { onNavigate: (href: string) => void }): {
   const feedback = useCallback(async (messageId: string, thumbs: 1 | -1) => {
     const message = stateRef.current.messages.find((m) => m.id === messageId)
     if (!message?.ledgerId) return
-    try {
-      const response = await fetch(`${API_BASE_URL}/chat/feedback`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: message.ledgerId, thumbs }),
-      })
-      if (response.ok) dispatch({ type: 'thumbs', messageId, thumbs })
-    } catch {
-      // feedback is best-effort; the thumb simply stays unmarked
-    }
+    const response = await fetch(`${API_BASE_URL}/chat/feedback`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: message.ledgerId, thumbs }),
+    }).catch(() => null)
+    if (response?.ok) dispatch({ type: 'thumbs', messageId, thumbs })
   }, [])
 
   return {

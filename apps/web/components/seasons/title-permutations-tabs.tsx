@@ -8,7 +8,6 @@ interface TitlePermutationsTabsProps {
   constructorsContent: ReactNode
 }
 
-/** Switches the permutations panel between the two championships. */
 export function TitlePermutationsTabs({
   driversContent,
   constructorsContent,

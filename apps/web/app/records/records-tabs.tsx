@@ -7,7 +7,6 @@ import { useHydrated } from '@/lib/client-only'
 interface RecordsTabsProps {
   driversContent: ReactNode
   constructorsContent: ReactNode
-  /** The filterable explorer. The curated tables stay the default view. */
   exploreContent: ReactNode
 }
 
@@ -15,7 +14,6 @@ const DRIVERS = 0
 const CONSTRUCTORS = 1
 const EXPLORE = 2
 
-/** Query keys the explorer writes, and the only ones that should open its tab. */
 const EXPLORER_KEYS = ['entity', 'category', 'era', 'nationality', 'minStarts', 'sort', 'page']
 
 function looksLikeAnExplorerLink(): boolean {
@@ -28,11 +26,6 @@ export function RecordsTabs({
   constructorsContent,
   exploreContent,
 }: RecordsTabsProps) {
-  // The curated tables are the default view: they are the at-a-glance landing
-  // content and the part of this page that gets indexed. A link carrying
-  // explorer filters opens on the explorer instead — read through `useHydrated`
-  // so the server pass and the first client render agree, and the tab swaps
-  // afterwards rather than mismatching during hydration.
   const hydrated = useHydrated()
   const [chosen, setChosen] = useState<number | null>(null)
   const active = chosen ?? (hydrated && looksLikeAnExplorerLink() ? EXPLORE : DRIVERS)

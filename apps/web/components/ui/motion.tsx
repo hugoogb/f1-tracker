@@ -13,15 +13,6 @@ import React from 'react'
 
 import { cn } from '@/lib/utils'
 
-// Reduced motion: the server cannot know the visitor's preference, so the
-// first render (the `initial`/`hidden` styles, which are written into the HTML)
-// must be the same for everyone or hydration mismatches. The preference only
-// changes the transition, which never reaches the markup: a duration of 0, so
-// content appears in place with no movement.
-
-// ── FadeIn ──────────────────────────────────────────────────────────────────
-// Scroll-triggered fade + slide entrance. Fires once.
-
 interface FadeInProps {
   children: ReactNode
   delay?: number
@@ -44,9 +35,6 @@ export function FadeIn({ children, delay = 0, className, y = 20 }: FadeInProps) 
     </motion.div>
   )
 }
-
-// ── StaggerList + StaggerItem ───────────────────────────────────────────────
-// Orchestrated stagger for grids and lists.
 
 interface StaggerListProps {
   children: ReactNode
@@ -100,9 +88,6 @@ export function StaggerItem({ children, className }: StaggerItemProps) {
   )
 }
 
-// ── AnimatedNumber ──────────────────────────────────────────────────────────
-// Count-up animation for stat card values.
-
 interface AnimatedNumberProps {
   value: number
   className?: string
@@ -135,9 +120,6 @@ export function AnimatedNumber({ value, className }: AnimatedNumberProps) {
   )
 }
 
-// ── MotionCard ──────────────────────────────────────────────────────────────
-// Spring-physics hover lift for interactive cards.
-
 interface MotionCardProps {
   children: ReactNode
   className?: string
@@ -160,9 +142,6 @@ export function MotionCard({ children, className }: MotionCardProps) {
   )
 }
 
-// ── PodiumReveal ────────────────────────────────────────────────────────────
-// Staggered entrance for race podium: P3 → P2 → P1 (dramatic last reveal).
-
 interface PodiumRevealProps {
   children: ReactNode[]
   className?: string
@@ -170,7 +149,6 @@ interface PodiumRevealProps {
 
 export function PodiumReveal({ children, className }: PodiumRevealProps) {
   const shouldReduce = useReducedMotion()
-  // Reveal order: P3 first (index 2), then P2 (index 1), then P1 (index 0)
   const delayOrder = [2, 1, 0]
 
   return (

@@ -42,7 +42,6 @@ export interface DriverCompareResponse {
   driver2Seasons: { year: number; points: number }[]
 }
 
-/** The big names either side of "vs": styled as a heading, but the page has one h1. */
 const SIDE_NAME =
   'font-display min-w-0 text-3xl leading-[0.9] font-extrabold break-words uppercase italic sm:text-4xl lg:text-5xl'
 
@@ -63,7 +62,6 @@ export function driverCompareSummary(data: DriverCompareResponse): string {
   })
 }
 
-/** One head-to-head: the query-string view and the curated pages both draw this. */
 export function DriverComparison({
   data,
   isTeammate = false,
@@ -159,7 +157,6 @@ export function DriverComparison({
 
       <PageSummary text={summary} />
 
-      {/* Head to Head - Race + Qualifying */}
       <div className="grid gap-6 md:grid-cols-2">
         <FadeIn>
           <HeadToHeadCard
@@ -181,12 +178,10 @@ export function DriverComparison({
         )}
       </div>
 
-      {/* Stat-by-Stat Comparison */}
       <FadeIn>
         <CareerStatsTable driver1Stats={driver1.stats} driver2Stats={driver2.stats} />
       </FadeIn>
 
-      {/* Radar Chart */}
       <FadeIn>
         <Panel>
           <PanelHeader>
@@ -203,7 +198,6 @@ export function DriverComparison({
         </Panel>
       </FadeIn>
 
-      {/* Career Points Chart */}
       {(driver1Seasons.length > 0 || driver2Seasons.length > 0) && (
         <FadeIn>
           <Panel>

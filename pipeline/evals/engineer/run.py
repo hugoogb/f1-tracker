@@ -34,7 +34,6 @@ from src.db.database import SessionLocal  # noqa: E402
 from src.db.models import ChatUsage  # noqa: E402
 
 MODEL = settings.chat_model
-# $ per million tokens, from the same table the ledger prices with.
 PRICES = json.loads(settings.chat_prices_json)
 
 
@@ -144,7 +143,6 @@ def project(n: int) -> None:
     print(f"{'model':24} {'$/question':>11} {f'$ for {n}':>10}")
     p = PRICES[MODEL]
     calls = 2.5
-    # Each later call re-sends the prefix plus ~1.2k tokens of tool traffic.
     in_tokens = base * calls + 1200 * (calls - 1) * 1.5
     cost = (in_tokens * p["input"] + 450 * p["output"]) / 1e6
     print(f"{MODEL:24} {cost:>11.5f} {cost * n:>10.4f}")

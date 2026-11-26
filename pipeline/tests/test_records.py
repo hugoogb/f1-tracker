@@ -28,7 +28,6 @@ def test_records_with_data(client, race_seed_data):
     assert response.status_code == 200
     data = response.json()
 
-    # driver-1 has 1 win, 1 podium, 1 start
     assert len(data["drivers"]["mostWins"]) >= 1
     assert data["drivers"]["mostWins"][0]["driver"]["ref"] == "max_verstappen"
     assert data["drivers"]["mostWins"][0]["count"] == 1
@@ -36,7 +35,6 @@ def test_records_with_data(client, race_seed_data):
     assert len(data["drivers"]["mostPodiums"]) >= 1
     assert len(data["drivers"]["mostStarts"]) >= 1
 
-    # constructor-1 has 1 win
     assert len(data["constructors"]["mostWins"]) >= 1
     assert data["constructors"]["mostWins"][0]["constructor"]["ref"] == "red_bull"
 
@@ -48,8 +46,6 @@ def test_records_limit_param(client, race_seed_data):
     assert len(data["drivers"]["mostWins"]) <= 1
     assert len(data["drivers"]["mostStarts"]) <= 1
 
-
-# --- /api/records/explore -----------------------------------------------------
 
 EXPLORE = "/api/records/explore"
 
@@ -117,7 +113,6 @@ def explore_seed(db):
         ]
     )
 
-    # (race id, year, round, fastest lap driver, fastest lap constructor)
     races = [
         ("r1", 1988, 1, "d-a", "c-a"),
         ("r2", 1988, 2, "d-a", "c-a"),
@@ -139,7 +134,6 @@ def explore_seed(db):
             )
         )
 
-    # (race, driver, constructor, position, points)
     results = [
         ("r1", "d-a", "c-a", 1, 9.0),
         ("r1", "d-b", "c-b", 2, 6.0),
@@ -190,8 +184,6 @@ def explore_seed(db):
             )
         )
 
-    # Official standings after each season's final round. 1988 deliberately
-    # contradicts the sum of the races.
     db.add_all(
         [
             DriverStanding(
@@ -277,7 +269,6 @@ def test_explore_constructor_categories(client, explore_seed):
     wins = client.get(f"{EXPLORE}?entity=constructor&category=wins").json()
     assert _refs(wins, "constructor") == ["team-alpha", "team-bravo"]
     assert _values(wins) == [3, 2]
-    # The payload carries the backend palette colour like every other endpoint.
     assert wins["data"][0]["constructor"]["color"] == "#111111"
 
     entries = client.get(f"{EXPLORE}?entity=constructor&category=starts").json()
@@ -303,7 +294,6 @@ def test_explore_min_starts_excludes_one_start_wonders(client, explore_seed):
 def test_explore_rate_categories_default_to_a_nonzero_floor(client, explore_seed):
     payload = client.get(f"{EXPLORE}?entity=driver&category=win_rate").json()
     assert payload["minStarts"] > 0
-    # Nobody in the fixture clears the default floor, which is the point.
     assert payload["data"] == []
 
 
@@ -323,7 +313,6 @@ def test_explore_year_range_narrows_results(client, explore_seed):
     assert only_1988["total"] < all_time["total"]
     assert _refs(only_1988) == ["alpha", "bravo"]
     assert _values(only_1988) == [2, 1]
-    # Starts are scoped to the range too, not carried over from the career.
     assert [row["starts"] for row in only_1988["data"]] == [3, 3]
 
 

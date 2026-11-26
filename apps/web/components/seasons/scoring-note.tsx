@@ -8,21 +8,6 @@ interface ScoringNoteProps {
   year: number
 }
 
-/**
- * How this season was scored, in one strip under the header.
- *
- * Worth stating plainly because the rules moved so much: a win has been worth
- * 8, 9, 10 and 25 points, the fastest lap has paid and stopped paying twice,
- * and until 1991 a driver's championship total was not the sum of their races.
- * Without that context a standings table from 1958 and one from 2024 look like
- * the same kind of object.
- *
- * The two claims come from different places and are worded to match. The points
- * system is a fact about the year. The dropped-scores line is read off the
- * results — a total below what a driver scored — because the exact "best N"
- * rule changed almost every season and the dataset does not carry it. So the
- * era gets the general statement and the data supplies the example.
- */
 export function ScoringNote({ scoring, year }: ScoringNoteProps) {
   const { system, everyResultCounts, droppedPoints } = scoring
   const largest = droppedPoints?.largest

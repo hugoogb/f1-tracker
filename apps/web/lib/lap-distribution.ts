@@ -3,23 +3,13 @@ import type { ChartDriverLaps } from '@/lib/types'
 import { driverCode, teamColorOf } from '@/lib/utils'
 import { jitter, kde, median, quantile, type ViolinColumn, type ViolinDot } from '@/lib/violin'
 
-/**
- * A lap slower than this multiple of the race's median is a pit stop, a safety
- * car or traffic, not pace. Mirrors `CLEAN_LAP_THRESHOLD` in
- * `pipeline/src/api/constants.py`; change both or neither.
- */
 export const CLEAN_LAP_THRESHOLD = 1.07
 
-/**
- * Below this many clean laps a median is one or two laps, not a pace. Mirrors
- * `SEASON_COMPARE_MIN_CLEAN_LAPS` in `pipeline/src/api/constants.py`.
- */
 export const MIN_CLEAN_LAPS = 5
 
 export type DistributionMode = 'drivers' | 'constructors'
 
 export interface RaceColumn extends ViolinColumn {
-  /** Column median minus the fastest column's median; 0 for the first. */
   gapMs: number
   cleanLaps: number
   entity:
@@ -28,11 +18,8 @@ export interface RaceColumn extends ViolinColumn {
 }
 
 export interface RaceDistribution {
-  /** Fastest median first. */
   columns: RaceColumn[]
-  /** Entities with fewer than `MIN_CLEAN_LAPS` clean laps, so a DNF never just vanishes. */
   excluded: { key: string; label: string; cleanLaps: number }[]
-  /** Timed laps after lap 1. */
   totalLaps: number
   cleanLaps: number
   thresholdMs: number | null
@@ -46,11 +33,6 @@ interface Group {
   dots: ViolinDot[]
 }
 
-/**
- * Fast-F1's compound as one of `TYRE_COLORS`' keys. The stored values include
- * 2018's hyper/ultra/supersoft and pandas' missing-value strings (`nan`,
- * `None`), which must read as unknown rather than as a compound called "nan".
- */
 export function normaliseCompound(raw: string | null): string {
   const compound = raw?.trim().toUpperCase() ?? ''
   return compound in TYRE_COLORS && compound !== 'TEST_UNKNOWN' ? compound : 'UNKNOWN'
@@ -58,18 +40,12 @@ export function normaliseCompound(raw: string | null): string {
 
 const LEGACY_COMPOUNDS = new Set(['HYPERSOFT', 'ULTRASOFT', 'SUPERSOFT'])
 
-/**
- * In 2018 the softs ran down to hypersoft and the soft, medium and hard were
- * yellow, white and ice blue. A race that used the 2018 names gets that year's
- * colours, so its supersoft and soft are not both red.
- */
 const LEGACY_COLORS: Record<string, string> = {
   SOFT: 'var(--tyre-medium)',
   MEDIUM: 'var(--tyre-hard)',
   HARD: 'var(--tyre-hard-2018)',
 }
 
-/** `1:38.339`. Rounds the whole time first, so 119.96 s reads `2:00.0`, never `1:60.0`. */
 export function formatLapTime(ms: number, decimals: number): string {
   const scale = 10 ** decimals
   const units = Math.round((ms / 1000) * scale)
@@ -78,16 +54,10 @@ export function formatLapTime(ms: number, decimals: number): string {
   return `${minutes}:${seconds.toFixed(decimals).padStart(decimals + 3, '0')}`
 }
 
-/** An axis tick: tenths, or hundredths for a tick that falls between them. */
 export function axisLapLabel(ms: number): string {
   return formatLapTime(ms, ms % 100 === 0 ? 1 : 2)
 }
 
-/**
- * A race's laps reduced to one violin per driver or per constructor: lap 1
- * and anything slower than 107% of the race median dropped, teammates pooled
- * in constructor mode, ordered fastest median first. Values are milliseconds.
- */
 export function raceDistribution(
   drivers: ChartDriverLaps[],
   mode: DistributionMode,
@@ -104,8 +74,6 @@ export function raceDistribution(
   const thresholdMs = median(timed.map((t) => t.timeMs)) * CLEAN_LAP_THRESHOLD
   const legacy = timed.some((t) => LEGACY_COMPOUNDS.has(normaliseCompound(t.lap.compound)))
   const groups = new Map<string, Group>()
-  // Every driver gets a group, even with no clean laps, so the "not shown"
-  // list can name them.
   for (const d of drivers) {
     const key = mode === 'drivers' ? d.driver.ref : d.constructor.ref
     if (groups.has(key)) continue
@@ -167,7 +135,6 @@ export function raceDistribution(
     })
   }
 
-  // Ties break on the key so the order never depends on input order.
   columns.sort((a, b) => a.median - b.median || a.key.localeCompare(b.key))
   const fastest = columns[0]?.median ?? 0
   for (const column of columns) column.gapMs = column.median - fastest

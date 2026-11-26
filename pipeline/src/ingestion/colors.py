@@ -31,14 +31,7 @@ from sqlalchemy import select
 from src.db.models import Constructor
 from src.ingestion.base import BaseIngestor
 
-# Historical and current constructor colors (constructor ref → hex color)
-# Compiled from published team liveries and historical reference material.
 CONSTRUCTOR_COLORS: dict[str, str] = {
-    # === Current grid ===
-    # f1db renames a team when it rebrands and keeps the old id for the seasons
-    # it raced under, so a team can need several entries: "rb" and
-    # "racing-bulls" are the same outfit either side of the 2025 rename, as are
-    # "sauber", "kick-sauber" and its 2026 successor "audi".
     "mclaren": "#F47600",
     "red-bull": "#4781D7",
     "ferrari": "#ED1131",
@@ -53,7 +46,6 @@ CONSTRUCTOR_COLORS: dict[str, str] = {
     "cadillac": "#B4975A",
     "rb": "#6C98FF",
     "sauber": "#F50537",
-    # === Recent teams (2010s-2020s) ===
     "alphatauri": "#4E7C9B",
     "toro-rosso": "#1E5BC6",
     "racing-point": "#F596C8",
@@ -65,7 +57,6 @@ CONSTRUCTOR_COLORS: dict[str, str] = {
     "lotus-f1": "#FFB800",
     "hrt": "#A08250",
     "virgin": "#C82E37",
-    # === 2000s ===
     "brawn": "#B5F500",
     "toyota": "#CC0000",
     "bmw-sauber": "#0066B1",
@@ -79,7 +70,6 @@ CONSTRUCTOR_COLORS: dict[str, str] = {
     "bar": "#CC0000",
     "prost": "#003399",
     "arrows": "#FF8700",
-    # === 1990s ===
     "benetton": "#009E49",
     "tyrrell": "#00246B",
     "ligier": "#0066CC",
@@ -89,7 +79,6 @@ CONSTRUCTOR_COLORS: dict[str, str] = {
     "simtek": "#800080",
     "forti": "#FFD700",
     "lola": "#8B0000",
-    # === 1980s ===
     "brabham": "#003300",
     "lotus": "#1A1A1A",
     "osella": "#FF4500",
@@ -103,7 +92,6 @@ CONSTRUCTOR_COLORS: dict[str, str] = {
     "dallara": "#CC0000",
     "leyton-house": "#00CED1",
     "march": "#007BA7",
-    # === 1970s ===
     "matra": "#003399",
     "brm": "#006633",
     "surtees": "#CC0000",
@@ -118,11 +106,9 @@ CONSTRUCTOR_COLORS: dict[str, str] = {
     "kauhsen": "#FF4500",
     "rebaque": "#CC0000",
     "merzario": "#CC0000",
-    # === 1960s ===
     "cooper": "#006633",
     "vanwall": "#006633",
     "eagle": "#003399",
-    # === Classic ===
     "alfa-romeo": "#8B0000",
     "porsche": "#8B8B8B",
     "maserati": "#CC0000",
@@ -130,43 +116,26 @@ CONSTRUCTOR_COLORS: dict[str, str] = {
     "lancia": "#8B0000",
     "connaught": "#006633",
     "bugatti": "#003399",
-    # === Added with the national-colour fallback ===
-    # Teams whose livery is a matter of record, so they are curated rather than
-    # derived. Everything else that was grey before now comes from its country.
-    #
-    # f1db's own chronology has lotus-racing (2010-11) and caterham (2012-14) as
-    # one continuous entry, so they share a colour the way rb/racing-bulls do.
     "lotus-racing": "#005030",
-    # Stewart ran white cars with the Racing Stewart tartan. The white itself is
-    # unusable — a chart line in it disappears against the light theme — so this
-    # is the tartan's navy.
     "stewart": "#0F3D7C",
-    # Williams under Marlboro colours, 1973-74.
     "iso-marlboro": "#D42E12",
 }
 
-# FIA international racing colours, by ISO 3166-1 alpha-2 — the shade a country's
-# cars were painted before commercial liveries were permitted in 1968. Used as
-# the base for `derive_color`, covering every country f1db attributes a
-# constructor to.
 NATIONAL_RACING_COLORS: dict[str, str] = {
-    "GB": "#00563F",  # British racing green
-    "IT": "#D40000",  # rosso corsa
-    "FR": "#0055A4",  # bleu de France
-    # Silver, with a hint of blue in it. A truly neutral grey has hue 0 by
-    # convention, so the variation below would swing it through pinks and
-    # browns; a cool base keeps the whole German family in steel tones.
-    "DE": "#AEB4BC",  # silver
-    "US": "#2B4B9B",  # white with blue stripes
-    "BE": "#F4C300",  # jaune de Belgique
+    "GB": "#00563F",
+    "IT": "#D40000",
+    "FR": "#0055A4",
+    "DE": "#AEB4BC",
+    "US": "#2B4B9B",
+    "BE": "#F4C300",
     "CH": "#D52B1E",
     "NL": "#FF6C00",
     "JP": "#E4002B",
     "ES": "#C60B1E",
     "BR": "#009739",
     "AR": "#6CACE4",
-    "AU": "#00843D",  # green and gold
-    "NZ": "#33373D",  # black with the silver fern; cooled for the same reason
+    "AU": "#00843D",
+    "NZ": "#33373D",
     "ZA": "#007A4D",
     "CA": "#D52B1E",
     "MX": "#006847",
@@ -178,21 +147,11 @@ NATIONAL_RACING_COLORS: dict[str, str] = {
     "HK": "#DE2910",
 }
 
-# How far a derived shade may travel from its national base. Wide enough that a
-# dozen constructors of one nationality stay apart in a chart legend, narrow
-# enough that they still read as that nationality.
-#
-# The spreads are additive around a centre rather than multiplied through the
-# base, because a multiplier collapses at both ends of the scale: British racing
-# green is so dark that every shade of it clamped to the same floor, and silver
-# so light that ten German constructors came out the identical grey.
 _HUE_SPREAD = 0.12
 _LIGHTNESS_SPREAD = 0.34
 _LIGHTNESS_CENTRE = (0.30, 0.56)
 _LIGHTNESS_BOUNDS = (0.20, 0.74)
 _SATURATION_SPREAD = 0.24
-# Even an achromatic base gets a little saturation, so that hue has something to
-# act on and the silver-era constructors do not separate on lightness alone.
 _SATURATION_FLOOR = 0.10
 
 
@@ -282,17 +241,11 @@ class ConstructorColorIngestor(BaseIngestor):
         self.db.commit()
 
         if unmatched:
-            # Loud on purpose: a ref that stops matching (e.g. an Ergast-style
-            # "red_bull" against f1db's "red-bull") silently drops a team back to
-            # its national shade, which is easy to miss in the UI.
             self.log(
                 f"WARNING: {len(unmatched)} color refs are not constructor ids "
                 f"and were skipped: {sorted(unmatched)[:10]}"
             )
         if uncoloured:
-            # No country means no national colour to derive from, so these are
-            # the only constructors left rendering grey. Add the country to
-            # NATIONAL_RACING_COLORS if one has simply gone unmapped.
             self.log(
                 f"WARNING: {len(uncoloured)} constructors have no country and stay "
                 f"grey: {sorted(uncoloured)[:10]}"

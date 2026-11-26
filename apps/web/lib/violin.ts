@@ -1,22 +1,8 @@
-/**
- * The statistics behind every violin chart: medians and quartiles, a Gaussian
- * kernel density for the outline, a deterministic horizontal spread for the
- * dots and round axis ticks.
- *
- * The race chart runs these in the browser on laps the page already has. The
- * season and profile charts get the same shapes pre-computed by the API, so
- * the Python helper behind them reproduces this file — Silverman bandwidth,
- * a grid padded by two bandwidths, widest point scaled to 1. Change both or
- * neither, as with `geo.ts` / `geo.py`.
- */
-
-/** One point of a density outline; `w` is relative width, the widest point is 1. */
 export interface DensityPoint {
   y: number
   w: number
 }
 
-/** One observation drawn as a dot; `x` is its spread across the violin, -1 to 1. */
 export interface ViolinDot {
   y: number
   x: number
@@ -45,7 +31,6 @@ export function median(values: number[]): number {
   )
 }
 
-/** Quantile of an ascending list, interpolating linearly between ranks (R's type 7). */
 export function quantile(sorted: number[], q: number): number {
   if (sorted.length === 0) throw new Error('quantile of an empty list')
   const pos = (sorted.length - 1) * q
@@ -54,10 +39,6 @@ export function quantile(sorted: number[], q: number): number {
   return sorted[lo] + (sorted[hi] - sorted[lo]) * (pos - lo)
 }
 
-/**
- * Silverman's rule of thumb. Never zero: a column whose values are all equal
- * still needs a width to draw, so it falls back to a sliver of its median.
- */
 export function silvermanBandwidth(values: number[]): number {
   const n = values.length
   const sorted = [...values].sort((a, b) => a - b)
@@ -70,7 +51,6 @@ export function silvermanBandwidth(values: number[]): number {
   return Math.max(Math.abs(quantile(sorted, 0.5)) * 0.001, 1e-6)
 }
 
-/** Gaussian KDE over `[min − 2h, max + 2h]`, scaled so the widest point is 1. */
 export function kde(values: number[], points = GRID_POINTS): DensityPoint[] {
   const h = silvermanBandwidth(values)
   const lo = Math.min(...values) - 2 * h
@@ -86,7 +66,6 @@ export function kde(values: number[], points = GRID_POINTS): DensityPoint[] {
   return raw.map((p) => ({ y: p.y, w: p.w / peak }))
 }
 
-/** Relative width of an outline at `y`; 0 outside it. */
 export function densityAt(density: DensityPoint[], y: number): number {
   if (density.length === 0 || y < density[0].y || y > density[density.length - 1].y) return 0
   for (let i = 1; i < density.length; i++) {
@@ -100,11 +79,6 @@ export function densityAt(density: DensityPoint[], y: number): number {
   return density[density.length - 1].w
 }
 
-/**
- * The y range every drawable column spans. A column with no density (no data
- * for that slot) has nothing to draw and does not stretch the axis; null when
- * no column can be drawn at all.
- */
 export function violinDomain(columns: ViolinColumn[]): { lo: number; hi: number } | null {
   const drawable = columns.filter((c) => c.density.length > 0)
   if (drawable.length === 0) return null
@@ -114,10 +88,6 @@ export function violinDomain(columns: ViolinColumn[]): { lo: number; hi: number 
   }
 }
 
-/**
- * The closed outline of one violin: up the right side, back down the left.
- * `half` is the pixel half-width at the widest point; empty for no density.
- */
 export function outlinePath(
   density: DensityPoint[],
   centre: number,
@@ -130,11 +100,6 @@ export function outlinePath(
   return `M${[...right, ...left].join('L')}Z`
 }
 
-/**
- * A stable pseudo-random spread in [-1, 1] (FNV-1a of the seed). Never
- * `Math.random`: the server and client renders must agree, and a cached page
- * whose dots moved on every render would be a new cache write each time.
- */
 export function jitter(seed: string): number {
   let hash = 0x811c9dc5
   for (let i = 0; i < seed.length; i++) {
@@ -144,7 +109,6 @@ export function jitter(seed: string): number {
   return ((hash >>> 0) / 0xffffffff) * 2 - 1
 }
 
-/** Round ticks inside `[min, max]`, at most `maxTicks` of them, on a 1/2/2.5/5 step. */
 export function niceTicks(min: number, max: number, maxTicks: number): number[] {
   if (!(max > min) || maxTicks < 2) return []
   const tidy = (x: number) => Number(x.toFixed(10))

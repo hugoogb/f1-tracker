@@ -50,20 +50,13 @@ export type SeasonCalendarVariant = 'season' | 'home'
 interface SeasonCalendarMapProps {
   year: number
   rounds: CalendarRound[]
-  /**
-   * `season` opens on the whole calendar; `home` opens on the next race with
-   * the previous one marked, and flies the leg between them once a session.
-   */
   variant: SeasonCalendarVariant
 }
 
 interface PlayState {
-  /** The stop whose card is open; null while travelling or on the overview. */
   focus: number | null
   playing: boolean
-  /** Stop playback on arrival here (the home intro flight); null plays to the end. */
   stopAt: number | null
-  /** Bumped by every manual jump so the playback loop restarts from the new place. */
   seek: number
 }
 
@@ -76,33 +69,27 @@ function introSeen(): boolean {
   try {
     return window.sessionStorage.getItem(INTRO_KEY) === '1'
   } catch {
-    // Storage blocked (private mode, sandboxed iframe): skip the intro rather
-    // than replay it on every visit.
     return true
   }
 }
 
-function markIntroSeen() {
+function markIntroSeen(): boolean {
   try {
     window.sessionStorage.setItem(INTRO_KEY, '1')
+    return true
   } catch {
-    // Nothing to do — see introSeen().
+    return false
   }
+}
+
+function sameStatuses(a: readonly StopStatus[], b: readonly StopStatus[]): boolean {
+  return a.length === b.length && a.every((status, i) => status === b[i])
 }
 
 function prefersReducedMotion(): boolean {
   return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
 }
 
-/**
- * The cinematic season map: every round in calendar order, great-circle legs
- * between them, and a "play" mode that flies the camera round to round.
- *
- * Only ever rendered on the client (the wrapper imports it with `ssr: false`),
- * which is what lets it read the clock, `sessionStorage` and the motion
- * preference straight away: there is no server render for it to disagree with,
- * so "next race" is computed after hydration by construction.
- */
 export function SeasonCalendarMap({ year, rounds, variant }: SeasonCalendarMapProps) {
   const now = useNow()
   const reduced = useReducedMotion() ?? false
@@ -111,8 +98,6 @@ export function SeasonCalendarMap({ year, rounds, variant }: SeasonCalendarMapPr
   const { legs, cumulativeKm } = route
   const lastIndex = route.points.length - 1
 
-  // Statuses follow the clock to the minute; the map itself only re-renders
-  // when one actually changes.
   const minute = now === null ? null : Math.floor(now / 60_000)
   const progress = useMemo(
     () =>
@@ -122,21 +107,19 @@ export function SeasonCalendarMap({ year, rounds, variant }: SeasonCalendarMapPr
       ),
     [route.points, minute],
   )
-  const statusKey = progress.statuses.join(',')
+  const [statuses, setStatuses] = useState(progress.statuses)
+  if (!sameStatuses(statuses, progress.statuses)) setStatuses(progress.statuses)
   const stops: CalendarStop[] = useMemo(
     () =>
       route.points.map((p, index) => ({
         index,
         round: p.round,
         latLng: p.latLng,
-        status: progress.statuses[index] ?? 'unknown',
+        status: statuses[index] ?? 'unknown',
       })),
-    // statusKey stands in for progress.statuses: same content, stable identity.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [route.points, statusKey],
+    [route.points, statuses],
   )
 
-  // Everything below is decided once, on mount — which is always on the client.
   const [boot] = useState(() => {
     const intro =
       variant === 'home' &&
@@ -154,15 +137,12 @@ export function SeasonCalendarMap({ year, rounds, variant }: SeasonCalendarMapPr
             intro,
           }
         : {
-            // Parked at the next race, as the intro would have left it.
             pos: progress.next,
             state: { focus: progress.next, playing: false, stopAt: null, seek: 0 },
             camera: { kind: 'stop', index: progress.next, zoom: 3 } as const,
             intro,
           }
     }
-    // A finished season shows every leg flown; one in progress shows the
-    // distance covered so far.
     const pos = progress.next >= 0 ? Math.max(progress.previous, 0) : Math.max(lastIndex, 0)
     return {
       pos,
@@ -180,8 +160,6 @@ export function SeasonCalendarMap({ year, rounds, variant }: SeasonCalendarMapPr
     nonce: 0,
     animate: false,
   })
-  // Linear progress through the current leg, so a pause mid-flight resumes
-  // exactly where it stopped (the playhead itself holds the eased value).
   const legProgress = useRef(0)
 
   const fly = useCallback(
@@ -200,7 +178,6 @@ export function SeasonCalendarMap({ year, rounds, variant }: SeasonCalendarMapPr
     if (boot.intro) markIntroSeen()
   }, [boot.intro])
 
-  // ── Playback loop ─────────────────────────────────────────────────────────
   useEffect(() => {
     if (!state.playing || lastIndex < 1) return
 
@@ -265,7 +242,6 @@ export function SeasonCalendarMap({ year, rounds, variant }: SeasonCalendarMapPr
     return () => cancelAnimationFrame(frame)
   }, [state.playing, state.seek, state.stopAt, speed, reduced, legs, lastIndex, playhead, fly])
 
-  // ── Controls ──────────────────────────────────────────────────────────────
   const seek = useCallback(
     (index: number) => {
       const target = Math.max(0, Math.min(lastIndex, index))
@@ -277,8 +253,6 @@ export function SeasonCalendarMap({ year, rounds, variant }: SeasonCalendarMapPr
     [lastIndex, playhead, fly],
   )
 
-  // The position, as an integer, for controls that step: the open card if
-  // there is one, otherwise wherever the playhead is parked.
   const parked = useSyncExternalStore(
     playhead.subscribe,
     () => Math.floor(playhead.get()),
@@ -293,7 +267,6 @@ export function SeasonCalendarMap({ year, rounds, variant }: SeasonCalendarMapPr
       return
     }
     if (parked >= lastIndex) {
-      // Replay from the top: wipe the flown legs and start at round one.
       legProgress.current = 0
       playhead.set(0)
       setState((s) => ({ focus: 0, playing: true, stopAt: null, seek: s.seek + 1 }))
@@ -355,7 +328,6 @@ export function SeasonCalendarMap({ year, rounds, variant }: SeasonCalendarMapPr
             camera={camera}
             onSelect={select}
           />
-          {/* Vignette: pulls the eye to the middle, hides the hard map edge. */}
           <div className="pointer-events-none absolute inset-0 z-[400] shadow-[inset_0_0_80px_30px_var(--surface-0)]" />
           <EnRoute stops={stops} legs={legs} playhead={playhead} />
           <div className="absolute top-3 right-3 z-[1000] hidden md:block">
@@ -415,14 +387,10 @@ export function SeasonCalendarMap({ year, rounds, variant }: SeasonCalendarMapPr
   )
 }
 
-// ── Pieces ──────────────────────────────────────────────────────────────────
-
 function usePlayhead(playhead: Playhead): number {
   return useSyncExternalStore(playhead.subscribe, playhead.get, playhead.get)
 }
 
-// The viewer's own locale: this module only ever runs in the browser (see the
-// wrapper), so there is no server-rendered number for it to disagree with.
 const kmFormat = new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 })
 
 function StatsStrip({
@@ -530,7 +498,6 @@ function Stat({
   )
 }
 
-/** "Melbourne → Shanghai · 8,040 km", shown only while a leg is being flown. */
 function EnRoute({
   stops,
   legs,
@@ -572,8 +539,6 @@ const LEGEND: { status: StopStatus; label: string }[] = [
 ]
 
 function Legend({ inProgress }: { inProgress: boolean }) {
-  // Before the clock is known, or once the season is over, every marker means
-  // the same thing and a legend would only be noise.
   if (!inProgress) return null
   return (
     <ul className="bg-surface-1/90 text-2xs font-data md:border-hairline flex flex-wrap items-center gap-x-3 gap-y-1 px-2.5 py-1.5 md:border">
@@ -884,10 +849,6 @@ function SpeedPicker({
   )
 }
 
-/**
- * A native range input over a drawn track: drag, click or arrow-key through
- * the rounds. The dots and the red fill are decoration underneath it.
- */
 function Timeline({
   stops,
   playhead,
@@ -908,9 +869,7 @@ function Timeline({
 
   return (
     <div className="relative">
-      {/* Inset by the thumb's radius so dot i sits exactly under value i. */}
       <div className="pointer-events-none absolute inset-y-0 right-[9px] left-[9px]">
-        {/* One skewed segment per leg, filled as the playhead flies it. */}
         {Array.from({ length: last }, (_, i) => (
           <span
             key={i}

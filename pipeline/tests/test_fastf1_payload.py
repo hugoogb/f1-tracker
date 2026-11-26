@@ -39,10 +39,6 @@ from src.ingestion.fastf1_sessions import (
 from src.ingestion.lap_times import write_lap_rows
 from src.ingestion.qualifying_sectors import write_quali_sectors
 
-# --- Fast-F1 stand-ins -------------------------------------------------------
-# Only the surface the extractors touch: a session has `laps` and `results`,
-# laps iterate as rows and qualifying laps split into three segments.
-
 
 class _Laps:
     def __init__(self, frame: pd.DataFrame, segments: list | None = None):
@@ -82,9 +78,6 @@ def _lap(driver, lap_number, lap_time, s1, s2, s3, compound="SOFT", stint=1, tyr
     }
 
 
-# --- Parsing -----------------------------------------------------------------
-
-
 def test_extract_race_laps_converts_timedeltas_to_millis():
     session = _Session(
         _Laps(
@@ -104,7 +97,6 @@ def test_extract_race_laps_converts_timedeltas_to_millis():
     assert rows[0]["sector1_ms"] == 30000
     assert rows[0]["compound"] == "SOFT"
     assert rows[1]["stint"] == 2
-    # JSON-safe: the payload has to survive json.dumps untouched.
     json.dumps(rows)
 
 
@@ -140,15 +132,13 @@ def test_extract_qualifying_bests_keeps_the_fastest_lap_per_segment():
     q1 = pd.DataFrame(
         [
             _lap("VER", 1, 91.0, 30.0, 31.0, 30.0),
-            _lap("VER", 2, 90.0, 29.5, 30.5, 30.0),  # faster — this one wins
+            _lap("VER", 2, 90.0, 29.5, 30.5, 30.0),
             _lap("PER", 1, 92.0, 30.5, 31.0, 30.5),
         ]
     )
     q2 = pd.DataFrame([_lap("VER", 5, 89.5, 29.0, 30.5, 30.0)])
     q3 = pd.DataFrame([])
-    session = _Session(_Laps(pd.DataFrame([]), segments=[q1, q2, q3]))
-    # `empty` is checked on the whole frame first, so give it content.
-    session.laps = _Laps(pd.concat([q1, q2]), segments=[q1, q2, q3])
+    session = _Session(_Laps(pd.concat([q1, q2]), segments=[q1, q2, q3]))
 
     bests = extract_qualifying_bests(session)
 
@@ -173,9 +163,6 @@ def test_session_abbreviations_reads_the_classification():
     )
 
     assert session_abbreviations(session) == ["VER", "PER"]
-
-
-# --- Payload round trip ------------------------------------------------------
 
 
 def _record(kind=KIND_LAPS, year=2023, rnd=1):
@@ -275,9 +262,6 @@ def test_payload_rejects_an_unknown_kind(tmp_path):
         list(read_payload(path))
 
 
-# --- Writers -----------------------------------------------------------------
-
-
 def _abbr_map(db, race_id="race-1"):
     return build_abbr_to_driver_id(["VER", "PER"], race_entrant_codes(db, race_id))
 
@@ -308,7 +292,6 @@ def test_write_lap_rows_stores_laps(db, race_seed_data):
     assert stored[0].time_millis == 92500
     assert stored[0].sector2_ms == 31500
     assert stored[1].compound == "MEDIUM"
-    # Columns the caller left out stay null rather than raising.
     assert stored[1].stint is None
 
 
@@ -349,8 +332,7 @@ def test_write_quali_sectors_fills_existing_rows(db, race_seed_data):
     quali = db.query(QualifyingResult).filter_by(driver_id="driver-1").one()
     assert quali.q1_s1_ms == 30000
     assert quali.q3_s1_ms == 29000
-    assert quali.q2_s1_ms is None  # no Q2 in the payload
-    # The qualifying row itself is untouched apart from the sector columns.
+    assert quali.q2_s1_ms is None
     assert quali.q3 == "1:29.708"
     other = db.query(QualifyingResult).filter_by(driver_id="driver-2").one()
     assert other.q1_s1_ms is None
@@ -361,9 +343,6 @@ def test_write_quali_sectors_without_qualifying_rows_is_a_no_op(db, race_seed_da
     db.commit()
 
     assert write_quali_sectors(db, "race-1", {"VER": {"Q1": {"lap_ms": 1}}}, _abbr_map(db)) == 0
-
-
-# --- Target list -------------------------------------------------------------
 
 
 def test_find_targets_lists_races_missing_both_kinds(db, race_seed_data):
@@ -447,9 +426,6 @@ def test_find_targets_honours_the_limit_and_order(db, race_seed_data):
     assert [t["race_id"] for t in oldest] == ["race-1"]
 
 
-# --- Importer ----------------------------------------------------------------
-
-
 def test_import_record_loads_laps(db, race_seed_data):
     race_id, written = import_record(db, _record(KIND_LAPS))
 
@@ -490,9 +466,6 @@ def test_import_record_skips_a_session_whose_drivers_are_unknown(db, race_seed_d
 
     assert import_record(db, record) == (None, 0)
     assert db.query(LapTime).count() == 0
-
-
-# --- Blocked-host handling ---------------------------------------------------
 
 
 class _UnloadedSession:
@@ -599,7 +572,7 @@ def test_check_auth_exit_status(monkeypatch):
     monkeypatch.setattr(fastf1_fetch, "require_f1_account", _no_account)
     assert fastf1_fetch.main() == fastf1_fetch.EXIT_NO_ACCOUNT
 
-    token = SubscriptionToken(value="x", expires_at=4_102_444_800)  # 2100
+    token = SubscriptionToken(value="x", expires_at=4_102_444_800)
     monkeypatch.setattr(fastf1_fetch, "require_f1_account", lambda: token)
     monkeypatch.setattr(SubscriptionToken, "claims", property(lambda self: {}))
     assert fastf1_fetch.main() == 0

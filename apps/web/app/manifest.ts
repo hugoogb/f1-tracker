@@ -10,7 +10,6 @@ export default function manifest(): MetadataRoute.Manifest {
     scope: '/',
     display: 'standalone',
     orientation: 'portrait-primary',
-    // Matches the dark-first UI, so the splash screen does not flash white.
     background_color: '#0A0A0A',
     theme_color: THEME_COLOR,
     categories: ['sports', 'news', 'entertainment'],

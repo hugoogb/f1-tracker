@@ -69,13 +69,9 @@ from src.ingestion.fastf1_sessions import (  # noqa: E402
 
 logger = logging.getLogger("fastf1_fetch")
 
-# Probe target: a long-finished race, so the session always exists and the
-# result says something about this host's access rather than the calendar.
 PROBE_YEAR = 2023
 PROBE_ROUND = 1
 
-# Distinct from a block (1): the host is fine, the account is not, and the fix
-# is a sign-in rather than another machine.
 EXIT_NO_ACCOUNT = 4
 
 
@@ -138,7 +134,7 @@ def targets_from_schedule(year_range: tuple[int, int], need: set[str]) -> list[d
     this returns every completed round in range; the importer is idempotent, so
     re-fetching a session only costs time.
     """
-    import fastf1  # imported here so --targets runs need no calendar call
+    import fastf1
 
     enable_cache()
     today = date.today()
@@ -217,8 +213,6 @@ def probe() -> int:
     asking for an account. The account check says whether there is one. The
     session load then says whether a real fetch works end to end.
     """
-    # Without this, a refused request is a one-line warning and an empty
-    # session, which is indistinguishable from a session that has no data.
     raise_load_errors()
 
     logger.info("Checking Fast-F1's sources from this host...")
@@ -335,8 +329,6 @@ def main() -> int:
         logger.error("Pass --targets or --year-range")
         return 2
 
-    # Before the calendar call too: without a token Fast-F1 would prompt for a
-    # sign-in on every request it sends to live timing.
     if not check_account():
         return EXIT_NO_ACCOUNT
 
@@ -427,8 +419,6 @@ def main() -> int:
         f"{', payload is partial' if partial else ''}"
     )
 
-    # A blocked host is the one failure worth going red for: it means this
-    # fetch path has stopped working and somebody has to choose another one.
     return 1 if blocked else 0
 
 

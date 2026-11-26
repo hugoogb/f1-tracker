@@ -35,8 +35,6 @@ export async function generateMetadata({
   const { year } = await params
   const { type } = await searchParams
   const kind = parseType(type) === 'drivers' ? 'drivers' : 'constructors'
-  // Every pairing is its own URL, so the comparison stays out of the index —
-  // the season page is what search engines should land on.
   return buildMetadata({
     title: `${year} Season Comparison`,
     description: `Compare two ${kind} across the ${year} Formula 1 season: the points gap round by round, finishes, grids, head-to-heads and qualifying gaps.`,
@@ -78,7 +76,6 @@ export default async function SeasonComparePage({
   }))
   const options = type === 'drivers' ? driverOptions : constructorOptions
 
-  // Default to the top two of the standings, which is where the entrants list starts.
   const a = query.a || options[0]?.ref || ''
   const b = query.b || options.find((o) => o.ref !== a)?.ref || ''
 
@@ -97,7 +94,6 @@ export default async function SeasonComparePage({
     if (result.status === 'fulfilled') {
       data = result.value
     } else if (isNotFound(result.reason)) {
-      // The season exists (the entrants loaded), so a 404 here is a pick that did not race.
       problem = `One of those ${type} did not race in ${year}. Pick from this season's entrants.`
     } else if (result.reason instanceof ApiError && result.reason.status === 400) {
       problem = 'Pick two different sides to compare.'
@@ -107,7 +103,6 @@ export default async function SeasonComparePage({
   }
 
   const sides = data ? describeSides(data) : null
-  // Read off the data, never asserted from the era: a total below what was scored.
   const droppedParts: string[] = []
   if (data && sides && data.points.dropped) {
     const { a: droppedA, b: droppedB } = data.points.dropped

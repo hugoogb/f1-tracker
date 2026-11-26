@@ -40,7 +40,6 @@ export function ResultsTable({ results, fastestLapDriverRef }: ResultsTableProps
         {results.map((result, idx) => {
           const teamColor = teamColorOf(result.constructor.color, null)
           const isFinished = result.position != null
-          // A pit-lane start has no grid slot to gain or lose places from.
           const positionDelta =
             result.position != null && result.grid != null ? result.grid - result.position : null
           const hasFastestLap = fastestLapDriverRef === result.driver.ref

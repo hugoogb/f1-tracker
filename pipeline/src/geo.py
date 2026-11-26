@@ -6,8 +6,6 @@ distance the API reports and the line the map draws can never disagree.
 
 from math import asin, cos, radians, sin, sqrt
 
-# Mean Earth radius (IUGG). The spherical model is within ~0.5% of the
-# ellipsoid, which is far below what a "km travelled" figure claims to resolve.
 EARTH_RADIUS_KM = 6371.0088
 
 

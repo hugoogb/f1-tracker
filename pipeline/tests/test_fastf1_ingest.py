@@ -73,7 +73,6 @@ def test_sectors_are_fetched_only_where_there_are_qualifying_rows(db, races, cal
 
     assert calls["fetched"] == [1]
     assert db.get(QualifyingResult, "q-1").q1_s2_ms == 31_000
-    # Done now, so a second run has nothing to fetch.
     fastf1_ingest.QualifyingSectorIngestor(db).ingest()
     assert calls["fetched"] == [1]
 
@@ -88,7 +87,7 @@ def test_every_network_load_is_throttled_even_without_a_driver_mapping(
     monkeypatch.setattr(fastf1_ingest, "fetch_race_laps", fetch)
     fastf1_ingest.LapTimeIngestor(db).ingest()
 
-    assert calls["fetched"] == [1, 2]  # oldest first
+    assert calls["fetched"] == [1, 2]
     assert calls["throttled"] == [50.0, 50.0]
 
 

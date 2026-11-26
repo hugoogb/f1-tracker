@@ -7,17 +7,11 @@ import { useHydrated } from '@/lib/client-only'
 import type { CalendarRound } from '@/lib/types'
 import type { SeasonCalendarVariant } from './season-calendar-map'
 
-/**
- * Leaflet touches `window` at import time, so the map — and the playback shell
- * around it, which reads the clock, `sessionStorage` and the motion preference
- * on its first render — never enters the server bundle.
- */
 const SeasonCalendarMap = dynamic(
   () => import('./season-calendar-map').then((mod) => mod.SeasonCalendarMap),
   { ssr: false, loading: () => <SeasonCalendarSkeleton /> },
 )
 
-/** Same footprint as the loaded map, so nothing below it jumps when it arrives. */
 export function SeasonCalendarSkeleton() {
   return (
     <div className="space-y-3" aria-hidden>
@@ -48,14 +42,10 @@ export function SeasonCalendarMapWrapper({
   rounds,
   variant = 'season',
 }: SeasonCalendarMapWrapperProps) {
-  // Mount only after hydration, so the map's first render is always a plain
-  // client render — the clock is known and there is no server markup to match.
   const hydrated = useHydrated()
   const ref = useRef<HTMLDivElement>(null)
   const [nearViewport, setNearViewport] = useState(false)
 
-  // Defer the Leaflet chunk and the world geometry until the section is about
-  // to scroll into view; most visits to a season page never get that far.
   useEffect(() => {
     const element = ref.current
     if (!element) return

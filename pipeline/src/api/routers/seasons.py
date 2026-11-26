@@ -24,8 +24,6 @@ from src.scoring import counts_every_result, system_for_year
 
 router = APIRouter()
 
-# Floating-point points totals (half points, shared drives) never land exactly,
-# so a difference this small is rounding rather than a dropped score.
 _POINTS_EPSILON = 0.01
 
 
@@ -101,8 +99,6 @@ def list_seasons(db: Session = Depends(get_db)):
 
 @router.get("/seasons/{year}")
 def get_season(year: int, db: Session = Depends(get_db)):
-    # Keyed on the season row, not its races: a season just ingested can have no
-    # races yet and still exists. A 200 here makes `/seasons/1900` an indexable page.
     if db.get(Season, year) is None:
         raise HTTPException(status_code=404, detail="Season not found")
     races = get_season_races(db, year)
@@ -246,17 +242,12 @@ def get_season_heatmap(year: int, db: Session = Depends(get_db)):
     race_ids = [r.id for r in races]
     race_round_map = {r.id: r.round for r in races}
 
-    # Fetch all race results for the season in one query
     all_results = (
         db.execute(select(RaceResult).where(RaceResult.race_id.in_(race_ids))).scalars().all()
     )
 
-    # Order by the latest table there is: in a running season the calendar's
-    # last round has none yet.
     driver_order = [s.driver_id for s in get_driver_standings_for_season(db, year)]
 
-    # Build lookup: driver_id -> {round -> result}. Results are walked in round
-    # order so a driver's constructor is the one they raced for last.
     driver_results: dict[str, dict[int, RaceResult]] = defaultdict(dict)
     driver_constructor: dict[str, object] = {}
     for r in sorted(all_results, key=lambda r: race_round_map[r.race_id]):
@@ -264,19 +255,16 @@ def get_season_heatmap(year: int, db: Session = Depends(get_db)):
         driver_results[r.driver_id][rnd] = r
         driver_constructor[r.driver_id] = r.constructor
 
-    # Include drivers not in standings (e.g., mid-season entries)
     for driver_id in driver_results:
         if driver_id not in driver_order:
             driver_order.append(driver_id)
 
-    # Build response
     drivers_data = []
     for driver_id in driver_order:
         results_by_round = driver_results.get(driver_id, {})
         if not results_by_round:
             continue
 
-        # Get driver info from any result
         sample_result = next(iter(results_by_round.values()))
         constructor = driver_constructor.get(driver_id)
 

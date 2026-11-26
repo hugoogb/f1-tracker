@@ -24,10 +24,8 @@ interface GapChartProps {
 
 const DEFAULT_DRIVERS = 6
 
-/** Seconds behind, the way a pit wall says it: "+1.4", "+12.8". */
 function formatGap(seconds: number): string {
   if (seconds === 0) return 'Leader'
-  // Rounded as a whole first, so 119.96 s reads "+2:00.0", never "+1:60.0".
   if (Math.round(seconds * 10) >= 600) return `+${formatLapTime(seconds * 1000, 1)}`
   return `+${seconds.toFixed(1)}s`
 }
@@ -65,18 +63,6 @@ function CustomTooltip({
   )
 }
 
-/**
- * Every driver's gap to the leader, lap by lap.
- *
- * The y-axis is inverted so the leader's flat line sits at the top and
- * everyone else hangs below it: the chart reads downwards as time lost, which
- * is the way the gap is talked about.
- *
- * Gaps only compare drivers on the same lap of the race. Someone a lap down has
- * a lower elapsed time at their own lap 40 than the leader does, so their line
- * dives rather than climbing — the note under the chart says when the data
- * stops short, which is the case that usually explains a line ending early.
- */
 export function GapChart({ drivers, totalLaps, coveredLaps }: GapChartProps) {
   const [enabled, toggle] = useDriverToggles(drivers, DEFAULT_DRIVERS)
 
@@ -130,8 +116,6 @@ export function GapChart({ drivers, totalLaps, coveredLaps }: GapChartProps) {
               />
               <YAxis
                 type="number"
-                // Reversed: the leader is the top of the chart, and falling
-                // behind moves a line downwards.
                 domain={[0, yMax]}
                 reversed
                 {...axisProps}

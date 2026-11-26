@@ -47,7 +47,6 @@ def in_progress_season(db):
                 fp1_at=datetime.datetime(2024, 2, 29, 11, 30),
                 qualifying_at=datetime.datetime(2024, 3, 1, 16, 0),
             ),
-            # Scheduled but not yet run: no results, no standings.
             Race(
                 id="2024_02",
                 season_year=2024,
@@ -147,7 +146,6 @@ def test_season_exposes_the_weekend_schedule_in_utc(client, seed_data, in_progre
     assert schedule["race"] == "2024-03-02T15:00:00Z"
     assert schedule["sprintRace"] is None
 
-    # A race with a date but no start time has no schedule to advertise.
     assert races[2]["schedule"]["race"] is None
 
 
@@ -171,10 +169,10 @@ def pit_stops(db, in_progress_season):
             )
             for i, (driver, stop, lap, ms) in enumerate(
                 [
-                    ("d-1", 1, 12, 12_800),  # benchmark
-                    ("d-1", 2, 30, 13_100),  # +0.300
-                    ("d-2", 1, 14, 13_900),  # +1.100
-                    ("d-2", 2, 33, 19_000),  # +6.200, a botched stop
+                    ("d-1", 1, 12, 12_800),
+                    ("d-1", 2, 30, 13_100),
+                    ("d-2", 1, 14, 13_900),
+                    ("d-2", 2, 33, 19_000),
                 ]
             )
         ]
@@ -190,7 +188,6 @@ def test_pitstop_analysis_measures_time_lost_against_the_race_benchmark(
     assert data["totalStops"] == 4
     assert data["benchmark"] == "12.800"
     assert data["fastestStop"]["duration"] == "12.800"
-    # (12.8 + 13.1 + 13.9 + 19.0) / 4 = 14.7, i.e. 1.9s off the benchmark
     assert data["avgDuration"] == "14.700"
     assert data["medianDuration"] == "13.500"
     assert data["avgTimeLost"] == "1.900"
@@ -203,7 +200,7 @@ def test_pitstop_distribution_spreads_across_buckets(client, seed_data, pit_stop
         for b in client.get("/api/seasons/2024/races/1/pitstops/analysis").json()["distribution"]
     }
 
-    assert counts["+0.0-0.5s"] == 2  # the benchmark itself and +0.300
+    assert counts["+0.0-0.5s"] == 2
     assert counts["+0.5-1.0s"] == 0
     assert counts["+1.0-2.0s"] == 1
     assert counts["+2.0-5.0s"] == 0

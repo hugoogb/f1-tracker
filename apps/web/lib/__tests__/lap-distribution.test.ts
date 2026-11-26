@@ -3,7 +3,6 @@ import { TYRE_COLORS } from '@/lib/constants'
 import { axisLapLabel, formatLapTime, raceDistribution } from '@/lib/lap-distribution'
 import type { ChartDriverLaps } from '@/lib/types'
 
-/** One driver's race, laps numbered from 1. */
 function driverLaps(
   ref: string,
   team: string,

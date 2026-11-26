@@ -70,7 +70,6 @@ def _raced(races: list[Race], race_points: dict[str, dict[str, float]]) -> list[
 def driver_standings(year: int, db: Session = Depends(get_db)):
     standings = get_driver_standings_for_season(db, year)
 
-    # Build a map of driver_id -> constructor for the last race of the season
     constructor_map: dict[str, Constructor | None] = {}
     if standings:
         last_race_id = standings[0].race_id
@@ -149,14 +148,9 @@ def standings_progression(
     race_ids = [r.id for r in races]
     race_round = {r.id: r.round for r in races}
 
-    # Get final standings to determine top N drivers
     final_standings = get_driver_standings_for_season(db, year)
     top_driver_ids = [s.driver_id for s in final_standings[:top]]
 
-    # Fetch all race + sprint points for top drivers in this season. The race
-    # rows also carry the constructor, which is where each line's colour comes
-    # from — taking it from the last scheduled race would leave every driver
-    # colourless mid-season, when that race has not been run yet.
     race_points_rows = db.execute(
         select(
             RaceResult.race_id,
@@ -179,7 +173,6 @@ def standings_progression(
         )
     ).all()
 
-    # Each driver's most recent constructor: the one they last actually raced for.
     latest_constructor: dict[str, tuple[int, str]] = {}
     for race_id, driver_id, constructor_id, _pts in race_points_rows:
         rnd = race_round[race_id]
@@ -213,7 +206,6 @@ def standings_progression(
             "color": (constructor.color if constructor else None),
         }
 
-    # Build per-race points map: {race_id: {driver_id: points}}
     race_points: dict[str, dict[str, float]] = {}
     for race_id, driver_id, _cid, pts in race_points_rows:
         race_points.setdefault(race_id, {})[driver_id] = pts
@@ -221,11 +213,6 @@ def standings_progression(
         race_points.setdefault(race_id, {}).setdefault(driver_id, 0)
         race_points[race_id][driver_id] += pts
 
-    # Build cumulative round-by-round data, stopping at the last round actually
-    # run so an in-progress season does not trail off into a flat line. The
-    # official table after each round wins where every round has one: before
-    # 1991 that is points counted, not scored, and only it ends on the
-    # published total. The sum of race and sprint points is the fallback.
     raced = _raced(races, race_points)
     official = official_running_totals(db, raced)
     cumulative: dict[str, float] = {did: 0.0 for did in top_driver_ids}
@@ -263,7 +250,6 @@ def constructor_standings_progression(
 
     race_ids = [r.id for r in races]
 
-    # Get final constructor standings to determine top N
     final_standings = get_constructor_standings_for_season(db, year)
     top_constructor_ids = [s.constructor_id for s in final_standings[:top]]
 
@@ -276,7 +262,6 @@ def constructor_standings_progression(
             "color": c.color,
         }
 
-    # Fetch all race + sprint points for top constructors
     race_points_rows = db.execute(
         select(
             RaceResult.race_id,
@@ -310,8 +295,6 @@ def constructor_standings_progression(
         race_points[race_id][cid] += pts
 
     raced = _raced(races, race_points)
-    # Before 1958 there was no constructors' title; f1db has no round tables
-    # then, so those seasons fall back to the sum on their own.
     official = official_running_totals(db, raced, constructors=True)
     cumulative: dict[str, float] = {cid: 0.0 for cid in top_constructor_ids}
     rounds = []
@@ -403,8 +386,6 @@ def normalised_standings(
         if result.position <= 3:
             podiums[result.driver_id] += 1
 
-    # The fastest-lap point, where the chosen system pays one. f1db precomputes
-    # the race's fastest lap, so this does not have to trawl lap times.
     if points_system.fastest_lap_point:
         finishing_position = {(r.race_id, r.driver_id): r.position for r in results}
         for race in races:
@@ -417,9 +398,6 @@ def normalised_standings(
                 continue
             points[driver_id] += 1.0
 
-    # Sprints only exist from 2021, and only score if the chosen system has a
-    # sprint scale at all — scoring a 2023 sprint under 1961's rules would be
-    # inventing a race that system never had to deal with.
     sprint_scale = points_system.sprint_points
     sprints_counted = 0
     if points_system.sprint_points:
@@ -440,8 +418,6 @@ def normalised_standings(
     official_points = {s.driver_id: s.points for s in official}
     official_position = {s.driver_id: s.position for s in official}
 
-    # Countback on wins, then podiums — the sport's own tie-break, and the only
-    # one that can be applied to a re-scored table without inventing a rule.
     ranked = sorted(
         points,
         key=lambda did: (-points[did], -wins[did], -podiums[did]),
@@ -537,12 +513,6 @@ def _permutations(db: Session, year: int, *, constructors: bool) -> dict:
     )
     remaining_races = [r for r in races if r.id not in rounds_with_results]
 
-    # f1db schedules the sprint sessions for the seasons around the present day,
-    # which are exactly the ones this endpoint is useful for. A remaining round
-    # with a sprint session on the calendar is a sprint weekend; without the
-    # schedule there is no way to know, and the flag says so rather than
-    # guessing a number that would move the arithmetic. A sprint already run on
-    # a weekend whose race has not been is no longer on the table.
     def sprint_pending(race: Race) -> bool:
         return race.sprint_race_at is not None and race.id not in sprints_run
 
@@ -573,9 +543,6 @@ def _permutations(db: Session, year: int, *, constructors: bool) -> dict:
     def entity_id(standing) -> str:
         return standing.constructor_id if constructors else standing.driver_id
 
-    # Points already scored that the latest official table does not include
-    # yet: a sprint run on a weekend whose race has not been, or results in
-    # ahead of their table. Leaving them out would understate a chaser.
     table_round = standings[0].race.round
     later_ids = [r.id for r in races if r.round > table_round]
     column = RaceResult.constructor_id if constructors else RaceResult.driver_id
@@ -593,8 +560,6 @@ def _permutations(db: Session, year: int, *, constructors: bool) -> dict:
     entries = [
         (standing, standing.points + banked.get(entity_id(standing), 0.0)) for standing in standings
     ]
-    # Re-rank only on the banked points; the official order (which already
-    # applies the countback) stands wherever totals are level.
     entries.sort(key=lambda e: -e[1])
     leader, leader_points = entries[0]
     leader_id = entity_id(leader)
@@ -627,7 +592,6 @@ def _permutations(db: Session, year: int, *, constructors: bool) -> dict:
                 max_remaining,
                 countback=countback(eid, races_remaining),
             )
-            # Alive, but only by drawing level and winning the countback.
             only_on_countback = alive and max_possible == leader_points
         row = {
             "position": standing.position,
@@ -647,20 +611,14 @@ def _permutations(db: Session, year: int, *, constructors: bool) -> dict:
 
     alive_count = sum(1 for c in contenders if c["alive"])
     season_complete = not remaining_races
-    # Mathematically settled once nobody else can reach the leader, which can
-    # happen several rounds before the finale.
     decided = season_complete or alive_count <= 1
 
-    # What the leader still has to do: take the maximum at the next round while
-    # every rival scores nothing there (always possible — points stop at tenth),
-    # and still be out of reach of everything left afterwards.
     next_race = remaining_races[0] if remaining_races else None
     can_clinch = False
     if next_race is not None and not decided:
         next_sprints = 1 if sprint_pending(next_race) else 0
         max_next = max_points_remaining(system, 1, next_sprints, year, constructors=constructors)
         if year in DOUBLE_POINTS_FINALES and races_remaining > 1:
-            # Only the finale pays double; a single remaining race already is it.
             max_next -= max_per_round(system, year, constructors=constructors)
         max_after = max(max_remaining - max_next, 0.0)
         can_clinch = not any(
@@ -695,9 +653,6 @@ def _permutations(db: Session, year: int, *, constructors: bool) -> dict:
         "nextRound": (
             {"round": next_race.round, "name": next_race.name} if next_race is not None else None
         ),
-        # The scenario every broadcast means by "he can win it next time out":
-        # the leader takes the maximum at the next round, no rival scores there,
-        # and even taking everything left afterwards none of them can catch up.
         "canClinchNextRound": can_clinch,
         "marginToClinch": round(max_remaining + 1, 2) if not decided else 0,
         "aliveCount": alive_count,

@@ -8,7 +8,6 @@ interface SeasonTabsProps {
   heatmapContent?: ReactNode
   driverStandingsContent: ReactNode
   constructorStandingsContent: ReactNode
-  /** Omitted for a season with no results to re-score. */
   whatIfContent?: ReactNode
 }
 

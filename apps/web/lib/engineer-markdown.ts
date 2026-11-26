@@ -4,13 +4,11 @@ export type AnswerToken =
   | { type: 'link'; label: string; href: string; bold?: true }
   | { type: 'break' }
 
-// Sticky: matched at `lastIndex` in the full text, so no per-position copy of the rest.
 const LINK = /\[([^\]\n]+)\]\(([^)\s]+)\)/y
 const BOLD = /\*\*([^*\n]+)\*\*/y
 const SPECIAL = /[[*\n]/g
 const LINKS = /\[([^\]\n]+)\]\(([^)\s]+)\)/g
 
-/** A bold run, with any links inside it kept as (bold) links. */
 function boldTokens(content: string): AnswerToken[] {
   const out: AnswerToken[] = []
   let at = 0
@@ -23,12 +21,6 @@ function boldTokens(content: string): AnswerToken[] {
   return out
 }
 
-/**
- * Tokenises the assistant's tiny markdown subset: `[label](href)`, `**bold**`
- * (which may wrap links: those come out as `link` tokens with `bold: true`)
- * and newlines. Anything not yet complete (a link or bold still being streamed)
- * stays plain text, so partial markup never flashes as a broken element.
- */
 export function tokenizeAnswer(text: string): AnswerToken[] {
   const tokens: AnswerToken[] = []
   let plain = ''
@@ -38,8 +30,6 @@ export function tokenizeAnswer(text: string): AnswerToken[] {
     plain = ''
   }
 
-  // Re-run on every streamed delta, so it jumps between the only characters
-  // that can start markup instead of walking (and re-slicing) one at a time.
   let i = 0
   while (i < text.length) {
     SPECIAL.lastIndex = i
@@ -76,11 +66,6 @@ export function tokenizeAnswer(text: string): AnswerToken[] {
 
 const SAFE_PATH = /^\/[A-Za-z0-9_\-./]*(\?[A-Za-z0-9_=&-]*)?$/
 
-/**
- * True only for a plain in-site path; rejects protocol-relative, absolute and
- * scripted URLs, and any `..` segment (the browser would resolve it elsewhere).
- * Mirrors the server's `navigate` allowlist.
- */
 export function isSameOriginPath(href: string): boolean {
   if (!SAFE_PATH.test(href) || href.includes('//')) return false
   return !href.split('?', 1)[0].split('/').includes('..')

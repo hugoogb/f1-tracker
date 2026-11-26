@@ -2,13 +2,6 @@ import Link from 'next/link'
 import { Gauge } from 'lucide-react'
 import { api } from '@/lib/api'
 
-/**
- * "#5 of 76 best seasons", linking to the ranking.
- *
- * Fetches its own data so the season page only has to place it. Optional by
- * design: a running season has no rank yet, and an API failure renders nothing
- * rather than taking the season page down.
- */
 export async function SeasonRankBadge({ year }: { year: number }) {
   let data
   try {

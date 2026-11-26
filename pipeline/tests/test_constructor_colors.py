@@ -17,8 +17,6 @@ from src.ingestion.colors import (
     derive_color,
 )
 
-# Teams on the grid in the seasons the site leads with. `rb`/`sauber` are the
-# pre-rename ids for two of them and are covered by the palette separately.
 CURRENT_GRID = (
     "mclaren",
     "red-bull",
@@ -34,9 +32,6 @@ CURRENT_GRID = (
     "cadillac",
 )
 
-# Every constructors' champion in f1db. A derived national shade is fine for a
-# privateer nobody has a photograph of, but not for these — if one of them ever
-# falls out of the palette the fallback would hide it, so assert it directly.
 CHAMPIONS = (
     "benetton",
     "brabham",
@@ -71,7 +66,7 @@ def test_every_national_colour_derives_a_valid_shade(code):
     color = derive_color("some-constructor", code)
     assert color is not None
     assert len(color) == 7 and color.startswith("#")
-    int(color[1:], 16)  # raises if the derivation produced anything but hex
+    int(color[1:], 16)
 
 
 def test_derive_color_is_stable_across_calls():
@@ -115,7 +110,6 @@ def test_ingest_colours_a_constructor_added_after_the_first_load(db):
     ConstructorColorIngestor(db).ingest()
     assert db.get(Constructor, "c-ferrari").color == CONSTRUCTOR_COLORS["ferrari"]
 
-    # Second run: nothing to change, and nothing lost.
     ConstructorColorIngestor(db).ingest()
     assert db.get(Constructor, "c-audi").color == CONSTRUCTOR_COLORS["audi"]
 

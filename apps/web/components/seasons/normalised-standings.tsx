@@ -17,7 +17,6 @@ import type { NormalisedStandingsResponse } from '@/lib/types'
 import { formatPoints } from '@/lib/utils'
 
 interface NormalisedStandingsProps {
-  /** One re-scored table per points system, in era order. */
   results: NormalisedStandingsResponse[]
   year: number
 }
@@ -54,19 +53,6 @@ function DeltaCell({ delta }: { delta: number | null }) {
   )
 }
 
-/**
- * The same season scored under every points system the sport has used.
- *
- * Each table is rendered on the server and switched here, so changing system is
- * instant and the page stays cacheable — a query parameter would make the whole
- * season route dynamic for one control.
- *
- * The framing matters as much as the numbers. This answers "who scored most
- * under these rules", not "who would have won": nobody would have driven the
- * same season under different scoring. The note under the table spells out what
- * is not modelled, chiefly the dropped-scores rules that make the pre-1991
- * official tables differ from the sum of their races.
- */
 export function NormalisedStandings({ results, year }: NormalisedStandingsProps) {
   const available = useMemo(() => results.filter((r) => r.standings.length > 0), [results])
   const actual = available.find((r) => r.isActualSystem)

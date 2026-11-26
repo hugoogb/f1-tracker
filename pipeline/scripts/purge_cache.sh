@@ -1,21 +1,4 @@
 #!/usr/bin/env bash
-# Expire the frontend's cached pages through the Next.js /api/revalidate route
-# on Vercel, after the data under them changed. Runs INSIDE the `job` container
-# (docker/compose.prod.yml), which gets REVALIDATE_URL and REVALIDATE_SECRET
-# from the server's .env -- never on the host.
-#
-#   bash scripts/purge_cache.sh [--all | --latest | --years 2025,2026]
-#
-# Reached from outside as a task:
-#   vps_task job bash scripts/purge_cache.sh --latest     (scripts/lib/vps.sh)
-#
-# --all is the default and the one to use after a historical backfill or an
-# f1db correction. --latest expires the newest season plus the global lists,
-# which is all a weekly ingest changes. --years expires those seasons only.
-#
-# Exits 1 and prints a GitHub `::warning::` when the purge does not land, so a
-# missing or mismatched secret shows up as an annotation on the Actions run
-# rather than as pages that quietly stay a day behind.
 set -uo pipefail
 
 SCOPE=all
@@ -54,7 +37,6 @@ echo "==> Purging frontend cache ($SCOPE${YEARS:+: $YEARS})..."
   || fail "REVALIDATE_SECRET is not set in /srv/apps/f1_api/.env, so the frontend will refuse the purge."
 
 body="$(mktemp)"
-# The secret goes through a header file, not curl's command line.
 hdr="$(mktemp)"
 trap 'rm -f "$body" "$hdr"' EXIT
 printf 'Authorization: Bearer %s\nContent-Type: application/json\n' "$REVALIDATE_SECRET" > "$hdr"

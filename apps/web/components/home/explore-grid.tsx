@@ -6,13 +6,11 @@ import { Panel } from '@/components/ui/panel'
 export interface ExploreTile {
   eyebrow: string
   title: string
-  /** One live fact that makes the tile worth clicking. */
   teaser: string
   href: string
   accent?: string | null
 }
 
-/** The distinctive tools, each with a live teaser rather than a bare link. */
 export function ExploreGrid({ tiles }: { tiles: ExploreTile[] }) {
   return (
     <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">

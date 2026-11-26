@@ -66,14 +66,6 @@ interface ConstructorStandingsResponse {
   standings: ConstructorStanding[]
 }
 
-/**
- * Nothing is prerendered at build time: there are thousands of these pages and
- * the set changes with the data, so a build should not have to walk it. The
- * empty list still opts the route into the full route cache — the first request
- * for a path renders it, everything after is served from the cache until the
- * `f1-data` tag is purged by an ingest.
- */
-/** Rows kept per re-scored table — the championship, not the whole entry list. */
 const NORMALISED_ROWS = 20
 
 export function generateStaticParams() {
@@ -83,9 +75,6 @@ export function generateStaticParams() {
 export async function generateMetadata({ params }: { params: Promise<{ year: string }> }) {
   const { year: yearStr } = await params
   const year = parseInt(yearStr, 10)
-  // The page decides between 404 and error; this keeps a missing year out of
-  // the index, since streaming ships its 404 body with a 200. Parsing first
-  // also gives `/seasons/2021abc`, which renders 2021, that season's canonical.
   try {
     if (isNaN(year)) throw new Error('not a year')
     await api.seasons.get(year)
@@ -136,8 +125,6 @@ export default async function SeasonDetailPage({ params }: { params: Promise<{ y
     api.seasons.calendar(year) as Promise<SeasonCalendarResponse>,
   ])
 
-  // A year with no data must answer 404 — but an API outage has to surface as
-  // an error rather than telling crawlers the season does not exist.
   if (season.status === 'rejected') {
     if (isNotFound(season.reason)) notFound()
     throw season.reason
@@ -155,8 +142,6 @@ export default async function SeasonDetailPage({ params }: { params: Promise<{ y
     constructorProgressionResult.status === 'fulfilled' ? constructorProgressionResult.value : null
   const heatmap = heatmapResult.status === 'fulfilled' ? heatmapResult.value : null
   const permutations = permutationsResult.status === 'fulfilled' ? permutationsResult.value : null
-  // Only a season still running shows the panel, so a finished one skips the
-  // constructors' fetch rather than writing a cache entry nothing reads.
   const constructorPermutations =
     permutations?.started && !permutations.seasonComplete
       ? await (
@@ -165,9 +150,6 @@ export default async function SeasonDetailPage({ params }: { params: Promise<{ y
       : null
   const calendar = calendarResult.status === 'fulfilled' ? calendarResult.value : null
 
-  // Every era's re-scored table, rendered up front so switching between them is
-  // instant and the route stays cacheable — a query parameter for one control
-  // would make the whole season page dynamic.
   const pointsSystems: PointsSystemsResponse | null =
     pointsSystemsResult.status === 'fulfilled' ? pointsSystemsResult.value : null
   const normalisedResults = pointsSystems
@@ -183,17 +165,12 @@ export default async function SeasonDetailPage({ params }: { params: Promise<{ y
         )
       )
         .filter((r) => r.status === 'fulfilled')
-        // Only the rows the table shows travel to the client. A 1950s season
-        // can carry eighty entrants, and eight copies of that tail is a lot of
-        // payload for rows nobody scrolls to.
         .map((r) => ({
           ...r.value,
           standings: r.value.standings.slice(0, NORMALISED_ROWS),
         }))
     : []
 
-  // The clock only bounds the "next season" arrow, so the output changes on
-  // 1 January and nowhere else (see seasonNeighbours).
   const neighbours = seasonNeighbours(year, new Date().getUTCFullYear())
 
   return (
@@ -302,7 +279,7 @@ export default async function SeasonDetailPage({ params }: { params: Promise<{ y
             {progression && progression.rounds.length > 1 && (
               <ChampionshipProgressionChart
                 rounds={progression.rounds}
-                drivers={progression.drivers}
+                entries={progression.drivers}
               />
             )}
             <PointsBarChart standings={driverStandingsData.standings} />

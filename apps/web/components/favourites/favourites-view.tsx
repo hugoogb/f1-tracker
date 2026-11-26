@@ -77,13 +77,6 @@ const SECTIONS: {
   },
 ]
 
-/**
- * The whole page body, which is entirely client state.
- *
- * The server renders the skeleton below — `loaded` is false in the server
- * snapshot and stays false for the first client render, so the markup matches
- * and nobody with ten favourites is shown "nothing here yet" for a frame.
- */
 export function FavouritesView() {
   const { items, loaded } = useFavourites()
   const [confirmOpen, setConfirmOpen] = useState(false)
@@ -227,7 +220,6 @@ export function FavouritesView() {
   )
 }
 
-/** The identity mark for a row: initials on the team colour, or none at all. */
 function EntityMark({ entry }: { entry: Favourite }) {
   if (entry.type === 'driver') {
     const { firstName, lastName } = nameParts(entry.name)

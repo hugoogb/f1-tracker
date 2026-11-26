@@ -8,21 +8,8 @@ import { ConstructorLogo } from '@/components/ui/constructor-logo'
 import { DriverAvatar } from '@/components/ui/driver-avatar'
 import { favouriteHref, nameParts, useFavourites, type Favourite } from '@/lib/favourites'
 
-/** Enough to be a shortcut, not so many that the dashboard becomes a list page. */
 const PREVIEW_LIMIT = 8
 
-/**
- * The dashboard's shortcut into the favourites list.
- *
- * It renders from the display data cached with each favourite rather than
- * fetching per entry: the home page is the busiest on the site and a handful of
- * extra round trips per visit — each one a chance to arrive late and reflow the
- * page — buys nothing a name and a colour do not already give. `/favourites`
- * is where that cache gets refreshed.
- *
- * Nothing at all until the store has been read, so the section cannot flash in
- * empty and then fill, and a viewer with no favourites never sees it.
- */
 export function FavouritesSummary() {
   const { items, loaded } = useFavourites()
 

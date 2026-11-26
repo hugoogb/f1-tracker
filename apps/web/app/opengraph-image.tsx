@@ -3,8 +3,6 @@ import { SITE_NAME } from '@/lib/seo'
 import { MARK_SRC } from '@/components/seo/og-card'
 
 export const alt = `${SITE_NAME} — Formula 1 history, stats and analytics`
-// Next reads these by static analysis at build time, so they have to be
-// literals here rather than constants imported from the shared card.
 export const size = { width: 1200, height: 630 }
 export const contentType = 'image/png'
 
@@ -38,9 +36,6 @@ export default function OpengraphImage() {
         <div style={{ display: 'flex', fontSize: 66, fontWeight: 700, letterSpacing: -1 }}>
           {'Every Grand Prix since 1950'}
         </div>
-        {/* Satori keys its word-measurement cache on a plain object, so the
-              literal word "constructor" resolves to Object.prototype and renders
-              as blank space — keep it plural here. */}
         <div style={{ display: 'flex', marginTop: 20, fontSize: 31, color: '#9C9C9C' }}>
           {'Standings, race results, records and head-to-head comparisons'}
         </div>

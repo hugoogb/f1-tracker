@@ -21,9 +21,6 @@ from src.db.models import (
     Status,
 )
 
-# Winner takes eight races, runner-up finishes second in all of them and wins
-# the other two. Under a flat system the consistent driver wins; under a
-# top-heavy one the race winner does.
 WINNER_RACES = 6
 RUNNER_UP_RACES = 4
 
@@ -52,7 +49,6 @@ def season(db):
                 date=datetime.date(1988, 4, 1),
             )
         )
-        # Ace wins the first block, Steady the rest; the other is second.
         ace_wins = rnd <= WINNER_RACES
         for driver_id, position in (
             ("d1", 1 if ace_wins else 2),
@@ -71,8 +67,6 @@ def season(db):
                     status_id=1,
                 )
             )
-    # Official standings: whatever f1db said. Deliberately different from any
-    # re-scored total, so the endpoint cannot accidentally echo it.
     db.add_all(
         [
             DriverStanding(
@@ -128,7 +122,6 @@ def test_the_response_carries_the_official_table_to_compare_against(client, seas
 
     assert ace["officialPosition"] == 2
     assert ace["officialPoints"] == 87
-    # Second officially, first re-scored: one place gained.
     assert ace["positionDelta"] == 1
     assert body["championChanged"] is True
 
@@ -153,7 +146,6 @@ def test_fastest_lap_point_is_only_paid_by_systems_that_have_one(client, db, sea
 
 def test_fastest_lap_point_respects_the_top_ten_rule(client, db, season):
     """A driver outside the top ten sets the lap but scores nothing for it."""
-    # Ace's round-1 win becomes a 15th place, and he takes the fastest lap.
     db.query(RaceResult).filter(RaceResult.id == "rr1d1").update(
         {"position": 15, "position_text": "15"}
     )
@@ -162,7 +154,6 @@ def test_fastest_lap_point_respects_the_top_ten_rule(client, db, season):
 
     body = fetch(client, "2019")
     ace = next(r for r in body["standings"] if r["driver"]["ref"] == "ace")
-    # Five wins left, one 15th, four seconds — and no bonus point.
     assert ace["points"] == (WINNER_RACES - 1) * 25 + RUNNER_UP_RACES * 18
 
 

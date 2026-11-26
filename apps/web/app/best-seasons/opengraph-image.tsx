@@ -5,11 +5,9 @@ import { teamColorOf } from '@/lib/utils'
 import { OgCard, OgFallbackCard } from '@/components/seo/og-card'
 
 export const alt = `The greatest Formula 1 seasons, ranked — ${SITE_NAME}`
-// Literals, not imports: Next reads these by static analysis at build time.
 export const size = { width: 1200, height: 630 }
 export const contentType = 'image/png'
 
-/** The top-ranked season as the card. Never throws: an outage gets the branded fallback. */
 export default async function Image() {
   const fallback = () =>
     new ImageResponse(

@@ -15,7 +15,6 @@ def test_compare_drivers(client, race_seed_data):
     assert data["qualifyingHeadToHead"]["totalRaces"] == 1
     assert "driver1Radar" in data
     assert "driver1Seasons" in data
-    # Teammate seasons (both drove for constructor-1)
     assert 2023 in data["teammateSeasons"]
 
 

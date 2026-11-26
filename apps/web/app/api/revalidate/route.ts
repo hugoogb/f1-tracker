@@ -6,7 +6,6 @@ import type { SeasonCalendarResponse, SeasonCompareEntrants } from '@/lib/types'
 
 export const runtime = 'nodejs'
 
-/** f1db starts in 1950; anything outside this is a typo, not a season. */
 const MIN_YEAR = 1950
 const MAX_YEAR = 2100
 const MAX_YEARS = 20
@@ -18,16 +17,6 @@ function safeEqual(a: string, b: string): boolean {
   return timingSafeEqual(bufA, bufB)
 }
 
-/**
- * What the caller asked to expire.
- *
- * - no body, an empty body, or `{"scope":"all"}`: everything (the `f1-data`
- *   tag). This is what every caller sent before scoped purges existed, so an
- *   old caller still gets the purge it always got.
- * - `{"scope":"latest"}`: the newest season the API knows, as below.
- * - `{"years":[2025,2026]}`: those seasons, the drivers, constructors and
- *   circuits that took part in them, and the global lists.
- */
 type PurgeRequest = { kind: 'all' } | { kind: 'latest' } | { kind: 'years'; years: number[] }
 
 async function readRequest(request: Request): Promise<PurgeRequest | null> {
@@ -53,22 +42,12 @@ async function readRequest(request: Request): Promise<PurgeRequest | null> {
   return null
 }
 
-/**
- * Straight from FastAPI, never from the Data Cache: this runs right after an
- * import, and the cached copies are exactly what is about to be expired.
- */
 async function fetchFresh<T>(endpoint: string): Promise<T> {
   const res = await fetch(`${API_BASE_URL}${endpoint}`, { cache: 'no-store' })
   if (!res.ok) throw new Error(`${endpoint}: HTTP ${res.status}`)
   return res.json() as Promise<T>
 }
 
-/**
- * The tags an import touching `years` can have changed: each season, every
- * entity that appears in it (a driver page shows career totals, so a race in
- * 2026 changes Hamilton's profile but not Fangio's), and the global lists.
- * Must name the same tags `cacheScopeFor` in `lib/api.ts` hands out.
- */
 async function tagsForYears(years: number[]): Promise<string[]> {
   const tags = new Set<string>([F1_GLOBAL_TAG])
   for (const year of years) {
@@ -106,9 +85,6 @@ export async function POST(request: Request) {
     )
   }
 
-  // A scoped purge needs the API to say what the season contains. If it cannot,
-  // expire everything instead: over-purging costs some re-renders, while
-  // under-purging leaves pages showing data from before the import.
   let tags = [F1_DATA_TAG]
   let scope = 'all'
   if (purge.kind !== 'all') {
@@ -125,11 +101,6 @@ export async function POST(request: Request) {
   }
 
   try {
-    // `{ expire: 0 }`, not 'max': this is called after new data has landed, and
-    // 'max' is stale-while-revalidate — the next visitor would still be served
-    // the old page while a background render ran, so a race page cached before
-    // `pnpm fastf1` kept saying it had no lap times. Expiring makes that next
-    // request render fresh, which is what an ingest webhook is for.
     for (const tag of tags) revalidateTag(tag, { expire: 0 })
   } catch (err) {
     console.error('[revalidate] revalidateTag failed', err)

@@ -63,15 +63,12 @@ def find_targets(
     today = date.today()
     targets: list[dict] = []
     for race in db.execute(query).scalars():
-        # A race that has not happened yet has no session to fetch.
         if race.date and race.date > today:
             continue
 
         missing = []
         if KIND_LAPS in need and race.id not in have_laps:
             missing.append(KIND_LAPS)
-        # Sector times fill in existing qualifying rows, so a race without them
-        # has nothing to attach to.
         if KIND_QUALI_SECTORS in need and race.id in have_quali and race.id not in have_sectors:
             missing.append(KIND_QUALI_SECTORS)
         if not missing:

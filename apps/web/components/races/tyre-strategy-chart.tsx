@@ -28,7 +28,6 @@ function getCompoundInitial(compound: string): string {
 }
 
 function getTextColor(compound: string): string {
-  // Dark text for light compounds, white for dark compounds
   if (compound === 'MEDIUM' || compound === 'HARD') return 'var(--background)'
   return 'var(--foreground)'
 }
@@ -56,7 +55,6 @@ export function TyreStrategyChart({ drivers }: TyreStrategyChartProps) {
         }
       }
 
-      // Push final stint
       if (currentCompound !== null && d.laps.length > 0) {
         const lastLap = d.laps[d.laps.length - 1].lapNumber
         stints.push({
@@ -111,7 +109,6 @@ export function TyreStrategyChart({ drivers }: TyreStrategyChartProps) {
           </span>
         </div>
       ))}
-      {/* Legend */}
       <div className="flex flex-wrap gap-3 pt-3">
         {['SOFT', 'MEDIUM', 'HARD', 'INTERMEDIATE', 'WET'].map((compound) => (
           <div key={compound} className="flex items-center gap-1.5">

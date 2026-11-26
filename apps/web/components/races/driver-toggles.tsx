@@ -9,7 +9,6 @@ interface ToggleDriver {
   constructor: { color?: string | null }
 }
 
-/** Which drivers a race chart draws: the first `initial` of `drivers`, then whatever is toggled. */
 export function useDriverToggles(
   drivers: readonly ToggleDriver[],
   initial: number,
@@ -30,7 +29,6 @@ export function useDriverToggles(
   return [enabled, toggle]
 }
 
-/** The chip row above a race chart, one per driver in its team colour when on. */
 export function DriverToggles({
   drivers,
   enabled,

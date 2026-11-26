@@ -19,7 +19,6 @@ export function HeadToHeadCard({
   h2h: HeadToHead
   driver1LastName: string
   driver2LastName: string
-  /** Team colours for each side; without them the card keeps its default red/blue. */
   color1?: string
   color2?: string
   totalLabel?: string

@@ -133,8 +133,6 @@ export function PitStopAnalysisView({ analysis }: PitStopAnalysisProps) {
 
   return (
     <div className="space-y-6">
-      {/* What the numbers mean. Without this the headline figure reads as a
-          three-second stop that took twenty seconds. */}
       <p className="text-muted-foreground text-sm leading-relaxed">
         A stop is timed across the <strong className="text-foreground">pit lane</strong> — entry
         line to exit line, with the stationary time included. How long that takes is mostly down to

@@ -11,7 +11,6 @@ import {
 } from 'recharts'
 import { axisProps, gridProps, NEUTRAL } from '@/lib/chart-theme'
 import { teamColorOf } from '@/lib/utils'
-import type { StandingsProgressionDriver } from '@/lib/types'
 
 interface ChartEntry {
   ref: string
@@ -23,8 +22,7 @@ interface ChartEntry {
 
 interface ChampionshipProgressionChartProps {
   rounds: Record<string, number | string>[]
-  drivers?: StandingsProgressionDriver[]
-  entries?: ChartEntry[]
+  entries: ChartEntry[]
 }
 
 function CustomTooltip({
@@ -72,12 +70,8 @@ function CustomTooltip({
 
 export function ChampionshipProgressionChart({
   rounds,
-  drivers,
-  entries: entriesProp,
+  entries: items,
 }: ChampionshipProgressionChartProps) {
-  // Support both 'drivers' (legacy) and 'entries' (generic) props
-  const items: ChartEntry[] = entriesProp ?? drivers ?? []
-
   if (rounds.length === 0 || items.length === 0) return null
 
   return (

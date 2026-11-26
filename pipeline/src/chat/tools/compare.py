@@ -70,8 +70,6 @@ def _drivers_run(db: Session, args: PairArgs) -> dict:
             "race": {"a": h["driver1Wins"], "b": h["driver2Wins"], "total": h["totalRaces"]},
             "qualifying": {"a": q["driver1Wins"], "b": q["driver2Wins"], "total": q["totalRaces"]},
         },
-        # Seasons both drove for the same constructor (not necessarily the same
-        # races); the router's name for it read as "seasons as teammates".
         "sharedTeamSeasons": c["teammateSeasons"],
     }
 

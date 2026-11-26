@@ -118,7 +118,6 @@ class ConstructorLineage(Base):
     constructor_id: Mapped[str] = mapped_column(ForeignKey("constructors.id"), index=True)
     position: Mapped[int] = mapped_column(Integer)
     year_from: Mapped[int] = mapped_column(Integer)
-    # Open-ended for the member still racing.
     year_to: Mapped[int | None] = mapped_column(Integer)
 
     constructor: Mapped["Constructor"] = relationship()
@@ -142,9 +141,6 @@ class Race(Base):
     date: Mapped[str | None] = mapped_column(Date)
     time: Mapped[str | None] = mapped_column(Time)
 
-    # f1db's flag for the race at which each title was mathematically settled.
-    # Exact even under the pre-1991 "best N results" rules, which the visible
-    # running totals cannot reproduce.
     drivers_title_decider: Mapped[bool] = mapped_column(
         Boolean, default=False, server_default=false()
     )
@@ -152,9 +148,6 @@ class Race(Base):
         Boolean, default=False, server_default=false()
     )
 
-    # Weekend schedule, UTC. f1db only carries these for the seasons around the
-    # present day, and always as a date/time pair, so each session is one
-    # timestamp that is either set or NULL.
     fp1_at: Mapped[datetime | None] = mapped_column(DateTime)
     fp2_at: Mapped[datetime | None] = mapped_column(DateTime)
     fp3_at: Mapped[datetime | None] = mapped_column(DateTime)
@@ -162,7 +155,6 @@ class Race(Base):
     sprint_qualifying_at: Mapped[datetime | None] = mapped_column(DateTime)
     sprint_race_at: Mapped[datetime | None] = mapped_column(DateTime)
 
-    # Precomputed: race fastest lap
     fastest_lap_driver_id: Mapped[str | None] = mapped_column(ForeignKey("drivers.id"))
     fastest_lap_constructor_id: Mapped[str | None] = mapped_column(ForeignKey("constructors.id"))
     fastest_lap_number: Mapped[int | None] = mapped_column(Integer)
@@ -170,7 +162,6 @@ class Race(Base):
     fastest_lap_time_ms: Mapped[int | None] = mapped_column(BigInteger)
     fastest_lap_speed: Mapped[str | None] = mapped_column(String)
 
-    # Precomputed: qualifying fastest sectors
     best_quali_s1_driver_id: Mapped[str | None] = mapped_column(ForeignKey("drivers.id"))
     best_quali_s1_ms: Mapped[int | None] = mapped_column(BigInteger)
     best_quali_s2_driver_id: Mapped[str | None] = mapped_column(ForeignKey("drivers.id"))
@@ -308,8 +299,6 @@ class LapTime(Base):
     race_id: Mapped[str] = mapped_column(ForeignKey("races.id"), index=True)
     driver_id: Mapped[str] = mapped_column(ForeignKey("drivers.id"), index=True)
     lap_number: Mapped[int] = mapped_column(Integer)
-    # Fast-F1's own position at the end of the lap. NULL for races ingested
-    # before it was stored, which is what the positions endpoint falls back on.
     position: Mapped[int | None] = mapped_column(Integer)
     time_millis: Mapped[int | None] = mapped_column(BigInteger)
     sector1_ms: Mapped[int | None] = mapped_column(BigInteger)
@@ -369,24 +358,15 @@ class IngestRun(Base):
     __tablename__ = "ingest_runs"
 
     id: Mapped[str] = mapped_column(String, primary_key=True, default=new_uuid)
-    # Which ingestor ran: one of seed.py's target flags ("base", "results",
-    # "laptimes", ...), a comma-joined set of them, or "full" for a whole run.
     target: Mapped[str] = mapped_column(String)
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    # "running" | "ok" | "error"
     status: Mapped[str] = mapped_column(String)
-    # Only the callers that genuinely count what they wrote fill this in; the
-    # f1db ingestors merge row by row and report no total, so theirs stays NULL.
     rows_written: Mapped[int | None] = mapped_column(Integer)
-    # The F1DB_VERSION actually used, so "latest" can be told apart from a pin.
     f1db_version: Mapped[str | None] = mapped_column(String)
     error: Mapped[str | None] = mapped_column(Text)
 
 
-# Every read of this table is "the most recent N runs", so the index is ordered
-# the way that query is. Declared out here because the expression needs the
-# mapped attribute, which does not exist until the class body has run.
 Index("ix_ingest_runs_started_at_desc", IngestRun.started_at.desc())
 
 
@@ -417,13 +397,9 @@ class ChatUsage(Base):
     cache_read_tokens: Mapped[int] = mapped_column(Integer, default=0)
     cost_usd: Mapped[float] = mapped_column(Float, default=0.0)
     tool_calls: Mapped[int] = mapped_column(Integer, default=0)
-    # "ok" | "budget" | "rate_limited" | "error"
     outcome: Mapped[str] = mapped_column(String)
-    # HMAC of the client IP keyed by salt and day (see src/chat/ledger.py).
     ip_hash: Mapped[str] = mapped_column(String)
-    # The reader's verdict on the answer: 1 or -1, NULL until they give one.
     thumbs: Mapped[int | None] = mapped_column(Integer)
 
 
-# The per-IP limits ask "how many requests from this hash since T".
 Index("ix_chat_usage_ip_hash_created_at", ChatUsage.ip_hash, ChatUsage.created_at)

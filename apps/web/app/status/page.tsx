@@ -30,21 +30,6 @@ export const metadata = buildMetadata({
   noindex: true,
 })
 
-/**
- * Rendered per request, never cached.
- *
- * This page used to be ISR with a one-minute TTL, which made it the one route
- * guaranteed to write to the ISR cache on every refresh: `/api/ops/status`
- * stamps `generatedAt` and reports planner row estimates, so no two renders are
- * byte-identical, and Vercel bills a write for every regeneration whose output
- * changed. It is `noindex` and rarely visited, so a function invocation per
- * view is far cheaper than a cache entry rewritten every minute — and it is
- * always current, which is the page's whole job. The fetch in `lib/api.ts` is
- * `no-store` for the same reason.
- *
- * It has to stay a bare literal: route segment config is read by static
- * analysis without evaluating the module.
- */
 export const dynamic = 'force-dynamic'
 
 const ROW_COUNT_LABELS: Record<string, string> = {
@@ -68,7 +53,6 @@ const NEED_LABELS: Record<string, string> = {
   quali_sectors: 'Qualifying sectors',
 }
 
-/** Wall-clock length of a run. Arithmetic on two instants, so no locale is involved. */
 function runDuration(run: OpsIngestRun): string {
   if (!run.startedAt || !run.finishedAt) return '—'
   const ms = new Date(run.finishedAt).getTime() - new Date(run.startedAt).getTime()
@@ -149,21 +133,12 @@ function Unreachable() {
   )
 }
 
-/**
- * Shown on hover over an estimated figure. Postgres keeps no cached row count,
- * so an exact COUNT(*) on a large table is a full sequential scan; `reltuples`
- * is the planner's own statistic, maintained by ANALYZE and autovacuum.
- */
 const APPROXIMATE_HINT =
   'Estimated from table statistics rather than counted — an exact count would scan the whole table'
 
 export default async function StatusPage() {
-  // One call, but the page must render something useful when it fails — an
-  // outage is information here, not an error.
   const [result] = await Promise.allSettled([api.ops.status()])
   const status: OpsStatus | null = result.status === 'fulfilled' ? result.value : null
-  // Which row counts came back as Postgres' own estimate rather than a real
-  // COUNT(*). A Set because it is asked once per rendered row.
   const estimated = new Set(status?.estimatedCounts ?? [])
   const engineer = formatEngineerStatus(status?.chat)
 

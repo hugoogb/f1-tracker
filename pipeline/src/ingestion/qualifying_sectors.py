@@ -10,7 +10,6 @@ from sqlalchemy.orm import Session
 
 from src.db.models import QualifyingResult
 
-# Qualifying segment -> the QualifyingResult columns it fills.
 _SEGMENT_COLUMNS = {
     "Q1": ("q1_s1_ms", "q1_s2_ms", "q1_s3_ms"),
     "Q2": ("q2_s1_ms", "q2_s2_ms", "q2_s3_ms"),

@@ -12,7 +12,6 @@ interface TrackLayoutProps {
 }
 
 export function TrackLayout({ layouts, name, className }: TrackLayoutProps) {
-  // Default to the most recent layout (highest number)
   const [selectedIdx, setSelectedIdx] = useState(layouts.length - 1)
 
   if (layouts.length === 0) return null
@@ -21,7 +20,6 @@ export function TrackLayout({ layouts, name, className }: TrackLayoutProps) {
 
   return (
     <div className={cn('brackets bg-surface-1 border-hairline border', className)}>
-      {/* Layout selector (only show if multiple variants) */}
       {layouts.length > 1 && (
         <div className="border-hairline flex flex-wrap gap-2 border-b px-4 py-3">
           {layouts.map((layout, idx) => (
@@ -42,7 +40,6 @@ export function TrackLayout({ layouts, name, className }: TrackLayoutProps) {
         </div>
       )}
 
-      {/* The layout drawn in the page accent (an SVG mask, see TrackOutline). */}
       <div className="p-8">
         <TrackOutline
           svgId={current.svgId}

@@ -4,7 +4,6 @@ import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
   title: 'Page not found',
-  // A 404 body served under a real URL should never be indexed.
   robots: { index: false, follow: false },
 }
 

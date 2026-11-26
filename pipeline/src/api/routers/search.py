@@ -15,7 +15,6 @@ from src.db.queries import (
 
 router = APIRouter()
 
-# A standalone four-digit token in the championship's range: "monaco 2021".
 _YEAR = re.compile(r"(?<!\d)(19[5-9]\d|20\d\d|2100)(?!\d)")
 
 _EMPTY = {"drivers": [], "constructors": [], "circuits": [], "seasons": [], "races": []}
@@ -36,8 +35,6 @@ def search(q: str = "", db: Session = Depends(get_db)):
         return _EMPTY
 
     text, year = split_year(q)
-    # "monaco 2021" looks for Monaco among drivers/teams/circuits, not the
-    # whole string; a bare year finds no driver called "2021".
     entity_query = text if year is not None else q
     drivers = search_drivers(db, entity_query, limit=SEARCH_RESULT_LIMIT) if entity_query else []
     constructors = (

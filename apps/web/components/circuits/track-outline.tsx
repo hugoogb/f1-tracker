@@ -1,9 +1,5 @@
 import { cn } from '@/lib/utils'
 
-/**
- * A circuit layout (f1db's white SVGs) drawn in the page accent: the SVG is
- * used as a mask over an accent-coloured box, so it follows the livery.
- */
 export function TrackOutline({
   svgId,
   name,

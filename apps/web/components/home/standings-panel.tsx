@@ -12,7 +12,6 @@ export interface StandingsRow {
   href: string
 }
 
-/** Top of a championship as readout rows; the leader on the red slab. */
 export function StandingsPanel({
   title,
   href,

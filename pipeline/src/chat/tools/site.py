@@ -158,8 +158,6 @@ def _search_run(db: Session, args: SearchArgs) -> dict:
 
 
 def _navigate_run(db: Session, args: NavigateArgs) -> dict:
-    # A `..` segment climbs out of the path the model named; the browser would
-    # resolve it somewhere the tool never checked.
     segments = args.href.split("?", 1)[0].split("/")
     if _SITE_PATH.fullmatch(args.href) and "//" not in args.href and ".." not in segments:
         return {"navigated": True, "href": args.href}

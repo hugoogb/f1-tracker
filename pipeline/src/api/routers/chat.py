@@ -81,7 +81,7 @@ def chat(
             status_code=refusal.status,
             content={"detail": {"code": refusal.code, "message": refusal.message}},
         )
-    db.rollback()  # end the gates' read transaction before the stream starts
+    db.rollback()
     return StreamingResponse(
         _stream(run_chat(db, body, ip_hash=caller, now=now)),
         media_type="text/event-stream",

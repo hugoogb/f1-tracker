@@ -115,7 +115,7 @@ def _champions_run(db: Session, args: ChampionsArgs) -> dict:
         and (args.year_to is None or s["year"] <= args.year_to)
     ]
     if args.oldest_first:
-        seasons.reverse()  # the router lists newest first
+        seasons.reverse()
     wanted = MAX_CHAMPION_SEASONS if args.limit is None else args.limit
     limit = max(1, min(wanted, MAX_CHAMPION_SEASONS))
     shown = seasons[:limit]
@@ -125,8 +125,6 @@ def _champions_run(db: Session, args: ChampionsArgs) -> dict:
         out.append(
             {
                 "year": s["year"],
-                # The drivers' champion and the car they raced; the constructors'
-                # champion is a separate field and need not be the same team.
                 "driver": {
                     "name": driver_name(d),
                     "ref": d["ref"],
@@ -134,8 +132,6 @@ def _champions_run(db: Session, args: ChampionsArgs) -> dict:
                 }
                 if d
                 else None,
-                # No constructors' title was awarded before 1958; the table the
-                # ingest summed for those years has a leader, not a champion.
                 "constructor": {"name": con["name"], "ref": con["ref"]}
                 if con and s["year"] >= FIRST_CONSTRUCTORS_CHAMPIONSHIP
                 else None,

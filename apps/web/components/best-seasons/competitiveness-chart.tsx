@@ -27,14 +27,11 @@ interface Point {
   decider: string
 }
 
-/** A band narrower than this keeps its shading but drops its label. */
 const LABEL_MIN_PX = 72
 
 export interface ChartEra {
   id: string
-  /** "1961-1990 · 9-6-4-3-2-1", for the filter. */
   label: string
-  /** "1961-1990", for the band on the chart. */
   short: string
   from: number
   to: number
@@ -73,11 +70,6 @@ function ChartTooltip({
   )
 }
 
-/**
- * Competitiveness score for every completed season, with the points-system eras
- * shaded behind it. One series, so no legend: the dots wear the champion's team
- * colour, which the tooltip names, and a click opens that season.
- */
 export function CompetitivenessChart({
   seasons,
   eras,
@@ -86,7 +78,6 @@ export function CompetitivenessChart({
   eras: ChartEra[]
 }) {
   const router = useRouter()
-  // Plot width, so an era band is labelled only when its label fits inside it.
   const [width, setWidth] = useState(0)
   const data: Point[] = [...seasons]
     .sort((a, b) => a.year - b.year)

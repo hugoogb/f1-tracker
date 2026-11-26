@@ -28,16 +28,11 @@ from src.ingestion.standings import StandingsIngestor
 
 logger = logging.getLogger(__name__)
 
-# ── Run log ──────────────────────────────────────────────────────────────────
 
 STATUS_RUNNING = "running"
 STATUS_OK = "ok"
 STATUS_ERROR = "error"
 
-# A SQLAlchemy exception string can run to the whole failing statement, and a
-# driver-level connection error can carry the DSN — password included. The
-# column is a debugging aid for whoever has a psql prompt on the box, never
-# something to serve, so it is cut down to a line rather than kept whole.
 ERROR_MAX_CHARS = 200
 
 
@@ -78,7 +73,6 @@ def _quietly(action) -> bool:
     try:
         action()
         return True
-    # A broken log must never be the thing that breaks a load.
     except Exception as exc:
         logger.warning(f"Ingest run log unavailable — continuing without it: {exc}")
         return False
@@ -214,12 +208,10 @@ def refresh_materialized_views(db: Session) -> None:
     """Create or refresh materialized views for computed stats."""
     logger.info("Creating/refreshing materialized views...")
 
-    # Drop existing views first
     db.execute(text("DROP MATERIALIZED VIEW IF EXISTS season_champions CASCADE"))
     db.execute(text("DROP MATERIALIZED VIEW IF EXISTS driver_career_stats CASCADE"))
     db.execute(text("DROP MATERIALIZED VIEW IF EXISTS constructor_career_stats CASCADE"))
 
-    # Season champions: position=1 in final round standings
     db.execute(
         text("""
         CREATE MATERIALIZED VIEW season_champions AS
@@ -243,7 +235,6 @@ def refresh_materialized_views(db: Session) -> None:
     """)
     )
 
-    # Driver career stats
     db.execute(
         text("""
         CREATE MATERIALIZED VIEW driver_career_stats AS
@@ -260,7 +251,6 @@ def refresh_materialized_views(db: Session) -> None:
     """)
     )
 
-    # Constructor career stats
     db.execute(
         text("""
         CREATE MATERIALIZED VIEW constructor_career_stats AS
@@ -315,7 +305,6 @@ def compute_race_aggregates(db: Session, race_ids: Collection[str] | None = None
     for race in races:
         changed = False
 
-        # --- Fastest lap ---
         results = db.query(RaceResult).filter(RaceResult.race_id == race.id).all()
         best_ms = None
         best_result = None
@@ -335,7 +324,6 @@ def compute_race_aggregates(db: Session, race_ids: Collection[str] | None = None
             race.fastest_lap_speed = best_result.fastest_lap_speed
             changed = True
 
-        # --- Fastest qualifying sectors ---
         qualis = db.query(QualifyingResult).filter(QualifyingResult.race_id == race.id).all()
         for sector_idx, (s1_attr, s2_attr, s3_attr) in enumerate(
             [

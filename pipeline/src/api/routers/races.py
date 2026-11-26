@@ -39,7 +39,6 @@ def _cumulative_lap_times(race_id: str):
         lt.c.sector1_ms + lt.c.sector2_ms + lt.c.sector3_ms,
     )
 
-    # The last lap each driver has an unbroken chain of times up to.
     max_valid_lap = (
         select(
             lt.c.driver_id,
@@ -261,9 +260,6 @@ def get_pitstops(year: int, round: int, db: Session = Depends(get_db)):
         .all()
     )
 
-    # Durations are pit lane times, so the useful comparison within one race is
-    # against its quickest stop rather than against an absolute target — see
-    # the analysis endpoint below.
     durations = [s.duration_ms for s in stops if s.duration_ms is not None]
     benchmark_ms = min(durations) if durations else None
 
@@ -315,17 +311,14 @@ def get_laps(year: int, round: int, db: Session = Depends(get_db)):
         .all()
     )
 
-    # Build constructor lookup from race results (LapTime has no constructor_id)
     results = get_race_results(db, race.id)
     driver_constructor = {r.driver_id: r.constructor for r in results}
     driver_position = {r.driver_id: r.position for r in results}
 
-    # Group laps by driver
     by_driver: dict[str, list[LapTime]] = defaultdict(list)
     for lap in laps:
         by_driver[lap.driver_id].append(lap)
 
-    # Sort drivers by finishing position
     driver_ids = sorted(
         by_driver.keys(),
         key=lambda did: driver_position.get(did) or 999,
@@ -367,20 +360,14 @@ def get_laps(year: int, round: int, db: Session = Depends(get_db)):
 def get_positions(year: int, round: int, db: Session = Depends(get_db)):
     race = _race_or_404(db, year, round)
 
-    # Get race results for grid positions, constructor info, and final position
     results = db.execute(select(RaceResult).where(RaceResult.race_id == race.id)).scalars().all()
     if not results:
         return {"raceId": race.id, "totalLaps": 0, "coveredLaps": 0, "drivers": []}
 
-    # The race's real distance, from f1db rather than from the timing data, so
-    # the chart's axis spans the whole race even where the reconstruction below
-    # runs out early.
     race_laps = max((r.laps or 0) for r in results)
 
     lt = LapTime.__table__
 
-    # Fast-F1 reports a position per lap, and where it has been stored that is
-    # simply the answer.
     stored = db.execute(
         select(lt.c.driver_id, lt.c.lap_number, lt.c.position).where(
             lt.c.race_id == race.id, lt.c.position.isnot(None)
@@ -389,9 +376,6 @@ def get_positions(year: int, round: int, db: Session = Depends(get_db)):
     if stored:
         return _positions_response(db, race, results, race_laps, stored)
 
-    # Otherwise fall back to reconstructing them: rank drivers each lap by
-    # elapsed race time. Races ingested before the position was stored have only
-    # lap times, and re-fetching a session costs ~45s, so this stays.
     cumulative = _cumulative_lap_times(race.id)
 
     ranked_rows = db.execute(
@@ -514,8 +498,6 @@ def get_degradation(year: int, round: int, db: Session = Depends(get_db)):
             LapTime.time_millis.isnot(None),
             LapTime.compound.isnot(None),
             LapTime.tyre_life.isnot(None),
-            # Lap 1 is a standing start and a first-corner scramble, not a
-            # measurement of a one-lap-old tyre.
             LapTime.lap_number > 1,
         )
     ).all()
@@ -563,7 +545,6 @@ def get_degradation(year: int, round: int, db: Session = Depends(get_db)):
             }
         )
 
-    # Most-used compound first: that is the one the race was run on.
     compounds.sort(key=lambda c: -c["laps"])
 
     return {
@@ -630,7 +611,6 @@ def get_pitstops_analysis(year: int, round: int, db: Session = Depends(get_db)):
     if not stops:
         return empty
 
-    # Build driver -> constructor map from race results
     results = db.execute(select(RaceResult).where(RaceResult.race_id == race.id)).scalars().all()
     driver_constructor = {r.driver_id: r.constructor for r in results}
 
@@ -638,8 +618,6 @@ def get_pitstops_analysis(year: int, round: int, db: Session = Depends(get_db)):
     if not valid_stops:
         return empty
 
-    # Fastest stop — already sorted by duration, and the benchmark everything
-    # else is measured against.
     fastest = valid_stops[0]
     fastest_constructor = driver_constructor.get(fastest.driver_id)
     benchmark_ms = fastest.duration_ms
@@ -648,7 +626,6 @@ def get_pitstops_analysis(year: int, round: int, db: Session = Depends(get_db)):
     avg_duration = sum(durations) / len(durations)
     median_duration = statistics.median(durations)
 
-    # Team averages, ranked by time lost against the benchmark
     team_totals: dict[str, dict] = {}
     for s in valid_stops:
         constructor = driver_constructor.get(s.driver_id)
@@ -680,9 +657,6 @@ def get_pitstops_analysis(year: int, round: int, db: Session = Depends(get_db)):
         key=lambda x: float(x["avgTimeLost"]),
     )
 
-    # Distribution of time lost against the race benchmark. Bucketing the raw
-    # total instead drops every stop of a race into a single bar, since the
-    # spread within one pit lane is only a couple of seconds wide.
     buckets = (
         ("+0.0-0.5s", 0, 500),
         ("+0.5-1.0s", 500, 1000),
@@ -749,7 +723,6 @@ def _positions_response(db: Session, race, results, race_laps: int, rows) -> dic
     if not driver_ids_seen:
         return {"raceId": race.id, "totalLaps": 0, "coveredLaps": 0, "drivers": []}
 
-    # The grid is where everyone was before lap 1, so it anchors the chart at 0.
     for driver_id in driver_ids_seen:
         grid = driver_grid.get(driver_id)
         if grid:
@@ -758,7 +731,6 @@ def _positions_response(db: Session, race, results, race_laps: int, rows) -> dic
     drivers = db.execute(select(Driver).where(Driver.id.in_(driver_ids_seen))).scalars().all()
     driver_map = {d.id: d for d in drivers}
 
-    # Finishing order, so the chart's default selection is the front of the field.
     sorted_driver_ids = sorted(driver_ids_seen, key=lambda d: driver_final_pos.get(d) or 999)
 
     drivers_data = []
@@ -780,11 +752,7 @@ def _positions_response(db: Session, race, results, race_laps: int, rows) -> dic
 
     return {
         "raceId": race.id,
-        # The race's length, so the chart's axis is the race and not whatever
-        # the timing data happened to cover...
         "totalLaps": max(race_laps, max_lap),
-        # ...and how far the data actually got, so the UI can say when it falls
-        # short instead of implying the race ended there.
         "coveredLaps": max_lap,
         "drivers": drivers_data,
     }

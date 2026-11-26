@@ -77,7 +77,6 @@ def get_driver_seasons(ref: str, db: Session = Depends(get_db)):
         .order_by(Race.season_year.desc())
     ).all()
 
-    # Bulk-fetch all constructors referenced in season stats
     constructor_ids = {row.constructor_id for row in season_stats}
     constructors = (
         (db.execute(select(Constructor).where(Constructor.id.in_(constructor_ids))).scalars().all())
@@ -86,7 +85,6 @@ def get_driver_seasons(ref: str, db: Session = Depends(get_db)):
     )
     constructor_map = {c.id: c for c in constructors}
 
-    # Bulk-fetch championship positions: find last race with standings per season
     season_years = [row.season_year for row in season_stats]
     last_races_query = (
         select(
@@ -109,7 +107,6 @@ def get_driver_seasons(ref: str, db: Session = Depends(get_db)):
     ).all()
     last_race_map = {row.season_year: row.id for row in last_race_rows}
 
-    # Fetch all standings for this driver at those last races
     last_race_ids = list(last_race_map.values())
     standings_rows = (
         (
@@ -154,7 +151,6 @@ def get_driver_pace(ref: str, db: Session = Depends(get_db)):
     if not driver:
         raise HTTPException(status_code=404, detail="Driver not found")
 
-    # Average qualifying position per season
     quali_data = db.execute(
         select(
             Race.season_year,
@@ -167,7 +163,6 @@ def get_driver_pace(ref: str, db: Session = Depends(get_db)):
         .order_by(Race.season_year)
     ).all()
 
-    # Average race finishing position per season (only classified finishers)
     race_data = db.execute(
         select(
             Race.season_year,
@@ -183,7 +178,6 @@ def get_driver_pace(ref: str, db: Session = Depends(get_db)):
         .order_by(Race.season_year)
     ).all()
 
-    # Merge by year
     quali_map = {row.season_year: row for row in quali_data}
     race_map = {row.season_year: row for row in race_data}
     all_years = sorted(set(quali_map.keys()) | set(race_map.keys()))

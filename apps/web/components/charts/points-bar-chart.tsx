@@ -48,7 +48,6 @@ function CustomTooltip({
   )
 }
 
-/** One bar per entry, longest first, in its team colour. */
 function HorizontalPointsBar({
   data,
   labelWidth,
@@ -83,7 +82,6 @@ function HorizontalPointsBar({
   )
 }
 
-/** The top ten of the drivers' table. */
 export function PointsBarChart({ standings }: { standings: DriverStanding[] }) {
   return (
     <HorizontalPointsBar
@@ -101,7 +99,6 @@ export function PointsBarChart({ standings }: { standings: DriverStanding[] }) {
 
 const CONSTRUCTOR_BAR_HEIGHT = 28
 
-/** Every constructor in the table, the chart growing with the field. */
 export function ConstructorPointsChart({ standings }: { standings: ConstructorStanding[] }) {
   return (
     <HorizontalPointsBar

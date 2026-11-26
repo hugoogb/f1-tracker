@@ -128,14 +128,11 @@ def build(db, year, rounds, *, poles=None, final=None, constructors=None, future
     db.commit()
 
 
-# 2010 scoring: 25 for a win, no fastest-lap point. Running totals:
-# a 25 / 40 / 58, b 18 / 43 / 55, c 15 / 30 / 45.
 CLOSE = [
     {"a": 25, "b": 18, "c": 15},
     {"b": 25, "a": 15, "c": 15},
     {"a": 18, "c": 15, "b": 12},
 ]
-# Settled with a round to spare: after round 3, Bravo's 30 + 25 cannot reach 75.
 DOMINANT = [{"a": 25, "b": 10, "c": 0}] * 4
 
 
@@ -170,11 +167,9 @@ def test_close_season_metrics(client, two_seasons):
     assert season["titleMarginShare"] == round(3 / 58, 4)
     assert season["decidedAtRound"] == 3
     assert season["wentToFinalRound"] is True
-    # Entering the final round (25 left): Bravo leads on 43, Alpha 40 and Charlie 30 can reach it.
     assert season["contendersAtFinale"] == 3
     assert season["distinctWinners"] == 2
     assert season["distinctPoleSitters"] == 3
-    # Alpha -> Bravo -> Alpha.
     assert season["leadChanges"] == 2
     assert season["distinctLeaders"] == 2
 
@@ -217,9 +212,7 @@ def test_dominant_season_component_values(client, two_seasons):
     components = {
         c["id"]: c["value"] for c in by_year(client.get(URL).json())[2011]["score"]["components"]
     }
-    # Margin 60 of 100 is past the 40% ceiling.
     assert components["closeness"] == 0
-    # One round from the end of four: 1 - 1/2.
     assert components["lateness"] == 0.5
     assert components["contention"] == 0
     assert components["variety"] == 0
@@ -254,8 +247,6 @@ def test_champion_comes_from_official_standings_not_summed_points(client, db, ba
     assert season["titleMargin"] == 3
     assert season["everyResultCounts"] is False
     assert season["progressionApproximate"] is True
-    # Bravo led on points scored all season; the final round ends with the
-    # official champion in front, and the title cannot be settled before it.
     assert season["decidedAtRound"] == 3
     assert season["leadChanges"] == 1
 
@@ -267,7 +258,6 @@ def test_modern_progression_is_exact(client, two_seasons):
 def test_a_tie_at_the_top_does_not_change_the_lead(client, db, base):
     build(db, 2012, [{"b": 25, "a": 18}, {"a": 25, "b": 18}, {"a": 25, "b": 18}])
     season = by_year(client.get(URL).json())[2012]
-    # Bravo leads, holds it through the tie, then Alpha takes it.
     assert season["leadChanges"] == 1
 
 
@@ -276,7 +266,6 @@ def test_sort_by_any_metric(client, two_seasons):
     assert [s["year"] for s in body["seasons"]] == [2010, 2011]
     body = client.get(URL, params={"sort": "title_margin", "order": "asc"}).json()
     assert [s["year"] for s in body["seasons"]] == [2010, 2011]
-    # Ranks are by score, whatever the sort.
     assert body["seasons"][0]["rank"] == 1
 
 
@@ -296,7 +285,6 @@ def test_era_is_shorthand_for_that_systems_seasons(client, two_seasons, db):
     assert body["era"]["id"] == "2010"
     assert (body["yearFrom"], body["yearTo"]) == (2010, 2018)
     assert {s["year"] for s in body["seasons"]} == {2010, 2011}
-    # Ranks stay site-wide under a filter.
     assert {s["rank"] for s in body["seasons"]} <= {1, 2, 3}
 
 

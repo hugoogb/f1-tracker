@@ -2,15 +2,6 @@
 
 import { useSyncExternalStore } from 'react'
 
-/**
- * Pages this browser visited recently, for the command palette's empty state.
- *
- * Kept in `localStorage` like favourites, and read the same way: the server
- * and the first client render see an empty list, the real one arrives on
- * subscribe. Storage can be missing (server), blocked (private mode) or hold
- * anything; every access is guarded and anything unexpected reads as empty.
- */
-
 export interface RecentItem {
   href: string
   label: string
@@ -70,7 +61,6 @@ export function recordVisit(item: RecentItem): void {
   listeners.forEach((l) => l())
 }
 
-// useSyncExternalStore needs the same reference until the data changes.
 let cachedRaw: string | null = null
 let cachedItems: readonly RecentItem[] = EMPTY
 
@@ -87,7 +77,6 @@ function snapshot(): readonly RecentItem[] {
 function subscribe(listener: () => void): () => void {
   listeners.add(listener)
   const onStorage = (e: StorageEvent) => {
-    // `key === null` is a `localStorage.clear()` from another tab.
     if (e.key === KEY || e.key === null) listener()
   }
   window.addEventListener('storage', onStorage)

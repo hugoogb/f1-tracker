@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { collectAllPages, MAX_API_PAGE_SIZE } from './paged-fetch'
 
-/** Behaves like the FastAPI list endpoints, including their `le=200` validation. */
 function fakeEndpoint(total: number) {
   const all = Array.from({ length: total }, (_, i) => i)
   return async (page: number, pageSize: number) => {

@@ -89,7 +89,6 @@ def test_max_per_round_includes_the_fastest_lap_point():
 def test_constructor_maximum_is_a_one_two():
     assert max_per_round(system_for_year(2025), 2025, constructors=True) == 43.0
     assert max_per_round(system_for_year(2021), 2021, constructors=True) == 44.0
-    # Best car only until 1978, and the 1950s fastest-lap point predates the title.
     assert max_per_round(system_for_year(1978), 1978, constructors=True) == 9.0
     assert max_per_round(system_for_year(1979), 1979, constructors=True) == 15.0
 
@@ -105,18 +104,14 @@ def test_double_points_finale_is_counted_once_extra():
 
 
 def test_wins_countback():
-    # Two wins to come against eight: the leader keeps it.
     assert wins_countback([0, 8], [8], 2) is False
-    # Level on wins, more seconds.
     assert wins_countback([3, 5], [5, 3], 2) is True
-    # Identical records: nothing separates them.
     assert wins_countback([3, 1], [5, 1], 2) is None
 
 
 def test_drawing_level_follows_the_countback():
     assert still_in_contention(250, 300, 50, countback=False) is False
     assert still_in_contention(250, 300, 50, countback=True) is True
-    # Unknown counts as alive rather than ruling anyone out.
     assert still_in_contention(250, 300, 50) is True
     assert still_in_contention(251, 300, 50, countback=False) is True
     assert still_in_contention(249, 300, 50, countback=True) is False

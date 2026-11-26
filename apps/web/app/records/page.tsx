@@ -153,7 +153,6 @@ function ConstructorRecordTable({
   )
 }
 
-/** `[]` when a lookup fails, so one flaky list never takes the page down. */
 function settledOr<T>(result: PromiseSettledResult<T>, fallback: T): T {
   return result.status === 'fulfilled' ? result.value : fallback
 }
@@ -161,9 +160,6 @@ function settledOr<T>(result: PromiseSettledResult<T>, fallback: T): T {
 export default async function RecordsPage() {
   const records = (await api.records()) as RecordsResponse
 
-  // The explorer's dropdown options. Fetched here so they ride the page's own
-  // cache instead of costing the browser three extra round trips, and settled
-  // rather than awaited outright — a missing list just hides one filter.
   const [systems, driverNationalities, constructorNationalities] = await Promise.allSettled([
     api.pointsSystems(),
     api.drivers.nationalities(),
@@ -260,9 +256,6 @@ export default async function RecordsPage() {
           </StaggerList>
         }
         exploreContent={
-          // `useSearchParams` inside the explorer needs a boundary. Keeping it
-          // this tight means only the explorer is client-rendered; the curated
-          // tables above stay in the prerendered HTML.
           <Suspense fallback={<Skeleton className="h-96 w-full" />}>
             <RecordsExplorer
               eras={eras}

@@ -35,7 +35,6 @@ from src.db.queries import get_constructor_standings_for_season, get_driver_stan
 
 Kind = Literal["drivers", "constructors"]
 
-# Mirrors the season router: a difference this small is rounding, not a dropped score.
 _DROPPED_EPSILON = 0.01
 
 STANDINGS_NOTE = (
@@ -182,8 +181,6 @@ def _champion(db: Session, year: int, races: list[dict], kind: str) -> dict | No
     as_of = _round_of(table)
     if as_of is None or as_of["round"] != last["round"]:
         return None
-    # Read the leader off the table already in hand rather than through the
-    # router, which would query the same standings a second time.
     top = next((s for s in table if s.position == 1), None)
     if top is None:
         return None

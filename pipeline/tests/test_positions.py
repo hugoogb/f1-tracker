@@ -97,7 +97,6 @@ def test_sector_times_stand_in_for_a_missing_lap_time(client, seed_data, race, d
     laps = [p["lap"] for p in by_ref["driver-1"]["positions"]]
 
     assert max(laps) == RACE_LAPS
-    # Still leading on the recovered lap: the sectors sum to the same time.
     assert next(p["position"] for p in by_ref["driver-1"]["positions"] if p["lap"] == 4) == 1
 
 
@@ -125,7 +124,6 @@ def test_total_laps_is_the_race_not_the_timing_coverage(client, seed_data, race,
     data = _positions(client)
 
     assert data["totalLaps"] == RACE_LAPS
-    # Reported separately so the UI can flag how short the coverage is.
     assert data["coveredLaps"] == 3
 
 
@@ -137,7 +135,6 @@ def test_full_timing_covers_the_whole_race(client, seed_data, race, db):
 
     assert data["totalLaps"] == RACE_LAPS
     assert data["coveredLaps"] == RACE_LAPS
-    # Grid position is lap 0, then one point per lap.
     assert len(data["drivers"][0]["positions"]) == RACE_LAPS + 1
 
 

@@ -40,9 +40,6 @@ def make_run(db, **overrides):
     return run
 
 
-# ── Endpoint shape ───────────────────────────────────────────────────────────
-
-
 def test_counts_fall_back_to_a_real_count_without_postgres_statistics(client):
     """`reltuples` is a Postgres notion; everywhere else must still be exact.
 
@@ -139,9 +136,6 @@ def test_status_calls_a_finished_season_not_in_progress(client, race_seed_data):
     assert coverage["currentSeason"]["roundsRemaining"] == 0
 
 
-# ── Fast-F1 backlog ──────────────────────────────────────────────────────────
-
-
 def test_backlog_agrees_with_find_targets(client, race_seed_data, db):
     """The page and `pnpm fastf1` must never disagree about what is outstanding."""
     expected = find_targets(db, need={KIND_LAPS, KIND_QUALI_SECTORS}, oldest_first=True)
@@ -172,9 +166,6 @@ def test_backlog_shrinks_as_data_lands(client, race_seed_data, db):
     assert fastf1["backlog"] == len(
         find_targets(db, need={KIND_LAPS, KIND_QUALI_SECTORS}, oldest_first=True)
     )
-
-
-# ── Ingest runs ──────────────────────────────────────────────────────────────
 
 
 def test_ingest_section_is_empty_rather_than_missing_when_nothing_has_run(client):
@@ -251,16 +242,12 @@ def test_status_survives_a_database_without_the_run_log(client, db):
     assert response.status_code == 200
     data = response.json()
     assert data["ingest"] == {"available": False, "runs": [], "lastSuccessAt": None}
-    # The sections after it still answer — the failed read must not poison them.
     assert data["rowCounts"]["races"] == 0
 
 
 def test_schema_version_is_none_when_the_database_is_unstamped(client):
     """SQLite here has no alembic_version table; that is a null, not a 500."""
     assert client.get("/api/ops/status").json()["schemaVersion"] is None
-
-
-# ── The run-log context manager ──────────────────────────────────────────────
 
 
 @pytest.fixture()
@@ -289,7 +276,6 @@ def test_a_completed_run_is_logged_as_ok(run_log):
     (logged,) = rows(run_log)
     assert logged.target == "base"
     assert logged.status == "ok"
-    # The log's own insert and update are not the ingest's writes.
     assert logged.rows_written == 0
     assert logged.started_at is not None
     assert logged.finished_at is not None

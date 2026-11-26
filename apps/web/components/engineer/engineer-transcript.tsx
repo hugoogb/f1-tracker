@@ -13,7 +13,6 @@ const NOTICES: Partial<Record<EngineerStatus['kind'], string>> = {
   cooldown: 'Too many questions in a row. Give it a few minutes and ask again.',
 }
 
-/** The conversation, newest at the bottom, kept scrolled to the end as it streams. */
 export function EngineerTranscript({
   messages,
   status,

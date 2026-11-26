@@ -9,8 +9,6 @@ import { websiteSchema } from '@/lib/structured-data'
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL, THEME_COLOR, absoluteUrl } from '@/lib/seo'
 import './globals.css'
 
-// Three families, one job each: Barlow Condensed for display titles and hero
-// numbers, Chakra Petch for labels and readouts, Titillium Web for body copy.
 const barlow = Barlow_Condensed({
   variable: '--font-barlow',
   subsets: ['latin'],
@@ -31,8 +29,6 @@ const titillium = Titillium_Web({
 })
 
 export const metadata: Metadata = {
-  // Without this, every relative canonical/Open Graph URL below resolves
-  // against localhost and Next logs a build-time warning.
   metadataBase: new URL(SITE_URL),
   title: {
     default: `${SITE_NAME} — Formula 1 history, stats and analytics`,
@@ -59,7 +55,6 @@ export const metadata: Metadata = {
   ],
   category: 'sports',
   alternates: { canonical: absoluteUrl('/') },
-  // Phone-number autolinking mangles lap times and car numbers on iOS Safari.
   formatDetection: { telephone: false, date: false, address: false, email: false },
   robots: {
     index: true,
@@ -114,8 +109,6 @@ export default function RootLayout({
           {children}
         </Container>
         <Footer />
-        {/* The one surface that needs it so far is the favourites cap; the
-            component has always been here, nothing had mounted it. */}
         <Toaster />
       </body>
     </html>

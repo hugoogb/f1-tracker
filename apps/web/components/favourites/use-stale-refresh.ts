@@ -11,7 +11,6 @@ import {
   type FavouriteEntity,
 } from '@/lib/favourites'
 
-/** Kept low so a long list cannot open a socket per favourite at once. */
 const BATCH_SIZE = 6
 
 async function fetchEntity(favourite: Favourite): Promise<FavouriteEntity> {
@@ -25,7 +24,6 @@ async function fetchEntity(favourite: Favourite): Promise<FavouriteEntity> {
       name: `${driver.firstName} ${driver.lastName}`,
       detail: driver.nationality,
       countryCode: driver.countryCode,
-      // A driver never carries a livery: colours belong to constructors.
       color: null,
     }
   }
@@ -53,18 +51,6 @@ async function fetchEntity(favourite: Favourite): Promise<FavouriteEntity> {
   }
 }
 
-/**
- * Re-reads the cached display data of stale favourites from the API.
- *
- * The cache is what makes `/favourites` render without a request per entry, but
- * a constructor can be renamed and a livery can change, so it cannot be left to
- * rot. Only entries older than a day are refetched, in small batches, and every
- * result goes through `Promise.allSettled` — a favourite the API cannot answer
- * for keeps whatever it was showing rather than disappearing.
- *
- * Runs once per mount: a refresh stamps `refreshedAt`, so re-running on the
- * list it just changed would find nothing to do anyway.
- */
 export function useStaleRefresh(items: readonly Favourite[], loaded: boolean): void {
   const started = useRef(false)
 

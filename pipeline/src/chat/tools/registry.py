@@ -85,7 +85,7 @@ def tool_specs() -> list[ToolSpec]:
     """The strict schemas sent to the model. Navigate sorts last because the
     cache breakpoint goes on the final tool, and an order that changed between
     requests would miss the prompt cache."""
-    tools = sorted(TOOLS.values(), key=lambda t: t.name == NAVIGATE)  # stable: navigate last
+    tools = sorted(TOOLS.values(), key=lambda t: t.name == NAVIGATE)
     return [
         {"name": t.name, "description": t.description, "input_schema": strict_schema(t.args)}
         for t in tools
@@ -120,7 +120,6 @@ def run_tool(db: Session, name: str, raw_args: dict) -> str:
     finally:
         db.rollback()
     if len(out) > MAX_TOOL_RESULT_CHARS:
-        # Leave room for the JSON escaping the cut text picks up when re-encoded.
         budget = MAX_TOOL_RESULT_CHARS - 60
         while True:
             wrapped = json.dumps({"truncated": True, "partial": out[:budget]})

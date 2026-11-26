@@ -17,13 +17,6 @@ export interface PickerOption {
   color: string
 }
 
-/**
- * Constructors | Drivers tabs and the two pickers, all driven by the URL.
- *
- * Every change is a navigation to `?type=&a=&b=`, so the page stays a plain
- * server render of its search params and any comparison is a shareable link.
- * Switching tab drops the pair and lets the page default to the top two.
- */
 export function ComparePickers({
   year,
   type,
@@ -53,7 +46,6 @@ export function ComparePickers({
     if (!ref) return
     let nextA = side === 'a' ? ref : a
     let nextB = side === 'b' ? ref : b
-    // Picking the other side's entity swaps them rather than comparing it with itself.
     if (nextA === nextB) {
       nextA = side === 'a' ? ref : b
       nextB = side === 'b' ? ref : a

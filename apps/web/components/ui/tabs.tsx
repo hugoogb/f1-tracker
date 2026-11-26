@@ -21,8 +21,6 @@ const tabsListVariants = cva(
   {
     variants: {
       variant: {
-        // Both read as a telemetry tab strip: labels on a hairline, the active
-        // one underlined in the page accent.
         default: 'border-hairline gap-1 rounded-none border-b bg-transparent p-0',
         line: 'gap-1 bg-transparent',
       },

@@ -126,7 +126,6 @@ def _final_standings[S: (DriverStanding, ConstructorStanding)](
         db.execute(
             select(model)
             .where(model.race_id == last_race.id)
-            # An excluded entry's position is null; it reads after the table.
             .order_by(model.position.asc().nulls_last())
         )
         .scalars()
@@ -342,7 +341,6 @@ def main_constructors(
     for key, counter in counts.items():
         best = max(counter.values())
         tied = [cid for cid, n in counter.items() if n == best]
-        # On a tie, the team they finished the season with.
         chosen[key] = last[key][1] if last[key][1] in tied else sorted(tied)[0]
 
     constructors = {
@@ -367,7 +365,6 @@ def get_season_champions(db: Session) -> list[dict]:
         .all()
     )
 
-    # Filter out ongoing seasons
     completed_races = [r for r in last_races if race_has_happened(r, today)]
     race_ids = [r.id for r in completed_races]
     race_year_map = {r.id: r.season_year for r in completed_races}
@@ -375,7 +372,6 @@ def get_season_champions(db: Session) -> list[dict]:
     if not race_ids:
         return []
 
-    # Bulk-fetch driver champions (position=1) at last races
     driver_standings = (
         db.execute(
             select(DriverStanding).where(
@@ -388,7 +384,6 @@ def get_season_champions(db: Session) -> list[dict]:
     )
     ds_by_race = {ds.race_id: ds for ds in driver_standings}
 
-    # Bulk-fetch constructor champions (position=1) at last races
     constructor_standings = (
         db.execute(
             select(ConstructorStanding).where(
@@ -399,7 +394,6 @@ def get_season_champions(db: Session) -> list[dict]:
         .scalars()
         .all()
     )
-    # A pre-1958 table is a sum of points, not a championship anyone won.
     constructor_standings = [
         cs
         for cs in constructor_standings
@@ -407,7 +401,6 @@ def get_season_champions(db: Session) -> list[dict]:
     ]
     cs_by_race = {cs.race_id: cs for cs in constructor_standings}
 
-    # Bulk-fetch all referenced drivers and constructors
     driver_ids = {ds.driver_id for ds in driver_standings}
     constructor_ids = {cs.constructor_id for cs in constructor_standings}
 
@@ -425,13 +418,10 @@ def get_season_champions(db: Session) -> list[dict]:
         )
         constructor_map = {c.id: c for c in constructors}
 
-    # The champion's own team, which is not necessarily the constructors'
-    # champion (2024: Verstappen at Red Bull, McLaren won the constructors').
     driver_teams = main_constructors(
         db, {(race_year_map[ds.race_id], ds.driver_id) for ds in driver_standings}
     )
 
-    # Build results
     champions = []
     for race in completed_races:
         ds = ds_by_race.get(race.id)

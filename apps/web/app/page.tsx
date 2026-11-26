@@ -28,17 +28,9 @@ import { ExploreGrid, type ExploreTile } from '@/components/home/explore-grid'
 
 import { SITE_DESCRIPTION, SITE_NAME, absoluteUrl } from '@/lib/seo'
 
-// Shorter than the site-wide backstop because this page splits the calendar on
-// the render-time clock (`now` below), not just on the data. An hour is enough:
-// the split only moves when a race starts, and the result itself does not exist
-// until the ingest, which purges this page at once (it reads only `f1-global`
-// and current-season tags). Every regeneration is a function invocation, so
-// five minutes cost twelve times as many for the same page.
 export const revalidate = 3600
 
 export const metadata: Metadata = {
-  // `absolute` opts out of the root layout's `%s | F1 Tracker` template, which
-  // would otherwise render as "F1 Tracker | F1 Tracker".
   title: { absolute: `${SITE_NAME} — Formula 1 history, stats and analytics` },
   description: SITE_DESCRIPTION,
   alternates: { canonical: absoluteUrl('/') },
@@ -70,8 +62,6 @@ export default async function Home() {
     )
   }
 
-  // Settled, not all: a season whose calendar is published before its first
-  // race has no standings yet, and that must not take the whole page down.
   const [
     driverStandingsResponse,
     constructorStandingsResponse,
@@ -106,19 +96,10 @@ export default async function Home() {
         ).catch(() => null)
       : null
 
-  // Reading the clock in a server component is the point here — the lint rule
-  // is aimed at client components, where an impure read would drift between
-  // renders. It does make this page's output time-dependent, which is what the
-  // one-hour `revalidate` above bounds.
   // eslint-disable-next-line react-hooks/purity
   const now = Date.now()
-  // A race counts as done once its start time has passed. Seasons f1db does not
-  // schedule fall back to the calendar date, which is midnight UTC — close
-  // enough to place a race on one side of "now" or the other.
   const startOf = (race: Race) => Date.parse(raceStart(race))
   const nextRace = races.find((r) => startOf(r) > now) ?? null
-  // The last round with a result, not the last date passed: between a race and
-  // the Monday ingest the clock is ahead of the data, and the podium would be empty.
   const lastRaced = [...calendarRounds].reverse().find((r) => r.winner !== null) ?? null
   const lastRace = lastRaced ? (races.find((r) => r.round === lastRaced.round) ?? null) : null
   const nextRound = nextRace ? calendarRounds.find((r) => r.round === nextRace.round) : undefined
@@ -195,7 +176,6 @@ export default async function Home() {
 
   return (
     <div className="space-y-14">
-      {/* Right now */}
       <section aria-labelledby="now-heading" className="space-y-6">
         <FadeIn>
           <div className="space-y-3">
@@ -207,8 +187,6 @@ export default async function Home() {
                 </Tag>
               )}
             </div>
-            {/* The page's topic. The headline below changes with every race, so it
-                cannot be the h1, which is what a search engine reads as the subject. */}
             <h1
               id="now-heading"
               className="font-data text-muted-foreground text-sm leading-normal font-semibold tracking-wider not-italic lg:text-sm"
@@ -295,7 +273,6 @@ export default async function Home() {
         <TitlePermutations drivers={permutations} constructors={constructorPermutations} />
       </section>
 
-      {/* Explore */}
       {tiles.length > 0 && (
         <section aria-labelledby="explore-heading" className="space-y-4">
           <SectionHeader id="explore-heading" eyebrow="Beyond the standings" title="Explore" />
@@ -303,7 +280,6 @@ export default async function Home() {
         </section>
       )}
 
-      {/* The season on the map — the client works out which race is next */}
       {calendarRounds.length > 0 && (
         <section className="space-y-4" aria-labelledby="season-map-heading">
           <div className="flex flex-wrap items-end justify-between gap-3">

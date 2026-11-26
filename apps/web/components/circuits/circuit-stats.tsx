@@ -16,6 +16,8 @@ import { CountryFlag } from '@/components/ui/country-flag'
 import { DriverAvatar } from '@/components/ui/driver-avatar'
 import type { CircuitStats } from '@/lib/types'
 
+const TIMELINE_YEARS = 30
+
 function WinnersTooltip({
   active,
   payload,
@@ -54,9 +56,8 @@ export function CircuitStatsView({ stats }: CircuitStatsViewProps) {
 
   if (!hasWins && !hasPoles && !hasHistory) return null
 
-  // Winners timeline chart data (last 30 years for readability)
   const timelineData = stats.winningHistory
-    .slice(0, 30)
+    .slice(0, TIMELINE_YEARS)
     .reverse()
     .map((w) => ({
       year: w.year,
@@ -68,7 +69,6 @@ export function CircuitStatsView({ stats }: CircuitStatsViewProps) {
 
   return (
     <div className="space-y-6">
-      {/* Most Wins + Most Poles */}
       <div className="grid gap-6 md:grid-cols-2">
         {hasWins && (
           <div>
@@ -139,7 +139,6 @@ export function CircuitStatsView({ stats }: CircuitStatsViewProps) {
         )}
       </div>
 
-      {/* Winners Timeline */}
       {timelineData.length > 1 && (
         <div>
           <h3 className="mb-3 text-sm font-medium">Recent Winners</h3>

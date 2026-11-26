@@ -36,7 +36,6 @@ import {
 } from '@/components/ui/table'
 import { formatPoints } from '@/lib/utils'
 
-/** One selectable era, as `/api/points-systems` describes it. */
 export interface ExplorerEra {
   id: string
   label: string
@@ -44,12 +43,6 @@ export interface ExplorerEra {
 }
 
 interface RecordsExplorerProps {
-  /**
-   * The eras on offer. They are the points-system changes, because those are a
-   * documented fact about the sport rather than an invented boundary — see
-   * `src/scoring.py`. Empty when the API could not be reached at build time,
-   * in which case the era filter simply does not appear.
-   */
   eras: ExplorerEra[]
   driverNationalities: string[]
   constructorNationalities: string[]
@@ -58,10 +51,8 @@ interface RecordsExplorerProps {
 interface Filters {
   entity: RecordsExploreEntity
   category: RecordsExploreCategory
-  /** A points-system id, or '' for all time. */
   era: string
   nationality: string
-  /** Kept as text so the field can be emptied; '' means "let the API decide". */
   minStarts: string
   sort: 'asc' | 'desc'
 }
@@ -80,7 +71,6 @@ const DEFAULT_FILTERS: Filters = {
 const CATEGORIES: {
   value: RecordsExploreCategory
   label: string
-  /** Constructors enter each car separately, so "starts" is not the word. */
   constructorLabel?: string
 }[] = [
   { value: 'wins', label: 'Wins' },
@@ -112,14 +102,6 @@ function formatValue(value: number, format: RecordsExploreResponse['format']): s
   return String(value)
 }
 
-/**
- * Read the filters back out of the address bar.
- *
- * The params come from `useSearchParams` in a Suspense-wrapped client
- * component, which is read on the client only — the `/records` page itself
- * never reads `searchParams`, so the route stays in the full route cache
- * instead of becoming server-rendered.
- */
 function parseFilters(params: URLSearchParams): { filters: Filters; page: number } {
   const entity = params.get('entity') === 'constructor' ? 'constructor' : 'driver'
   const rawCategory = params.get('category') ?? ''
@@ -161,22 +143,6 @@ function FilterField({ label, children }: { label: string; children: React.React
   )
 }
 
-/**
- * The filterable half of `/records`.
- *
- * The opening filters are read once from `useSearchParams`, and every change
- * after that is client state mirrored back into the query string with
- * `history.replaceState`, so a view stays linkable without the page ever
- * reading `searchParams` — which is what keeps the route in the full route
- * cache. `ListFilter` and `Pagination` could not be reused for the controls for
- * the same reason: both drive `router.push`, which would navigate the route on
- * every filter change.
- *
- * Request status is derived, not assigned. Each set of filters has a key, and
- * the component is loading whenever the last settled request's key is not the
- * current one — so there is exactly one state update per request, in the async
- * callback, and none in an effect body.
- */
 export function RecordsExplorer({
   eras,
   driverNationalities,
@@ -239,8 +205,6 @@ export function RecordsExplorer({
     setPage(1)
     setFilters((current) => {
       const next = { ...current, ...patch }
-      // Nationality lists differ per entity, so a stale pick would filter
-      // everything away silently.
       if (patch.entity && patch.entity !== current.entity) next.nationality = ''
       return next
     })

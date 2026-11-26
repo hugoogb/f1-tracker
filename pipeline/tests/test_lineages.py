@@ -48,7 +48,6 @@ def load_f1db(monkeypatch):
 STEWART_CHAIN = chronology(
     ("stewart", 1997, 1999), ("jaguar", 2000, 2004), ("red-bull", 2005, None)
 )
-# Sauber is in its own chain twice, either side of the BMW years.
 SAUBER_CHAIN = chronology(
     ("sauber", 1993, 2005),
     ("bmw-sauber", 2006, 2010),
@@ -73,7 +72,6 @@ def test_ingest_stores_a_chain_in_order(db, constructors, load_f1db):
     assert [r.constructor_id for r in rows] == ["stewart", "jaguar", "red-bull"]
     assert [r.lineage_ref for r in rows] == ["stewart"] * 3
     assert rows[0].year_from == 1997
-    # The member still racing has an open-ended end.
     assert rows[-1].year_to is None
 
 
@@ -151,9 +149,6 @@ def test_ingest_skips_a_member_that_is_not_a_constructor(db, constructors, load_
     assert [r.constructor_id for r in rows] == ["stewart"]
 
 
-# --- endpoint ---------------------------------------------------------------
-
-
 @pytest.fixture()
 def lineage_api_data(db, constructors, load_f1db):
     """Stewart's chain, with a race each for Stewart and Red Bull."""
@@ -222,7 +217,6 @@ def test_lineage_endpoint_returns_the_chain(client, lineage_api_data):
         "jaguar",
         "red-bull",
     ]
-    # The constructor asked about is marked, so the UI can highlight it.
     assert [e["isCurrent"] for e in body["entries"]] == [False, True, False]
 
 
