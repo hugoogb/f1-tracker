@@ -82,6 +82,10 @@ function markIntroSeen(): boolean {
   }
 }
 
+function sameStatuses(a: readonly StopStatus[], b: readonly StopStatus[]): boolean {
+  return a.length === b.length && a.every((status, i) => status === b[i])
+}
+
 function prefersReducedMotion(): boolean {
   return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
 }
@@ -103,17 +107,17 @@ export function SeasonCalendarMap({ year, rounds, variant }: SeasonCalendarMapPr
       ),
     [route.points, minute],
   )
-  const statusKey = progress.statuses.join(',')
+  const [statuses, setStatuses] = useState(progress.statuses)
+  if (!sameStatuses(statuses, progress.statuses)) setStatuses(progress.statuses)
   const stops: CalendarStop[] = useMemo(
     () =>
       route.points.map((p, index) => ({
         index,
         round: p.round,
         latLng: p.latLng,
-        status: progress.statuses[index] ?? 'unknown',
+        status: statuses[index] ?? 'unknown',
       })),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [route.points, statusKey],
+    [route.points, statuses],
   )
 
   const [boot] = useState(() => {

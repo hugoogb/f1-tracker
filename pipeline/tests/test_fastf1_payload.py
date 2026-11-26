@@ -138,8 +138,7 @@ def test_extract_qualifying_bests_keeps_the_fastest_lap_per_segment():
     )
     q2 = pd.DataFrame([_lap("VER", 5, 89.5, 29.0, 30.5, 30.0)])
     q3 = pd.DataFrame([])
-    session = _Session(_Laps(pd.DataFrame([]), segments=[q1, q2, q3]))
-    session.laps = _Laps(pd.concat([q1, q2]), segments=[q1, q2, q3])
+    session = _Session(_Laps(pd.concat([q1, q2]), segments=[q1, q2, q3]))
 
     bests = extract_qualifying_bests(session)
 

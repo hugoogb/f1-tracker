@@ -279,7 +279,7 @@ export default async function SeasonDetailPage({ params }: { params: Promise<{ y
             {progression && progression.rounds.length > 1 && (
               <ChampionshipProgressionChart
                 rounds={progression.rounds}
-                drivers={progression.drivers}
+                entries={progression.drivers}
               />
             )}
             <PointsBarChart standings={driverStandingsData.standings} />

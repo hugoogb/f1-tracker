@@ -261,9 +261,11 @@ def test_a_cancelled_response_still_closes_the_generator_and_writes_the_row(
     from src.api.routers.chat import _stream
 
     release = threading.Event()
+    blocked = threading.Event()
 
     def fake(**kwargs):
         yield TextDelta("a")
+        blocked.set()
         release.wait(5)
         yield TextDelta("b")
         yield usage()
@@ -288,7 +290,7 @@ def test_a_cancelled_response_still_closes_the_generator_and_writes_the_row(
             with anyio.fail_after(5):
                 while not got:
                     await anyio.sleep(0.01)
-            await anyio.sleep(0.05)
+                assert await anyio.to_thread.run_sync(blocked.wait, 5)
             tg.cancel_scope.cancel()
             release.set()
 
